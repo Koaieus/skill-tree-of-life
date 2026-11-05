@@ -1,46 +1,11 @@
 @tool
 class_name GimbalWorld
 extends Node2D
-## THE gimbal substrate (#804, shape A2): every 3D gimbal rig lives in ONE
-## World3D drawn by two SubViewports, each composited once into the graph
-## canvas — the back half just UNDER the node disks, the front half at
-## ZLayers.GIMBAL (over the fog-lifted disks, under spell VFX / HUD; it fogs
-## itself per pixel off the shared vision field, `gimbal_front_fog.gdshader`,
-## since it sits above FogOverlay). The real 2D disk
-## sits between the halves: hidden exactly where a disk is, visible everywhere
-## else, and opaque rings order correctly because a clip plane does not care
-## about draw order.
-##
-## Contract:
-## - 1 3D unit = 1 world px; 2D +y down = 3D -y; both ortho cameras look down
-##   -Z from CAMERA_Z, so a rig at 3D (x, -y, 0) sits on world px (x, y).
-## - `WorldBack` owns the World3D (rigs, light, environment exist once);
-##   `WorldFront` shares it. The cameras split the world at the ring plane by
-##   near/far ([method clip_planes]).
-## - Camera sync is ONE read, four consumers: on `RenderingServer.frame_pre_draw`
-##   the root viewport's canvas transform x stretch transform (what is actually
-##   drawn, after Camera2D smoothing/limits) feeds both cameras and both
-##   composites via [method map_view]. Zero frame lag by construction:
-##   `frame_pre_draw` fires after every `_process` and before the draw, and
-##   node transforms reach the RenderingServer synchronously.
-## - Both SubViewports are the root viewport's PIXEL size (window px, not the
-##   stretch-logical size), so fill cost is the real thing and texels are 1:1;
-##   both are 4x MSAA.
-## - No glow inside: `project.godot`'s `default_environment` (the game's bloom
-##   env) would otherwise apply to this own world too, so the scene pins a
-##   plain no-glow Environment. HDR values ride the RGBA16F targets
-##   (`use_hdr_2d`) into the root viewport's single bloom pass.
-## - Idle: both render targets are DISABLED while no rig is on screen
-##   ([method visible_rig_count]). Each holder carries a
-##   VisibleOnScreenNotifier3D; but a sleeping viewport culls nothing, so its
-##   notifiers can never report "entered" — while asleep, [method _sync_camera]
-##   wakes the world on a cheap sphere-vs-view test and the notifiers take over.
-## - One world per viewport: authored beside the Graph in `game_root.tscn` and
-##   found by group ([method acquire]).
-## - Editor: `@tool` so an editor-hosted preview (the sandbox Node Visuals
-##   panel) spins real rigs; only an [method acquire]-spawned world outside the
-##   edited scene runs ([method is_live_for]) — an authored one, or anything in
-##   the open .tscn, stays inert.
+## THE gimbal substrate: every 3D gimbal rig lives in ONE World3D drawn by two
+## SubViewports (back half under the node disks, front half at ZLayers.GIMBAL),
+## each composited once into the graph canvas. Camera sync is one read on
+## `frame_pre_draw`; no glow inside; render targets sleep while no rig is on
+## screen. See docs/domain/gimbal-3d.md "Substrate".
 
 const ZLayers := preload("res://ui/z_layers.gd")
 const SCENE := "res://skill_node/visuals/gimbal_3d/gimbal_world.tscn"

@@ -1,44 +1,12 @@
 class_name BladeDefenderZones
 extends RefCounted
 
-## The defenders one swing can meet, found ONCE by the physics engine (#811) —
-## or, for one physics frame after a collision-affecting write, by a graph
-## walk instead (#1136's dirty-frame fallback, [method mark_broadphase_dirty]).
-##
-## [b]One question, one query.[/b] "Which nodes near this swing carry
-## `swing_drag` or `deflection`?" is answered by the physics layer bits
-## [constant SkillNode.DRAG_COLLISION_LAYER] /
-## [constant SkillNode.DEFLECT_COLLISION_LAYER]: one [method
-## PhysicsDirectSpaceState2D.intersect_shape] against a mask of both bits, never
-## a walk of every [SkillNode] (a rest-pose radius cull also undershoots a
-## whipped blade's real reach).
-##
-## [b]Immutable, and that is what makes it shareable.[/b] Nothing here is sim
-## state: [BladeObstacleField] wraps an instance of this and owns every mutable
-## accumulator, [BladeSwingClock] owns the drag it has banked. So one instance
-## can be built per PIVOT and handed to all of that pivot's rollout proposals
-## ([AiBladeRollout] evaluates up to 192, concurrently, in
-## [WorkerThreadPool] tasks) without either half racing the other — the query
-## runs on the main thread, the solver reads plain arrays.
-##
-## [b]Two kinds, one zone.[/b] A node that carries both stats is ONE entry that
-## is both a wall and a plate, never two — the latch that stops a zone paying
-## its drag twice keys on the zone index, so a double-counted node would double
-## its wall. The kinds are asymmetric on purpose: `deflection` is a BOOL stat
-## (presence only, §805), `swing_drag` is a magnitude.
-##
-## [b]Order is by [member SkillNode.stable_id], and that is a contract.[/b]
-## [method PhysicsDirectSpaceState2D.intersect_shape] returns colliders in
-## whatever order the broadphase found them — undefined, and not reproducible
-## across machines. Two first-wins tie-breaks read this order ([member
-## BladeSwingClock._warping]'s seeding, and which zone arms a break first in
-## [method BladeObstacleField.end_substep]), so a mirror peer redrawing the
-## swing must see the same one. The old walks were implicitly scene-child
-## ordered; this is explicit. See `test/unit/attack/test_attack_determinism.gd`.
-
-## How much longer than its summed rest edge lengths a whipped blade is assumed
-## to be able to get. XPBD's distance constraints are soft, so a fast sweep
-## stretches the chain a few percent past rest before they pull it back.
+## The defenders one swing can meet, found ONCE by a single physics-engine
+## query on the drag/deflect collision layer bits (a graph walk only for the
+## dirty frame after a collision-affecting write). Immutable, so one instance is
+## shared by all of a pivot's rollouts. A node carrying both stats is ONE zone.
+## Zones are ordered by [member SkillNode.stable_id]: a contract, two tie-breaks
+## read it. See docs/domain/melee-blade-sim.md "One defender field".
 ##
 ## [b]This is a coverage margin, not a bound anyone relies on being tight.[/b]
 ## With the predicate on the collision mask, widening the query costs only the

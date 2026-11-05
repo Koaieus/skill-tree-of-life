@@ -3,37 +3,11 @@ class_name HealthBar
 extends ProgressBar
 
 ## Node combat health bar — shows the SkillNode's per-node HP pool (max vs
-## current) via [method SkillNode.node_board]. Wires in _ready; visibility is
-## automatic: hidden when unallocated or at full HP, fades in on hover or damage.
-##
-## [b]Query + subscription while shown (#660).[/b] The live subscriptions — the
-## pool's `current_changed`/`value_changed` and the owner's
-## [signal Entity.node_health_cap_changed] — are scoped into a [SubBag] that is
-## bound only while the bar is actually on screen and released the moment it
-## fades out. The bar is on screen iff the node is damaged or hovered, so the
-## entity-level cap signal carries O(visible) listeners rather than O(owned):
-## a level's undamaged, unhovered nodes hold no subscription at all and do no
-## per-node work when their owner's CON moves.
-##
-## What stays always-on is deliberately only the free, node-LOCAL triggers that
-## decide whether to sprout: `owner_changed`, hover, and
-## [signal SkillNode.damaged]. Those cost one listener on the node's own signals
-## and never fan out from the entity — re-adding a per-node subscription to the
-## entity board as a convenience is precisely what #660 deleted.
-##
-## The no-pop guarantee is [method SubBag.now]: the sprout connects and paints in
-## one step, snapping `value`/`max_value` to the pool's live state *while alpha
-## is still 0*, before the fade-in starts. So a bar that spent the last minute
-## unsubscribed and stale can never render that stale fill — its first visible
-## frame is already reconciled. Releasing is symmetric and invisible: `clear()`
-## touches no drawing state, and the fade-out and value tweens already in flight
-## are animations, not subscriptions, so they run to completion unaffected.
-##
-## [b]@tool[/b] so the editor-hosted Spell Playground shows live HP. That means
-## `_ready` runs while `skill_node.tscn` itself is open — every property it
-## writes there is a serialization candidate, so `modulate` and `value` are
-## baked in the scene to match what `_ready` sets (see the @tool scene-baking
-## gotcha in `.claude/rules/godot-workflow.md`).
+## current). Hidden when unallocated or at full HP, fades in on hover or damage.
+## The pool/owner subscriptions are bound in a [SubBag] only while the bar is on
+## screen ([method SubBag.now] repaints before the fade-in, so it never shows a
+## stale fill); always-on listeners stay node-local. `@tool`, so `modulate` and
+## `value` are baked in the scene. See docs/domain/node-hp.md "HealthBar".
 
 const _FADE_IN_DURATION  := 0.12
 const _FADE_OUT_DURATION := 0.45

@@ -58,3 +58,36 @@ the board; the house rules for where a value lives are in
 
 `sunder` works **inside** the defender's armor bins (a −1 per stack, can go negative). `armor_pierce` works **on its output** (ADR 0065): the hit carries the attacker's pierce as `FoldTerms` (`DamageInstance.armor_pierce`, stamped by its producer via `Mitigation.pierce_terms` off the attacking node), and `Mitigation.effective_armor` folds it over the defender's *final* armor only when that is > 0, clamped at 0 and floored to whole; the `min_damage_taken` floor still applies last. Fixture: defender 4 / +50% / +2 = 8 → −3 ADD_BASE lands 5, −50% INC 4, ×0.5 4, SET 0 0. Producers opt out (`uses_board_pierce`) or add their own (`armor_pierce_modifiers`): `DamageEffect`, `PairedDamageEffect`, `AmmoType`, and the blade via `SwingContext`.
 
+
+## Mitigation: the formula and the negative floor
+
+`Mitigation.apply` (`attack/formulas/mitigation.gd`) runs inside
+`SkillNode.take_damage` and turns "5 PHYSICAL" into the effective post-armor
+number that subtracts HP.
+
+- `final = max(min_damage_taken, raw - effective_armor)`, only when `raw > 0`
+  (zero incoming damage stays zero; the floor triggers on a real hit). TRUE
+  damage bypasses everything.
+- **Armor pierce** is the attacker's pipeline over the defender's final armor
+  (`DamageInstance.armor_pierce`, stamped by `pierce_terms`): folded only when
+  armor > 0, clamped at 0 (pierce never makes a hit bigger; breaking armor below
+  0 is `sunder`'s job), floored to whole once, never merged into the defender's
+  armor bins.
+- **Both stats are read node-locally** via `SkillNode.get_local_value`, which
+  merges the node's `node_board` bins with the owner's board through one
+  `ModifierBins.compute`, so a node-scoped `armor` modifier (a `bunker_addon`, a
+  core-class aura) reaches the formula. Reading the entity board directly would
+  silently discard every node-local defensive modifier while the HUD displayed
+  them.
+- **The floor is a floor, not a cap:** negative `armor` pushes damage above raw,
+  but only becomes visible once `raw - armor > min_damage_taken` (raw 1 / armor
+  -1 / floor 3 still takes 3).
+- **A negative net `min_damage_taken` makes a glancing hit heal the defender, on
+  purpose.** `compute` returns the negative number as-is and
+  `NodeCombat.take_damage` reclassifies the landing to `HitInstance.Kind.HEAL`.
+  `bunker_addon.tscn` authors `-5`, affirmed by the owner 2026-09-04: "the whole
+  design of sprinkling `-min_damage_taken` modifiers on the board is to allow to
+  go <0 and actually heal from having sufficient armor / tanking low hits
+  heals". Anything that clamps this at zero deletes a mechanic; anything that
+  drops such a landing from a render pass is the bug fixed in
+  `ArrowVolleyCoordinator`.

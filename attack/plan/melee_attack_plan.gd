@@ -25,7 +25,7 @@ var source: SkillNode = null
 ## reachable from the pivot through this list + the pivot via graph edges.
 var blade_nodes: Array[SkillNode] = []
 
-## AI-ONLY, TRANSIENT (#823). Members [method build_blade_state] should weld
+## AI-ONLY, TRANSIENT. Members [method build_blade_state] should weld
 ## as if they carried a real [ClampAddon], with NO board mutation — a proposal
 ## the rollout is scoring, not a real attached addon. Read by
 ## [method build_blade_state] right after the real addon-dispatch loop, so
@@ -56,7 +56,7 @@ var swing_cw: bool = false: set = _set_swing_cw
 # this plan calls mirror_add / mirror_remove directly.
 var _blade_mirror: GraphMirror = null
 
-## Timed gate fuses (#1209): gate -> t, a fraction of the hot window
+## Timed gate fuses: gate -> t, a fraction of the hot window
 ## ([method hot_window_duration]) in 0..1. Plan INPUT, resolved with the swing
 ## on the shadow world — never live input during the replay
 ## (docs/domain/attack-timeline.md "The invariant"). Empty = unarmed. Only
@@ -136,7 +136,7 @@ func hot_window_duration() -> float:
 	return SWING_DURATION
 
 
-## The wind-up hangs off the source (#1048) — empty until one is armed.
+## The wind-up hangs off the source — empty until one is armed.
 func windup_anchors(_outcome: AttackOutcome) -> Array[SkillNode]:
 	var out: Array[SkillNode] = []
 	if source != null and is_instance_valid(source):
@@ -155,7 +155,7 @@ func _notification(what: int) -> void:
 	if _blade_mirror != null:
 		_blade_mirror.free()
 		_blade_mirror = null
-	# #821: a sliced prediction holds a CombatWorld shadow open across frames,
+	# A sliced prediction holds a CombatWorld shadow open across frames,
 	# and that shadow holds the reference cycles `EntityCombat.free_shadow`
 	# documents — so dying mid-slice has to release it here.
 	#
@@ -166,7 +166,7 @@ func _notification(what: int) -> void:
 	if _pending_world != null:
 		_pending_world.free_shadow()
 		_pending_world = null
-	# #796: same trap, same fix, for a mirror's committed-swing replay resolve
+	# Same trap, same fix, for a mirror's committed-swing replay resolve
 	# — it also holds a shadow open across frames. INLINED for the same
 	# PREDELETE reason as above; not a call to `advance_replay_resolve`.
 	_replay_run = null
@@ -203,7 +203,7 @@ func to_dict(graph: Graph) -> Dictionary:
 	d["blade"] = ids
 	d["blade_target"] = blade_target
 	d["swing_cw"] = swing_cw
-	# Only when armed, so an unfused plan's dict is unchanged (#1209).
+	# Only when armed, so an unfused plan's dict is unchanged.
 	if not _gate_fuses.is_empty() and graph != null:
 		var fuses: Array = []
 		for gate in _gate_fuses:
@@ -317,7 +317,7 @@ func toggle_member(node: SkillNode) -> bool:
 	return true
 
 
-# ── Reform (#466) ──────────────────────────────────────────────────────────
+# ── Reform ──────────────────────────────────────────────────────────
 
 ## Whether `members` — in THIS order — would rebuild a legal blade on `pivot`
 ## for `attacker`. A pure simulation of the gates a click sequence passes:
@@ -331,7 +331,7 @@ func toggle_member(node: SkillNode) -> bool:
 ## question must never be able to destroy a live plan's temp upgrades.
 ##
 ## [b]Deliberately not a topology hash[/b] of the owned subgraph, which is what
-## #466 originally sketched. Such a hash has to tolerate an allocation
+## was once sketched. Such a hash has to tolerate an allocation
 ## SUPERSET — the common case, since staking grows territory without
 ## invalidating an old blade — and a superset-tolerant hash is ill-defined.
 ## Replaying the gates answers exactly the question asked, is exact rather than
@@ -384,7 +384,7 @@ static func can_reform_selection(attacker: Entity, pivot: SkillNode,
 ## [b]Never [method _try_select_path].[/b] That is the click path's mass-select,
 ## and on a member that has drifted out of adjacency it silently pulls in a
 ## shortest path to reach it — reporting success while producing a DIFFERENT,
-## larger blade. #466 asks for the opposite: grey out rather than half-reform.
+## larger blade. This moves for the opposite: grey out rather than half-reform.
 ## The size check below is what keeps that true if this ever gets rewired.
 ##
 ## The stored order is authoring order, which was chain-valid when captured, so
@@ -433,7 +433,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.ORIGIN
 	if blade_nodes.has(node):
 		return HighlightRole.MEMBER
-	# #782: what the cached prediction says will bite back. A pure dictionary
+	# What the cached prediction says will bite back. A pure dictionary
 	# read — never a rebuild; see [member _prediction].
 	if _predicted_defenders.has(node):
 		return HighlightRole.PREDICTED_THREAT
@@ -779,7 +779,7 @@ func placeable_temp_kinds(node: SkillNode, offered: Array[PackedScene]) -> Array
 	return out
 
 
-## Click-to-toggle entry point for the UI (#406): if `node` already carries
+## Click-to-toggle entry point for the UI: if `node` already carries
 ## this exact temp upgrade, refund it (same shape as a blade-member toggle);
 ## otherwise try to apply a new one. Returns true if anything changed.
 func toggle_temp_upgrade(node: SkillNode, scene: PackedScene) -> bool:
@@ -916,12 +916,12 @@ func _can_be_blade(node: SkillNode) -> bool:
 ## trajectory / hit events that produced [member last_events]'s owning
 ## [AttackOutcome]. [MeleePreview] replays THESE (never a fresh rescan) so the
 ## live swing's animation can't drift from the damage BattleSystem already
-## applied synchronously off [method resolve]'s outcome (#474): a rescan taken
+## applied synchronously off [method resolve]'s outcome: a rescan taken
 ## after the depletion cascade would rebuild [method collect_target_excludes]
 ## against the post-cascade world and re-derive damage from a fresh blade
 ## state, drifting from what [OutcomeApplier] actually landed — a bug about
 ## replaying a finished mutation, not a reason to freeze the LANDING gate
-## itself. #502 moves that gate to consumption time deliberately; see
+## itself. This moves that gate to consumption time deliberately; see
 ## [BladePopResolver.LiveGate] and docs/domain/attack-timeline.md.
 var last_trajectory: BladeTrajectory = null
 var last_events: Array[BladeHitEvent] = []
@@ -929,7 +929,7 @@ var last_events: Array[BladeHitEvent] = []
 ## under the name its readers ([MeleePreview], which draws the dead vertices)
 ## have always used. Complete by the time [method resolve_against] returns,
 ## because that method lands the outcome before it returns; there is no longer a
-## separate pre-swing estimate for this to disagree with (#536).
+## separate pre-swing estimate for this to disagree with.
 var last_pops: BladePopResolver.Result = null
 ## The gate driving the swing — [method BladeDamageInstance.land_on] calls
 ## [method BladePopResolver.LiveGate.admit] on this exact instance, once per
@@ -939,8 +939,8 @@ var last_pops: BladePopResolver.Result = null
 ## it has.
 ##
 ## [b]It is complete on return, but the pop CUE still does not come from
-## here.[/b] Under #536 this gate runs against the shadow world the authority
-## computes on, so nothing it does may announce itself (#504's requirement that
+## here.[/b] this gate runs against the shadow world the authority
+## computes on, so nothing it does may announce itself (the requirement that
 ## the cue ride the mutation clock is what that would break). The pop is
 ## recorded onto the hit and emitted by [method OutcomeApplier.land_one] on the
 ## live replay — see [member HitInstance.popped_vertex]. Do not reintroduce an
@@ -960,12 +960,12 @@ var last_live_gate: BladePopResolver.LiveGate = null
 ## schedule entry, a landing beat and a line in the [AttackRecord]. That is a
 ## change to the COUNTING RULE with no gameplay content behind it, which is the
 ## thing `docs/design/combat_system.md` says to leave alone. Edge contacts live
-## on in [member last_events] for the visual playback and for #781's bunker
+## on in [member last_events] for the visual playback and for the bunker
 ## break. The reveal can show [member HitInstance.effective_amount] (set by
 ## [method SkillNode.take_damage] when the real applier landed it) instead of
 ## re-deriving damage from a freshly rebuilt blade state, which drifts from
 ## what actually landed. Every [HitInstance] kind the swing produced — a
-## damage per vertex contact, and since #951 a rider [StatusInstance] behind a
+## damage per vertex contact, and a rider [StatusInstance] behind a
 ## toxic vertex's; readers that want damage filter with `is DamageInstance`
 ## ([method AttackOutcome.damage_hits]'s shape).
 var last_hits: Array[HitInstance] = []
@@ -973,7 +973,7 @@ var last_hits: Array[HitInstance] = []
 
 ## The prediction [MeleePreview] draws and [method get_node_role] marks off:
 ## this exact selection, resolved once against a shadow world, cached until the
-## selection changes (#782). Null when nothing has asked for one yet, when the
+## selection changes. Null when nothing has asked for one yet, when the
 ## plan is invalid, or from the moment the selection moves until the next
 ## [method refresh_prediction].
 ##
@@ -989,12 +989,12 @@ var last_hits: Array[HitInstance] = []
 ## `is_valid()`. A machine with no preview mounted pays nothing.
 var _prediction: SwingResult = null
 ## How many times [method refresh_prediction] has actually run a resolve, for
-## the whole life of this plan. The acceptance-5 counter (#782): N preview
+## the whole life of this plan. The acceptance-5 counter: N preview
 ## cycles on an unchanged selection must leave this at 1.
 var prediction_runs: int = 0
 ## The slice run in flight, or null. Non-null exactly between the first
 ## [method advance_prediction] of a selection and the one that completes it or
-## the [method _invalidate_prediction] that cancels it (#821).
+## the [method _invalidate_prediction] that cancels it.
 var _pending_prediction: SwingResolve = null
 ## The shadow world [member _pending_prediction] is resolving against, held
 ## open across frames and freed on completion or cancellation. Never the live
@@ -1004,7 +1004,7 @@ var _pending_world: CombatWorld = null
 ## as a set — read by [method get_node_role] with no work of its own.
 var _predicted_defenders: Dictionary[SkillNode, bool] = {}
 
-## #796: a MIRROR's committed-swing draw-only resim, in flight, or null. Not
+## A MIRROR's committed-swing draw-only resim, in flight, or null. Not
 ## the aim-time [member _pending_prediction] — that one runs before a commit
 ## and is cancellable; this one runs AFTER a commit, for a swing that is
 ## already decided ([AttackRecord] already applied elsewhere per ADR 0002), so
@@ -1054,7 +1054,7 @@ func refresh_prediction() -> void:
 ## A budget of 0 or less means "the whole remaining swing", which is
 ## [method refresh_prediction].
 ##
-## [b]#821: this is the aim-time path.[/b] A melee resolve is a ~72 sample
+## [b]This is the aim-time path.[/b] A melee resolve is a ~72 sample
 ## physics scan and it used to run whole, synchronously, on every node click
 ## while aiming — a multi-frame stall on the one input the player is watching
 ## for an answer to. It is draw-only and nothing replays it, so it carries none
@@ -1063,8 +1063,8 @@ func refresh_prediction() -> void:
 ## partial arc it has, which is the picture the player wants ("roughly where
 ## does this go") sooner than a finished one would arrive.
 ##
-## Threading it was the rejected alternative — [WorkerThreadPool] is #796's
-## answer for the AUTHORITATIVE resolve, which has #559's wind-up to hide
+## Threading it was the rejected alternative — [WorkerThreadPool] is the
+## answer for the AUTHORITATIVE resolve, which has the wind-up to hide
 ## behind. Here there is no wind-up, and a partial picture beats a whole one
 ## that arrives later.
 ##
@@ -1082,7 +1082,7 @@ func advance_prediction(max_steps: int) -> bool:
 		_pending_world = CombatWorld.shadow()
 		_pending_prediction = _new_run(swing_context(_pending_world))
 		# Counted per RUN, not per slice: one logical prediction per selection is
-		# what this number has always meant (#782 acceptance 5, #821 acceptance 4).
+		# what this number has always meant.
 		prediction_runs += 1
 	if not _pending_prediction.advance(max_steps):
 		return false
@@ -1157,7 +1157,7 @@ func _notify_selection_changed() -> void:
 	state_changed.emit()
 
 
-## #796: start a MIRROR's committed-swing draw-only resim, stepped across
+## Start a MIRROR's committed-swing draw-only resim, stepped across
 ## frames rather than baked whole before [method MeleePreview.launch] can even
 ## begin. Per ADR 0002 every hit, pop and damage number this swing will show
 ## already comes off the confirmed [AttackRecord], replayed on the real world
@@ -1238,13 +1238,13 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 
 
 ## Everything a [SwingResolve] run of THIS selection consumes, as one value
-## (#1003) — the plan is one builder of a [SwingContext], never the thing the
+## the plan is one builder of a [SwingContext], never the thing the
 ## resolver holds. An invalid plan yields a context with a null `state`, which
 ## the resolver treats as "done before the first step": the guard order
 ## ([method is_valid] before [method build_blade_state]) is the one the
 ## resolver used to run inline.
 ##
-## [param substeps] / [param enable_length_scaling] are #796's draw-only
+## [param substeps] / [param enable_length_scaling] are the draw-only
 ## fidelity knobs — only [method begin_replay_resolve] ever lowers them.
 func swing_context(world: CombatWorld,
 		substeps: int = BladeSim.DEFAULT_SUBSTEPS,
@@ -1278,7 +1278,7 @@ func swing_context(world: CombatWorld,
 func _resolve_swing(world: CombatWorld) -> SwingResult:
 	var run := _new_run(swing_context(world))
 	# Unbounded: one optimistic bake per severance, exactly the loop this method
-	# ran inline before #821 hoisted it into [SwingResolve]. The slice budget is
+	# is the loop [SwingResolve] now holds. The slice budget is
 	# the ONLY thing the preview varies — see that class for why there is not a
 	# second chunked path.
 	while not run.advance(0):
@@ -1289,7 +1289,7 @@ func _resolve_swing(world: CombatWorld) -> SwingResult:
 ## The one place a [SwingResolve] of THIS plan is minted — the prediction, the
 ## committed resolve and the peer's draw-only replay all arm the same fuses.
 ## A fuse whose gate is no longer [method fusable_gates] (closed, frozen, or
-## outside the blade since it was armed) is dropped here, silently: #1209
+## outside the blade since it was armed) is dropped here, silently:
 ## acceptance 4, a no-op rather than an error.
 func _new_run(ctx: SwingContext) -> SwingResolve:
 	var run := SwingResolve.new(ctx)
@@ -1323,7 +1323,7 @@ static func _blade_edge_of(state: BladeState, selection: Array[SkillNode], gate:
 ## (see C8, the three-way construction duplication). Kept public for callers
 ## within this plan.
 ##
-## [param zones] is the defender set to hang a [BladeObstacleField] off (#811).
+## [param zones] is the defender set to hang a [BladeObstacleField] off.
 ## Null means "find them yourself" — one [method BladeDefenderZones.query] at
 ## this blade's own whip bound, which is what a single swing wants. A caller
 ## evaluating MANY blades at one pivot passes a prebuilt, shared set instead
@@ -1354,14 +1354,14 @@ func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 	# The per-vertex stat reads + addon dispatch — the same fill the visual
 	# blade uses, so preview / AI scoring / resolve agree on every vertex.
 	vertex_fill.fill(blade_state, selection)
-	# #823: phantom clamps the AI rollout is SCORING, not real attached
+	# Phantom clamps the AI rollout is SCORING, not real attached
 	# addons — same static ClampAddon uses for a real one
 	# (ClampAddon.apply_to_blade delegates to this exact function), applied
 	# after real addons so a phantom never shadows a real weld's constraint.
 	for node in ai_phantom_clamp_nodes:
 		if sn_to_idx.has(node):
 			ClampAddon.append_weld_braces(blade_state, sn_to_idx[node])
-	# The merged defender field (#780 walls + #781 plates, one query since #811)
+	# The merged defender field (walls + plates, one query)
 	# — attached here so every consumer of this state (the resolve, the AI
 	# rollout) meets the same defenders. Null for the ordinary swing.
 	attach_defender_field(blade_state, zones if zones != null else build_defender_zones(blade_state))
@@ -1380,7 +1380,7 @@ static func attach_defender_field(blade_state: BladeState, zones: BladeDefenderZ
 ## [SkillNode, SkillNode] pairs over the live graph, restricted to the
 ## current selection — i.e. the induced subgraph of pivot + members.
 ##
-## #809: walks [method Graph.get_neighbours] (cached adjacency, O(degree))
+## Walks [method Graph.get_neighbours] (cached adjacency, O(degree))
 ## over the selection instead of scanning every [Edge] in the level
 ## (O(total graph)) — the selection is at most `blade_size + 1` nodes, so this
 ## is O(selection x degree) instead of O(edges).
@@ -1393,7 +1393,7 @@ static func attach_defender_field(blade_state: BladeState, zones: BladeDefenderZ
 ## constraint list, `AttackPlan`'s wire payload) treats this as a set of
 ## pairs, never a fixed sequence, so a stable-but-different order is a
 ## behavioural no-op — see `.claude/rules/degree.md`'s neighbouring guidance
-## and the #809 acceptance note on iteration order.
+## and the note on iteration order.
 ##
 ## Self-loops are preserved at their true multiplicity: [method
 ## Graph.get_neighbours] lists a self-looped node as its own neighbour TWICE
@@ -1429,7 +1429,7 @@ func get_induced_edges() -> Array:
 
 
 ## Public so callers can run their own [method BladeSim.simulate] pass over
-## the same drivers this plan's own [method resolve] uses (#378 slice C: the
+## the same drivers this plan's own [method resolve] uses (the
 ## AI's coarse-fidelity rollout re-simulates candidate blades before scanning
 ## only the survivors at full fidelity).
 func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
@@ -1453,12 +1453,12 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 	return drivers
 
 
-## Ask the physics engine which defenders this swing can meet (#811).
+## Ask the physics engine which defenders this swing can meet.
 ##
-## [b]One query replaces two O(map) walks.[/b] #780's `build_swing_clock` and
-## #781's `build_obstacle_field` each walked all ~800 [SkillNode]s and resolved
+## [b]One query replaces two O(map) walks.[/b] the `build_swing_clock` and
+## the `build_obstacle_field` each walked all ~800 [SkillNode]s and resolved
 ## a stat on every one — 1744 us and 1701 us on `first_level`, measured with
-## ZERO defenders present, i.e. entirely the cost of asking. Since #810 the
+## ZERO defenders present, i.e. entirely the cost of asking. the
 ## predicate is a collision layer bit, so the broadphase answers it: mask =
 ## `swing_drag` bit | `deflection` bit, and the result is O(defenders in range).
 ##
@@ -1470,12 +1470,12 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 ## [method _resolve_swing].
 ##
 ## [b]Queried once; FILTERED live.[/b] The set is never re-queried mid-swing —
-## one `intersect_shape` per swing is the whole point of #811, and a defender
+## one `intersect_shape` per swing is the whole point of the single-query field, and a defender
 ## cannot join a swing it was out of reach of at t=0. But it no longer survives
-## its own destruction either: #867 retires a zone whose node the swing itself
+## its own destruction either: the swing retires a zone whose node the swing itself
 ## disowned, at the re-bake boundary the severance already creates
 ## ([method BladeObstacleField.retire_disowned_defenders]). So "unallocated
-## nodes do not defend" (#864) holds at every sample, not only the first.
+## nodes do not defend" holds at every sample, not only the first.
 ##
 ## The blade side is excluded by RID via [method collect_target_excludes] — the
 ## same list [BladeHitScan] gets, so "a node I or an ally own never defends
@@ -1512,7 +1512,7 @@ func query_defender_zones(center: Vector2, radius: float) -> BladeDefenderZones:
 ## — swinging a floppy blade straightens it. A 5-node W blade whose rest reach
 ## is 432 px was measured whipping out to 714.6 px, and every fortified or
 ## bunkered node in that annulus silently failed to drag or deflect while
-## [BladeHitScan], which senses off the live pose, damaged them normally (#808).
+## [BladeHitScan], which senses off the live pose, damaged them normally.
 ##
 ## [b]The chain-length bound.[/b] BFS from the pivot over the blade's own
 ## induced subgraph — at most `blade_size + 1` vertices — summing rest edge
@@ -1525,7 +1525,7 @@ func query_defender_zones(center: Vector2, radius: float) -> BladeDefenderZones:
 ## Deliberately generous, and never to be re-tightened: with the predicate on
 ## the collision mask, a wider radius costs the solver a few float compares per
 ## substep and costs the QUERY nothing, while a narrower one silently drops
-## defenders. A severed fragment can coast outside even this — #808's "coasting
+## defenders. A severed fragment can coast outside even this — the "coasting
 ## blade parts can go anywhere" — and is covered iff the radius happens to
 ## cover it; that is an accepted, one-directional degradation, not a bound
 ## anyone relies on.
@@ -1575,46 +1575,11 @@ func _set_swing_cw(value: bool) -> void:
 	_notify_selection_changed()
 
 
-## RIDs to feed BladeHitScan as the physics-query exclude list — covers only
-## the blade members themselves (don't hit their own subgraph) and nodes
-## owned by the attacker. #502: unallocated nodes are NOT excluded here
-## anymore — the scan now sees them too, so a swing sweeping across ground
-## that just died mid-cascade produces the same events it would against
-## ground that was never allocated (no visible difference, per contract).
-## The live ownership/allocation gate moves to consumption time; see
-## [BladeDamageInstance.land_on] / [BladePopResolver.LiveGate].
-##
-## #809: starts from the pre-mirrored owned subgraphs — [member
-## Entity.navigator]'s own [method GraphMirror.get_mirrored_nodes] (MINE) plus
-## every ALLIED entity's own navigator (ALLY) — instead of filtering all of
-## [method Graph.get_skill_nodes] through a per-node ownership predicate.
-## `self_set` (the selection itself) is still unioned in explicitly: a blade
-## member is always MINE by construction ([method _can_be_blade] gates
-## selection on `owned_by == attacker`), so this is redundant on every path
-## that exists today, but it keeps the exact "self_set OR MINE OR ALLY"
-## membership rather than silently narrowing it.
-##
-## [b]This is now the ONE answer to "is that node on my side".[/b] Since #811
-## it is also the defender query's exclude list
-## ([method build_defender_zones]) — the deleted `_is_blade_side` was a second
-## implementation of the same membership, and a blade that bogged down on its
-## own wall would have been the symptom of the two drifting apart (#384's
-## vocabulary throughout: ownership bits, never `owned_by == attacker`).
-##
-## Allies are enumerated via [constant Entity.GROUP] (the same whole-tree
-## roll call [TurnManager] / [VictorySystem] / [GameRoot] already use), not
-## [member Graph.entities_container] — a plan's `attacker` isn't guaranteed to
-## sit under that container (fixtures parent entities straight onto the
-## graph), while every live [Entity] is unconditionally in its group from
-## [method Entity._ready].
-##
-## [b]Order changed on purpose.[/b] The old scan walked [method
-## Graph.get_skill_nodes]'s child order; [method GraphMirror.get_mirrored_nodes]
-## is explicit that its own order is dictionary-iteration, not stable — so
-## this sorts the union by [member SkillNode.stable_id] before minting RIDs.
-## Physics-server exclude lists are unordered by nature (see [method
-## BladeHitScan.Sweep]'s call site), so this is a determinism/legibility
-## choice, not a correctness one; #809's acceptance note on iteration order.
+## RIDs fed to BladeHitScan as the physics-query exclude list: the blade
+## selection plus the attacker's own and every ALLIED entity's mirrored nodes,
+## sorted by `stable_id`. Unallocated nodes are NOT excluded (the live gate runs
+## at land time). The one answer to "is that node on my side"; the defender
+## query reuses it. See docs/domain/melee-blade-internals.md "collect_target_excludes".
 func collect_target_excludes() -> Array[RID]:
 	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:

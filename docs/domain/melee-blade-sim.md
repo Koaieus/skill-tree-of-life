@@ -334,6 +334,28 @@ parallel-array table (centres, radii, drag magnitudes, deflect flags, source
 nodes). `BladeObstacleField` wraps one and owns every mutable accumulator;
 `BladeSwingClock` owns the banked drag.
 
+- **One question, one query:** "which nodes near this swing carry `swing_drag`
+  or `deflection`?" is the physics layer bits, a single `intersect_shape`
+  against a mask of both, never a walk of every `SkillNode` (a rest-pose radius
+  cull also undershoots a whipped blade's real reach). For one physics frame
+  after a collision-affecting write, `mark_broadphase_dirty` makes the query a
+  graph walk instead (the dirty-frame fallback).
+- **Immutable, hence shareable:** nothing in `BladeDefenderZones` is sim state, so
+  one instance is built per pivot and handed to all that pivot's rollout
+  proposals (`AiBladeRollout` evaluates up to 192 concurrently in
+  `WorkerThreadPool` tasks): the query runs on the main thread, the solver reads
+  plain arrays.
+- **Two kinds, one zone:** a node carrying both stats is ONE entry, both a wall
+  and a plate, never two; the latch that stops a zone paying its drag twice keys
+  on the zone index. The kinds are asymmetric: `deflection` is a bool stat
+  (presence only), `swing_drag` a magnitude.
+- **Order is by `SkillNode.stable_id`, and that is a contract.** `intersect_shape`
+  returns colliders in undefined, machine-dependent broadphase order. Two
+  first-wins tie-breaks read this order (`BladeSwingClock._warping`'s seeding,
+  and which zone arms a break first in `BladeObstacleField.end_substep`), so a
+  mirror peer redrawing the swing must see the same one
+  (`test_attack_determinism.gd`).
+
 - **Two zone kinds, asymmetric on purpose.** `deflection` is a BOOL (presence
   only); `swing_drag` a magnitude. A plate is pushed out of, meters strain, arms a
   break. A wall is **sensed and nothing more**: `project()` skips it in the

@@ -10,50 +10,11 @@ class_name OutcomeApplier
 ## model will want.
 
 
-## Land every hit in SCHEDULE order, not append order
-## (docs/domain/attack-timeline.md "Ordering and arrival_time") — this
-## is the half that actually fixes allocation order leaking into combat
-## outcome; the per-mode ramps (ranged's rank-authored schedule, magic's
-## propagation beat, melee's `BladeHitEvent.t`) are what make the order
-## meaningful.
-##
-## [b]Order is the schedule's structure; the WAIT is its seconds[/b] (#543).
-## Those are two different jobs that [member HitInstance.arrival_time] used to
-## do at once, and separating them is what lets tempo be per-peer: the sort
-## below keys off [member HitInstance.schedule_index], which every machine
-## derives identically from the same structure, while the wait reads seconds no
-## two machines need to agree on. Compiling here when the outcome has no
-## schedule yet is deliberate — a replayed record arrives with structure and no
-## seconds, and there must be exactly one place that turns one into the other.
-##
-## Design B (#504): this loop is also the [b]clock[/b]. It waits out each hit's
-## `arrival_time` on [param clock] before landing it, so the world mutates when
-## the arrow arrives rather than at t=0 with the picture catching up later.
-## Everything that draws is then reading the model, on one clock, by
-## construction — there is no view store to keep in step. Pass
-## [method BeatClock.instant_clock] (the default) to land the whole outcome
-## synchronously; see [BeatClock] for why this is not frame-ordered mutation.
-##
-## [param alloc] is read only by a [GateFlipInstance] landing on a LIVE world
-## (#1209) — a melee fuse's real flip goes through
-## [method AllocationSystem.apply_gate_flip_recorded]. Null skips such a
-## landing with a warning rather than flipping without the cascade.
-##
-## [param world] chooses WHICH world it lands in (#535). Hand it
-## [method CombatWorld.live] for a real launch or a peer replay, or a
-## [method CombatWorld.shadow] and the identical loop, the identical gates and
-## the identical arithmetic run against detached slices instead — which is what
-## makes "the preview is the execution path" a fact rather than a discipline.
-## There is deliberately no `is_preview` flag anywhere below: the only thing that
-## differs is which [NodeCombat] the lookup returns.
-##
-## [b]Required, and deliberately placed ahead of the optional [param clock].[/b]
-## Owner call 2026-08-23, on the project's own no-parallel-mirrors rule: a
-## defaulted `world = null` would put an implicit live branch back inside this
-## function, which is exactly the shape #498 exists to delete. #498's goal is
-## that "the sim and the real path agree" holds by construction; a nullable world
-## makes it hold by discipline again. Naming the world at the call site costs
-## eleven lines repo-wide and buys back the guarantee.
+## Land every hit in SCHEDULE order (structure, not append order), waiting out
+## each hit's `arrival_time` on [param clock]: this loop is the clock. The
+## required [param world] picks live vs shadow, with no preview flag below;
+## [param alloc] is read only by a live [GateFlipInstance] landing.
+## See docs/domain/attack-timeline.md "OutcomeApplier.apply: the parameters".
 static func apply(outcome: AttackOutcome, world: CombatWorld,
 		clock: BeatClock = null, alloc: AllocationSystem = null) -> void:
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()

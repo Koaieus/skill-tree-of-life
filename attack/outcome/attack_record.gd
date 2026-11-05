@@ -3,66 +3,10 @@ extends RefCounted
 
 ## The wire form of an attack: a POST-APPLY record of what each landing
 ## actually did, captured on the host as it applies its own [AttackOutcome]
-## (#511, `docs/domain/multiplayer-sync-model.md`).
-##
-## [b]Post-apply, not resolve-time.[/b] This is the direction the owner settled
-## on 2026-08-21:
-##
-## > *"recording all events as they happen, including mitigation (effective
-## > dmg), exactly when and where it would happen if played by the host (who
-## > can actually tell), we would instead need the client to reconstruct the
-## > effects of the attack"*
-##
-## A client cannot re-derive a combat number: mitigation is read node-locally
-## at land time, an earlier beat's cascade can change what a later beat lands
-## on, and a target may sit under fog the client knows nothing about. So the
-## host runs its natural logic — [method AttackPlan.resolve] then
-## [OutcomeApplier], every mode's land-time gate live against the real world —
-## and what crosses is the resulting record. A peer never calls `land_on` on a
-## mode-specific hit, never re-runs a gate, and never computes a number; it
-## replays the recorded deltas through the SAME [OutcomeApplier] loop, on the
-## same [BeatClock], so arrival ordering and the forced-dealloc cascade come
-## out of the existing machinery rather than a second implementation of it.
-##
-## [b]Corrected by #518: the cascade's machinery is shared, its INPUT is not
-## re-derived.[/b] This doc used to claim the cascade came out of the existing
-## machinery full stop, and that was true of the machinery and false of the
-## input — a peer walked the defender's navigator to work out which nodes
-## islanded. Under the deferred filtered-delta model a fogged client may not
-## hold those nodes at all, so the walk is not merely redundant, it is wrong.
-## The record now carries the deallocation set per hit and the peer applies it
-## through the same [method EntityCombat.apply_cascade] the host used. One
-## implementation, authoritative input — and the one place
-## `.claude/rules/multiplayer-sync.md`'s "a peer re-runs no gate, it replays a
-## recorded result" was not literally true is now literally true.
-##
-## [b]Encoding is parallel arrays of scalars, not ~100 dictionaries.[/b] Two
-## reasons, and the first is correctness:
-##   1. A [PropagationEvent]'s `hits` are SHARED REFERENCES into
-##      [member AttackOutcome.hits], never copies. The timeline therefore
-##      carries INDICES into the flat hit list, and [method rebuild] restores
-##      the aliasing rather than building independent copies per event.
-##   2. Volume. `trail_blazer.tres` has no hop limit (`max_hops = inf`; only
-##      the never-revisit rule ends its walk) and `reverberator.tres` authorises
-##      `max_visits_per_node = 6`, so one cast can produce ~100 landings.
-##
-## [b]What does not cross, and why[/b] (traced against master, not guessed):
-##   * `HitInstance.source` — a [Variant] whose one real reader
-##     ([ArrowVolleyCoordinator]) immediately dereferences `.attacker`, which
-##     #507 already promoted to a typed base-class field. The wire carries
-##     `attacker` as an `entity_id`; `source` and `read_node` are resolve-local
-##     residue.
-##   * `AttackOutcome.cancellations` — written by `spell_resolver.gd`, read
-##     only by tests. Cancel VFX rides the timeline's `Verb.CANCEL`.
-##   * `AttackOutcome.popped_nodes` — read only by [AiCombatScorer], which is
-##     host-side scoring and never runs on a peer.
-##
-## [b]Known asymmetry, deliberate:[/b] a landing that mitigated to EXACTLY
-## zero mutates nothing, so its replay is a no-op and the peer does not
-## re-announce it on [signal Events.skill_node_damaged]. The world matches; a
-## "0" floater does not appear on the peer. Widening the replay to force that
-## announcement would mean a second implementation of
-## [method SkillNode.take_damage], which is the parallel-mirrors trap.
+## (owner decision 2026-08-21: record the effective result, never make a
+## client re-derive it). A peer replays the recorded deltas through the same
+## [OutcomeApplier] loop; it re-runs no gate and computes no number. Encoding
+## is parallel arrays of scalars. See docs/domain/multiplayer-sync-model.md.
 
 ## Wire keys. Short because ~100 landings pay for every character, and
 ## namespaced by prefix so the flat hit arrays and the timeline arrays cannot

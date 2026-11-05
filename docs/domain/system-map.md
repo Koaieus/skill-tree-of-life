@@ -14,7 +14,7 @@ The layer/dependency rules are in `docs/architecture.md`.
 `GraphSnapshot` / `EntitySnapshot` (`network/`) — row encoding for join and resync; see `docs/domain/entity-snapshot.md`, encoding detail in `docs/domain/snapshot-encoding.md`.
 Procgen sizing and the playground panel (`procgen/`) — see `docs/domain/procgen-sizing.md`.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` is the per-entity mirror for cut-vertex / islanding queries.
-`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
+`TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`. `abandon_turn` / `adopt_turn`: `docs/domain/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
 `BattleSystem` (`systems/battle_system.gd`) — owns the active `AttackPlan`; `launch_attack` submits a command to `CommandApplier`, which replays the resolved `AttackRecord` on the reveal clock. See `docs/domain/attack_plan_system.md`.
 `VisionSystem` (`systems/vision_system.gd`) — fog of war; reads owned subgraph + per-entity `vision_range` / `sensor_range`. See `docs/domain/vision-system.md`.
@@ -29,3 +29,4 @@ VFX units (`ui/vfx/coordinator/`, `ui/vfx/shatter/`) — arrow/magic coordinator
 
 Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)`. See `scenes/procgen_play_sandbox.gd`.
 
+Module-internals docs (per-class contracts moved out of code comments): `docs/domain/melee-blade-internals.md` (blade pop / hit scan / swing resolve / exclude set), `docs/domain/spell-resolver-internals.md` (`SpellResolver`, `CycloneSpread`), `docs/domain/turn-manager.md` (`abandon_turn` / `adopt_turn`).

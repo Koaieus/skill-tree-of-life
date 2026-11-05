@@ -155,7 +155,7 @@ These three sources are **unioned**, then whatever the ledger already paid as
 trickle (iff `award_xp_on_node_kill`) is excluded from that union before
 pricing — a set difference, not an arithmetic correction. Both
 `xp_per_node_killed` and `core_kill_xp` are `@export`/per-board stats.
-Territory scale is paid **as XP, deliberately not as looted stats**.
+Territory scale is paid **as XP, deliberately not as looted stats**. Territory modifiers are only lent by the graph (granted on allocation, released back to neutral on death), so copying them into loot would duplicate mods still on the battlefield and re-claimable; the stat loot draws strictly from the core (`_draw_payload`).
 
 **Node count is the honest axis, not victim level:** D-19 pins an enemy's level to its starting node count, so a level term would double-count territory.
 
@@ -438,6 +438,12 @@ picking, just not here": a remote human's request would read as unclaimed and be
 random-picked before the answer could arrive.
 
 
+**There is no pick count.** The loot shape is "pick 1 out of M, N times": N is
+`SkillDustAddon.rounds` and each round raises one `LootPickRequest`. A
+`pick_count` field was removed (owner: *"for the longest time i said 'pick 1 out
+of N, M times' and agents wrote up 'pick M from N'"*); multi-select per draw is
+not a thing, so do not reintroduce it.
+
 `resolve()` is **idempotent**. The addon lingers on the relic until every round
 has resolved (possibly across several real seconds if the player is picking),
 then `queue_free`s.
@@ -552,3 +558,107 @@ the five distinct ways `SkillDustAddon` can reach its end (collector dead,
 rounds exhausted, pool dry, no cycle-safe survivor, empty sample) all have to
 free the peer's relic too — a round that grants nothing and says `finished`
 covers every one of them, including "nothing was ever granted".
+
+## LootPickRegistry: outstanding picks and request ids
+
+`systems/loot_pick_registry.gd` is the registry of loot picks nobody has
+answered yet. Two jobs, the same job seen from either end of the wire:
+
+1. **It mints request ids.** A wire id must not come from a per-process
+   counter: two processes mint the same id for different requests once their
+   request counts diverge (a peer that never auto-resolves an NPC pick diverges
+   on the first relic). One authority minting into one id space also lets
+   `PickLootCommand` address a `LootPickRequest` and a `SpellLootRequest` with
+   one field and no kind discriminator.
+2. **It parks a request a remote human owes an answer to**, so the returning
+   `PickLootCommand` has something to land on. Without it the host has no local
+   HUD to claim the request, auto-resolves it randomly on the next line, and
+   the pick that arrives a round trip later is silently dropped. `park` itself
+   fires `offer_parked`, so nothing can park a request and forget to announce
+   it; `LootOfferChannel` sends the matching `LootPickOffer` to `peer_for`.
+
+**A mirror peer's registry parks nothing, always.** A relic's claim chain is
+host-gated at `LootSystem._on_relic_claimed`; a peer only replays a
+`LootRoundCommand`, so `pending_count` reads 0 for a mirror's whole loot round.
+Do not add a client-side park/await (`.claude/rules/multiplayer-sync.md`: a
+mirror decides nothing and reproduces what it can be told). Inert does not mean
+silent: an incoming `LootPickOffer` lands in a mirror's registry via
+`receive_offer`, gated on `is_local_collector` before `offer_received` hands it
+to `LootSystem`.
+
+**Who sits where comes from the roster.** `is_remote_collector` maps the
+collector's `Entity.participant_id` (set once by `GameRoot.apply_roster`)
+through `roster` to `Participant.is_local(local_peer_id)`. It is never
+`SeatPolicy`, the per-machine half that structurally cannot answer for a peer.
+A local human picking, an NPC auto-picking and a headless auto-resolve all ride
+down as a `LootRoundCommand` and need none of it.
+
+**An answer to a parked request must not be enqueued on `CommandApplier`.** A
+round runs inside its own `LootRoundCommand`'s application, so the queue is
+blocked on the very await the answer releases; an enqueued answer is never
+reached (a hang, not a delay). `PickLootCommandHandler.apply` is the door and
+`CommandApplier.submit` routes `PickLootCommand` there instead of enqueueing.
+
+### is_local_collector vs is_remote_collector
+
+They are two independent predicates over the same roster; only the last two
+rows are complements.
+
+```
+                             is_remote_collector   is_local_collector
+  null collector                    false               false
+  no roster                         false               TRUE
+  NPC (participant_id == 0)         false               false
+  AI seat                           false               false
+  human at another peer             true                false
+  human at this peer                false               true
+```
+
+`is_local_collector` is the receive-side question; `receive_offer` gates on it.
+The offer is already addressed via `peer_for`, so it is a sanity check against
+two clients raising a picker for one offer. The no-roster row is the same
+sentence read from both ends: a run with no roster (hand-authored sandbox,
+headless fixture, offline level) is one machine, nobody is remote and
+everything is local. Answering false there would swallow every offer on a
+harness that never built a roster, and a picker that never opens looks like a
+hang. Roster-sourced, never `SeatPolicy`.
+
+## SkillDustAddon: the relic
+
+`SkillDustAddon` (`skill_node/addons/skill_dust_addon.gd`) is the loot a dying
+entity leaves on its former core node. It carries a snapshot of stat modifiers
+drawn from the dead entity (core-class identity plus a random sample of its
+node-granted mods; `LootSystem` draws it). On death the carrier core is
+force-deallocated to unowned, so the dust sits on a claimable relic.
+
+- **Steal semantics.** When any entity allocates the relic, the dust pours its
+  loot onto the allocator's core (permanent, portable core modifiers), never
+  onto the relic node. The pool is a weighted union of three provenance buckets
+  (node grants, class/register grants, board innates). It is offered as N rounds
+  of pick-1-of-3: each round filters the remaining pool by `would_cycle`
+  against the collector's live board and grants the pick immediately, so a
+  cycle a candidate would close is checked against state that already reflects
+  every earlier grant. `would_cycle` is a per-round claim-time check, not a
+  draw-time one. The player picks via the HUD loot picker; NPCs auto-pick per
+  round. STEAL/PROLIFERATE choice and staining stay deferred.
+- **Rounds are driven from outside.** The addon holds the draw, answers
+  `offers_for`, lands a decided outcome (`grant_mod`, `grant_spell`, `finish`)
+  and announces a pickup with `claimed`, nothing more. Phase sequencing, the
+  human pick, minting the wire round and the host gate live with the
+  command-side loot round controller that `LootSystem` connects to `claimed`.
+- **Terminal spell round.** Once every stat round has resolved,
+  `spell_candidates` (if non-empty) offers one more pick: a spell the victim
+  knew, filtered against the collector's permanently known spells, before the
+  relic frees itself. It is deliberately the last thing the relic offers, never
+  concurrent with a stat round, as the round after the last stat round in
+  `Phase`; that makes "on pick, after the regular picks" true by construction
+  instead of by call order (a standalone emit on kill would queue the picker in
+  front of the player before they had seen the relic).
+- **Visual.** Scene-composed (`defs/skill_dust_addon.tscn`) with a child
+  InnerDisk (`.claude/rules/scene-composition.md`), which is why the gold/mix
+  knobs are inspector-tunable. The disk's authored
+  `carve_shape = GemCarveShape.SHARED` etches the gem cut; the script forces
+  `allocated = true` on its own disk instance to borrow the allocation-state
+  render, so nothing is faked on the carrier or `AllocationSystem`.
+  `LootSystem.skill_dust_scene` is required; there is no bare-script fallback,
+  an unset scene skips the drop.

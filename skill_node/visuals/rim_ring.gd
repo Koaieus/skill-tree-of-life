@@ -1,38 +1,11 @@
 @tool
 extends SkillNodeRingVisual
-## Rim ring (#125): the raised chrome/gem-holder band around a SkillNode's
-## disk — NOT a "wall" (renamed from RingWall), and it knows nothing about
-## the disk beneath it. It only owns its own band: [member inner_radius]
-## (base class) to [member outer_radius] (base class), with [member crest_r]
-## as an *interior* control point marking where the flat floor ends and the
-## bevel to the rim begins. The composite is responsible for lining
-## [member inner_radius] up with whatever disk radius it's wrapping.
-##
-## The crest->rim bevel is a REAL height(radius) bumpmap lit by
-## rim_ring.gdshader (fragment-side, not a CPU-banded fake) —
-## level/terrace/smooth/sharpen are 4 closed-form presets baked into the
-## shader itself, so every built-in-preset rim_ring shares ONE
-## ShaderMaterial (batches into one draw call) while still varying per-node
-## via `instance uniform`s. "No bevel" = crest_r == outer_radius, which
-## collapses the whole band to a flat plateau; crest_r == inner_radius
-## bevels the entire band with no flat floor segment.
-##
-## Assigning a genuinely custom [Curve] to [member rim_height_style] (a
-## 5th/6th profile) opts THIS instance out of the shared/batched material —
-## samplers can't be instance uniforms, so a custom curve gets baked into a
-## small LUT texture on a dedicated per-instance material instead. That's a
-## deliberate, documented, opt-in cost for the escape hatch; the common
-## (preset) path stays batched.
-##
-## Reusable building block: the composite scene (#126) instances this 1x
-## for the basic rim, or Nx for ring-stacking stake mode.
-##
-## #341 folded the shelved RimBonuses allocation dial's semantics in here as
-## an additive shader term ([member fill_current]/[member fill_max]): 0/*
-## draws nothing, N > 1 divides the band into N evenly-gapped slots anchored
-## at 12 o'clock and growing outward symmetrically, and M == N == 1 is the
-## gapless single-ring special case. No spin — see rim_ring.gdshader's class
-## doc for why the shelved version's animation isn't needed here.
+## Rim ring: the raised chrome/gem-holder band around a SkillNode's disk, from
+## [member inner_radius] to [member outer_radius] with [member crest_r] marking
+## where the flat floor ends and the lit bevel begins. It knows nothing about
+## the disk beneath. Preset bevels share ONE material (instance uniforms); a
+## custom [Curve] opts out into a per-instance LUT material.
+## See docs/domain/skillnode-visuals.md "RimRing".
 
 ## MESA sits AFTER CUSTOM deliberately: `CUSTOM_PRESET_INDEX` is 4, scenes
 ## already have `height_preset = 4` authored, and the shader's own comment

@@ -2,55 +2,12 @@
 class_name SkillDustAddon
 extends SkillNodeAddon
 
-## "SkillDust" — the loot a dying entity leaves on its former core node (#69).
-## Carries a snapshot of stat modifiers drawn from the dead entity (core-class
-## identity + a random sample of its node-granted mods — see [LootSystem]). On
-## death the carrier core is neutralised (force-dealloc'd to unowned), so the
-## dust sits on a claimable relic.
-##
-## When ANY entity allocates that relic node, the dust pours its loot onto the
-## ALLOCATOR'S CORE — STEAL semantics (permanent, portable core modifiers), not
-## onto the relic node itself. The pool is a weighted union of three provenance
-## buckets drawn by [LootSystem] (#323 re-cut) — node grants, class/register
-## grants, board innates. Offered as N ROUNDS of pick-1-of-3 (#323): each round
-## filters the REMAINING pool by `would_cycle` against the collector's LIVE
-## board and grants the pick immediately, so a cycle a candidate would close is
-## checked against board state that already reflects every earlier round's
-## grant — not just the state at draw time. The player picks via the HUD loot
-## picker; NPCs auto-pick at random, per round.
-## STEAL/PROLIFERATE choice and staining stay deferred (see loot-system.md).
-##
-## ROUNDS ARE DRIVEN FROM OUTSIDE (#1138). This addon is a node addon: it holds
-## the draw, answers "what do you offer now" ([method offers_for]) and lands a
-## decided outcome ([method grant_mod], [method grant_spell], [method finish]).
-## It announces a pickup with [signal claimed] and nothing more. The round loop
-## — phase sequencing, the human pick, minting the wire round (#522/#646) and
-## the host gate — lives with the command-side loot round controller, which
-## [LootSystem] connects to [signal claimed]. See docs/domain/loot-system.md.
-##
-## TERMINAL SPELL ROUND (#204 re-cut): once every stat round has resolved,
-## [member spell_candidates] (if non-empty) offers ONE MORE pick — a spell the
-## victim knew, filtered against the collector's PERMANENTLY known spells —
-## before the relic frees itself. Deliberately the LAST thing this relic
-## offers, never concurrent with a stat round: it used to fire synchronously
-## on kill via a standalone `Events.spell_loot_requested` emit in LootSystem,
-## which queued it in front of the player's HUD BEFORE they'd even seen (let
-## alone claimed) the relic it was conceptually part of. Folding it into this
-## relic's own phase order ([enum Phase]), as the round after the last stat round, is
-## what makes "on pick, after the regular picks" true by construction instead
-## of by call-order coincidence.
-##
-## Visual (#168): scene-composed (defs/skill_dust_addon.tscn) with a child
-## InnerDisk instance, per .claude/rules/scene-composition.md — the gold/mix
-## knobs below are only actually inspector-tunable because they live on a
-## scene, not a script that's always bare `.new()`'d. The disk's authored
-## `carve_shape = GemCarveShape.SHARED` (see inner_disk.gd) etches the loot gem
-## cut; this script forces `allocated = true` on it — the "hijack the
-## allocation-state render" option from #168, scoped to this addon's OWN disk
-## instance so nothing needs to be faked on the carrier
-## SkillNode/AllocationSystem. `skill_dust_scene` on LootSystem is required
-## — there is no bare-script fallback; an unset scene skips the drop
-## instead of minting a script-only addon.
+## "SkillDust" — the loot a dying entity leaves on its former core node. A
+## snapshot of stat modifiers poured onto the ALLOCATOR'S CORE when any entity
+## claims the relic (steal semantics). Rounds are driven from outside: the
+## addon holds the draw, answers [method offers_for], lands decided outcomes
+## and announces [signal claimed]; the spell round, if any, is always last.
+## See docs/domain/loot-system.md "SkillDustAddon: the relic".
 
 ## The full drawn candidate pool (#323: all three provenance buckets, unfiltered
 ## by `would_cycle` — that check happens per round at claim time, not here,

@@ -335,6 +335,16 @@ per-node grain ends the moment anything entity-wide runs (`cascade_set` /
 `_materialize_all` mints the rest first, so a cascade set is computed over the
 whole subgraph — a node fifty hops away is still in it.
 
+One class rather than a per-entity slice: an attack, a propagating spell above
+all, crosses territory of several entities and `EntityCombat.snapshot` is
+per-entity, so the world holds as many entity slices as the attack touches plus
+ownerless slices for unallocated conduit nodes, under one `SkillNode` ->
+`NodeCombat` index. Laziness is what makes shadows cheap (the cost is paid per
+entity actually hit and per node actually visited, rather than for the whole
+owned subgraph per hover). Every shadow needs `free_shadow` for the reference
+cycles `EntityCombat.free_shadow` documents; a live world holds and frees
+nothing.
+
 **No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
 topology never changes mid-attack, so islanding and propagation walk the *real*
 graph while only ownership and stats route through the shadow. It is pinned by
@@ -436,6 +446,8 @@ in `[0, 1]` (the `RAMP` branch's assumption). The last shot of wave *k* and the
 first of wave *k+1* share a key; the `(structural_key, original_index)` sort
 keeps them in wave order, they merely land on one beat. Turning a key into a
 
+The ramp is metric, not ordinal: two leaves 0.1px apart launch 0.1px apart in the span (not a full `1/(n-1)` slice), so a clustered firing line reads as one salvo and a lone outlier owns the tail. Allocation order cannot influence it: distance is pure geometry off `global_position`.
+
 The resolver records only structure about timing: `key_i` is stamped onto
 `HitInstance.structural_key` — the resolver emits structure, never seconds. One
 volley is ONE ramp: waves sit back-to-back inside it and `volley_draw_time` is
@@ -523,3 +535,62 @@ read sits in the command path, and the volley is self-describing on the wire.
   fixed constraint is `volley_flight_time > volley_stagger_span` — a house rule
   on the resource, not a pinned pair of numbers.
 - `volley_draw_time` values, and the melee analogue of a preparatory phase.
+
+## OutcomeApplier.apply: the parameters
+
+`OutcomeApplier.apply(outcome, world, clock, alloc)` lands every hit in
+schedule order (see "Ordering and `arrival_time`"). Per-mode ramps (ranged's
+rank-authored schedule, magic's propagation beat, melee's `BladeHitEvent.t`) are
+what make that order meaningful.
+
+- **Order is the schedule's structure; the wait is its seconds.** The sort keys
+  off `HitInstance.schedule_index`, which every machine derives identically from
+  the same structure; the wait reads seconds no two machines need to agree on.
+  That separation is what lets tempo be per-peer. The loop compiles a schedule
+  when the outcome has none yet because a replayed record arrives with
+  structure and no seconds, and exactly one place must turn one into the other.
+- **The loop is the clock.** It waits out each hit's `arrival_time` on `clock`
+  before landing it, so the world mutates when the arrow arrives and everything
+  that draws reads the model on one clock, with no view store to keep in step.
+  `BeatClock.instant_clock` (the default) lands the whole outcome synchronously;
+  see `BeatClock` for why this is not frame-ordered mutation.
+- **`alloc`** is read only by a `GateFlipInstance` landing on a live world (a
+  melee fuse's real flip goes through `AllocationSystem.apply_gate_flip_recorded`).
+  Null skips such a landing with a warning rather than flipping without the
+  cascade.
+- **`world` is required**, placed ahead of the optional `clock`. Live for a real
+  launch or peer replay, shadow for resolution: the identical loop, gates and
+  arithmetic run against detached slices, and there is no `is_preview` flag
+  anywhere below (owner call 2026-08-23, no-parallel-mirrors). A defaulted
+  `world = null` would put an implicit live branch back inside the function.
+
+## CritRoll: the one crit implementation
+
+`CritRoll` (`attack/outcome/crit_roll.gd`) is the one crit rule shared by all
+three attack modes; `crit_chance` / `crit_multiplier` are universal entity
+stats, so a roll per mode would be three drifting implementations. A crit is
+decided per hit (owner, 2026-08-21), at the landing itself (owner, 2026-10-07):
+
+```
+Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
+                                          crit_multiplier, crit_tier
+       CritRoll.apply(hit)                amount *= crit_multiplier
+```
+
+- `OutcomeApplier.land_one` draws right before the hit lands, in landing order,
+  off `AttackOutcome.crit_stream`, reading the landing world (the shadow during
+  resolve), so a status landed earlier in the same attack (a mark rider) reaches
+  the chance of the hits behind it.
+- **A hit crits first; its payload copies it.** A lead's draw happens the moment
+  its first rider lands (riders land before their hit, ADR 0067), so the one draw
+  per lead precedes the whole payload and every rider `HitInstance.copy_crit_from`
+  it: a status rider lands its stacks times `abs(crit_multiplier)`, a paired
+  damage share its share times the multiplier. A mark rider lifts the hits behind
+  its own, never its own.
+- **A replay never draws:** a rebuilt `AttackRecord` carries no stream and lands
+  the recorded crit. Every crit reader that runs before a landing (the VFX
+  stamping `Projectile.crit_tier`, the floaters) reads a rebuilt record on the
+  live replay, i.e. after the shadow resolve settled it.
+- The multiply stays at the tail of `HitInstance.land_on`, after ranged's offense
+  read and melee's spike-pop gate, so whatever number those settled is the number
+  multiplied.
