@@ -65,17 +65,7 @@ func _land_shadow(world: CombatWorld) -> void:
 	# Keep the flip on the shadow's own topology: a later landing's cascade (or
 	# a later fuse) must read the post-flip board. An unmirrored endpoint is
 	# not this entity's and strands nothing, exactly as live.
-	for g in gates:
-		if g == null:
-			continue
-		var a := mirror.vertex_id(g.from)
-		var b := mirror.vertex_id(g.to)
-		if a < 0 or b < 0 or a == b:
-			continue
-		if mirror.astar.are_points_connected(a, b):
-			mirror.astar.disconnect_points(a, b)
-		else:
-			mirror.astar.connect_points(a, b)
+	mirror.flip_pairs(gates)
 	var combats: Array[NodeCombat] = []
 	for n in stranded:
 		var slice := world.combat_for(n)

@@ -317,8 +317,8 @@ func nodes_islanded_by_removing_set(nodes: Array[SkillNode], anchor: SkillNode) 
 ## The flip PREVIEW: every mirrored node that would lose reachability to
 ## [param anchor] if every gate in [param gates] were flipped at once.
 ##
-## Same discipline as [method nodes_islanded_by_removing_set]: toggle each pair
-## both of whose endpoints are mirrored, flood once, restore in reverse. Every
+## Same discipline as [method nodes_islanded_by_removing_set]: [method flip_pairs],
+## flood once, [method flip_pairs] again to restore. Every
 ## flip lands before the flood, so the answer is order-independent; a pair
 ## listed twice flips twice, exactly as [method Graph.flip_gates] would.
 func nodes_islanded_by_flipping(gates: Array[Gate], anchor: SkillNode) -> Array[SkillNode]:
@@ -326,8 +326,20 @@ func nodes_islanded_by_flipping(gates: Array[Gate], anchor: SkillNode) -> Array[
 	var anchor_id := vertex_id(anchor)
 	if anchor == null or anchor_id < 0:
 		return result
-	# [a, b, was_connected] per applied toggle, undone in reverse order.
-	var toggled: Array[Array] = []
+	flip_pairs(gates)
+	var reachable := _flood_from(anchor_id)
+	flip_pairs(gates)
+	for n in _node_ids:
+		if not reachable.has(_node_ids[n]):
+			result.append(n)
+	return result
+
+
+## Persistently flips every gate's pair on the mirror's topology: a connected
+## pair is cut, a cut pair joined. A pair with an unmirrored endpoint (or a
+## self-pair) is skipped; a pair listed twice flips twice. Each toggle is its own
+## inverse, so calling this again with the same [param gates] undoes it.
+func flip_pairs(gates: Array[Gate]) -> void:
 	for g in gates:
 		if g == null:
 			continue
@@ -335,28 +347,10 @@ func nodes_islanded_by_flipping(gates: Array[Gate], anchor: SkillNode) -> Array[
 		var b := vertex_id(g.to)
 		if a < 0 or b < 0 or a == b:
 			continue
-		var was := astar.are_points_connected(a, b)
-		if was:
+		if astar.are_points_connected(a, b):
 			astar.disconnect_points(a, b)
 		else:
 			astar.connect_points(a, b)
-		toggled.append([a, b, was])
-	var reachable := _flood_from(anchor_id)
-	for i in range(toggled.size() - 1, -1, -1):
-		var t: Array = toggled[i]
-		if t[2]:
-			astar.connect_points(t[0], t[1])
-		else:
-			astar.disconnect_points(t[0], t[1])
-	for n in _node_ids:
-		if not reachable.has(_node_ids[n]):
-			result.append(n)
-	return result
-
-
-## STUB
-func flip_pairs(_gates: Array[Gate]) -> Array[Array]:
-	return []
 
 
 ## Convenience: single-node form of [method nodes_islanded_by_removing_set].
