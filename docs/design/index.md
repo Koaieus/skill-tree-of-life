@@ -24,7 +24,7 @@ Status is each doc's `status:` frontmatter — `exploring` → `settling` → `b
 | [click_grammar.md](click_grammar.md) | `exploring` | Open threads on the click grammar — moving core-move onto the generic pop, replacing idle right-click pin/unpin. The shipped grammar is [`../domain/click-grammar.md`](../domain/click-grammar.md) |
 | [core_classes.md](core_classes.md) | `exploring` | Core-class design intent. **Shipped:** Balanced, Ninja, Serpent, Pacifist, Wise Cheater (roster: `entity/core/core_class_roster.tres`). Halo has an issue (#786); Allround, Predator, Bulwark, Hive, Frontier, Harvester are ideas only |
 | [metagame.md](metagame.md) | `exploring` | Hub between runs, meta skill tree, commit-on-completion, The Way Out |
-| [skill_node_addons.md](skill_node_addons.md) | `settling` | Node addons (Armor Ring, Buffer, Gate, Relay, Anti-Magic, etc.), Tech Seeds |
+| [skill_node_addons.md](skill_node_addons.md) | `settling` | Unbuilt and open node addons (Buffer, Gate, Lifeline, Relay, Anti-Magic, the Spikes collision model), Tech Seeds |
 | [skill_node_specializations.md](skill_node_specializations.md) | `exploring` | Node specializations (Corrupted, Crystallized, Anchor) — **early spitball, nothing built or scheduled**; inspiration only |
 | [node_subtypes.md](node_subtypes.md) | `exploring` | Node subtypes — open threads only (clustered placement, territory conversion, more families). Shipped model: [`../domain/node-subtypes.md`](../domain/node-subtypes.md) |
 | [aspect_matrix.md](aspect_matrix.md) | `settling` | **The Matrix** — every status/concept × ranged/melee/magic, living home of the concept-to-delivery table (#1199) |

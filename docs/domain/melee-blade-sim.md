@@ -388,6 +388,17 @@ debug alike; a same-frame *position* move does not stamp). In a debug build
 release. No forced `await physics_frame` (the resolve must complete synchronously,
 `.claude/rules/attack-timeline.md`).
 
+## Shipped blade-relevant addons
+
+| Addon | Authored content (`skill_node/addons/defs/`) | Blade face |
+|---|---|---|
+| Bunker | `+5 armor`, `-5 min_damage_taken`, `+1 deflection` | solid plate; breaks only a rigid blade ("Bunker deflection"); a blast shield (keyed on `deflection`, not the addon) shrugs defensive explosions and spends nothing; a Bunker member is heavy and can knock a defender's Bunker off |
+| Clamp | none (a brace per neighbour pair) | welds its joint; see `ClampAddon` |
+| Spike ring | `blade_damage` modifiers, a node-local `spikes` pool (scales 1:2:3 with allocation level) and `spike_regen` (`PerTurnMode.ADD`) | the spike ladder below |
+| Toxin | `+1 poison_aspect` on the owner's `entity_modifiers`; `+1 poison_stacks_per_hit` (x2 at level 3) | the blade vertex built from this node applies `poison` on every contact it lands, that vertex only; a refused contact applies nothing |
+
+**Spike ladder.** On contact, remaining `spikes` >= the attacking vertex's `blunting` (default 1, 2 on a spiked attacking vertex) deplete by `blunting` and pop the vertex (it deals no damage and severs everything downstream of it from the pivot); remaining < `blunting` drains the remainder and lets the vertex through for ordinary damage. `spikes` regenerates by `spike_regen` at the owner's turn start only, so a node under a blocker that never takes a turn absorbs a finite number of pops for the whole run. Ownership change resets the pool to full. `thorns` is not a stat; it is `armor` / `min_damage_taken`.
+
 ## Bunker deflection
 
 A node with `deflection > 0` (base 0; only `BunkerAddon` authors it) is a solid
