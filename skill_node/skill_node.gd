@@ -1081,9 +1081,11 @@ func _ensure_local_stat(stat_id: StringName) -> Stat:
 ## and, if the node is currently allocated, is mirrored onto the owner's stat
 ## board immediately. Deallocating strips it; reallocating re-applies it.
 ##
-## This is the single path for entity-scoped node modifiers — addons, effects,
-## and loot all route here rather than touching [member modifiers] plus the
-## owner's board by hand. [AllocationSystem] drives the ownership transitions via
+## This is the single path for DERIVED entity-scoped node modifiers — addons,
+## effects, and loot all route here rather than touching [member modifiers]
+## plus the owner's board by hand; the only other writer is the authored
+## recompose ([member authored_modifiers]'s setter), which applies the same
+## board gate. [AllocationSystem] drives the ownership transitions via
 ## [method apply_entity_modifiers_to] / [method remove_entity_modifiers_from].
 func add_entity_modifier(m: StatModifier) -> void:
 	if m == null or _rejects_entity_grant(m):
@@ -1108,7 +1110,10 @@ func _recompose_authored_modifiers(previous: Array[StatModifier]) -> void:
 	for m in authored_modifiers:
 		if m != null and not state.modifiers.has(m):
 			state.modifiers.append(m)
-			if board != null:
+			# Same gate as add_entity_modifier: the list takes any authored
+			# entry (a node-local stat included), the entity board only a
+			# grantable one.
+			if board != null and not _rejects_entity_grant(m):
 				board.add_modifier(m)
 
 
