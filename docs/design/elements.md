@@ -222,9 +222,11 @@ best i think"*; the pass extends it to Fire — the owner also said *"just
 because explosive does it, doesnt mean that lightning hop reach ALSO needs
 to"*, so the extension is open to redirect). #1660's *"its power is the
 node's fuel"* is the same formula with a hit load of zero, since Heat
-ignition carries no load. One go-off spends **one** stack of the node's
-medium (owner, #1733 round 3: *"consuming 1 at a time"*), never the hit's
-load. Dual reach (§ Landing resolution) is only ever *across* elements.
+ignition carries no load. A *landing's* go-off spends **one** stack of the
+node's medium (owner, #1733 round 3: *"consuming 1 at a time"*), never the
+hit's load; a *Burning tick's* ignition spends min(heat, fuel) (#1660 round
+2, re-affirmed 2026-11-05) — two owner lines, one per trigger, kept side by
+side on purpose. Dual reach (§ Landing resolution) is only ever *across* elements.
 
 **Chain reactions** are bounded (#1733 R3): a copied hit landing on a node
 that holds a medium spends it and reaches again from there, once per node per
@@ -263,8 +265,9 @@ Tentative; a two-element build (Fire reach, Charge ride, Fuel ride) still
 seeds a territory over several casts, bounded per node by the cap, and that
 is the fuse network, not a bug.
 
-**A copy lands raw.** `ceil(r × s)` of the hit's authored payload, no
-per-landing fold: `stacks_per_hit` never multiplies with reach (#1733 R2).
+**A copy lands raw.** `ceil(r × s)` of the hit's payload *as cast* — after
+an Ice concentrate put its mass on the seed, before any per-landing fold —
+so `stacks_per_hit` never multiplies with reach (#1733 R2).
 Whether a reach copy copies its parent's crit stays open (§ The hit).
 
 **Damage type: none.** Elements change reach, aspects change payload, damage
@@ -430,7 +433,7 @@ usually tie on the first two (owner, 2026-11-05: *"in most cases there will
 be amongst nbs: no charge diff, no health diff, possibly a degree diff (with
 good chance of having ties still)"*), so the third key decides most arcs: a
 **seeded random pick among the tied** — the attack's own stream for a hit's
-go-off, a hash of the world-turn counter and the node id for a tick's, so
+go-off, a hash of the world-turn counter and the node's `stable_id` for a tick's, so
 every peer draws the same arc. Owner, 2026-11-05: *"option 1 seems best.
 zappy and unpredictable by nature"*, picked over "nearest the victim's core
 by owned hops" and "furthest from the attacker's core in pixels". Rejected
@@ -622,18 +625,12 @@ here.
   (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
   made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
   its three words — a short superseding ADR, since an ADR is never edited;
-  (d) **pair-table cells that overran owner verdicts**: blast power *"is
-  the node's fuel"* (#1660 r2) not Fuel plus load; Charge *"consuming 1 at a
-  time"* (#1733 r3) not absorbed; the chain copy's share is #1735's open
-  fork; (e) **Ice raising seed payload** strains "the slot buys reach only";
+  (d) **what a chained go-off deals** — the chain copy's share is #1735 fork 1, the owner torn between terrain damage, diminished hit damage and no cascade (the S + SI and one-stack-spent calls above cover the *size* and *spend*, not the damage); (e) **Ice raising seed payload** strains "the slot buys reach only";
   (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
   — the #1716 r2 retag to `fuel` is the plan and must be in the first Fire
-  issue; (g) **settle after a tick** (ignition, death, thaw) has no parent
-  hit: what the copies carry, which crit, and whether a peer receives or
-  reproduces them (ADR 0002); (h) a rider map keyed by id merges a BEFORE
+  issue; (h) a rider map keyed by id merges a BEFORE
   rider with an AFTER copy of the same id — coalescing is still #1741's open
-  NOTE, not an owner call; (i) the chain cap is per wave in code and R3, the
-  doc says per attack.
+  NOTE, not an owner call.
 - **Arc mirror** (owner idea, 2026-11-05, parked): *"maybe when a nb tries
   to emit a lightning reach it reflects it? maybe not"* — an arc aimed at a
   Frozen node bouncing back onto its emitter instead of grounding. Decide at
