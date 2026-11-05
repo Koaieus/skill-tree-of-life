@@ -409,3 +409,36 @@ parsed `Expression` shared by every entity using this resource — never
 anything per-entity. Parsing is lazy and cached exactly as
 `ExpressionFormula` does it, and the `formula` setter invalidates so
 an inspector hot-edit in the sandbox host takes effect immediately.
+
+## AuraEffect (`effects/aura_effect.gd`)
+
+A buff (or debuff) radiating from a source node to nodes around it,
+re-evaluated whenever the world moves under it. The source is the carrier
+node for a node-granted aura (keystone/addon), falling back to the entity's
+core for an entity-wide one (core class) — see `recompute`'s origin rule.
+
+Four orthogonal knobs:
+
+- `reach` — *which* nodes are touched. `null` floods the whole scope.
+- `metric` — *how far* each is, feeding the scale. `null` reuses the
+  distances `reach` already produced.
+- `distance_scale` — the VALUE each modifier leaf gets at that
+  distance, from the leaf's authored `value` (#900). `null` is flat.
+- `discard` — which computed values aren't worth granting.
+
+Sign lives on the modifier: negative values make a debuff aura. So the Ninja's
+"−1 armor per hop from core, going negative" is
+`reach: null, metric: HopMetric, distance_scale: ProportionalScale,
+modifiers: [armor ADD_BONUS -1]`. The Serpent is two of these side by side, one
+per metric — which is why `Array[Effect]` needs no `CompositeEffect`.
+
+**Stateless.** This resource may be shared by every entity of a class, so it
+keeps no buffed-set dict. The applied handles live in the per-grant
+`EffectInstance` ledger, and a recompute reads them back from there. A `_buffed`
+member here would have every Ninja silently clobbering every other Ninja's aura.
+
+**The PAYLOAD is the swappable state, not the walk.** Everything above —
+the three knobs, the origin rule, `recompute`'s batching, and #626's
+incremental `_topology_changed` paths — is channel-agnostic. What a
+subclass swaps is the pair `_has_payload` / `_grant_to`:
+"is anything configured" and "put one grant on this node at this distance".

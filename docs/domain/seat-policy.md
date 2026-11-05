@@ -138,3 +138,37 @@ Ask `Participant.is_local(local_peer_id)`; it is the one named home for the
 question and what `from_roster` calls. Same rule as
 `.claude/rules/ownership-vocabulary.md` draws for `owned_by` vs
 `SkillNode.ownership_bit`, one layer up.
+
+## SeatPolicy invariant (`session/seat_policy.gd`)
+
+Who THIS MACHINE plays, and whose eyes it draws with. The per-machine half
+of a run's setup — the half that legitimately differs between two peers
+watching the same world.
+
+**The invariant:** a SeatPolicy never feeds anything a peer must
+reproduce. Not procgen, not an RNG stream, not command application. It
+decides what this screen shows and which entities this screen calls "mine";
+every peer may answer differently and the simulations still agree. Camp
+structure — how many camps, who is on them — is the OTHER half: it comes off
+the `ParticipantRoster`, is identical on every machine, and is what level
+generation may read (#516). Placement that consults a seat is a desync.
+
+Note this is not merely cosmetic: `VisionSystem` toggles
+`SkillNode.input_pickable` on recompute, so the vision group shapes
+the legal intent surface on this machine. It shapes what may be *offered*
+here, never what a command *does* once submitted.
+
+**Two shapes, one axis.**
+
+```
+                       seats                follows_active_turn
+  single player        the one hero         (moot — one human)
+  hot-seat coop        both humans          yes — the couch shares a screen
+  hot-seat versus      both humans          yes
+  online (any mode)    my hero only         no — my view stays mine
+```
+
+
+**Deliberately not here:** whether input may SUBMIT. That is command
+authority (#463) — a client can be seated on a hero it may not yet act for,
+which is what `PlayerInputController.set_input_frozen` expresses.

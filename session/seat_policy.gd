@@ -1,41 +1,11 @@
 class_name SeatPolicy
 extends RefCounted
 
-## Who THIS MACHINE plays, and whose eyes it draws with. The per-machine half
-## of a run's setup — the half that legitimately differs between two peers
-## watching the same world.
-##
-## [b]The invariant:[/b] a SeatPolicy never feeds anything a peer must
-## reproduce. Not procgen, not an RNG stream, not command application. It
-## decides what this screen shows and which entities this screen calls "mine";
-## every peer may answer differently and the simulations still agree. Camp
-## structure — how many camps, who is on them — is the OTHER half: it comes off
-## the [ParticipantRoster], is identical on every machine, and is what level
-## generation may read (#516). Placement that consults a seat is a desync.
-##
-## Note this is not merely cosmetic: [VisionSystem] toggles
-## [member SkillNode.input_pickable] on recompute, so the vision group shapes
-## the legal intent surface on this machine. It shapes what may be *offered*
-## here, never what a command *does* once submitted.
-##
-## [b]Two shapes, one axis.[/b]
-##
-## [codeblock]
-##                        seats                follows_active_turn
-##   single player        the one hero         (moot — one human)
-##   hot-seat coop        both humans          yes — the couch shares a screen
-##   hot-seat versus      both humans          yes
-##   online (any mode)    my hero only         no — my view stays mine
-## [/codeblock]
-##
-## COUCH and SEAT are exactly the two un-decisions the multiplayer harness used
-## to make by hand (`scenes/dev/mp_dev_sandbox.gd`: disconnect the handover,
-## re-point [member GameRoot.player]). Coop-vs-versus is deliberately absent —
-## that distinction is [member Participant.camp] and nothing here needs it.
-##
-## [b]Deliberately not here:[/b] whether input may SUBMIT. That is command
-## authority (#463) — a client can be seated on a hero it may not yet act for,
-## which is what [method PlayerInputController.set_input_frozen] expresses.
+## Who THIS MACHINE plays and whose eyes it draws with: the per-machine half of a
+## run's setup. Invariant: a SeatPolicy never feeds anything a peer must
+## reproduce (procgen, RNG, command application); camp structure comes off the
+## `ParticipantRoster`. Whether input may SUBMIT is command authority, not here.
+## See docs/domain/seat-policy.md
 
 enum Seating {
 	## This machine drives every local human and the view follows whoever acts.
