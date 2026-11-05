@@ -1318,10 +1318,10 @@ static func _blade_edge_of(state: BladeState, selection: Array[SkillNode], gate:
 	return -1
 
 
-## Build a fresh BladeState from the current selection. `MeleePreview` does
-## NOT call this — it builds its own via `SkillBlade.build_from_skill_nodes`
-## (see C8, the three-way construction duplication). Kept public for callers
-## within this plan.
+## Build a fresh BladeState from the current selection: the shared
+## [method BladeState.from_nodes] (which `MeleePreview`'s [SkillBlade] also
+## builds through) plus this plan's own tail — phantom clamp braces and the
+## defender field.
 ##
 ## [param zones] is the defender set to hang a [BladeObstacleField] off.
 ## Null means "find them yourself" — one [method BladeDefenderZones.query] at
@@ -1335,32 +1335,18 @@ func build_blade_state(zones: BladeDefenderZones = null) -> BladeState:
 		return null
 	var selection: Array[SkillNode] = [source]
 	selection.append_array(blade_nodes)
-	var positions: Array[Vector2] = []
-	var radii: Array[float] = []
-	var pivot_idx := 0
-	var sn_to_idx: Dictionary = {}
-	for i in selection.size():
-		var sn := selection[i]
-		sn_to_idx[sn] = i
-		positions.append(sn.global_position)
-		radii.append(sn.radius)
-		if sn == source:
-			pivot_idx = i
-	var induced_edges := get_induced_edges()
-	var edge_indices: Array[Vector2i] = []
-	for pair in induced_edges:
-		edge_indices.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
-	var blade_state := BladeState.build(positions, pivot_idx, edge_indices, radii)
-	# The per-vertex stat reads + addon dispatch — the same fill the visual
-	# blade uses, so preview / AI scoring / resolve agree on every vertex.
-	vertex_fill.fill(blade_state, selection)
+	# The per-vertex stat reads + addon dispatch happen inside — the same
+	# construction the visual blade uses, so preview / AI scoring / resolve
+	# agree on every vertex.
+	var blade_state := BladeState.from_nodes(selection, source, get_induced_edges(), vertex_fill)
 	# Phantom clamps the AI rollout is SCORING, not real attached
 	# addons — same static ClampAddon uses for a real one
 	# (ClampAddon.apply_to_blade delegates to this exact function), applied
 	# after real addons so a phantom never shadows a real weld's constraint.
 	for node in ai_phantom_clamp_nodes:
-		if sn_to_idx.has(node):
-			ClampAddon.append_weld_braces(blade_state, sn_to_idx[node])
+		var idx := selection.find(node)
+		if idx >= 0:
+			ClampAddon.append_weld_braces(blade_state, idx)
 	# The merged defender field (walls + plates, one query)
 	# — attached here so every consumer of this state (the resolve, the AI
 	# rollout) meets the same defenders. Null for the ordinary swing.
@@ -1433,24 +1419,7 @@ func get_induced_edges() -> Array:
 ## AI's coarse-fidelity rollout re-simulates candidate blades before scanning
 ## only the survivors at full fidelity).
 func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
-	var drivers: Array[BladeDriver] = []
-	var pivot_pos := blade_state.positions[blade_state.pivot_index]
-	var seen: Dictionary = {}
-	var sweep := -TAU if swing_cw else TAU
-	for e in blade_state.edges:
-		var other := -1
-		if e.x == blade_state.pivot_index:
-			other = e.y
-		elif e.y == blade_state.pivot_index:
-			other = e.x
-		if other < 0 or seen.has(other):
-			continue
-		seen[other] = true
-		var offset := blade_state.positions[other] - pivot_pos
-		drivers.append(BladeArcDriver.new(
-				other, pivot_pos, offset.length(), offset.angle(),
-				sweep, SWING_DURATION))
-	return drivers
+	return BladeArcDriver.pivot_drivers(blade_state, swing_cw, SWING_DURATION)
 
 
 ## Ask the physics engine which defenders this swing can meet.

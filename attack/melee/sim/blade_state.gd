@@ -162,12 +162,48 @@ var constraints: Array[BladeConstraint] = []
 var obstacles: BladeObstacleField = null
 
 
+## The one construction of a blade from live [SkillNode]s — the resolve
+## ([method MeleeAttackPlan.build_blade_state]) and the visual blade
+## ([method SkillBlade.build_from_skill_nodes]) both come through here, so
+## preview, AI scoring and resolve agree on every particle.
+##
+## [param selection] is the particle order (index i == selection[i]);
+## [param pivot] must be in it. [param induced_edges] is Array of
+## [SkillNode, SkillNode] pairs over the selection. [param fill] does the
+## per-vertex stat reads + addon dispatch. Callers append their own tail
+## (phantom braces, a defender field, visuals) after this returns.
+static func from_nodes(
+		selection: Array[SkillNode],
+		pivot: SkillNode,
+		induced_edges: Array,
+		fill: BladeVertexFill) -> BladeState:
+	var positions_: Array[Vector2] = []
+	var radii_: Array[float] = []
+	var inner_radii_: Array[float] = []
+	var pivot_idx := 0
+	var sn_to_idx: Dictionary = {}
+	for i in selection.size():
+		var sn := selection[i]
+		sn_to_idx[sn] = i
+		positions_.append(sn.global_position)
+		radii_.append(sn.radius)
+		inner_radii_.append(sn.inner_radius)
+		if sn == pivot:
+			pivot_idx = i
+	var edges_idx: Array[Vector2i] = []
+	for pair in induced_edges:
+		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
+	var s := build(positions_, pivot_idx, edges_idx, radii_, inner_radii_)
+	fill.fill(s, selection)
+	return s
+
+
 ## Build a state from particle data and a list of edges. Seeds one
 ## BladeDistanceConstraint per edge (rest = initial distance, fully rigid).
 ## Callers can append further constraints after this returns.
 ##
-## `inner_radii_` is optional — sim callers that never spawn visuals (fixtures,
-## [MeleeAttackPlan]'s headless simulate) can omit it; it then mirrors
+## `inner_radii_` is optional — fixtures that never spawn visuals can omit
+## it; it then mirrors
 ## `radii_` (inner == outer, i.e. no rim band), which [BladeCircle] draws as a
 ## flat fill rather than a degenerate zero-width stroke.
 static func build(

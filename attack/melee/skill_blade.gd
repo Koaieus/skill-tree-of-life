@@ -199,26 +199,9 @@ func build_from_skill_nodes(
 	# virtual dispatch that tells us nothing about who dispatched.
 	_source_nodes = skill_nodes.duplicate()
 	_clear_visuals()
-	var positions: Array[Vector2] = []
-	var radii: Array[float] = []
-	var inner_radii: Array[float] = []
-	var pivot_idx := 0
-	var sn_to_idx: Dictionary = {}
-	for i in skill_nodes.size():
-		var sn := skill_nodes[i]
-		sn_to_idx[sn] = i
-		positions.append(sn.global_position)
-		radii.append(sn.radius)
-		inner_radii.append(sn.inner_radius)
-		if sn == pivot:
-			pivot_idx = i
-	var edges_idx: Array[Vector2i] = []
-	for pair in induced_edges:
-		edges_idx.append(Vector2i(sn_to_idx[pair[0]], sn_to_idx[pair[1]]))
-	state = BladeState.build(positions, pivot_idx, edges_idx, radii, inner_radii)
 	# Stat reads + addon dispatch through the caller's fill — the plan's own,
 	# so this blade's numbers are the ones the resolve computes.
-	fill.fill(state, skill_nodes)
+	state = BladeState.from_nodes(skill_nodes, pivot, induced_edges, fill)
 	_spawn_visuals()
 	_snapshot_build_charges()
 	_mark_all_placed()
@@ -854,24 +837,7 @@ func _hop_distances() -> PackedInt32Array:
 
 
 func _build_swing_drivers(duration: float) -> Array[BladeDriver]:
-	var drivers: Array[BladeDriver] = []
-	var pivot_pos := state.positions[state.pivot_index]
-	var seen: Dictionary = {}
-	var sweep := -TAU if swing_cw else TAU
-	for e in state.edges:
-		var other := -1
-		if e.x == state.pivot_index:
-			other = e.y
-		elif e.y == state.pivot_index:
-			other = e.x
-		if other < 0 or seen.has(other):
-			continue
-		seen[other] = true
-		var offset := state.positions[other] - pivot_pos
-		drivers.append(BladeArcDriver.new(
-				other, pivot_pos, offset.length(), offset.angle(),
-				sweep, duration))
-	return drivers
+	return BladeArcDriver.pivot_drivers(state, swing_cw, duration)
 
 
 func _clear_visuals() -> void:

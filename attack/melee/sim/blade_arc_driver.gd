@@ -24,6 +24,31 @@ var ease: Callable
 ## would shear.
 var clock: BladeSwingClock = null
 
+## One arc driver per pivot-adjacent particle (each neighbour once, however
+## many edges join it to the pivot), turning the whole [param duration] about
+## the pivot — clockwise (negative sweep) when [param swing_cw]. The single
+## driver set the resolve and the visual blade both swing with.
+static func pivot_drivers(state: BladeState, swing_cw: bool, duration_: float) -> Array[BladeDriver]:
+	var drivers: Array[BladeDriver] = []
+	var pivot_pos := state.positions[state.pivot_index]
+	var seen: Dictionary = {}
+	var sweep_ := -TAU if swing_cw else TAU
+	for e in state.edges:
+		var other := -1
+		if e.x == state.pivot_index:
+			other = e.y
+		elif e.y == state.pivot_index:
+			other = e.x
+		if other < 0 or seen.has(other):
+			continue
+		seen[other] = true
+		var offset := state.positions[other] - pivot_pos
+		drivers.append(BladeArcDriver.new(
+				other, pivot_pos, offset.length(), offset.angle(),
+				sweep_, duration_))
+	return drivers
+
+
 func _init(
 		particle_: int,
 		center_: Vector2,
