@@ -214,11 +214,58 @@ laying Cold on a chokepoint — the player control #1716 asks for) is a `ride`
 row like any rider. The shipped rule stays: a hit that plants a medium does
 not trip it.
 
+**Same element, one go-off.** A hit's own load and the medium of the same
+element on the node it lands on are one reach source, not two: its size is
+`S_total = S + SI`, the node's stacks plus the hit's load (owner, 2026-11-04,
+#1733 round 3, said of Charge: *"Incoming load: S_total = S + SI … sounds
+best i think"*; the pass extends it to Fire — the owner also said *"just
+because explosive does it, doesnt mean that lightning hop reach ALSO needs
+to"*, so the extension is open to redirect). #1660's *"its power is the
+node's fuel"* is the same formula with a hit load of zero, since Heat
+ignition carries no load. One go-off spends **one** stack of the node's
+medium (owner, #1733 round 3: *"consuming 1 at a time"*), never the hit's
+load. Dual reach (§ Landing resolution) is only ever *across* elements.
+
 **Chain reactions** are bounded (#1733 R3): a copied hit landing on a node
 that holds a medium spends it and reaches again from there, once per node per
-attack, at its parent's share — a geometric cap however much Fuel is on the
-board. **Ignition** (#1696, Heat meeting Fuel) is one trigger among several,
-no longer the only route to a blast.
+*hit* — per arrow, per spell wave, as `HitLanding.detonated` is today — at its
+parent's share, a geometric cap however much Fuel is on the board. The owner's
+own volley needs the per-hit scope: *"if you land F+1 hits on it it would
+explode for size(F), size(F-1), …, size(1)"*. **Ignition** (#1696, Heat
+meeting Fuel) is one trigger among several, no longer the only route to a
+blast; its threshold is open (§ Open).
+
+**A go-off with no parent hit** — a tick's ignition, a thaw, a death blast —
+is a **terrain hit** (owner, 2026-11-05: *"option 1"*): its copies carry only
+the medium's own damage (`damage_per_charge` × the stacks spent, the #1733
+round 2 named exception), no riders, no crit, side-blind, so your own Hearth
+beside your own keg burns your own nodes too. **The attacker is the sided
+party in the reaction**: the Heat's latest applier for an ignition (a
+`NodeStatus` already records `applier_id`), the killer for a death blast. No
+new fact lands on a side-less medium. **Sync by determinism**: a terrain
+cascade has no crit and a deterministic pick, so every peer reproduces it as
+it reproduces diffusion today, never a host-minted record (owner, 2026-11-05:
+*"no crit on unallocated nodes doing things. but even if they did, we shouldve
+found a way to sync the seed (perhap during turnmanager ticks) such that it is
+deterministic anyway"*).
+
+**A medium rides a copy.** Terrain mutators proliferate like any rider: 5 Cold
+planted on a fuelled node is copied into the blast's disc at `ceil(r × s)`, a
+Cold arrow onto a charged node lays Cold along the arcs (owner, 2026-11-05:
+*"stuff that mutates the terrain (by adding fuel or charge or cold) i think
+should be able to be proliferated just fine, throw 5 Cold on a Fueled up
+volatile target node and watch it apply Cold to its surroundings in an AoE
+blast"*). Pass proposal to close the one loop this opens (a Charge rider on an
+arc replants the Charge the arc spent, a wire that never depletes): **a copy
+carries every rider except the medium its reach just spent** — a blast copy
+carries no Fuel rider, an arc copy no Charge rider, and Cold rides both.
+Tentative; a two-element build (Fire reach, Charge ride, Fuel ride) still
+seeds a territory over several casts, bounded per node by the cap, and that
+is the fuse network, not a bug.
+
+**A copy lands raw.** `ceil(r × s)` of the hit's authored payload, no
+per-landing fold: `stacks_per_hit` never multiplies with reach (#1733 R2).
+Whether a reach copy copies its parent's crit stays open (§ The hit).
 
 **Damage type: none.** Elements change reach, aspects change payload, damage
 stays one number. Movers get `<mover>_resistance` as any status does. If a
@@ -271,6 +318,17 @@ near the measured ratio of the hop it removes. Surplus Ice beyond the spell's
 hops is wasted; a 0-hop spell has nothing to trade. Open: the knob's shape
 (one number per spell vs the measured ladder).
 
+**A concentrated seed on a keg is a combo**, not an exploit to rule out. The
+seed lands with its concentrated payload and the node's Fuel or Charge copies
+it at share like any payload (owner, 2026-11-05: *"hitting Charged/Fueled
+nodes with ice load just proliferates whatever the ice would do but on the
+defender's side (incoming hit proliferates via hops or AoE boom) instead of on
+the attacker's side … and ice + fuel sounds like a combo why not?"*). The
+magnitude is therefore the pricing knob's to bound: under the ladder lean
+above, Pestilence concentrated from 4 hops to 0 carries ~84× a landing's
+payload, and a 0.5 share of that is 42 poison per disc node, so the knob is
+priced with this combo in view.
+
 ## Landing resolution (owner, 2026-11-05; ADR 0074)
 
 Owner, 2026-11-05, on the three phases below: *"hold it"*. Three phases per landing. Read and settle are pure functions of one
@@ -286,7 +344,7 @@ phases forbid is a rider *reacting* mid-land, not an order:
 3. **Settle.** One pure function of the node as it now stands: the Heat ×
    Cold netting, the mediums the read phase charged are spent, and the copies go
    out to the reached nodes — each running its own read, land, settle under
-   the once-per-node-per-attack cap.
+   the once-per-node-per-hit cap (per arrow, per wave).
 
 A hit carrying +1 Heat onto a 5-Cold node is read against 5, lands, and
 leaves 4: it thaws for the *next* hit, never for itself. The same settle runs
@@ -348,8 +406,8 @@ and a blank cell means *nothing special*: the hit lands and the medium sits.
 
 | On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Cold rider | a Frostbite pack | a blade |
 |---|---|---|---|---|---|---|---|
-| **Fuel** | blast, radius from Fuel plus load | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Cold copied into the disc | — | blast on contact (#1660 R2) |
-| **Charge** | arcs from Charge, then the blast | arcs from Charge plus load, Charge absorbed (#1733) | arcs | arcs if a rider, nothing if diffusion | arcs, Cold copied along | — | arcs |
+| **Fuel** | one blast, radius from Fuel plus load (`S + SI`), one Fuel spent | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Cold copied into the disc | — | blast on contact (#1660 R2) |
+| **Charge** | arcs from Charge, then the blast | arcs from Charge plus load (`S + SI`), one Charge spent | arcs | arcs if a rider, nothing if diffusion | arcs, Cold copied along | — | arcs |
 | **Cold under T** | absorbs: each Cold stack eats one radius step and melts; the rest goes out | absorbs: each stack eats one arc and melts | lands; the copy's onward reach is absorbed the same way | nets: thaw | adds | pays the toll: Cold sheds first (#1444) | drags (#1444) |
 | **Frozen** (Cold ≥ T, T = graph degree + 1) | reach < T: the glass holds, reach lost, no Cold spent; reach ≥ T: breaks, then absorbs 1:1 | same | same; an arc into a Frozen node grounds (mirror idea parked, § Open) | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
 
@@ -489,27 +547,27 @@ here.
   sounds like bad juju"*) — the `Quiver` already caps per type
   (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
   own lower cap; whether that cap is a knob or a stat is open.
+- **Ignition threshold** (owner, 2026-11-05, reopening #1660 round 2's
+  "heat > 0 and fuel > 0"): *"i'm not sure if 1 Heat would set off Fuel
+  stacks … 1 Heat can ignite 1 Fuel? if not, can 2 Heat ignite 1 Fuel?
+  generalized rule: H Heat ignites F Fuel when <something with H and F>? or:
+  Heat doesn't ignite. but enough Heat grants derived status Burn, and Burn
+  always ignites"*. The last shape gives the parked Burning state its effect.
+- **World-tick cadence and cost** (owner, 2026-11-05): *"what if world ticks
+  at e.g. 10 initiative/tick? or: what if each node has their own clock? …
+  at 2~3k nodes, ticking *each* is not that performant (or causes a massive
+  burst), possibly the updates can be done in waves"*. Diffusion, decay and
+  the terrain settle all ride this clock; the shape wants numbers from the
+  tick as built.
 - **Play-situation review, 2026-11-05** (four Sonnet lenses, rated by each
-  other; full text in `docs/handoffs/elements-play-situations.md`; the owner
-  has *not* judged them yet). The consensus top items, each wanting an owner
-  call: (1) a Fire-loaded hit landing on a Fuel node — one blast or two, and
-  the radius from the node's Fuel (#1660 r2: *"is the node's fuel"*) or Fuel
-  plus load; whether same-element sources merge before the dual-reach
-  concatenation; (2) a settle after a world-turn tick (ignition, thaw, death)
-  has no parent hit: what the copies carry (#1733 r2 named exception: Fuel
-  spent × `damage_per_charge`, no riders), who the attacker is, no crit, and
-  a host-minted record received by peers (ADR 0002), never reproduced; (3) a
-  concentrated Ice seed copied through a Fuel or Charge node makes Ice the
-  best amplifier — copies should carry the pre-concentration payload or a
-  concentrated landing gives no reach; (4) a medium ride row on a copy
-  replants what the go-off spent, a self-refilling wire — copies carry
-  damage and aspect riders, never medium riders (pass lean); (5) "a
-  planting hit never trips its medium" vs "read sees the pre-hit node": scope
-  the exemption to the medium the hit itself plants, at its own landing;
-  (6) copies' target mask (the shipped bolt filters to hostile) and
-  `stacks_per_hit` folding on copies (R2 forbids a reach multiplier: copies
-  land raw, pass lean); (7) the arc pick "ties included" makes Charge 1 hit
-  four tied neighbours — ties split or a visible third key.
+  other; full text in `docs/handoffs/elements-play-situations.md`). Items
+  1–4 and 6's fold half are settled above. Still wanting a call: (5) "a
+  planting hit never trips its medium" vs "read sees the pre-hit node" —
+  pass lean: a hit carrying a ride row for medium X is exempt from X's
+  go-off at its own landing only; (6) copies' target mask (the shipped bolt
+  filters to hostile; a hit's copies take the hit's mask, a terrain hit is
+  side-blind); (7) the arc pick "ties included" makes Charge 1 hit four tied
+  neighbours — ties split the share, ties included, or a visible third key.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
