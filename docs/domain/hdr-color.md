@@ -480,3 +480,41 @@ for animated reveals, where the bloom ramping in with the fade is a feature.
 - `.claude/rules/godot-shaders.md` — headless import doesn't compile GLSL;
   verify under a real renderer.
 - `.claude/rules/ui-palette.md` — the SDR palette this HDR layer rides atop.
+## Edge MultiMesh colour lift (`graph/edge.gd`)
+
+Multimesh-path colour: bakes the HDR emissive lift directly into rgb since
+a MultiMesh instance has no per-instance `self_modulate` to carry it
+separately (#413 acceptance spec item 3). Used by both `_push_colors` and
+`_push_self_loop_colors` — `_display_color` itself stays SDR-only.
+
+Deliberately NOT `Emissive.at()` — that helper's final `.linear_to_srgb()`
+re-encode exists so a `source_color`-hinted SHADER UNIFORM (e.g. rim_ring's
+`ring_tint`) round-trips byte-identical to the ColorPicker: GDScript encodes
+to sRGB, the engine auto-decodes it back to linear on upload because of the
+`source_color` hint, and the shader ends up with the correct linear value.
+`MultiMesh.set_instance_color`/`set_instance_custom_data` carry no such
+hint — Godot uploads them as raw numbers and `graph/edge_mesh.gdshader`
+reads them straight into `COLOR`/`INSTANCE_CUSTOM`, no auto-decode. Calling
+
+The boost is applied relative to the colour's OWN gray floor
+(`minf(r,g,b)`), not to the raw channels — scaling all three channels by
+the same flat factor keeps their ratio constant, so at high stops the
+WEAK channels cross the display's clip threshold right alongside the
+dominant one and the whole line reads as solid white, hue gone (this is
+why raising `lit_glow_stops` alone couldn't fix the earlier white-edges
+bug — same failure mode as the flat-multiply version, just a different
+cause). Leaving the floor unboosted and multiplying only the channel's
+rise above it means only the dominant channel(s) blow past 1.0 while the
+weak ones stay put — the core reads as saturated red/gold instead of
+white, and only the very brightest pixels (where even the floor was
+already high) go full white-hot, same as a real lightsaber/molten-metal
+look.
+
+The floor itself still gets a SMALL, fixed lift (`Emissive.VALUE`,
+not the user-tunable `lit_glow_stops`) — an achromatic base (`r == g == b`,
+e.g. the default unallocated `Color.DIM_GRAY`) has zero chroma to boost, so
+without this a gray lit edge would render pixel-identical to its unlit
+sibling no matter how high `lit_glow_stops` goes. Capping the floor's own
+boost independent of the chroma boost keeps gray edges visibly "on" without
+ever blowing them white the way lifting the whole floor by the full
+user-tunable factor would.

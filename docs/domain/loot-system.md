@@ -511,3 +511,44 @@ victim** calls `adopt_turn(killer, tm.turns_taken)` and never ticks the TurnMana
 (auto-tick = played; explicit-step = live — see `sandbox-framework.md`);
 **⟲ Reset** re-arms with muted teardown. No play step, no `godot --path` — the
 tab runs live in the editor.
+
+## LootRoundCommand (`command/loot_round_command.gd`)
+
+"This round of this relic's claim flow granted THIS." — the verb that
+carries a settled loot outcome across the wire (#522, split from the
+pick-offer by #646).
+
+**Always a replay, on every peer INCLUDING the authority.** Unlike
+`LaunchAttackCommand` this is not a two-states-one-type command — #646 gave
+up that symmetry on purpose. The offer / pick / roll sequence that used to
+live inside this command's own `_apply` now runs entirely OUTSIDE the
+command pipeline, host-side, driven by `SkillDustAddon`. Only once the
+outcome is fully known does the authority construct one of these — the
+constructor takes the outcome — and submit it. So by the time a
+`LootRoundCommand` exists at all, `resolved` is already stamped, and
+`validate -> confirm -> apply` (#540, #545) needs no opt-out for it:
+confirming broadcasts a complete record with nothing left to wait for.
+
+
+**Why the round and not the pick is the wire unit.** The obvious design —
+"the player's pick becomes a command" — mirrors only the path with a human
+on it. Two of `SkillDustAddon`'s grant paths never raise a pick at all: the
+single-cycle-safe-survivor auto-grant, and the NPC / headless auto-resolve.
+A vocabulary built around `PickLootCommand` alone would leave every NPC
+relic claim diverging a peer while the human-pick test passed. Recording
+the ROUND covers all three uniformly; the human path is just the one with
+latency in the middle — latency that now happens entirely BEFORE this
+command is minted, never inside its application.
+
+`PickLootCommand` still exists and is still the right shape — it is the
+INTENT travelling the other way, from a remote human's client back to the
+host, answering the downward `LootPickOffer` (also #646, NOT a `Command` —
+see that class). See `PickLootCommand`'s own doc.
+
+**One command per round**, including the terminal one. A relic that
+grants K things produces K rounds plus a final `finished` round that frees
+it. Folding the terminal state into the last grant would need lookahead, and
+the five distinct ways `SkillDustAddon` can reach its end (collector dead,
+rounds exhausted, pool dry, no cycle-safe survivor, empty sample) all have to
+free the peer's relic too — a round that grants nothing and says `finished`
+covers every one of them, including "nothing was ever granted".
