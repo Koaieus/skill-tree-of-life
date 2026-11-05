@@ -384,7 +384,7 @@ static func can_reform_selection(attacker: Entity, pivot: SkillNode,
 ## [b]Never [method _try_select_path].[/b] That is the click path's mass-select,
 ## and on a member that has drifted out of adjacency it silently pulls in a
 ## shortest path to reach it — reporting success while producing a DIFFERENT,
-## larger blade. This moves for the opposite: grey out rather than half-reform.
+## larger blade. The requirement is the opposite: grey out rather than half-reform.
 ## The size check below is what keeps that true if this ever gets rewired.
 ##
 ## The stored order is authoring order, which was chain-valid when captured, so
@@ -939,7 +939,7 @@ var last_pops: BladePopResolver.Result = null
 ## it has.
 ##
 ## [b]It is complete on return, but the pop CUE still does not come from
-## here.[/b] this gate runs against the shadow world the authority
+## here.[/b] This gate runs against the shadow world the authority
 ## computes on, so nothing it does may announce itself (the requirement that
 ## the cue ride the mutation clock is what that would break). The pop is
 ## recorded onto the hit and emitted by [method OutcomeApplier.land_one] on the
@@ -1455,10 +1455,10 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 
 ## Ask the physics engine which defenders this swing can meet.
 ##
-## [b]One query replaces two O(map) walks.[/b] the `build_swing_clock` and
-## the `build_obstacle_field` each walked all ~800 [SkillNode]s and resolved
+## [b]One query replaces two O(map) walks.[/b] The former `build_swing_clock` and
+## `build_obstacle_field` each walked all ~800 [SkillNode]s and resolved
 ## a stat on every one — 1744 us and 1701 us on `first_level`, measured with
-## ZERO defenders present, i.e. entirely the cost of asking. the
+## ZERO defenders present, i.e. entirely the cost of asking. The
 ## predicate is a collision layer bit, so the broadphase answers it: mask =
 ## `swing_drag` bit | `deflection` bit, and the result is O(defenders in range).
 ##
@@ -1472,7 +1472,7 @@ func build_drivers(blade_state: BladeState) -> Array[BladeDriver]:
 ## [b]Queried once; FILTERED live.[/b] The set is never re-queried mid-swing —
 ## one `intersect_shape` per swing is the whole point of the single-query field, and a defender
 ## cannot join a swing it was out of reach of at t=0. But it no longer survives
-## its own destruction either: the swing retires a zone whose node the swing itself
+## its own destruction either: the field retires a zone whose node the swing itself
 ## disowned, at the re-bake boundary the severance already creates
 ## ([method BladeObstacleField.retire_disowned_defenders]). So "unallocated
 ## nodes do not defend" holds at every sample, not only the first.

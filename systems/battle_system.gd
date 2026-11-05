@@ -14,8 +14,8 @@ enum AttackMode {
 ## Consumed by [AnnouncementLayer] for the mode-tinted CALLOUT FX.
 signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## The same moment, carrying the APPLIED outcome — for a presentation observer
-## that needs to know what the attack will touch and when (
-## [CameraDirector] frames the from->to span). A sibling of
+## that needs to know what the attack will touch and when
+## (e.g. [CameraDirector] frames the from->to span). A sibling of
 ## [signal attack_launched] rather than a widening of it: that one has six
 ## production listeners and ~ten test call sites, none of which want the
 ## outcome.
@@ -248,7 +248,7 @@ func _ready() -> void:
 
 
 ## Commit [param plan] — the HUD passes the seat's armed plan, an
-## [AIController] the one it built with [method new_plan]. Since the record is captured at prepare time,
+## [AIController] the one it built with [method new_plan]. Since attacks go through the command queue,
 ## this is a thin front for a
 ## [LaunchAttackCommand]: build it, submit it, and wait out the queue. The
 ## work itself lives in [method apply_launch_command], which the
@@ -333,7 +333,8 @@ func build_launch_command(plan: AttackPlan) -> LaunchAttackCommand:
 ## [b]This is a gate that also PRODUCES its command's payload[/b], which is what
 ## makes it unlike every other branch of `_validate`. The attack's real gate —
 ## resolve, then check affordability — cannot be asked without resolving, and
-## the resolution IS the payload. resolving costs nothing real (a
+## the resolution IS the payload. Since the resolve runs on a shadow world it
+## costs nothing real (a
 ## [method CombatWorld.shadow], see [method _compute_record]), so doing it here
 ## is legal; doing it here is what lets the record be final BEFORE the confirm,
 ## which is what stopped the authority mutating a full window ahead of every
@@ -585,7 +586,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# World mutation, on the beat clock. Awaited: `is_launching` gates on the
 	# WORLD being finished, never on the animation.
 	await _apply_outcome(outcome)
-	# Nothing is captured and nothing is confirmed here here. The
+	# Nothing is captured and nothing is confirmed here. The
 	# record was complete before this method was entered — it is the record this
 	# pass just replayed — and the confirm went with it, up into
 	# [method CommandApplier._drain], where it fires for this verb exactly as it
@@ -649,7 +650,7 @@ func _stage_holds(plan: AttackPlan) -> bool:
 ## It exists so the committed-swing resim has a seam to cite rather than guess at. When the melee
 ## resolve moves off the synchronous `_validate` and onto a [WorkerThreadPool],
 ## the thing that becomes asynchronous is exactly this, and nothing else in
-## [method _commit] has to move. Per the AUTHORITY has no floor
+## [method _commit] has to move. The AUTHORITY has no floor
 ## here — there is no swing to start without a record, so the form loop holds
 ## until it exists — while a mirror already holds one and never parks at all.
 ##
@@ -726,7 +727,7 @@ func _stage_windup(plan: AttackPlan) -> void:
 ## beat — there is no view store and no replay.
 ##
 ## [member instant_mutation] is the opt-out, and it is deliberately NOT
-## inferred from whether VFX happens to be mounted. the acceptance is that
+## inferred from whether VFX happens to be mounted. The requirement is that
 ## the applied world is identical whether or not a [member stage] is wired — so
 ## making the clock depend on that is exactly the thing that must not matter.
 ## A fixture that wants the whole outcome on one line says so out loud.

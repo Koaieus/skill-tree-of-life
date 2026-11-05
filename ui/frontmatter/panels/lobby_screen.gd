@@ -559,7 +559,7 @@ func _is_client() -> bool:
 ##
 ## [b]On a HOST this no longer seats anybody.[/b] A socket-level
 ## join says only that somebody connected; whether they are running this code is
-## not known until the build gate has answered, and a
+## not known until the build gate has answered, and the invariant is that a
 ## refused peer never appears in anyone's roster — not even for the one broadcast
 ## it would take to seat it and un-seat it. The seating moved to
 ## [method _on_link_peer_cleared], one signal later.

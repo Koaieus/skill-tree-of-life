@@ -480,6 +480,7 @@ for animated reveals, where the bloom ramping in with the fade is a feature.
 - `.claude/rules/godot-shaders.md` — headless import doesn't compile GLSL;
   verify under a real renderer.
 - `.claude/rules/ui-palette.md` — the SDR palette this HDR layer rides atop.
+
 ## BloomReferenceSwatch (`ui/theme/bloom_reference_swatch.gd`)
 
 A small, reusable row of test patches at rising EV tiers (default 0 through +4),

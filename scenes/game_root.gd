@@ -45,7 +45,7 @@ const _FOG_INTENSITY_DEV: float = 0.88
 ## ways out: the fallback timeout below and the overlay's own button.
 @export var route_to_meta_on_run_end: bool = true
 ## Seconds between the terminal outcome and the FALLBACK route back to the
-## meta-shell. the run-end overlay carries a *to main menu* button,
+## meta-shell. The run-end overlay carries a *to main menu* button,
 ## so this is what catches a player who never clicks it — long enough to read
 ## the outcome and decide, not the primary way out.
 @export_range(0.0, 60.0, 0.5, "or_greater") var run_end_route_delay: float = 20.0
@@ -95,7 +95,7 @@ var _link_end_presented: bool = false
 @onready var turn_manager: TurnManager = %TurnManager
 ## The one mutation path. Exposed here because [AIController] resolves it
 ## by walking up to its GameRoot, the same way it resolves [member battle_system]
-## — the applier node itself has been in `game_root.tscn` since.
+## — the applier node itself has been in `game_root.tscn` from the start.
 @onready var command_applier: CommandApplier = %CommandApplier
 ## The registry needs the roster + this machine's peer id to answer
 ## `is_remote_collector`. Injected below rather than read off the [GameSession]
@@ -417,7 +417,7 @@ func _present_link_end(reason: String) -> void:
 ## [method LootPickRegistry.is_local_collector] in OPPOSITE directions, and
 ## only one of them is safe. A stale `local_peer_id` of 0 answers false for
 ## this peer's own hero (its loot picker never opens — visible); a stale null
-## `roster` answers true for EVERYONE (every peer opens a picker — back,
+## `roster` answers true for EVERYONE (every peer opens a picker — wrong,
 ## and silent).
 func _on_local_peer_resolved(peer_id: int) -> void:
 	pick_registry.roster = GameSession.roster
@@ -570,7 +570,7 @@ func _leave_for_meta() -> void:
 
 ## Wire a (possibly late-resolved) human player into the *player-interaction*
 ## layer — highlight fallback owner, input controller, vision viewer. Faction
-## and controller kind are decided elsewhere (: [method apply_roster], or
+## and controller kind are decided elsewhere (by [method apply_roster], or
 ## authored directly on a hand-authored scene's node) — this only wires the
 ## camera/HUD's notion of "who am I looking through".
 ## Null-safe + idempotent: GameRoot calls it once at the tail of `_ready` (after
@@ -828,7 +828,7 @@ func _on_camera_bounds_changed(bounds: Rect2) -> void:
 ## deciding where the camera looks; the request is [b]mandatory[/b] (it bypasses
 ## the grace window and the skip-if-on-screen check) and a hard cut, because a
 ## seat changing hands must re-point the view unconditionally — anything softer
-## would be a behaviour change to.
+## would be a behaviour change to the hot-seat handover.
 func _focus_camera_on_player() -> void:
 	if player == null:
 		return

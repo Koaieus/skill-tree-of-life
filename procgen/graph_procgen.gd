@@ -980,7 +980,7 @@ static func _place_blocker_footprints(
 		return out
 	var mods := config.blockers
 	# Nothing authored anywhere → skip the walk (and every draw it would make),
-	# so a preset that opts out generates exactly what an authored-footprint-free seed always did.
+	# so a preset that opts out generates exactly what a pre-footprint seed did.
 	var wants_footprints := false
 	for size: int in [0, 1, 2]:
 		if mods.footprint_range(size).y > 0:

@@ -350,8 +350,8 @@ swapped after that). Picks each size tier's count — `floor(config.topology.nod
 / denom)`, where denom 0 disables the tier and any positive denominator
 below `GraphProcgenBlockers.MIN_BLOCKER_PER` is clamped up to it —
 by sampling uniformly WITHOUT replacement from the regular node indices.
-Excluded from the pool: every starter core (the first `ctx`.starter_indices.size() indices), every authored-scene index
-(`ctx`.scenes[i] != null, the pre-roll pass's `ScenePlacement` slot), and —
+Excluded from the pool: every starter core (the first `ctx.starter_indices.size()` indices), every authored-scene index
+(`ctx.scenes[i] != null`, the pre-roll pass's `ScenePlacement` slot), and —
 per `GraphProcgenBlockers.blocker_min_hops_from_core` — every node
 inside the hop-ball around ANY starter core, so no camp opens the run
 boxed in by boulders.
@@ -416,7 +416,8 @@ same split `to_entries` always used for `unit_value`). Single
 source of the low-bound recurrence so every reader sees the same chain
 through (possibly overridden) highs — see `TierLadder.low`.
 
-the old exemption ("low ends up right of high") was a **naming** problem,
+Negative pools (`unit_value < 0`, D9) roll a real range too — the old
+exemption ("low ends up right of high") was a **naming** problem,
 not a math failure: `TierLadder.low` is sign-agnostic, and for a
 negative pool the recurrence yields the tier's *near*-zero end while the
 ladder (`unit_value × V(t)`) yields its *far* end — the mirror image of a

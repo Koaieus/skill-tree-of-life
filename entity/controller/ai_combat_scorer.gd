@@ -255,6 +255,7 @@ static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: 
 ## Cheap pre-filter estimate for the ranged/magic two-tier gate: built only from
 ## values already on the board, never a second simulator; mirrors `score`'s shape
 ## but is NOT tier-gated.
+## [param raw_damage] is the caller's already-computed un-mitigated seed hit.
 ## [param pierce] is the attacker's armor pierce ([method Mitigation.pierce_terms]),
 ## resolved once per candidate attacking node by the caller; null is none.
 static func cheap_estimate(target: SkillNode, raw_damage: float, pierce: FoldTerms = null) -> float:

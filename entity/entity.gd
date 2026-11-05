@@ -413,7 +413,7 @@ var is_dead: bool = false
 ## probes) set this to 1 at build time, which is the honest claim: they are not
 ## on their first turn.
 ##
-## [b]it DOES cross[/b] — [constant EntitySnapshot._R_TURNS]. The
+## [b]It DOES cross[/b] — [constant EntitySnapshot._R_TURNS]. The
 ## parenthesised gap above was the real one: a peer whose world arrived as a
 ## snapshot never counted the turns that produced it, so every entity in it read
 ## 0 and the next turn each one served re-granted the first-turn skip. The

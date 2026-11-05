@@ -141,7 +141,7 @@ func _setup_level() -> void:
 	# The roster decides how many starting points to produce —
 	# `cfg.camp_sizes` above is the ONLY input either generation path reads for
 	# that count. With a `starter_placement` set (every shipped preset, since
-	# lifted `first_level.tres`'s legacy manual-anchor-plus-random-fill
+	# `first_level.tres` lifted its legacy manual-anchor-plus-random-fill
 	# path into a real [CenterCoreStarters]), `plan()` derives the headcount
 	# from `camp_sizes` directly. Without one, the starter list is exactly the
 	# preset's authored `starting_points` — no random fill, no second knob
@@ -399,8 +399,8 @@ static func resolve_spawn_core(
 ##
 ## By [member Participant.peer_id], never by [enum Participant.Kind]: locality
 ## is a RELATION, not a fact about the participant, and the roster a client
-## receives is the HOST's. removed the enum values that let this be asked
-## the wrong way at all — the kind now says only HUMAN or AI, and locality
+## receives is the HOST's. The enum values that let this be asked
+## the wrong way are gone — the kind now says only HUMAN or AI, and locality
 ## comes from [method Participant.is_local]. Same shape as
 ## `.claude/rules/ownership-vocabulary.md`'s rule for `owned_by`: the identity
 ## question and the "is it mine" question are not the same question.

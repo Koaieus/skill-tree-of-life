@@ -18,7 +18,7 @@ which is what keeps #824's cap lift (16 -> 64) affordable. Each proposal is
 [pivot, Array[SkillNode] blade_nodes, bool swing_cw, Array[SkillNode] clamp_nodes].
 
 **Direction is part of a candidate's IDENTITY, not a choice made after
-picking one** Two things make it matter, and only the second is obvious:
+picking one.** Two things make it matter, and only the second is obvious:
 
   - The blade is a PBD chain, so it LAGS its driver — reversing the sweep
     traces a genuinely different path, not the same circle backwards.

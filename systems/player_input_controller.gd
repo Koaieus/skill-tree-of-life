@@ -321,7 +321,7 @@ func _resolve_extract(node: SkillNode) -> void:
 ##
 ## Lives here rather than on the HUD's ActionCluster because the command needs
 ## BOTH the applier (a `bind_systems()`-lifetime dep) and the acting player (a
-## `rebind_player()`-lifetime one,). This controller already holds and
+## `rebind_player()`-lifetime one). This controller already holds and
 ## rebinds both; giving a HUD cluster its own player reference is how hot-seat
 ## handover breaks.
 ##
@@ -1370,7 +1370,7 @@ func can_player_act() -> bool:
 	if command_applier != null and command_applier.is_awaiting_confirmation:
 		return false
 	# A relic's claim chain is being driven — offer/pick/roll no longer
-	# runs inside `is_applying`, on purpose (: it must
+	# runs inside `is_applying`, on purpose (it must
 	# not hold this applier's queue for a remote human's pick), so the gate
 	# that used to fall out of `is_applying` for free has to be explicit here
 	# instead. See [CommandApplier.has_outstanding_loot] and the owner's

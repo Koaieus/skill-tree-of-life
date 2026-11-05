@@ -281,7 +281,7 @@ func focus_marker() -> Node2D:
 ## [OutcomeApplier] actually lands. Note the old objection to a rescan — that
 ## it "would run after the depletion cascade" — described replaying a FINISHED
 ## mutation, which is no longer the shape of this call; the no-rescan rule
-## survives on the drift argument alone. the landing gate lives in
+## survives on the drift argument alone. The landing gate lives in
 ## [BladeDamageInstance.land_on] and needs nothing from here.
 ## [param schedule] is the compiled presentation timeline this swing's hits land
 ## on. It is what the blade's playback rate is DERIVED from: the schedule
@@ -351,13 +351,13 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 ## authority re-resolved at submit; a third resolve of the same swing would buy
 ## nothing and cost a frame hitch.
 ##
-## [b]There is no seated shape (reversing).[/b] The
+## [b]There is no seated shape.[/b] The
 ## seated branch used to `form_instantly()` and return 0.0 on the theory that
 ## the aim-time ghost had already been watched; the owner's call (2026-09-10,
 ## *"your own blade gets the maximum treatment sure"*) is that the wind-up is
 ## the payoff for a swing you spent the aim phase building, not a third viewing.
-## One sequence, one set of authored durations, seated and incoming alike (this
-## gives both the same camera shot for the same reason); the escape hatch is
+## One sequence, one set of authored durations, seated and incoming alike (both
+## get the same camera shot, for the same reason); the escape hatch is
 ## purely the authored tempo: zero every beat and this returns 0.0 for everyone.
 ##
 ## [b]This is the presenter contract[/b] (ADR 0027) — the same signature
@@ -439,7 +439,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 ## [b]This loop no longer simulates.[/b] It used to run its own
 ## [method SkillBlade.simulate] every cycle, with a fresh drag clock and a fresh
 ## bunker field — which was both the expensive half of an always-running surface
-## and,, wrong: the authoritative resolve REBAKES from each severance
+## and wrong: the authoritative resolve REBAKES from each severance
 ## sample, so a plain sim could not reproduce an arc that loses a vertex partway
 ## through. Replaying [method MeleeAttackPlan.prediction]'s own trajectory makes
 ## the ghost arc the resolved arc by construction, drag and breaks included, and

@@ -225,7 +225,7 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## call it, while the STORAGE/authoring/loot arrays keep a composite whole (one
 ## entry, one lootable unit). A leaf pays nothing — one-element array, no state.
 ## ── Wire form ─────────────────────────────────────────────────────────
-## Loot travels BY VALUE. The owner call on settled this against pointing
+## Loot travels BY VALUE. The owner call settled this against pointing
 ## at shared state with a locator: two of the three loot buckets read the
 ## VICTIM'S OWN board (`Entity.core_modifiers`, `StatBoard.intrinsic_modifiers`),
 ## which a peer holds only partially and possibly stale — so an index into it is
@@ -234,8 +234,8 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## detached copies (`duplicate(true)`), so this is that same operation with a
 ## different target.
 ##
-## The `formula` is carried as its own tagged block, NOT dropped: makes
-## stealing a level-scaler the intended roguelite loop, so a wire format that
+## The `formula` is carried as its own tagged block, NOT dropped: level-scaling
+## grants are lootable (the intended roguelite loop), so a wire format that
 ## cannot carry a [StatFormula] guts the feature rather than trimming an edge.
 ##
 ## Decoding lives on [StatModifierCodec] rather than here, for the same
@@ -316,7 +316,7 @@ func collect_formula_edges(out: Dictionary) -> void:
 ## Asks every leaf via flatten(), so a [CompositeStatModifier] reports true when
 ## ANY child scales — matching the way a bundle is applied and looted as a unit.
 ##
-## The `level` case drives both sides of: the HUD lists level-scaled
+## The `level` case drives both sides of one rule: the HUD lists level-scaled
 ## modifiers, LootSystem excludes them.
 func scales_with(source_id: StringName) -> bool:
 	for leaf in flatten():

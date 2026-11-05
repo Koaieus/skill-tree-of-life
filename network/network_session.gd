@@ -101,7 +101,7 @@ func is_authority() -> bool:
 ## lobby settings are a wish, not a run: `GameSession.apply_received` replaces
 ## its [RunConfig] and its whole [ParticipantRoster] with the host's, so
 ## everything this machine builds must wait for that message. Offline play and
-## the host both answer false and take the untouched earlier path.
+## the host both answer false and take the untouched offline/host path.
 ##
 ## [b]Read from [member GameSession.network], never from the link's mode[/b] —
 ## the two are different sources on purpose. `scenes/dev/mp_procgen_sandbox.gd`
@@ -365,7 +365,7 @@ func _on_refused_by_host(reason: String) -> void:
 ## A client never acts on THIS signal: its host leaving is
 ## [method _on_link_lost], and a sibling client leaving is the host's to detect.
 ## It does hear about the outcome — the host broadcasts the handover and every
-## mirror applies its shared half directly (: [SeatHandover] receives its
+## mirror applies its shared half directly ([SeatHandover] receives its
 ## own kind now; there is no relay through this class any more).
 func _on_peer_left(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network

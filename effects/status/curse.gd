@@ -9,7 +9,7 @@ extends StatusDef
 ## one-stack decay and no cap are the authored def's knobs (`curse.tres`). It is the
 ## answer to the bunker: a negative `min_damage_taken` floor is pushed toward and
 ## past zero, so enough stacks take the heal flip away
-## (`docs/domain/effect-system.md` § "Status effects — the DoT model").
+## (`docs/domain/status-effects.md` § "The DoT model").
 ##
 ## Same shape and discipline as [SunderStatus] / [BlindnessStatus]: the
 ## def is shared and stateless, the per-node handle is FOUND by type and

@@ -65,6 +65,12 @@ genuinely-absent one is removed, and the same holds edge-by-edge.
 **Decoding into a POPULATED graph is therefore safe, and that is the
 resync backstop's whole contract** (#561; the join case is just the
 degenerate one where the graph starts empty and every row is new). The
+alternative the design offered — tear the world down and replay — was rejected
+because `StatBoard.read_dict` reconciles rather than wipes precisely so a live
+entity's `initialize()` signal wiring survives a resync, and freeing every
+`SkillNode` would strand every `EffectInstance.source_node` and every
+`Navigator` mirror that a repair has no business disturbing. A repair that
+touches nothing when nothing drifted is also what keeps a resync silent.
 
 **The existing id index is built ONCE, up front, and every lookup below
 reads it rather than `Graph.get_by_stable_id`.** Not a
@@ -72,7 +78,8 @@ micro-optimization: every `add_skill_node` marks the graph's topology dirty,
 so a per-row lookup through the graph would rebuild the whole index once per
 row — an O(nodes^2) decode at the 2000-node scale this payload exists for,
 the exact shape `.claude/rules/graph.md` says this repo has shipped twice.
-Re-apply nothing but each node's CURRENT HP (#715). Run it LAST, after
+
+**`restore_hp`** re-applies nothing but each node's CURRENT HP (#715). Run it LAST, after
 `EntitySnapshot.resolve_graph_refs`.
 
 **`node_health` is a POOL, and a pool clamps.**

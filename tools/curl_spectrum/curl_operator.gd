@@ -5,7 +5,7 @@ extends RefCounted
 ## by power iteration, no cast and no world. History-dependent rules (closing gain,
 ## momentum merge, the merge itself) are NOT in the matrix, so the radius is not a
 ## bound in either direction; it is exact on a tree.
-## See docs/domain/spell-propagation.md
+## See docs/domain/curl-operator.md
 
 ## Power iteration stops when the L1 growth ratio moves less than this between
 ## consecutive applications.

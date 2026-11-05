@@ -235,6 +235,9 @@ Plain like that — from the tab or the command line — Red is an ordinary
 level-1 board; `--autopilot` is the only thing that fattens it, and it must be
 given to BOTH peers (see `_boost_autopilot_budget`).
 
+**Blue stays the AI opponent.** `AIController` emits commands through
+`CommandApplier` like everything else, so keeping it makes this a
+player-against-an-opponent harness rather than two hot-seated humans.
 
 Restoring it exposes a real trap: `GameRoot._ensure_controllers`
 attaches an `AIController` to Blue on BOTH peers, and that controller

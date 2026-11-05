@@ -7,6 +7,10 @@ extends RefCounted
 ## shared by all of a pivot's rollouts. A node carrying both stats is ONE zone.
 ## Zones are ordered by [member SkillNode.stable_id]: a contract, two tie-breaks
 ## read it. See docs/domain/melee-blade-sim.md "One defender field".
+
+## How much longer than its summed rest edge lengths a whipped blade is assumed
+## to be able to get. XPBD's distance constraints are soft, so a fast sweep
+## stretches the chain a few percent past rest before they pull it back.
 ##
 ## [b]This is a coverage margin, not a bound anyone relies on being tight.[/b]
 ## With the predicate on the collision mask, widening the query costs only the

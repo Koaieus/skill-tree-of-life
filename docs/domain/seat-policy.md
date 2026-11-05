@@ -172,3 +172,6 @@ here, never what a command *does* once submitted.
 **Deliberately not here:** whether input may SUBMIT. That is command
 authority (#463) — a client can be seated on a hero it may not yet act for,
 which is what `PlayerInputController.set_input_frozen` expresses.
+
+Coop-vs-versus is deliberately absent from SeatPolicy — that is
+`Participant.camp`; COUCH and SEAT are the only per-machine axis.

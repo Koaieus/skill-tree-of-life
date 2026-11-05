@@ -438,10 +438,13 @@ keeps no buffed-set dict. The applied handles live in the per-grant
 member here would have every Ninja silently clobbering every other Ninja's aura.
 
 **The PAYLOAD is the swappable state, not the walk.** Everything above —
-the three knobs, the origin rule, `recompute`'s batching, and #626's
+the four knobs, the origin rule, `recompute`'s batching, and #626's
 incremental `_topology_changed` paths — is channel-agnostic. What a
 subclass swaps is the pair `_has_payload` / `_grant_to`:
 "is anything configured" and "put one grant on this node at this distance".
+The seam is deliberately per-node-per-scale, not per-modifier, so a
+non-modifier payload (`HealAuraEffect`) fits without a second walk and reuses
+`_distances`.
 
 ## Effect base class (`effects/effect.gd`)
 
@@ -520,6 +523,9 @@ Maps a distance to the VALUE an aura grants at that distance (#900).
 authored value it is shaping — a leaf modifier's `value`, or a heal effect's
 `base` — so a library scale spells itself as `value * <its multiplier>` and
 an `ExpressionScale` can ignore `value` entirely (`5 - d` is the heal ramp:
+5 at the core, 4 one hop out, …). Before #900 this returned the multiplier
+alone and `EffectContext` multiplied; the aura could then never express an
+absolute per-hop ladder, and `LinearScale` forced the rim ring to 0.
 
 **Deliberately not called "falloff."** The return is an unbounded scalar,
 not an attenuation. It may rise with distance (the Serpent's hop buff), fall

@@ -63,7 +63,7 @@ var _origin: Entity
 ## per live instance, each with COPIED ledger rows and a context bound to this
 ## slice. Without it a shadow could strip a node's ownership but not the
 ## modifiers that node's effects had granted — the pre-cascade-armour divergence
-## this closes.
+## the effect-twin replication closes.
 var _effects: Array[EffectInstance] = []
 ## The [CombatWorld] that minted this shadow, so an [Effect] granting to a
 ## [SkillNode] can find that node's slice in the SAME world. Set by
@@ -83,7 +83,7 @@ var _owns_world: bool = false
 ## [b]Why the ledger, and not the obvious shape.[/b] Batching happens inside one
 ## [method AuraEffect.recompute], so two auras touching the SAME node board in
 ## the same hook dispatch still settle twice. The naive fix — bracket every
-## owned node's board around every dispatch — was rejected on the own
+## owned node's board around every dispatch — was rejected on its own
 ## grounds: it is `2 * owned` begin/end calls per dispatch (300 on a 150-node
 ## Serpent), paid even when no aura touches a node board at all. This batches
 ## only the boards actually touched, so the cost is zero on a dispatch that
@@ -959,8 +959,8 @@ func real_node_for(n: NodeCombat) -> SkillNode:
 
 ## Display names of the modifiers [param node] grants its owner — the
 ## presentation half of a [DeallocEntry], for the client's "modifier lost"
-## toast. A pure READ: a shadow's grants are not revoked at all, and reading names is the part that could ship without mutating the
-## real node.
+## toast. A pure READ: it revokes nothing, and reading names is the part that could
+## ship without mutating the real node.
 static func _granted_labels(node: SkillNode) -> PackedStringArray:
 	var out := PackedStringArray()
 	if node == null:

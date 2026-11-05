@@ -30,7 +30,7 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## ([method AiCombatScorer.cheap_estimate]) ranks every candidate, and only
 ## the top K get a real gate-accurate [method AttackPlan.resolve] (the
 ## [code]EntityCombat.snapshot[/code] cost exists to budget). Mirrors
-## [constant AiBladeRollout._FINALIST_COUNT]'s shape and value — the 
+## [constant AiBladeRollout._FINALIST_COUNT]'s shape and value — the cost
 ## arithmetic that justified the whole approach assumed the same K across all
 ## three modes (`3 modes x 3 finalists x 11.58ms ~= 104ms`), so this stays in
 ## lockstep with melee's own constant rather than drifting to a tuned number
@@ -157,8 +157,8 @@ func _resolve_rng_seed() -> int:
 
 
 func take_turn() -> void:
-	# A non-authority peer never originates mutations (the contract,
-	# already enforced for SkillDustAddon's claim flow — see
+	# A non-authority peer never originates mutations (the non-authority-never-originates
+	# contract, already enforced for SkillDustAddon's claim flow — see
 	# CommandApplier.is_authority) — and the AI's decisions are
 	# real submissions, so a MIRROR peer's own copy of this controller would
 	# decide and submit independently of the host's AI the instant its local
@@ -211,7 +211,7 @@ func take_turn() -> void:
 	# dent, a kill), so re-running recon + enumeration each pass is what makes
 	# dent-then-finish fall out naturally instead of needing special-casing.
 	#
-	# Two economies since: melee and magic cost AP; a volley costs
+	# Two economies: melee and magic cost AP; a volley costs
 	# 0 AP and spends arrows + per-leaf shots + a volley slot instead. So the
 	# loop runs while EITHER can still act — at 0 AP only ranged is gathered —
 	# and the owner's fire-to-kill / reload policy (owner, 2026-09-18) sits

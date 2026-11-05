@@ -265,7 +265,10 @@ be rescaled (see the field's own docstring).
 | ADD_BONUS | "+3 bonus Armor" |
 | SET       | "Armor is 3" |
 
-the live computed number instead. The coefficient shown is the formula's
+A formula-bound modifier appends the formula's own qualifier — "+1 Blade Size
+**per 20 STR**" — and renders the COEFFICIENT rather than the effective value,
+because the clause now carries the variable part. Use `contribution_text` when
+you want the live computed number instead. The coefficient shown is the formula's
 `StatFormula.display_coefficient` of `value`, and `value` is handed
 to the clause: a `RatioFormula` uses both to normalise a merged rule to a
 unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", not

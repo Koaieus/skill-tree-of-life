@@ -46,11 +46,14 @@ is not "a bit early", it is a level with no map. This wait IS what the
 client's loading bar has been covering since `_setup_level` — the host's
 generate and ship, rather than this machine's own procgen.
 
-Unbounded for the world, and bounded by the LINK. The run-end overlay is a
-layer-100 canvas and `SceneTransition` sits at 101, so a presented overlay
-would sit UNDER the curtain; the wait must end the moment the link does.
-timeout. The wait ends the moment the link does, and the curtain lifts
-on the overlay that says why. While it waits, it re-asks for the world
+Unbounded for the world, and bounded by the LINK. A bare `await
+resync_applied` would leave `SceneDirector`'s 30s reveal timeout as the only
+exit, and a link that died meanwhile (the host refusing this peer, the host
+quitting) would present its overlay UNDER the curtain: the run-end overlay is
+a layer-100 canvas and `SceneTransition` sits at 101, so the joiner would
+look at a black screen with a bar at 0% for the rest of the timeout. The wait
+ends the moment the link does, and the curtain lifts on the overlay that says
+why. While it waits, it re-asks for the world
 every `join_pull_retry_sec` rather than trusting one ask.
 
 ## Joining client gets its world by resync pull (`network/network_session.gd`)

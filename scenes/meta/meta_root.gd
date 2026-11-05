@@ -4,7 +4,7 @@ extends Control
 ## skill tree -> a leaf's panel -> START. The only [method SceneDirector.goto] in this flow is
 ## the lobby's START, into the actual game level.
 ##
-## [b]This file is the ROUTING and nothing else.[/b] the presentation
+## [b]This file is the ROUTING and nothing else.[/b] The presentation
 ## belongs to [FrontmatterRoot] — one persistent menu graph and a camera — and
 ## what survives here is exactly the set of decisions that were never about
 ## presentation: which [NetworkConfig] a route leaves on [GameSession], which
@@ -16,7 +16,7 @@ extends Control
 ## [method FrontmatterRoot.back], which under a moving camera is the same call
 ## as going forward. Nothing here tracks a history.
 
-## Fallback destination (/5) for a route whose composed
+## Fallback destination for a route whose composed
 ## [RunConfig] carries no [Scenario] at all — today, every route:
 ## [LobbyScreen.build_run_config] does not yet author one, so this constant is
 ## still what every lobby-launched run reaches. The BARE level — no
@@ -70,7 +70,7 @@ func _bind_panels() -> void:
 	var host := _host_panel()
 	if host != null:
 		host.host_requested.connect(_on_host_requested)
-	# item 2: the lobby's back button. Its sibling route out — a focus
+	# The lobby's back button. Its sibling route out — a focus
 	# change to some other leaf — is caught in [method _on_focus_started].
 	var panels := _panels()
 	if panels != null:
@@ -93,10 +93,9 @@ func _bind_panels() -> void:
 ## Only the leaves whose panel IS the lobby route from here — today the two
 ## offline ones. HOST and JOIN each open a config panel first and reach the
 ## lobby through [method _on_host_requested] / [method _on_join_requested] once
-## a port (and, for JOIN, an address) has been typed. That asymmetry is 's,
-## widened by — it is the reason [MenuGraph.Item] splits "which panel
+## a port (and, for JOIN, an address) has been typed. That asymmetry is inherent to the wire — it is the reason [MenuGraph.Item] splits "which panel
 ## opens" from "what run shape does this eventually author".
-## [b]Leaving is routed here too (item 2).[/b] Every navigation in the
+## [b]Leaving is routed here too.[/b] Every navigation in the
 ## frontmatter goes through [method FrontmatterRoot.focus], which emits this — so
 ## a focus that is not a lobby leaf IS the back-out, whether the player pressed
 ## the panel's back button or walked into a different leaf entirely. Stating it
@@ -122,8 +121,7 @@ func _on_panel_dismissed(id: StringName) -> void:
 		_leave_lobby()
 
 
-## Backing out of a lobby is a leave, and a leave stops the socket (
-## acceptance 3). Before this, a host that opened a listener and walked away kept
+## Backing out of a lobby is a leave, and a leave stops the socket. Before this, a host that opened a listener and walked away kept
 ## it — nothing released [LobbyScreen]'s bound link but START — and the next Host
 ## click bound a port this machine already held.
 ##
@@ -154,7 +152,7 @@ static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 
 
 ## The mode passed here is the shape this ROUTE asks for, not the mode the run
-## gets: derives that from the roster when START is pressed
+## gets: the lobby derives that from the roster when START is pressed
 ## ([method LobbyRoster.resolve_mode]), because "more than one non-AI camp" is
 ## not knowable at the moment a route is taken. Host and Join both end up
 ## VERSUS by way of the remote seat their lobby authors; hot-seat stays coop
@@ -429,7 +427,7 @@ func _press_start_when_seated(_peer_id: int) -> void:
 	screen._on_start_button_pressed()
 
 
-## Rung 4's small preset (item 4), pressed on the same rows a human would
+## Rung 4's small preset, pressed on the same rows a human would
 ## and only under `--autoplay`.
 ##
 ## [b]Not a hidden procgen path.[/b] The whole claim rung 4 makes is that the
@@ -437,7 +435,7 @@ func _press_start_when_seated(_peer_id: int) -> void:
 ## be a run a host could have set up by hand — a back door that wrote a
 ## [RunConfig] directly would prove the back door works. It is also the first
 ## thing on this route that crosses a lobby OVERRIDE to the joiner: rung 3
-## touches no row, and means an untouched row writes nothing,
+## touches no row, and an untouched row writes nothing,
 ## so until now no [ScenarioOverride] had ever been over a real socket.
 ##
 ## [b]Applied the instant the lobby opens, never at START.[/b] Changing the AI

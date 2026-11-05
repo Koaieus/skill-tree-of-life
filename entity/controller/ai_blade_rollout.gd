@@ -350,8 +350,8 @@ const _SPIKE_REACH_BONUS := 1000.0
 ## resolve, never estimated here — see the class doc's point 3). Spiked
 ## nodes dominate — [SpikeRingAddon]'s own `blade_damage` modifiers
 ## (+3, x1.5 — node-local, NOT scaled by allocation level; what scales with
-## `stake_level` is `addon_slots` and the defensive pop budget, per the 
-## hub correction) — tie-broken/amplified by hop distance from [param
+## `stake_level` is `addon_slots` and the defensive pop budget, per the hub's
+## correction) — tie-broken/amplified by hop distance from [param
 ## entity]'s core ([param distances], the `GraphMirror.hop_distances_from`
 ## helper — 0 for anything it didn't reach, which never outranks a real
 ## candidate since every candidate here is drawn from owned-territory
