@@ -49,9 +49,9 @@ PROMOTED = [
     "native_method_override", "get_node_default_without_onready",
     "onready_with_export", "enum_variable_without_default",
 ]
-OVERLAY_SETTINGS = ["gdscript/warnings/exclude_addons=true"] + [
-    f"gdscript/warnings/{r}=2" for r in PROMOTED
-]
+# No `exclude_addons` key: 4.7.2 does not register it; addons are skipped by
+# path (EXCLUDE_PREFIXES) instead.
+OVERLAY_SETTINGS = [f"gdscript/warnings/{r}=2" for r in PROMOTED]
 EXCLUDE_PREFIXES = ("addons/", "native/godot-cpp/")
 
 TAG = " (Warning treated as error.)"

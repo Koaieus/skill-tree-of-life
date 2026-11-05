@@ -591,3 +591,4 @@ to Error, so a new one fails to compile in the editor and under `check`.
 = the real project levels); `check` runs it changed-only plus `--self-test`; the editor-import pass `check` also runs never reports these warnings (only a per-file `--check-only --script` does), hence the separate sweep. Fix it properly;
 use the warning-ignore annotation with a one-line reason only where the warning is
 intended (a truncating `int / int`, a tool-button var the editor holds).
+`gdscript/warnings/exclude_addons` is not a setting in 4.7.2 (the editor drops it on save); `addons/` is skipped by path in the lint, and the editor pass reports no addon warnings.
