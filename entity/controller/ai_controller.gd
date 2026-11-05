@@ -1,62 +1,23 @@
 class_name AIController
 extends EntityController
 
-## Minimum-viable NPC controller (AI v1, #22). There are no turn phases —
-## the controller sequences its own actions within the single turn, pausing
-## briefly between them so the player can read what happened, then ends the
-## turn. No infinite loops — every branch exits in bounded steps.
-##
-## Sequence (budget-driven, not phase-driven): NPC v1 never voluntarily
-## deallocates → recon pass (fog-aware, per-entity — see [AiRecon]) → spend
-## all SP on frontier growth, scored via [method AiCombatScorer.score_frontier]
-## (directional-toward-enemies + a tactical-enable bonus for a pick that lands
-## a near-miss kill) → if no hostile is visible, end turn (growth-only
-## short-circuit); otherwise the AP×2 loop scores every ranged + magic
-## candidate against every visible hostile via [AiCombatScorer], executes the
-## best, and re-evaluates — the re-eval is what makes dent-then-finish and the
-## 1-damage floor fall out naturally rather than needing special-casing.
-## Melee candidates come from [AiBladeRollout] (#378 slice C) — a bounded
-## reach-bound-reject / steerable-proposal / two-tier-evaluation rollout
-## rather than exhaustive enumeration (the induced-subgraph space is too
-## large and a full swing resolve is milliseconds, not microseconds).
-##
-## [b]The AI emits commands, it does not call systems[/b] (#512). Every
-## mutation it decides on leaves through [method _submit_and_wait] as a
-## [Command] applied by the one [CommandApplier], the same queue the player's
-## clicks feed — which is what makes the applier the ONLY mutation path rather
-## than merely one of them. Read-only system access for scoring stays
-## ([BattleSystem] for plan composition, the navigator for reachability); what
-## went is the [AllocationSystem] reference the AI could have mutated through.
-## `turn_delay` is unaffected and deliberately kept: it is host-local
-## presentation pacing with no sync meaning — see
-## `docs/domain/multiplayer-sync-model.md`.
-##
-## [b]Dormant Cores are scenery until they are a wall[/b] (#604). An NPC is
-## indifferent to them by default ([member Faction.targeted_by_ai]) — but the
-## indifference is a stance, not a rule, and it is re-decided every turn from
-## [method AiRecon.is_growth_capped]. Asked AFTER the growth step (that is when
-## "nowhere left to allocate" is a fact rather than a guess), a capped NPC
-## unlocks them for the rest of its turn, shoots its way out through one, and
-## spends its still-banked SP on the freed node in a second growth pass — kill,
-## relic, expand, all on the same turn. Nothing about the *player's* ability to
-## clear a core changes; see [method AiRecon.is_ai_target].
-##
-## Fog-aware since #378: each AI consults [AiRecon] for its OWN visibility
-## (not the shared player-only VisionSystem instance) — settled 2026-08-07,
-## "each enemy acts only on what it personally sees", no faction-shared
-## reveal in v1. Faction filtering uses [member Entity.faction] so future
-## multi-faction support drops in trivially.
+## Minimum-viable NPC controller: no turn phases; it sequences its own actions
+## within the single turn. Budget-driven: recon, growth, then an AP loop scoring
+## ranged, magic (and `AiBladeRollout` melee) candidates. The AI emits commands
+## through `_submit_and_wait`, never calls systems; Dormant Cores are scenery until
+## a wall; each AI acts on its own fog (`AiRecon`).
+## See docs/domain/ai-controller.md
 
 ## Every decision this AI makes on its turn (growth allocation, attack pick,
 ## or "nothing sensible") — ALWAYS, regardless of [member debug_trace]. No
 ## production listener yet; this is the seam a future HUD overlay or
-## DebugClipboard fan connects to on the controller it was handed (#378).
+## DebugClipboard fan connects to on the controller it was handed.
 ## [param summary] is a short human-readable description of the decision.
 signal decided(summary: String)
 
 const _DEFAULT_TURN_DELAY := 0.4
 
-## No-run fallback base for [member rng]'s seed (#823 D5) — `GameSession` may
+## No-run fallback base for [member rng]'s seed — `GameSession` may
 ## hold no live run at all (`dev_sandbox.tscn`, most unit fixtures). A fixed,
 ## distinctly-named constant, deliberately NOT [constant RunConfig
 ## .resolve_seed]'s own `1`: a real run can legitimately resolve to seed 1,
@@ -65,24 +26,24 @@ const _DEFAULT_TURN_DELAY := 0.4
 ## reproducible is the whole point (tests/replays pin [member rng] directly).
 const _NO_RUN_RNG_BASE_SEED := 823
 
-## Two-tier gate for ranged + magic (#537 D1/D3): a cheap ungated heuristic
+## Two-tier gate for ranged + magic: a cheap ungated heuristic
 ## ([method AiCombatScorer.cheap_estimate]) ranks every candidate, and only
 ## the top K get a real gate-accurate [method AttackPlan.resolve] (the
-## [code]EntityCombat.snapshot()[/code] cost #537 exists to budget). Mirrors
-## [constant AiBladeRollout._FINALIST_COUNT]'s shape and value — the #537 D1
+## [code]EntityCombat.snapshot[/code] cost exists to budget). Mirrors
+## [constant AiBladeRollout._FINALIST_COUNT]'s shape and value — the cost
 ## arithmetic that justified the whole approach assumed the same K across all
 ## three modes (`3 modes x 3 finalists x 11.58ms ~= 104ms`), so this stays in
 ## lockstep with melee's own constant rather than drifting to a tuned number
 ## nobody asked for (D2: "the worst has passed", not a millisecond target).
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
-## gate-accurately scored, identically to the pre-#537 exhaustive behaviour.
+## gate-accurately scored, identically to the earlier exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
-## Arrows a kill-sized volley carries BEYOND arrows-to-kill (#958) — the
+## Arrows a kill-sized volley carries BEYOND arrows-to-kill — the
 ## owner's "+ margin": a shadow-world resolve is exact for the seed it rolled,
 ## the live launch rolls its own, so one spare arrow covers a crit that does
-## not repeat. Tuning: owner tunes (hub #496); never a per-target formula.
+## not repeat. Tuning: owner tunes (hub); never a per-target formula.
 const KILL_MARGIN_ARROWS := 1
-## The authored [AmmoType] roster a volley's composition follows (#958):
+## The authored [AmmoType] roster a volley's composition follows:
 ## specials first in roster `order`, base fills the rest — the AI has no
 ## composer, so this IS its composition policy.
 const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
@@ -94,7 +55,7 @@ const _RING_SCHOOL_ORDER: Array[StringName] = [&"strength", &"dexterity", &"inte
 ## T1, then T2, then the keystone (tier 0).
 const _RING_TIER_ORDER: Array[int] = [1, 2, 0]
 
-## Diagnostic only (#537's "count it before trusting the arithmetic" ask) —
+## Diagnostic only (the "count it before trusting the arithmetic" ask) —
 ## how many candidates PASS 1 validated (cheaply) before the two-tier gate
 ## trimmed to [constant _CANDIDATE_GATE_K], and how many survived, for the
 ## LAST gather of each mode this turn. Read by
@@ -121,7 +82,7 @@ enum Tier { BRAWLER, FIGHTER, TACTICIAN, WARLORD }
 const DEFAULT_TIER := Tier.TACTICIAN
 ## The controller's single behavior-shaping knob — see [enum Tier].
 @export var ai_tier: Tier = DEFAULT_TIER
-## Seeded off [code]GameSession.config.seed[/code] (#823 D5, owner 2026-09-10:
+## Seeded off [code]GameSession.config.seed[/code] (owner 2026-09-10:
 ## "AI only runs by authority so option 1 should be fine even for
 ## multiplayer") mixed with a per-ENTITY discriminator — every AI on the
 ## board sharing the bare run seed would draw the identical sequence, so
@@ -144,7 +105,7 @@ var rng: RandomNumberGenerator = null
 ## Nothing is discovered: a missing [member command_applier] or
 ## [member battle_system] means the AI warns and idles through that step.
 ##
-## There is deliberately no `allocation_system_override` any more (#512): the
+## There is deliberately no `allocation_system_override` any more: the
 ## AI no longer holds a reference it could mutate the world through — every
 ## allocation goes out as a [Command].
 @export var command_applier: CommandApplier = null
@@ -196,9 +157,9 @@ func _resolve_rng_seed() -> int:
 
 
 func take_turn() -> void:
-	# A non-authority peer never originates mutations (#510's contract,
-	# already enforced for SkillDustAddon's claim flow — see
-	# CommandApplier.is_authority) — and #512 made this entity's decisions
+	# A non-authority peer never originates mutations (the non-authority-never-originates
+	# contract, already enforced for SkillDustAddon's claim flow — see
+	# CommandApplier.is_authority) — and the AI's decisions are
 	# real submissions, so a MIRROR peer's own copy of this controller would
 	# decide and submit independently of the host's AI the instant its local
 	# TurnManager hands this entity the turn (which a mirrored EndTurnCommand
@@ -225,7 +186,7 @@ func take_turn() -> void:
 
 	# Only NOW is "boxed in" a fact: the question is whether growth has run out
 	# of board, so it has to be asked after growth has taken everything it can.
-	# A capped NPC unlocks Dormant Cores for the rest of this turn (#604) —
+	# A capped NPC unlocks Dormant Cores for the rest of this turn —
 	# they stay scenery for everyone else, see [method AiRecon.is_ai_target].
 	var was_capped := _refresh_dormant_core_stance()
 	if was_capped:
@@ -233,7 +194,7 @@ func take_turn() -> void:
 		# Announce only when the stance actually revealed something. Being
 		# boxed in by real enemies is the common case and says nothing about
 		# dormant cores — a decide line there would be noise, and it is what
-		# the #512 parity golden would read as drift.
+		# the parity golden would read as drift.
 		if unlocked.size() > visible_enemies.size():
 			_decide("growth-capped — %d dormant core(s) unlocked as targets" \
 					% (unlocked.size() - visible_enemies.size()))
@@ -250,10 +211,10 @@ func take_turn() -> void:
 	# dent, a kill), so re-running recon + enumeration each pass is what makes
 	# dent-then-finish fall out naturally instead of needing special-casing.
 	#
-	# Two economies since #957/#958: melee and magic cost AP; a volley costs
+	# Two economies: melee and magic cost AP; a volley costs
 	# 0 AP and spends arrows + per-leaf shots + a volley slot instead. So the
 	# loop runs while EITHER can still act — at 0 AP only ranged is gathered —
-	# and the owner's fire-to-kill / reload policy (hub #496, 2026-09-18) sits
+	# and the owner's fire-to-kill / reload policy (owner, 2026-09-18) sits
 	# in front of the pick: *"fires min(shots_left, arrows-to-kill + margin)
 	# per target, greedy over scored targets, never single-shots, reloads when
 	# stock < Σ shots_left and no kill is on the table."* The sizing lives in
@@ -317,7 +278,7 @@ func take_turn() -> void:
 ## leaf can put a previously-out-of-range hostile in vision). Returns rather
 ## than mutates: reassigning the parameter would not reach the caller.
 ##
-## Runs twice per turn since #604 — once before the attack step, once after, so
+## Runs twice per turn — once before the attack step, once after, so
 ## a Dormant Core cleared for being in the way is walked through on the same
 ## turn. Idempotent when there is nothing to buy: the first `_try_allocate_frontier`
 ## returns false and the loop breaks.
@@ -327,7 +288,7 @@ func _spend_skill_points(visible_enemies: Array[SkillNode]) -> Array[SkillNode]:
 	var sp: SkillPointStat = entity.stat_board.skill_points
 	if sp == null:
 		return visible_enemies
-	# Un-inlined loop (#512): the allocation suspends until the applier has
+	# Un-inlined loop: the allocation suspends until the applier has
 	# applied it, and `await` cannot live inside a `while` condition.
 	while sp.current > 0 and _continue():
 		if not await _try_allocate_frontier(visible_enemies):
@@ -406,8 +367,8 @@ func _refresh_dormant_core_stance() -> bool:
 
 
 ## Hand the turn back, as an [EndTurnCommand] rather than a direct
-## [method TurnManager.end_turn] — the clock is a mutation like any other
-## (#512). Not awaited: it is the last thing this turn does, and the applier
+## [method TurnManager.end_turn] — the clock is a mutation like any other.
+## Not awaited: it is the last thing this turn does, and the applier
 ## running the next entity's turn inside it is exactly the shape the queue is
 ## built for. Still gated on [method _continue] — an AI that died mid-turn
 ## must not end someone else's.
@@ -418,7 +379,7 @@ func _end_turn() -> void:
 
 ## Emits [signal decided] unconditionally, and mirrors it to the
 ## console when [member debug_trace] is on. The single seam both channels
-## (#378) go through.
+## go through.
 func _decide(summary: String) -> void:
 	decided.emit(summary)
 	if debug_trace:
@@ -439,7 +400,7 @@ func _try_allocate_frontier(visible_enemies: Array[SkillNode]) -> bool:
 ## Frontier = unowned node adjacent to a node this entity already owns.
 ## Scored via [method AiCombatScorer.score_frontier] — directional-toward-
 ## enemies + a tactical-enable bonus for a pick that turns a near-miss ranged
-## kill into a landed one (#378 acceptance: tactical-leaf-for-near-miss-kill).
+## kill into a landed one (acceptance: tactical-leaf-for-near-miss-kill).
 ## No visible enemies -> first match, there's nothing to score against yet.
 func _pick_frontier_node(visible_enemies: Array[SkillNode]) -> SkillNode:
 	var graph := entity.navigator.graph if entity.navigator != null else null
@@ -562,7 +523,7 @@ func _gather_melee_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			entity, visible_enemies, ai_tier, rng, loot_system)
 
 
-## Two-tier gated (#537 D1/D3): [method AttackPlan.is_valid] is the cheap PASS
+## Two-tier gated: [method AttackPlan.is_valid] is the cheap PASS
 ## 1 — no shadow world, no snapshot (see [method AttackPlan.validate]) — so
 ## every reachable target is enumerated and cheaply ranked for free. Only the
 ## top [constant _CANDIDATE_GATE_K] then pay for the real
@@ -599,7 +560,7 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 		var plan := RangedAttackPlan.new()
 		plan.attacker = entity
 		plan.target = target
-		# Size the volley to the kill (#958): resolve the LARGEST volley the
+		# Size the volley to the kill: resolve the LARGEST volley the
 		# leaves and quiver allow, read arrows-to-kill off that outcome, and
 		# — when it kills with arrows to spare — re-resolve at kill + margin
 		# so the scored outcome IS the launched one. No kill on the table:
@@ -619,59 +580,11 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 	return out
 
 
-## Every (known spell × eligible casting source × visible hostile target)
-## combination whose plan validates. No spellbook / no known spells -> no
-## magic candidates, same as a naive entity that never learned one.
-##
-## [b]Reachability comes from #728's shared [SpellTargetUnion][/b] (#745) — one
-## [method SpellTargetUnion.build] per spell, whose [method RangeFinder.gather_multi]
-## walks every eligible caster in a single pass.
-##
-## What that replaces: the pre-#745 loop stamped a source onto a fresh probe
-## plan and asked [method AttackPlan.get_node_role]. That falls through to
-## [method MagicAttackPlan._rebuild_target_cache], which builds the plan's
-## union — a WHOLE-TERRITORY gather over every eligible caster — just to read
-## one source's row out of it. A fresh probe per owned node meant that whole
-## build ran once PER OWNED NODE, per spell, per turn. Same candidates, same
-## scores, same order: the range test stops being a traversal and becomes a
-## dictionary lookup.
-##
-## The union's [member SpellTargetUnion.best_source] collapse is deliberately
-## NOT used. It auto-picks a caster by node-local `spell_damage` alone, while
-## the loop below scores every (source, target) pair fully and lets
-## [method AiCombatScorer.pick_best] decide — which strictly dominates that
-## heuristic. Only the ENUMERATION is shared, never the pick.
-##
-## Fog stays here ([param visible_enemies], off [method AiRecon.visible_enemy_nodes]):
-## the union answers reachability only, and each caller applies its own viewer's
-## fog.
-##
-## [b]The intersection is taken from the REACH side[/b] — the smaller one.
-## [member SpellTargetUnion.per_source] is already ownership-filtered, so it
-## holds the hostile nodes inside this spell's ball (a handful), while
-## [param visible_enemies] holds every fog-visible hostile node and grows with
-## the board. Enumerating the reach and testing fog membership therefore costs
-## O(reach) per source instead of O(visible).
-##
-## The fog list's ORDER is then re-imposed via [code]visible_order[/code],
-## because [method AiCombatScorer.pick_best] breaks a score tie by
-## first-appended: appending in the range finder's gather order would silently
-## re-decide ties that the pre-#745 implementation settled the other way. The
-## sort is over the intersection only, which is why it is free.
-##
-## The range test itself stays necessary — [method AttackPlan.is_valid] cannot
-## stand in for it. validate() checks presence and source degree only, and
-## [method AttackPlan.resolve] trusts a set target unconditionally (it exists to
-## preview/commit a UI-picked target, not to re-validate one), so dropping it
-## would let the AI "cast" at an out-of-hop-range target and still score a hit.
-## Two-tier gated since #537 (D1/D3) — PASS 1 below enumerates every
-## (spell, source, target) combination exactly as before (still cheap:
-## [method AttackPlan.is_valid] never resolves), then PASS 2 promotes only the
-## top [constant _CANDIDATE_GATE_K], globally across every spell and source
-## this turn, to a real gate-accurate [method AttackPlan.resolve]. Below the
-## gate — every existing fixture, whose spell/source/target counts are small —
-## this is byte-for-byte the old exhaustive behaviour: same candidates, same
-## order, same scores.
+## Every (known spell x eligible casting source x visible hostile target)
+## combination whose plan validates, via the shared `SpellTargetUnion` (enumeration
+## only, never its pick). Fog is applied per caller; the range test stays
+## necessary. Two-tier gated: PASS 1 enumerates, PASS 2 resolves the top-K.
+## See docs/domain/ai-controller.md
 func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity.spellbook == null or entity.navigator == null:
@@ -705,7 +618,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		var union := SpellTargetUnion.build(spell, entity, graph, asker)
 		# `sources` and not `per_source`: the latter is keyed in gather_multi's
 		# own order, while `sources` is a filtered subsequence of
-		# get_mirrored_nodes() — the order the pre-#745 loop walked. It is also
+		# get_mirrored_nodes — the order the earlier loop walked. It is also
 		# already min_degree-filtered, so the ineligible sources that used to be
 		# probed and then thrown away by is_valid() never enter the loop at all.
 		for source in union.sources:
@@ -747,7 +660,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# PASS 2 — cheap-rank the WHOLE turn's magic candidates (across every
 	# spell/source) and promote only the top K to a real resolve.
 	# `order.sort()` restores PASS 1's own enumeration order among the
-	# survivors: the #745 characterization tests pin THAT order (fog order
+	# survivors: the characterization tests pin THAT order (fog order
 	# within a source, source order within union.sources, spell order within
 	# the spellbook), never cheap-score order.
 	var order := AiBladeRollout.top_k_indices(
@@ -826,7 +739,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 		BattleSystem.AttackMode.RANGED:
 			var plan := attack as RangedAttackPlan
 			plan.target = candidate.target
-			# The N that was scored is the N that fires (#958).
+			# The N that was scored is the N that fires.
 			plan.ammo = candidate.ammo.duplicate(true)
 		BattleSystem.AttackMode.MAGIC:
 			_arm_magic_plan(attack as MagicAttackPlan, candidate)
@@ -838,7 +751,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 			# no human sticky toggle, and this is what makes the swing the
 			# scored one.
 			plan.swing_cw = candidate.swing_cw
-			# #823 requirement 9: arm the SAME handle the rollout scored —
+			# Arm the SAME handle the rollout scored —
 			# a phantom clamp only ever existed to be scored
 			# (`MeleeAttackPlan.ai_phantom_clamp_nodes`), so launching without
 			# turning it into a real temp-upgrade addon would execute a floppier
@@ -854,14 +767,14 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 		# Never launched, so its temp-upgrade addons would otherwise outlive it.
 		attack.reset()
 		return false
-	# A plain call, and deliberately so: since #511 `launch_attack` IS the
+	# A plain call, and deliberately so: `launch_attack` IS the
 	# routing — it builds the [LaunchAttackCommand], submits it, and awaits that
 	# command's own `command_applied`. Building a command here instead would be
 	# a second implementation of one verb. Composing the plan above is likewise
 	# local composition, exactly what PlayerInputController does without a
 	# command.
 	#
-	# Why this is not a hole in #512's "no direct mutating system call" grep —
+	# Why this is not a hole in the "no direct mutating system call" grep —
 	# **owner call 2026-08-21:** *"hmm well AI will only be ran by the host, so
 	# to me it matters little how they do it, via a command or directly.
 	# clients won't ever run AI controllers anyway."*
@@ -873,7 +786,7 @@ func _execute_candidate(candidate: AiCombatScorer.ScoredCandidate) -> bool:
 
 ## Submit [param command] and suspend until the applier has actually applied
 ## it, returning the applier's own verdict — the AI's replacement for reading a
-## gated system call's return value (#512).
+## gated system call's return value.
 ##
 ## Waiting is not optional: the next decision is scored against the board this
 ## command changes. Two arrival shapes, both handled by the same code:

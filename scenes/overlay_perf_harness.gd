@@ -1,35 +1,10 @@
 extends Node2D
 
-## GPU cost harness for [FogOverlay] / [AuraOverlay]. See #133.
-##
-## [b]This is the only way to answer the question #133 actually asks.[/b] Both
-## overlays draw one screen-covering rect whose fragment shader loops over every
-## circle, so their cost is O(pixels × circles) per frame. That cost is
-## invisible to the test suite (dummy renderer never runs a fragment shader) and
-## meaningless under `xvfb` + opengl3 (llvmpipe is a software rasterizer; it
-## cannot parallelize the loop the way real hardware does, so it overstates the
-## cost by an unknown factor).
-##
-## [b]So: run this on real hardware, with the real driver.[/b]
-## [codeblock]
-## godot --path . scenes/overlay_perf_harness.tscn
-## [/codeblock]
-## Under xvfb it is good for exactly one thing — proving the shaders compile and
-## the scene runs. [b]Do not read its timings there.[/b]
-##
-## The number that decides #133 is the [i]delta[/i]: overlay-on minus overlay-off
-## GPU milliseconds, at circle counts spanning today (~15) to the planned late
-## game (~400+). If that delta stays small as circles grow, the per-pixel loop
-## was never the ceiling and #133's GPU half closes as "the 256-cap was the
-## actual bug". If it grows linearly in circle count, the loop is real.
-##
-## Drives [method FogOverlay.set_sources] / [method AuraOverlay.set_field] — the
-## same entry points the game uses — so it keeps measuring the right thing
-## across any change to how those overlays render.
-##
-## Note this isolates the [i]GPU[/i]: with no VisionSystem wired, FogOverlay's
-## per-element dimming pass short-circuits. The CPU half of #133 was measured
-## separately and fixed (VisionSourceIndex).
+## GPU cost harness for `FogOverlay` / `AuraOverlay` (O(pixels x circles) per
+## frame). Run it on real hardware with the real driver; under xvfb it only proves
+## the shaders compile. The number that matters is overlay-on minus overlay-off
+## GPU ms across circle counts. Drives the overlays' real entry points.
+## See docs/domain/overlay-field-rendering.md
 
 ## Circle counts to sweep. 15 ≈ today; 400–512 ≈ four entities at ~100 owned
 ## nodes (#133's scale); 1000–4000 ≈ #177's target — 1000-2000 node graphs,

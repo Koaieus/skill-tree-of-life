@@ -1,35 +1,10 @@
 @tool
 extends PanelContainer
-## A small, reusable bloom reference swatch — a row of test patches at rising
-## EV tiers (default 0 through +4), meant to be dropped into the corner of any
-## world SubViewport as a "slap it in and forget it" instrument. Two jobs:
-##
-## 1. **Proof.** If the patches at the higher tiers visibly glow, the hosting
-##    viewport's glow pass is actually running — the same silent-failure risk
-##    `addons/bloom_sandbox/bloom_sandbox_panel.gd` documents (wrong renderer,
-##    `use_hdr_2d` off, an unregistered `WorldEnvironment`, an 8-bit render
-##    target) all read identically here: patches that just sit there, flat.
-## 2. **Scale.** Because every patch is at a known, named EV stop, it also
-##    works as a comparison ruler — "does the effect I'm actually tuning read
-##    hotter or cooler than the +2 patch" is a much steadier question than
-##    eyeballing raw brightness.
-##
-## CRITICAL: this only tells the truth inside a bloom-capable `SubViewport`
-## (`ui/theme/bloom_viewport.tscn` — `own_world_3d` + `use_hdr_2d` + a
-## `WorldEnvironment`). Dropped into an ordinary outer `Control` tree (a
-## panel's sidebar, a plain HUD layer) it renders unglowed flat squares and
-## proves the exact opposite of what it's for. Per `.claude/rules/hdr-color.md`,
-## every patch colour is `Emissive.at()`-derived — never a hand-picked float.
-##
-## Deliberately NOT the bloom sandbox's own reference chart
-## (`addons/bloom_sandbox/bloom_sandbox_panel.gd`'s `_build_chart` /
-## `_sample_row` / `_sample`): that chart is a full diagnostic surface —
-## multiple backdrop bands, shape-coverage rows, an archetype-equalization
-## comparison, all wired to the live-tuning sliders and picker in the same
-## panel. This swatch is the opposite: small, static, host-agnostic, with no
-## dependency on anything but `Emissive`. If the two ever want to share code,
-## the shared unit is `Emissive.neutral(stop)` — already how both compute a
-## patch colour — not the chart-building machinery itself.
+## A small, reusable row of test patches at rising EV tiers (default 0 through +4) to
+## drop into the corner of any world SubViewport: proof the viewport's glow pass runs,
+## and a comparison ruler. Only truthful inside a bloom-capable SubViewport
+## (`ui/theme/bloom_viewport.tscn`); every patch colour is `Emissive.at()`-derived.
+## See docs/domain/hdr-color.md
 
 ## Side length of one patch, in pixels. Small by design — this is a corner
 ## instrument, not a diagnostic panel; the default (16) is deliberately close

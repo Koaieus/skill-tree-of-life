@@ -170,3 +170,78 @@ Only if the verb's wire form carries **both** its inputs and the host's derived
 result. If it carries intent only, there is nothing to compare and adding it
 would just re-count the WORLD column. If it carries a result with no inputs,
 the honest answer is `unavailable`, not agreement.
+
+## DeterminismProbe (`network/determinism_probe.gd`)
+
+#529: measure whether a peer could have DERIVED what the host sent it,
+instead of arguing about it. This class produces a NUMBER, not a feature —
+the input to the owner's choice between #463's confirm-down model and
+lockstep + snapshot recovery.
+
+**It mutates nothing and changes nothing about what the client applies.**
+`CommandChannel` still submits the host's version through the same
+`CommandApplier`; this only watches, tallies, and prints. It is
+`enabled`-gated and OFF by default, so a normal run pays one branch
+per command.
+
+**Three independent questions, tallied separately.**
+
+  1. **RESOLVE** — could this peer have derived the host's result from
+     the same inputs? Only `LaunchAttackCommand` can even be asked: it is
+     the one verb whose result rides the wire (an `AttackRecord`) alongside
+     the inputs that produced it (the plan + `LaunchAttackCommand.resolve_seed`). Every other verb carries intent
+     only, so "re-resolving" it is just applying it, and question 2 is the
+     whole answer.
+  2. **LAND** — could this peer have derived the host's LAND-TIME
+     arithmetic: the post-mitigation numbers, the HP bars, the reclassified
+     hit kind, the gated bit, and the forced-dealloc cascades? This column
+     was added 2026-08-24 and it is the one the model decision actually
+     turns on — see `LAND_KEYS`.
+  3. **WORLD** — after applying, do the two worlds agree? That is
+     `WorldFingerprint.compute`, which `WorldSyncChannel` already
+     compares; the probe only attributes each verdict to the command type
+     that produced it, because "3 mismatches out of 412, all launch_attack"
+     is the useful output and a single boolean is not.
+
+**The denominator is reported, not assumed.** `CommandChannel._on_remote_command` deliberately SKIPS the fingerprint compare
+while the queue is non-empty or a newer command has superseded it (a
+spurious ✗ poisons the only diagnostic the harness has). Those commands are
+tallied as `skipped`, not silently dropped from the count — a clean
+"0 diverged" read is worthless if a third of the commands were never
+compared, and that ratio is itself a finding.
+
+See `docs/domain/determinism-probe.md`.
+
+## WorldFingerprint (`command/world_fingerprint.gd`)
+
+A cheap "do two peers hold the same world?" checksum, for the multiplayer
+harness AND #527's join handshake.
+
+Folds four tiers (`GraphSnapshot`'s own tier table): ownership, topology (node identity +
+edges), ACCUMULATED per-node state — stake level, allocation level,
+regen stacks, node HP and the staking channel (target, progress) — and per-node STATUSES (#879: `(id, power)`
+pairs, see `_status_rows`). It does NOT fold derived `StatBoard` totals: the
+tier table says totals never cross the wire, so folding them would assert
+agreement on a quantity the sync layer deliberately does not transmit — a
+fingerprint that can fail for reasons the sync layer cannot cause is a
+fingerprint nobody reads.
+
+**HP folds QUANTIZED to int** (`roundi(hp * 100)`), never as a raw float.
+`PoolStat.current` is a float, and this number is compared ACROSS
+PROCESSES — folding a float through FNV-1a would make the fold depend on
+engine/platform float-formatting internals that are free to differ between
+builds, exactly the trap this file warned about before HP was foldable at
+all. HP is in the fold anyway: without it, a cast that kills nothing and a
+cast that never ran produce the same number.
+
+**One `compute`, not two fingerprints.** A component breakdown is
+surfaced through `describe` for diagnostics only — a mismatch there
+says *how* two peers differ, not just that they do — but the number peers
+actually compare is the single fold below.
+
+**Why this exists at all.** Node ids mint LAZILY, and every node in a
+hand-authored scene reads `0` until something forces a topology rebuild — so
+a command carrying `0` resolves to nothing, silently
+(`.claude/rules/multiplayer-sync.md`). Reading every id through
+`Graph.get_stable_id` here both forces the mint and turns a silent
+id disagreement into a visible mismatch at link-up.

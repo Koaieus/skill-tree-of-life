@@ -1,56 +1,11 @@
 class_name GraphSnapshot
 extends RefCounted
 
-## Encoder/decoder for #527's "a joining client receives a serialized graph;
-## it does not regenerate one" contract. Procgen is deterministic, but
-## serializing also covers the cases regenerating can't: mid-run join,
-## hand-authored levels, and (later) save/load. See
-## #527's acceptance spec, and #463's 2026-08-24 sync-model decision comment.
-##
-## [b]Three tiers, split per-moment not per-system[/b] (the issue's own
-## table):
-## - Authored (archetype, addon placements, the node's own scene, and
-##   node-direct `effects` — #527's Decisions section named keystones here;
-##   since #929 a landmark's effects ride in its scene) crosses as an
-##   INTERNED REF into a resource-path table built once per snapshot. 7
-##   archetypes / 6 addon scenes repeated per-node as full paths is the
-##   single biggest lever the issue's arithmetic calls out — ~230 KB of
-##   repeated strings collapses to a handful of bytes plus a once-sent
-##   table. An effect built via `.new()` rather than loaded from a shared
-##   `.tres` (real gameplay content never does this — only tests) has no
-##   `resource_path` and is silently dropped rather than crossing broken;
-##   that mirrors how `_encode_node` already treats an addon with no
-##   `scene_file_path`. An effect EMBEDDED in the node's own scene (a
-##   landmark's SubResource `StatEffect`, path `<scene>::<id>`) is not
-##   interned either: the scene is re-instantiated on the create path and
-##   brings it along, and `_reconcile_authored` leaves it in place.
-## - Accumulated (owner, HP, stake/allocation level, regen stacks, the
-##   modifier LIST) crosses BY VALUE — no formula rederives history.
-## - Derived ([StatBoard] totals, aura contributions, vision/fog) never
-##   crosses. Not this class's problem at all.
-##
-## [b]An addon's own modifiers are NOT double-encoded.[/b] Re-instantiating an
-## addon's `.tscn` on decode re-attaches its `entity_modifiers` /
-## `local_modifiers` for free (`.claude/rules/skill-node-addons.md` —
-## attaching is just `add_child`). So [method _encode_node] strips any
-## modifier on [member SkillNode.modifiers] that's also present on one of the
-## node's attached addons before encoding it, and [method _decode_node]
-## attaches addons FIRST, then appends the residual (the node's own "offered"
-## modifiers) on top — reproducing the same list the source node had.
-##
-## [b]Rows are POSITIONAL[/b] (arrays, not dictionaries with string keys) —
-## string keys like `allocation_level` roughly double a naive payload's size,
-## per the issue's own measurement. The whole structure goes through
-## `var_to_bytes` then `PackedByteArray.compress(COMPRESSION_ZSTD)` before it
-## leaves this class — wire time on LAN is 1-7ms either way, so this is a
-## tidiness requirement, not a performance one, but paths-per-node would have
-## been the embarrassing omission.
-##
-## [b]Ownership resolves through the RECEIVING graph's own entities.[/b] An
-## owner id with no matching [Entity] (via [method Graph.get_by_entity_id])
-## decodes as unowned — spawning entities and minting their ids is #528's
-## concern (`RunConfig` / `ParticipantRoster`), not this unit's. A mid-run join
-## is expected to land its roster before (or alongside) its graph snapshot.
+## Encoder/decoder for a serialized graph: a joining client receives it, never
+## regenerates. Three tiers: authored (interned resource refs), accumulated (by
+## value), derived (never crosses). Rows are positional, zstd-compressed;
+## ownership resolves through the receiving graph's entities.
+## See docs/domain/snapshot-encoding.md
 
 ## Node row indices — so `_encode_node`/`_decode_node` don't repeat magic
 ## numbers, and a positional row still self-documents at the call site.
@@ -85,10 +40,8 @@ const _LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
 ## resource-path table), `nodes` (positional rows, see the `_R_*` consts), and
 ## `edges` (`[low_stable_id, high_stable_id]` pairs, sorted — canonical because
 ## [method decode] re-adds edges by unordered pair, so the live order and
-## direction would not survive a round trip and the bytes would drift). Callers that want to send
-## progress in chunks should slice `graph.get_skill_nodes()` themselves and
-## call [method encode_nodes] per slice, sharing one [_InternTable] across
-## slices — this method exists for the common case (and every unit test).
+## direction would not survive a round trip and the bytes would drift). There
+## is no chunked variant: the whole graph goes as one payload.
 static func encode(graph: Graph) -> PackedByteArray:
 	var table := _InternTable.new()
 	var nodes: Array = []
@@ -103,53 +56,10 @@ static func encode(graph: Graph) -> PackedByteArray:
 	return _pack({"res": table.paths, "nodes": nodes, "edges": edges})
 
 
-## Decode a payload built by [method encode] into [param graph] — a RECONCILE,
-## not a rebuild (#561 D6). A node whose `stable_id` is already present is
-## updated in place; only a genuinely-new id mints a [SkillNode], only a
-## genuinely-absent one is removed, and the same holds edge-by-edge.
-##
-## [b]Decoding into a POPULATED graph is therefore safe, and that is the
-## resync backstop's whole contract[/b] (#561; the join case is just the
-## degenerate one where the graph starts empty and every row is new). The
-## alternative D6 offered — tear the world down and replay — was rejected
-## against what #560 had since built: [method StatBoard.read_dict] reconciles
-## rather than wipes precisely so a live entity's `initialize()` signal wiring
-## survives a resync, and freeing every [SkillNode] would strand every
-## [EffectInstance] `source_node` and every [Navigator] mirror that a repair
-## has no business disturbing. A repair that touches nothing when nothing
-## drifted is also what keeps a resync silent (#561 acceptance 6).
-##
-## [b]The existing id index is built ONCE, up front, and every lookup below
-## reads it rather than [method Graph.get_by_stable_id].[/b] Not a
-## micro-optimization: every `add_skill_node` marks the graph's topology dirty,
-## so a per-row lookup through the graph would rebuild the whole index once per
-## row — an O(nodes^2) decode at the 2000-node scale this payload exists for,
-## the exact shape `.claude/rules/graph.md` says this repo has shipped twice.
-## Re-apply nothing but each node's CURRENT HP (#715). Run it LAST, after
-## [method EntitySnapshot.resolve_graph_refs].
-##
-## [b]`node_health` is a POOL, and a pool clamps.[/b]
-## [method SkillNode.restore_current_hp] writes through
-## [method PoolStat.set_current], which cannot exceed the pool's cap — and that
-## cap is derived: [method NodeCombat.get_local_value] merges the node's own
-## board with its OWNER's, so it moves with whatever the owner has been granted.
-## [method decode] therefore restores HP at a moment when the owner's board is
-## only partly rebuilt: the node-sourced effects an owner holds are granted in
-## [EntitySnapshot]'s PASS 2, which by construction runs after this. Every node
-## whose true HP sat above the not-yet-raised cap is silently clamped down, and
-## nothing ever raises it again — the value is simply lost.
-##
-## [b]It only surfaced once a peer stopped generating its own world (#715).[/b]
-## A client that had just run the same procgen already held caps within a
-## rounding error of the authority's, so the clamp had nothing to bite. Starting
-## from an empty graph it bites on every owned node at once: measured over the
-## shipped 800-node preset, 125 owned nodes lost ~2-4 HP each and the
-## accumulated fold disagreed on the first compare while ownership and topology
-## agreed exactly. That signature — `own` and `topo` equal, `accum` off — is what
-## this method exists to keep from coming back.
-##
-## Idempotent and cheap: one pool write per node, no signals
-## ([method SkillNode.restore_current_hp] bypasses damage/heal by design).
+## Re-apply nothing but each node's CURRENT HP. Run it LAST, after
+## `EntitySnapshot.resolve_graph_refs`: HP is a pool clamped by a cap derived from
+## the owner's board, which is only fully rebuilt by then. Idempotent, no signals.
+## See docs/domain/snapshot-encoding.md
 static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 	if graph == null or bytes.is_empty():
 		return
@@ -160,6 +70,10 @@ static func restore_hp(bytes: PackedByteArray, graph: Graph) -> void:
 			node.restore_current_hp(float((row as Array)[_R_HP]) / 100.0)
 
 
+## Decode a payload built by [method encode] into [param graph] as a RECONCILE,
+## not a rebuild: matching `stable_id`s update in place, new ids mint, absent
+## ids are removed (edges likewise). Safe on a populated graph.
+## See docs/domain/snapshot-encoding.md
 static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	var payload := _unpack(bytes)
 	var res: Array = payload.get("res", [])

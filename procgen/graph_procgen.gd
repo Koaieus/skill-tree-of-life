@@ -27,21 +27,21 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 
 ## Arbitrary offset mixed into the main `rng.seed` to derive [member
-## _place_blocker_indices]'s own RNG stream (#478). Blocker placement has to
+## _place_blocker_indices]'s own RNG stream. Blocker placement has to
 ## run BEFORE the per-node content loop (so the loop can pick the right node
 ## scene), which would otherwise consume draws off the shared `rng` ahead of
 ## every other roll — silently reshuffling what a given seed generates
 ## everywhere else. A same-seed-derived-but-independent stream keeps blocker
 ## placement itself deterministic while leaving the main stream untouched.
 const _BLOCKER_RNG_SALT := 0x8477
-## Salt for [member PlacementContext.scene_rng] (#330) — scene placements draw
+## Salt for [member PlacementContext.scene_rng] — scene placements draw
 ## off their own derived stream so the main `rng` is byte-identical with or
 ## without them.
 const _SCENE_RNG_SALT := 0x3300
 ## Salt for the Dormant Core face roll ([method GraphProcgenBlockers.roll_faces]):
 ## its own stream, so faces on or off leave every blocker draw above it intact.
 const _FACE_RNG_SALT := 0xFACE
-## Salt for the node-subtype placement roll (#1056), for the same reason as the
+## Salt for the node-subtype placement roll, for the same reason as the
 ## two above and one more: the roll happens mid-loop, per node, so off the
 ## shared `rng` every modifier draw after it would shift — both goldens would
 ## churn on any `base_chance` retune and a placement change would be
@@ -50,40 +50,11 @@ const _SUBTYPE_RNG_SALT := 0x5B17
 ## Salt for the addon placement pass's own stream (see [method _place_addons]).
 const _ADDON_RNG_SALT := 0xADD0
 
-## Poisson-disk auto-scale sizing (#164, retuned in #566). The disc area a
-## ShapeMask needs to hold `node_count` points at spacing `d = min_dist`.
-##
-## This is ONE MEASURED NUMBER, not a derivation. It is the area per point
-## Bridson actually achieves inside a mask — measured as `π·(R/d)² / uncapped
-## fill`, 6 seeds per cell, and identical to three digits across d = 100 / 150
-## / 250 (the whole pipeline is expressed in units of `min_dist`, so
-## `node_radius` and `node_padding` only zoom the board — retuning either
-## needs no change here):
-##
-##     R/d     8.0    12.0    16.0    21.4    30.0
-##     n      ~130    ~292    ~519    ~928   ~1824
-##     area/pt 1.489  1.511   1.536   1.550   1.562
-##
-## It drifts ~5% with n (a mask-clipped rim point spends less exclusion area
-## than an interior one, so more perimeter per unit area → a lower ratio).
-## 1.60 sits just above that whole curve, which is the side to err on:
-## ABOVE means the disc outlasts the `max_points` cap and
-## `PoissonDiskSampler.sample` exits mid-flood, stranding the unplaced points
-## in one contiguous arc — the #566 ragged rim; BELOW means the level author
-## asks for `node_count` and silently gets fewer. At 1.60 the flood exhausts
-## exactly as it hits the cap: `placed == node_count` at every n from 150 to
-## 3000 over 20 seeds, ring density within ±2% of uniform.
-##
-## The predecessor split this into a `_POISSON_PACKING_EFFICIENCY` of 0.69
-## (× hex-cell area) plus a 1.434 `_POISSON_SAFETY_MARGIN`, "kept separate so
-## each is individually inspectable". They never were: the efficiency was
-## optimistic (real is ~0.55) and the margin existed only to paper over it,
-## so their product overshot by 16% and produced the very rim raggedness the
-## margin was named for. One measured constant states the truth.
-##
-## #163 (territory stamping) PREDICTS a stamp's node count from this ratio
-## rather than resampling locally, so don't retune without re-checking
-## test_procgen_sizing.gd.
+## Poisson-disk auto-scale sizing: the disc area a ShapeMask needs to hold
+## `node_count` points at spacing `min_dist`. ONE MEASURED constant (area per
+## point Bridson achieves), set just above the measured curve so the flood exhausts
+## at the `max_points` cap. Re-check `test_procgen_sizing.gd` before retuning.
+## See docs/domain/procgen-sizing.md
 const _POISSON_AREA_PER_POINT := 1.60
 
 ## Relative slack in [method node_count_for_area] so it stays an exact inverse
@@ -102,7 +73,7 @@ static func target_area_for_node_count(node_count: int, min_dist: float) -> floa
 ## Inverse of [method target_area_for_node_count]: how many points Poisson is
 ## expected to place in a region of `area` at `min_dist` spacing. Used by
 ## consumers that need to predict a count from a region size instead of the
-## other way around (e.g. #163's "how many nodes does this stamp cover").
+## other way around (e.g. the "how many nodes does this stamp cover").
 ##
 ## `_ROUND_TRIP_EPSILON` exists because `floor` on a multiply-then-divide is
 ## not exact: `target_area_for_node_count(n)` fed straight back here can land
@@ -141,7 +112,7 @@ static func generate(
 	assert(graph != null, "GraphProcgen.generate: null graph")
 	assert(config.shape.shape_mask != null, "GraphProcgen.generate: config.shape.shape_mask is null")
 
-	# #457: the caller resolved the sentinel already — `GameSession.start` for a
+	# The caller resolved the sentinel already — `GameSession.start` for a
 	# real run, an explicit seed for a test or an editor preview. Generation is
 	# not a resolution site: a seed nobody recorded is a run nobody can replay.
 	# The resolve call behind the assert is the release-build floor (asserts are
@@ -163,7 +134,7 @@ static func generate(
 	# manual vs. random can be told apart by index.
 	var starters: Array[StartingPoint] = []
 	if config.starting.starter_placement != null:
-		# #551: camp-relative annulus placement replaces the whole manual
+		# Camp-relative annulus placement replaces the whole manual
 		# list. Read the resolved radius the same way _propagate_mask_radius
 		# (just above) does — the mask is already auto-scaled by this point.
 		var resolved_radius := 0.0
@@ -206,7 +177,7 @@ static func generate(
 		type_assignments.resize(positions.size())
 		type_assignments.fill(-1)
 
-	# Post-clustering territory stamps (#163). Override archetype assignments
+	# Post-clustering territory stamps. Override archetype assignments
 	# for nodes inside each stamp's region — before building the placement
 	# context so the updated assignments flow into guaranteed placements too.
 	if not config.content.archetype_stamps.is_empty():
@@ -224,14 +195,14 @@ static func generate(
 		if placement != null:
 			placement.apply(placement_ctx)
 
-	# Removable-blocker placement (#477 / #478). Computed on INDICES before the
+	# Removable-blocker placement. Computed on INDICES before the
 	# per-node loop so a blocked node can be instantiated from
-	# [constant _BLOCKER_NODE_SCENE] (the boulder visual, #478) rather than
+	# [constant _BLOCKER_NODE_SCENE] (the boulder visual) rather than
 	# swapped in afterwards — the edges and self-loops below wire `nodes` by
 	# reference, so a node can't be replaced once added. Eligibility mirrors
 	# the old post-loop pass: never a starter core (indices < starters.size())
-	# nor an authored-scene node (placement_ctx.scenes[i] != null, #330) —
-	# plus, since #300, never a node inside the core safe radius
+	# nor an authored-scene node (placement_ctx.scenes[i] != null) —
+	# plus, never a node inside the core safe radius
 	# (blocker_min_hops_from_core).
 	#
 	# Deliberately rides its OWN derived RNG, not the shared `rng` stream:
@@ -245,7 +216,7 @@ static func generate(
 	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
 	var blocker_sizes := _place_blocker_indices(
 			positions.size(), placement_ctx, config, blocker_rng)
-	# One prune seed per placement (#586), drawn HERE rather than at spawn
+	# One prune seed per placement, drawn HERE rather than at spawn
 	# time because the level scene is re-run on every peer — the loot-book
 	# prune is reproduced, not received, so an unseeded roll there would hand
 	# two peers different offers off the same relic (multiplayer-sync.md).
@@ -254,15 +225,15 @@ static func generate(
 	var blocker_seeds: Dictionary[int, int] = {}
 	for idx: int in blocker_sizes:
 		blocker_seeds[idx] = blocker_rng.randi()
-	# Bonus-node footprints (#777), drawn LAST off the same stream so every
+	# Bonus-node footprints, drawn LAST off the same stream so every
 	# draw above — the cores, the sizes, the prune seeds — is byte-for-byte
-	# what a pre-#777 seed produced. Appending is the whole reason this is a
+	# what an earlier seed produced. Appending is the whole reason this is a
 	# separate pass rather than a branch inside the placement loop.
 	var blocker_footprints := _place_blocker_footprints(
 			blocker_sizes, placement_ctx, config, blocker_rng)
-	# Pre-stake rolls (#916), drawn after the footprints off the same stream
-	# and for the same reason: appended last, so every draw above is what a
-	# pre-#916 seed produced. Always two draws per blocker, chance or not, so
+	# Pre-stake rolls, drawn after the footprints off the same stream
+	# and for the same reason: appended last, so every draw above is what an
+	# earlier seed produced. Always two draws per blocker, chance or not, so
 	# a later pass appended here is stable across a chance retune too.
 	var blocker_stakes := _roll_blocker_stakes(blocker_sizes, config.blockers, blocker_rng)
 	var face_rng := RandomNumberGenerator.new()
@@ -271,14 +242,14 @@ static func generate(
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
-	# INT-archetype nodes only — the eligible pool for #206's spell-grant
+	# INT-archetype nodes only — the eligible pool for the spell-grant
 	# distribution, run as a single post-loop pass once every node exists
 	# (see GraphProcgenSpellGrants.distribute; it needs the full pool size to
 	# compute the level's grant budget, not a per-node decision).
 	var int_nodes: Array[SkillNode] = []
 	# Every non-authored-scene node: the addon pass's draw pool.
 	var addon_eligible: Array[SkillNode] = []
-	# Subtype placement (#1056) — its own derived stream, plus the two things
+	# Subtype placement — its own derived stream, plus the two things
 	# that must be computed ONCE per generate(): the resolved default (D14) and
 	# D13's per-(archetype, subtype) drawability lookup.
 	var subtype_rng := RandomNumberGenerator.new()
@@ -296,7 +267,7 @@ static func generate(
 		var sn: SkillNode
 		var authored_scene: PackedScene = placement_ctx.scenes[i]
 		if authored_scene != null:
-			# An authored-scene node is PURE (#330): the scene IS the content.
+			# An authored-scene node is PURE: the scene IS the content.
 			# Procgen sets its position and nothing else — no archetype, no
 			# budget, no modifier roll, no rolled addons, no radius stamp (the
 			# scene's authored radius stands), never a blocker (eligibility
@@ -343,8 +314,8 @@ static func generate(
 			var node_subtype := _roll_subtype(
 					config.content.subtypes, archetype_primary_stat,
 					subtype_drawable, default_subtype, subtype_rng)
-			# Radius follows the rolled budget (#783); an authored scene never
-			# reaches this branch, so its own radius stands (#330).
+			# Radius follows the rolled budget; an authored scene never
+			# reaches this branch, so its own radius stands.
 			_stamp_radius(sn, config.topology.radius_for_budget(budget))
 			if config.content.modifier_pool_set != null:
 				sn.modifiers = _roll_modifiers_v4(
@@ -396,7 +367,7 @@ static func generate(
 	for pair in edge_pairs:
 		graph.add_edge(nodes[pair.x], nodes[pair.y])
 	
-	# Self-loops — floor-guaranteed staged draw without replacement (#42).
+	# Self-loops — floor-guaranteed staged draw without replacement.
 	# Tier 1 draws floor(N × p1) nodes uniformly from all generated nodes
 	# (partial Fisher-Yates, no replacement); tier k draws floor(K_{k-1} × p_k)
 	# from the previous tier's set. Each tier then does ONE Bernoulli on the
@@ -438,14 +409,14 @@ static func generate(
 	for i in min(starters.size(), nodes.size()):
 		starting_nodes.append(nodes[i])
 
-	# Removable-blocker placements (#477 / #478), rebuilt from the index→size
+	# Removable-blocker placements, rebuilt from the index→size
 	# map sampled before the per-node loop. `blocker_sizes` iterates in
 	# insertion (tier) order — small, then medium, then large — matching the
 	# old post-loop pass's result order, so result shape (`{node, size}`) is
 	# unchanged.
 	var blockers: Array[Dictionary] = []
 	for idx: int in blocker_sizes:
-		# #777 — the footprint crosses as NODES, not indices: `spawn_blocker` is
+		# The footprint crosses as NODES, not indices: `spawn_blocker` is
 		# the consumer and it force-allocates them, so resolving here keeps the
 		# index basis (which only `generate` can map) out of the level scene.
 		var footprint: Array[SkillNode] = []
@@ -539,10 +510,10 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 		else:
 			extras.append(e)
 
-	# Connectivity certificate (#339). Kruskal over the Delaunay candidate set
+	# Connectivity certificate. Kruskal over the Delaunay candidate set
 	# spans every node by construction: n nodes, m successful merges, n - m
 	# components — and a skill tree being ONE component is a hard requirement
-	# resting on that implementation detail. A bad graft (e.g. #165's cluster
+	# resting on that implementation detail. A bad graft (e.g. the cluster
 	# stitching, or a degenerate triangulation) islands a region and breaks
 	# this. Debug-only, zero cost.
 	assert(n - merges == 1,
@@ -560,7 +531,7 @@ static func _triangulate_and_prune(positions: Array[Vector2], connectivity: floa
 
 ## Cluster assignment. Returns an int per position, indexing into
 ## [GraphProcgenContent.archetypes]. Algorithm (BFS-grow; see the clustering
-## section of docs/domain/procgen-v2.md):
+## section of docs/domain/procgen.md):
 ##  1. Compute target node count per archetype from target_ratio shares.
 ##  2. Per archetype, sample cluster sizes from cluster_size_weights until
 ##     Σ sizes ≥ target_count. Build a flat plan list.
@@ -786,7 +757,7 @@ static func _pick_archetype_by_ratio(
 	return archetypes.size() - 1
 
 
-# ── Territory stamping (#163) ─────────────────────────────────────────────
+# ── Territory stamping ─────────────────────────────────────────────
 
 
 static func _apply_archetype_stamps(
@@ -895,49 +866,21 @@ static func _build_placement_context(
 	var sc: Array = []
 	sc.resize(positions.size())
 	ctx.scenes = sc
-	# Derived stream (#330), same reason as the blocker pass below: scene
+	# Derived stream, same reason as the blocker pass below: scene
 	# draws never shift the main `rng`, and every peer reproduces the picks.
 	ctx.scene_rng = RandomNumberGenerator.new()
 	ctx.scene_rng.seed = rng.seed + _SCENE_RNG_SALT
 	return ctx
 
 
-# ── Removable-blocker placement (#477) ───────────────────────────────────
+# ── Removable-blocker placement ───────────────────────────────────
 
 
-## Pre-loop pass picking which node INDICES get a removable blocker (#477),
-## so `generate` can instantiate [constant _BLOCKER_NODE_SCENE] for them
-## before the edges/self-loops wire nodes by reference (#478 — a node can't be
-## swapped after that). Picks each size tier's count — `floor(config.topology.node_count
-## / denom)`, where denom 0 disables the tier and any positive denominator
-## below [constant GraphProcgenBlockers.MIN_BLOCKER_PER] is clamped up to it —
-## by sampling uniformly WITHOUT replacement from the regular node indices.
-## Excluded from the pool: every starter core (the first [param
-## ctx].starter_indices.size() indices), every authored-scene index
-## ([param ctx].scenes[i] != null, the pre-roll pass's [ScenePlacement] slot), and —
-## per [member GraphProcgenBlockers.blocker_min_hops_from_core] — every node
-## inside the hop-ball around ANY starter core, so no camp opens the run
-## boxed in by boulders.
-##
-## Exclusion shrinks the POOL, never the requested count: a tier whose count
-## exceeds what's left simply places fewer blockers (the existing
-## `mini(count, eligible.size())` clamp). It never falls back to a node inside
-## the safe radius — a too-dense level yielding zero blockers is a legible
-## failure, a blocker two hops off a core is not.
-##
-## [b]The denominator basis is [param node_count] — [member
-## GraphProcgenTopology.node_count], the AUTHORED count — never [param
-## positions].size().[/b] Poisson-disk sampling routinely yields fewer points
-## than requested, and `test_blocker_placement.gd`'s density tests assert
-## exact counts against the authored value; silently switching the basis to
-## the sampled count would drift those counts for no reason a level author
-## could see in the inspector.
-##
-## Returns a [Dictionary] mapping index → [EntityFactory.BlockerSize] int, in
-## insertion (tier) order. Rides its own derived [param rng] (see
-## [constant _BLOCKER_RNG_SALT]), not the shared stream the rest of `generate`
-## uses — so placements are still seed-deterministic without perturbing every
-## other roll.
+## Pre-loop pass picking which node INDICES get a removable blocker, per size
+## tier (`floor(node_count / denom)`, sampled without replacement). Excludes
+## starter cores, authored-scene nodes and the safe hop-ball around any starter.
+## The basis is the AUTHORED `node_count`. Uses its own derived rng.
+## See docs/domain/procgen-v4.md
 static func _place_blocker_indices(
 		positions_count: int,
 		ctx: PlacementContext,
@@ -947,7 +890,7 @@ static func _place_blocker_indices(
 	var out: Dictionary = {}
 	var scenes: Array = ctx.scenes
 	var starter_count := ctx.starter_indices.size()
-	# Core safe radius (#300): union of the hop-balls around every starter.
+	# Core safe radius: union of the hop-balls around every starter.
 	var too_close := {}
 	if config.blockers.blocker_min_hops_from_core > 0:
 		for s in ctx.starter_indices:
@@ -980,7 +923,7 @@ static func _place_blocker_indices(
 		if denom <= 0:
 			continue
 		# Clamp positive-but-too-small denominators up to the safety floor
-		# (#477): denom 1..4 would otherwise place a blocker on nearly every
+		# Denom 1..4 would otherwise place a blocker on nearly every
 		# node, so a joker authoring `1` still gets `5`.
 		denom = maxi(denom, GraphProcgenBlockers.MIN_BLOCKER_PER)
 		# node_count, not positions_count/eligible.size() — see docstring.
@@ -997,35 +940,7 @@ static func _place_blocker_indices(
 
 
 
-## Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
-## a Dormant Core from "the node it sits on" into territory whose extent reads
-## its size.
-##
-## Per blocker, in the same insertion (tier) order [method
-## _place_blocker_indices] produced: roll `randi_range` over the tier's authored
-## [method GraphProcgenBlockers.footprint_range], then grow that many nodes by
-## repeatedly picking a random ELIGIBLE node adjacent to what the blocker
-## already holds.
-##
-## [b]Randomized frontier growth, not "BFS then sample".[/b] Sampling `n` nodes
-## out of the hop-ball could hand a blocker a hop-2 node without the hop-1 that
-## connects it — and then `blocker_footprint_falloff.tres` measures hops over
-## the OWNED subgraph, where that node is unreachable and takes no falloff at
-## all. Growing through the frontier makes the footprint connected by
-## construction, which is also what bounds the max hop at the rolled count and
-## so keeps `node_health` off zero without a stat floor (#777 decision 5).
-##
-## Eligibility is the placement pass's own filter plus the claim set: never a
-## starter core, never an authored-scene node, never inside a starter's [member
-## GraphProcgenBlockers.blocker_min_hops_from_core] ball (the safe radius covers
-## the whole footprint, not just the core — #777 decision 6), and never a node
-## another blocker already holds as a core or a footprint node. Short of
-## candidates, a blocker shrinks its footprint rather than stealing a claim or
-## reaching inside a camp.
-##
-## Returns index → [PackedInt32Array] of bonus-node indices (core excluded);
-## a blocker that rolled 0, or found nothing to grow into, is simply absent.
-## The #916 pre-stake per placed blocker: a chain of two draws against the
+## The pre-stake per placed blocker: a chain of two draws against the
 ## tier's chance — P(stake 2), then P(stake 3 | stake 2) — so with chance `p`
 ## the split is `1−p : p(1−p) : p²`. Draws are ALWAYS consumed (both of them,
 ## whatever the chance) so the stream stays aligned across a retune. 1..3 by
@@ -1049,6 +964,11 @@ static func _roll_blocker_stakes(
 	return out
 
 
+## Grow each placed blocker's bonus-node FOOTPRINT: randomized frontier growth
+## (connected by construction) over eligible nodes, in tier order. Returns index ->
+## PackedInt32Array of bonus-node indices (core excluded); short of candidates a
+## blocker shrinks rather than steals a claim.
+## See docs/domain/procgen-v4.md
 static func _place_blocker_footprints(
 		blocker_sizes: Dictionary,
 		ctx: PlacementContext,
@@ -1060,7 +980,7 @@ static func _place_blocker_footprints(
 		return out
 	var mods := config.blockers
 	# Nothing authored anywhere → skip the walk (and every draw it would make),
-	# so a preset that opts out generates exactly what it did before #777.
+	# so a preset that opts out generates exactly what a pre-footprint seed did.
 	var wants_footprints := false
 	for size: int in [0, 1, 2]:
 		if mods.footprint_range(size).y > 0:
@@ -1222,15 +1142,13 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 	return false
 
 
-## v4 modifier draw (#321). Spend-until-broke with per-(stat,op) aggregation:
+## v4 modifier draw. Spend-until-broke with per-(stat,op) aggregation:
 ##   1. Flatten the pools relevant to this node: those of every pack whose
-##      archetype_stat == primary_stat OR == &"" (universal). No off-archetype phase, no defensive/rare roles
-##      (#321 D7, D8).
+##      archetype_stat == primary_stat OR == &"" (universal). No off-archetype phase, no defensive/rare roles.
 ##   2. Spend `budget` until broke: weighted-pick an affordable entry applying
 ##      weight profiles (archetype), subtract its cost, repeat. Every entry
-##      costs `+T`, whatever its rolled value's sign — the old refund
-##      economics for negative pools were retired (#637, superseded
-##      2026-08-30 — see docs/domain/procgen-v4.md). T1 always costs 1, so
+##      costs `+T`, whatever its rolled value's sign (no refund economics for
+##      negative pools; see docs/domain/procgen-v4.md). T1 always costs 1, so
 ##      leftover budget always drains into T1 filler — budget is never
 ##      wasted (D3).
 ##   3. Aggregate the rolled modifiers per (stat_id, operation): ADD* and
@@ -1241,7 +1159,7 @@ static func _has_forbidden_tag(entry: ModifierPoolEntry, forbid: Array[StringNam
 ##
 ## See docs/domain/procgen-v4.md.
 
-## #629: a fused (stat,op) result equal to its operation's neutral element
+## A fused (stat,op) result equal to its operation's neutral element
 ## (0 for ADD*/INCREASE, 1 for MULTIPLY — SET has none, see [method
 ## _is_neutral_result]) is a no-op slot and gets re-rolled. Bounded and
 ## seeded (never an unbounded retry loop) so two peers on the same seed
@@ -1301,7 +1219,7 @@ static func _roll_modifiers_v4(
 		if entry == null:
 			break
 		rolled.append(entry.roll(rng), entry.cost, entry)
-		remaining -= entry.cost  # cost is always positive (#637) — spend is monotonic.
+		remaining -= entry.cost  # cost is always positive — spend is monotonic.
 		draws += 1
 		# Safety net: every cost is >= 1 (TierLadder floor), so this loop is
 		# already bounded by `budget`, but cap draws generously anyway in
@@ -1336,7 +1254,7 @@ static func _roll_modifiers_v4(
 	# descending aggregated-cost order, so tooltips read
 	# biggest-investment-first.
 	#
-	# #629: a fused result can land exactly on its operation's neutral element
+	# A fused result can land exactly on its operation's neutral element
 	# (M can be negative — see docs/domain/procgen-v4.md) — a slot that does
 	# nothing. Detected AFTER fusion (never per-roll: individual rolls are
 	# allowed to be small or negative), re-rolled from the SAME contributing
@@ -1364,11 +1282,11 @@ static func _roll_modifiers_v4(
 
 ## True iff `mod`'s value is its operation's neutral element (a fused no-op).
 ## Which value that IS per op is not restated here — it is
-## [method StatModifier.displacement_from_neutral], the one home of the law
-## (#1050); a no-op is a zero displacement.
+## [method StatModifier.displacement_from_neutral], the one home of the law;
+## a no-op is a zero displacement.
 ##
 ## Two rules stay at THIS call site because they are procgen's, not the stat
-## system's: `SET` is never a no-op (#629) even though it has no neutral
+## system's: `SET` is never a no-op even though it has no neutral
 ## element to displace from, and the value is coercion-aware via the same
 ## [method ModifierPoolEntry.coerce_to_stat_type] the roll path uses — a
 ## `+0.4` on an INT stat coerces to `0` (a no-op) where the same value on a
@@ -1461,7 +1379,7 @@ static func _v4_pick_distribution(
 
 ## One weighted sample over [method _v4_pick_distribution] — a single
 ## `randf()`, in the distribution's (entry) order. Null iff nothing is
-## drawable. Cost is always positive (#637) — one affordability rule for every
+## drawable. Cost is always positive — one affordability rule for every
 ## pool regardless of its rolled value's sign.
 static func _v4_weighted_pick(
 		entries: Array[ModifierPoolEntry],
@@ -1513,7 +1431,7 @@ static func resolve_config(config: GraphProcgenConfig, scale_mask: bool = true) 
 	return out
 
 
-## Poisson spacing, sized for the LARGEST radius any node can carry (#783):
+## Poisson spacing, sized for the LARGEST radius any node can carry:
 ## with a `node_radius_ramp` that is the ramp's asymptote, so a max-budget
 ## node still clears its neighbours; without one the uniform node_radius.
 static func _min_node_dist(topology: GraphProcgenTopology) -> float:
@@ -1535,7 +1453,7 @@ static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 		field.resolve_mask_radius(resolved_radius)
 
 
-# ── Node-subtype placement (#1056) ───────────────────────────────────────
+# ── Node-subtype placement ───────────────────────────────────────
 
 
 ## D13's guard, precomputed ONCE per `generate()` — never inside the node loop.
@@ -1585,7 +1503,7 @@ static func _has_pool_naming_subtype(
 	return false
 
 
-## The per-node weighted pick (#1056 D9): each subtype claims its own
+## The per-node weighted pick: each subtype claims its own
 ## `base_chance` slice, the default is the remainder. Exactly one draw per node
 ## whatever the authored chances say, so retuning one never shifts another
 ## node's roll — and NO draw at all when nothing is authored, which is what

@@ -2,39 +2,12 @@
 class_name VisionSystem
 extends Node
 
-## Computes per-frame visibility + sensor reach over the graph from one or
-## more viewer entities. Pure data: no rendering. Two consumers wire in:
-##
-##  - [b]Input gating[/b]: on every recompute, toggles [member SkillNode.input_pickable]
-##    so non-visible nodes can't be hovered, clicked, or queried by spells.
-##    Tooltip suppression falls out of mouse_entered never firing.
-##  - [b]FogOverlay[/b]: reads [method get_vision_sources] to render the
-##    darkness mask. Sensed-only nodes are queryable via [method is_sensed]
-##    but get no fog cutout (renderer's choice how to depict them).
-##
-## The geometry rule itself lives in [VisionCircles] — shared with [AiRecon],
-## which builds its own per-entity set — so "is X visible" is never implemented
-## twice.
-##
-## Sources of vision: every node owned by a viewer contributes a circle at
-## its global_position with radius = that node's local vision_range
-## (entity stat × node-local mods composed via node_board). Per-node so
-## addons like a Spyglass can buff sight on one node only.
-##
-## Sources of sensor: priority traversal seeded by every owned node with
-## its own local [code]sensor_range[/code] budget (entity stat × node-local
-## mods). Highest-budget probes are processed first; a node already reached
-## with budget ≥ B can't be improved by a later, weaker probe and is
-## skipped — so a +3 sensor tower dominates its weaker neighbours' seeds
-## without expanding them. Sensed ∖ visible = "blip with no detail" set.
-##
-## [b]Composability[/b]:
-##   - Remove this node from the scene → no recomputes, input_pickable stays
-##     true everywhere, no fog. Fully disabled.
-##   - [member viewers] empty + [member empty_mode] = OFF → all nodes marked
-##     visible (system inert but still wired).
-##   - empty + DARKNESS → nothing visible.
-##   - empty + ALL_ENTITIES → effective viewers = group("entities") members.
+## Computes per-frame visibility + sensor reach over the graph from one or more
+## viewer entities. Pure data: no rendering. Gates input (toggles
+## [member SkillNode.input_pickable]) and feeds FogOverlay via [method
+## get_vision_sources]; the geometry rule lives in [VisionCircles], shared with
+## [AiRecon]. Removing the node disables the system; empty [member viewers]
+## follows [member empty_mode]. See docs/domain/vision-system.md.
 
 enum EmptyMode {
 	OFF,            ## All nodes considered visible. The "off switch".

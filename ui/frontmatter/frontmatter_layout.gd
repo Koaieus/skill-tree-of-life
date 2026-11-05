@@ -2,49 +2,11 @@ class_name FrontmatterLayout
 extends RefCounted
 
 ## Where every menu node sits, and where the camera has to be for one of them to
-## read as "the hero" (#567 / #568). Pure and static — no scene of its own, no
-## [Node], no frame, so the whole geometry is unit-testable
-## (`test/unit/ui/test_frontmatter_layout.gd`).
-##
-## [b]The split is the design.[/b] #567's constraint 1 is "no detaching, ever",
-## which the architecture discharges as [i]one persistent graph, nodes never
-## move, the [Camera2D] moves[/i]. A single `solve(tree, focus)` would make that
-## invariant unfalsifiable, so it is two functions with a deliberate asymmetry:
-##
-## [codeblock]
-##   solve(tree)                -> {id: world position}   focus is NOT a parameter
-##   camera_for(tree, focus_id) -> Transform2D            the ONLY thing focus moves
-## [/codeblock]
-##
-## [method solve] taking no focus is not a convenience — it is the machine-
-## checkable form of "nodes never move", and the test asserts its output is
-## identical across a run of [method camera_for] calls. That, and not the
-## recursion it used to be implemented with, was always the invariant.
-##
-## [b]Geometry is AUTHORED, not derived (#589 D1).[/b] [method solve] reads the
-## fan harness scenes in `ui/frontmatter/layout/` — one inherited scene per menu,
-## each a [MarginContainer] + [HBoxContainer] + [VBoxContainer] of invisible
-## [MenuSlot] spacers tuned in a full-screen editor preview. The old solver
-## instead derived a sibling pitch from peek-stack collision constraints, and the
-## root fan came out at 201 units: 52% looser than every other fan in the game,
-## a number nobody chose, applied uniformly to `OPTIONS -> EXIT` which needed
-## none of it. `_group_gap()` and `_collapsed_extent()` existed only to compute
-## it and are gone; a container authors the pitch now, and keeping both would be
-## two sources for one coordinate set.
-##
-## [b]There is exactly one size (#589 D4).[/b] The old design-canvas constant —
-## 1440x900, kept deliberately apart from the project's 1440x960 viewport — is
-## deleted. The harness is authored at the project viewport, so
-## [method viewport_size] is the only size in this file and
-## [method screen_to_world] is the genuine inverse of the real viewport
-## transform rather than of a design-space fiction. `project.godot`'s
-## `stretch/mode = "canvas_items"` + `stretch/aspect = "keep"` is what makes ONE
-## authored geometry correct at every window size.
-##
-## [b]And the LOOK is authored in the same place (#589 D5 / #591).[/b] The same
-## pass that measures a fan lifts each seat's caption, joke slab, archetype and
-## radius off it into a [MenuSlot.Look] — see [method look_of]. [MenuGraph] keeps
-## topology and routing and carries no display string at all.
+## read as "the hero". Pure and static (`test/unit/ui/test_frontmatter_layout.gd`):
+## [method solve] takes NO focus — nodes never move — and [method camera_for] is
+## the only thing focus moves. Geometry and look are AUTHORED in the fan harness
+## scenes of `ui/frontmatter/layout/`; [method viewport_size] is the one size.
+## See docs/domain/frontmatter-shell.md
 
 
 ## What the player actually sees, in world units at [constant TREE_ZOOM].
@@ -92,7 +54,7 @@ static func fits_viewport(
 		# `(W - position) * zoom + centre`, exactly as [method camera_at]
 		# documents it. Written multiplicatively rather than as a second hand-
 		# rolled inverse of the same transform: dividing happens to agree at
-		# [constant TREE_ZOOM] 1.0 and would silently disagree the moment #578's
+		# [constant TREE_ZOOM] 1.0 and would silently disagree the moment the live
 		# tab tunes the zoom.
 		var on_screen := (positions[id] as Vector2 - xform.origin) * zoom_of(xform) + view * 0.5
 		if (
@@ -110,15 +72,15 @@ static func fits_viewport(
 ## Every fan in the game, in the order they are read. The FIRST one is the root
 ## fan, and [method column_step] answers off it — the base harness owns the
 ## world column pitch, so every fan agrees by construction. [method hero_slot]
-## does NOT answer off it anymore (#603 D2/D3) — see [constant _COLUMNS_SCENE].
+## does NOT answer off it anymore — see [constant _COLUMNS_SCENE].
 const FAN_SCENES: Array[String] = [
 	"res://ui/frontmatter/layout/root_menu.tscn",
 	"res://ui/frontmatter/layout/single_player_menu.tscn",
 	"res://ui/frontmatter/layout/multiplayer_menu.tscn",
 ]
 
-## The two-column split every frontmatter screen-space position answers to
-## (#603 D2/D3/D7): a fixed-width `%HeroColumn` whose centre is [method
+## The two-column split every frontmatter screen-space position answers to:
+## a fixed-width `%HeroColumn` whose centre is [method
 ## hero_slot] and whose quarter point is [method back_anchor_slot], and
 ## `%Remainder` for whatever else — the leaf panel, when one is up. Also
 ## instanced LIVE under `frontmatter_root.tscn`'s `%PanelLayer`; this is the
@@ -137,13 +99,13 @@ static var _fans: Dictionary = {}
 ## Insertion order of [member _fans]; `[0]` is the root fan.
 static var _fan_order: Array[StringName] = []
 
-## `menu_id -> MenuSlot.Look`, gathered off the same scenes in the same pass
-## (#591). Every menu id has exactly one entry, including the root — which has
+## `menu_id -> MenuSlot.Look`, gathered off the same scenes in the same pass.
+## Every menu id has exactly one entry, including the root — which has
 ## no seat in anybody's fan, so `root_menu.tscn`'s `%HeroSlot` authors it.
 static var _looks: Dictionary = {}
 
-## `hero_id -> {separation: float, margins: Vector4}` — #578's live tab tuning a
-## fan without editing its scene (#594). Gameplay never writes these.
+## `hero_id -> {separation: float, margins: Vector4}` — the live tab tuning a
+## fan without editing its scene. Gameplay never writes these.
 static var _fan_overrides: Dictionary = {}
 
 ## `frontmatter_columns.tscn`'s markers, in the same `static var` family as
@@ -163,7 +125,7 @@ static func fans() -> Dictionary:
 	return _fans
 
 
-## Every fan's hero id, root fan first. #578's tab picks from this.
+## Every fan's hero id, root fan first. The live tab picks from this.
 static func fan_ids() -> Array[StringName]:
 	fans()
 	return _fan_order.duplicate()
@@ -184,7 +146,7 @@ static func authored_fan_theme(hero_id: StringName) -> Dictionary:
 	return {}
 
 
-## Retunes one fan's [VBoxContainer] separation live. Sole caller is #578's tab.
+## Retunes one fan's [VBoxContainer] separation live. Sole caller is the live tab.
 static func set_fan_separation(hero_id: StringName, separation: float) -> void:
 	_set_override(hero_id, &"separation", separation)
 
@@ -202,7 +164,7 @@ static func _set_override(hero_id: StringName, key: StringName, value: Variant) 
 	_looks = {}
 
 
-## Instances every fan scene, measures it, frees it (#589 D3).
+## Instances every fan scene, measures it, frees it.
 ##
 ## [b]Nothing here ever enters the [SceneTree].[/b] The harness is a [Control]
 ## tree in SCREEN space while the menu lives under a [Camera2D] in WORLD space; a
@@ -243,7 +205,7 @@ static func _instance(path: String) -> MenuFanHarness:
 
 ## Instances [constant _COLUMNS_SCENE], measures it, frees it — the exact
 ## instance/measure/free pattern [method _read_harnesses] uses for the fan
-## scenes, on [ControlMeasure] instead of a hand-rolled second copy (#603 C2).
+## scenes, on [ControlMeasure] instead of a hand-rolled second copy.
 static func _read_columns() -> void:
 	if _columns_read:
 		return
@@ -275,7 +237,7 @@ static func _read_columns() -> void:
 
 
 ## How [param id] is drawn — its caption, its joke slab, its archetype and its
-## radius — or `null` for an id nothing authors (#591 / #589 D5).
+## radius — or `null` for an id nothing authors.
 ##
 ## This is the whole of the look. [MenuGraph] deliberately carries none of it:
 ## the tree is topology and routing, and every display string lives in the fan
@@ -287,7 +249,7 @@ static func look_of(id: StringName) -> MenuSlot.Look:
 
 ## Where the DECORATIVE slots sit, in world units — `{menu_id: Vector2}`.
 ##
-## The seam for the owner's pre-authored bonus nodes (#589): a fan scene may
+## The seam for the owner's pre-authored bonus nodes: a fan scene may
 ## carry seats that stand for nothing in [MenuGraph], reserving their row like
 ## any other slot and taking their look off the same exports, and the 1:1
 ## cross-check skips them. Nothing ships one yet; [method look_of] answers for
@@ -306,11 +268,11 @@ static func decor_slots(tree: MenuGraph) -> Dictionary:
 	return placed
 
 
-## The authored fans and [param tree] describe the same menu, 1:1 (#589 D5).
+## The authored fans and [param tree] describe the same menu, 1:1.
 ##
 ## Every id but the root is named by exactly one slot, every slot and every fan
 ## names an id the tree knows, and a slot sits in the fan of its own parent —
-## and since #591, every id including the root has exactly one authored look.
+## and every id including the root has exactly one authored look.
 ## `assert`, not a graceful fallback: an id with no slot has no position, and a
 ## menu item you cannot place is a bug to fix at build rather than to route
 ## around at runtime — the same call [method MenuGraph.add] makes.
@@ -345,12 +307,12 @@ static func _assert_authored_matches(tree: MenuGraph, authored: Dictionary) -> v
 
 # --- tunables ---------------------------------------------------------------
 
-## The hover peek-ahead column (#571): a hovered node's own children, shown small
+## The hover peek-ahead column: a hovered node's own children, shown small
 ## and dim at their collapsed positions, 284px right of the node being hovered.
 ##
 ## Plain pixels, and plain constants. A collapsed stack is genuinely uniform and
 ## has no per-menu character, so it is the one part of the geometry that stayed
-## computed rather than authored (#590).
+## computed rather than authored.
 const PREVIEW_COLUMN := 284.0
 
 ## Vertical pitch inside that collapsed stack.
@@ -359,7 +321,7 @@ const PREVIEW_GAP := 46.0
 ## Scale the peek-ahead nodes are drawn at.
 ##
 ## [b]The last `static var` of the six.[/b] It is process-global mutable state so
-## #578's live tab can retune it and rebuild in place: gameplay READS it, the tab
+## the live tab can retune it and rebuild in place: gameplay READS it, the tab
 ## is the sole writer, and [method reset_geometry] puts it back. A test that
 ## writes it must restore it, or a leaked value silently re-poses every menu
 ## built afterwards in the same process.
@@ -378,20 +340,19 @@ static func reset_geometry() -> void:
 	_columns_read = false
 
 
-## The splash (#574) is the root node, alone and close: (50%, 44%) of the
+## The splash is the root node, alone and close: (50%, 44%) of the
 ## viewport at 3.2x. "Press any button" is really allocating the first node of
 ## the run, so it is the same camera on the same tree, just parked.
 ##
 ## [b]These stay consts.[/b] [constant SPLASH_ZOOM] is a SECOND camera onto the
 ## root — same hero, different slot and a much closer zoom — because the splash
 ## is "how close is the attract state", a different question from "how close is
-## the tree ever navigated", which [constant TREE_ZOOM] answers. #593 tried a
-## per-fan THIRD answer to that second question; owner call 2026-08-26 retired
-## it (see [method zoom_for]), leaving exactly the two.
+## the tree ever navigated", which [constant TREE_ZOOM] answers. A per-fan THIRD answer to that second question was retired by
+## owner call 2026-08-26 (see [method zoom_for]), leaving exactly the two.
 const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
 
 ## How far down the screen the root sits at the BOOM, as a fraction of the
-## viewport height — [method charged_camera]'s slot (#734).
+## viewport height — [method charged_camera]'s slot.
 ##
 ## [b]It is south of the hero slot on purpose, and that is what buys the
 ## zoom.[/b] The allocation needle rises NORTH out of the node, so how close the
@@ -419,7 +380,7 @@ const CHARGE_SLOT_Y_RATIO := 0.68
 ##
 ## Raised again from 3.2 by owner call (2026-09-03): [i]"bump up the initial
 ## zoom"[/i], landing with the same day's decision to delete the splash's own
-## wordmark and let the ROOT NODE'S OWN CAPTION carry the title (#734). The two
+## wordmark and let the ROOT NODE'S OWN CAPTION carry the title. The two
 ## go together: at 4.5x the node fills the frame and its caption reads as the
 ## game's title, which is the splash's conceit — [i]"the title IS the node you
 ## are allocating"[/i] — rather than a label under a big circle.
@@ -470,7 +431,7 @@ static func solve(tree: MenuGraph) -> Dictionary:
 ## Where the focused node docks on screen, in viewport pixels — [method
 ## camera_for]'s only screen-space input, never [method solve]'s.
 ##
-## [b]Read off `frontmatter_columns.tscn`, not off a fan (#603 D2/D3).[/b] The
+## [b]Read off `frontmatter_columns.tscn`, not off a fan.[/b] The
 ## hero dock used to be the root fan's own `%HeroSlot` centre; the owner's
 ## framing is a two-column split that every screen-space position answers to —
 ## "the entire viewport, divided into 2 columns; fixed width first one of which
@@ -478,7 +439,7 @@ static func solve(tree: MenuGraph) -> Dictionary:
 ## pixel values." [method solve] and [method camera_for] cannot read a live
 ## [Node]'s `global_position` (this file is pure and static, no [SceneTree]
 ## required), so the resolution is the instance/measure/free pattern [method
-## _read_harnesses] already uses, promoted to [ControlMeasure] (#603 C2) and
+## _read_harnesses] already uses, promoted to [ControlMeasure] and
 ## pointed at `frontmatter_columns.tscn` instead of a fan.
 static func hero_slot() -> Vector2:
 	_read_columns()
@@ -486,7 +447,7 @@ static func hero_slot() -> Vector2:
 
 
 ## Where [BackAffordance] sits, in viewport pixels — a second marker in the
-## same scene, `%HeroColumn`'s quarter point (#603 D7 addendum). Not derived
+## same scene, `%HeroColumn`'s quarter point. Not derived
 ## from [method hero_slot] by arithmetic: every frontmatter screen-space
 ## position is a marker AUTHORED in `frontmatter_columns.tscn`, not one
 ## computed from another.
@@ -513,7 +474,7 @@ static func column_step() -> float:
 ##
 ## The returned transform IS the camera's world transform: [member
 ## Transform2D.origin] is the camera position and its scale is
-## `Vector2.ONE / zoom`. #570 applies it as
+## `Vector2.ONE / zoom`. The root applies it as
 ## `camera.position = t.origin; camera.zoom = FrontmatterLayout.zoom_of(t)`,
 ## and [method screen_to_world] is the inverse a test asserts through.
 ##
@@ -526,7 +487,7 @@ static func camera_for(tree: MenuGraph, focus_id: StringName) -> Transform2D:
 
 ## How close the camera sits while [param focus_id] is the hero.
 ##
-## [b]There are exactly two zooms in the whole menu (#593, retired 2026-08-26).[/b]
+## [b]There are exactly two zooms in the whole menu (owner call, 2026-08-26).[/b]
 ## Owner, verbatim: [i]"there is just: zoomed in at the very first opening node
 ## aka the splash screen... zoomed back out to normal."[/i] A per-fan
 ## `camera_zoom` used to let `root_menu.tscn` park closer than everything else;
@@ -548,39 +509,12 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 
 
 ## Where the camera sits at the end of the splash's charge — the pose the BOOM
-## lands in (#734).
-##
-## [b]The splash advances in two legs, and this is the seam between them.[/b]
-## Leg 1 zooms out from [method splash_camera] to here; leg 2 is the existing
-## [method FrontmatterRoot.focus] on the root, travelling from here to
-## [method camera_for].
-##
-## [b]Leg 1 does NOT finish the zoom, and that is deliberate.[/b] [param end_zoom]
-## is an INTERMEDIATE zoom, not [constant TREE_ZOOM] — the remaining zoom-out
-## rides leg 2's pan, so the needle flashes while the camera is still opening
-## rather than after it has arrived. Owner, 2026-09-03: [i]"we could keep it
-## closer a bit longer... then more so / faster so when the alloc vfx has just
-## started (its a short flash anyway)"[/i]. Easing alone cannot buy this: however
-## leg 1 is shaped, ending it at [constant TREE_ZOOM] means the camera is fully
-## out at the instant of the flash.
-##
-## [b]Nothing here pins the needle's framing.[/b] The needle is
-## `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD units — 264 at the
-## root's authored radius 44 — against the [constant CHARGE_SLOT_Y_RATIO] slot's
-## 653px of headroom, so it sat wholly on screen only below `653 / 264` =
-## **2.47**. That containment was this issue's original fix, retired because it
-## was a pin on taste: Owner, 2026-09-03: *"looks can differ, and it's a matter
-## of taste, having the thing entirely on screen or partially off screen, is not
-## something we should be pinning with tests. the orchestration as a whole is
-## more important."* [member SplashScreen.charge_end_zoom] follows whatever the
-## scene authors, and `test_splash.gd` pins the orchestration only.
-##
-## [b]The horizontal slot is READ, never written.[/b] It is the parked pose's
-## own, which makes [i]"the root does not drift sideways through leg 1"[/i] true
-## by construction; restating it as a literal — the current layout reads 720 —
-## would only assert that two hardcoded numbers agree. The vertical is this
-## file's own ratio, south of the hero slot, so leg 2 rises back up and is a
-## DIAGONAL rather than a pure slide (owner-accepted, 2026-09-03).
+## lands in. Leg 1 zooms out from [method splash_camera] to here to an
+## INTERMEDIATE [param end_zoom] (not [constant TREE_ZOOM]); leg 2 is
+## [method FrontmatterRoot.focus] on the root, from here to [method camera_for].
+## The horizontal slot is READ from the parked pose, never restated; the vertical
+## is [constant CHARGE_SLOT_Y_RATIO] south of the hero slot.
+## See docs/domain/frontmatter-shell.md
 static func charged_camera(tree: MenuGraph, end_zoom: float = TREE_ZOOM) -> Transform2D:
 	var root: StringName = tree.root if tree != null else &""
 	var charged_slot := Vector2(
@@ -627,7 +561,7 @@ static func slot(ratio: Vector2) -> Vector2:
 	return ratio * viewport_size()
 
 
-## Collapsed peek-ahead slots for [param id]'s children (#571): where they sit
+## Collapsed peek-ahead slots for [param id]'s children: where they sit
 ## while their parent is merely hovered, before selecting it grows them out to
 ## their real [method solve] positions. World units, stacked tight about the
 ## hovered node and drawn at [member PREVIEW_SCALE].

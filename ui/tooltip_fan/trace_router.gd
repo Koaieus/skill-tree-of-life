@@ -75,57 +75,12 @@ static func _tree(from: Vector2, to: Vector2, params: Dictionary) -> PackedVecto
 	return PackedVector2Array([from, trunk_top, route_point, to])
 
 
-## True PCB / 45°-only route: a cardinal trunk out of `from`, then an exact 45°
-## diagonal, then a cardinal run into `to` — every turn is 0°/45°/90°, and no
-## trunk ever cuts straight into a 90° corner.
-##
-## `params.trunk_dir` (default up, `(0,-1)`) is the cardinal direction the trunk
-## leaves along; `params.trunk` (default 0.382 ≈ φ) is the fraction of the trunk
-## axis' span covered before the 45° break:
-##   trunk == 0   → a pure 45° diagonal straight from `from`, then a cardinal leg
-##   trunk ≈ φ    → trunk, 45° diagonal, cardinal leg (the classic sprout)
-##   trunk == 1   → the longest trunk that still leaves a [constant MIN_SEGMENT_PX]
-##                  diagonal — the fraction is capped at `span − MIN_SEGMENT_PX`
-##
-## `params.trunk_px` (default 0 = off) overrides `trunk` with a FIXED trunk
-## length in pixels, never shortened: a fraction gives near panels short trunks
-## and far panels long ones; a fixed length makes every trace in a fan leave its
-## origin in a uniform bundle before diverging (and lets
-## `FanAnchorDriver.trunk_top_of` compute the trunk top by formula).
-##
-## The diagonal consumes `min(|rem.x|, |rem.y|)` on both axes, which snaps one
-## axis onto `to`, so the closing leg is exactly cardinal. Consecutive duplicate
-## points are removed so the polyline carries no zero-length segment.
-##
-## Two families share this entry, chosen by the target's along-trunk remainder
-## past the trunk top: at least [constant MIN_SEGMENT_PX] AHEAD takes the
-## trunk → diagonal → cardinal route above, so the diagonal is never
-## `0 < diag < MIN_SEGMENT_PX`; anything nearer (level with the trunk top, or
-## behind it) takes the GABLE — trunk, 45° shoulder out, a run perpendicular
-## to the trunk, the 45° shoulder back, then a cardinal closing leg back along
-## `-trunk_dir` into `to`. The gable's trunk is `trunk_px` if set, else `trunk`
-## × the PERPENDICULAR span. Its shoulder `a` is `min(params.shoulder,
-## avail / 3)` (`shoulder` defaulting to the trunk length) floored at
-## [constant MIN_SEGMENT_PX] — a third each for two shoulders and the run; an
-## `avail` under `3 × MIN_SEGMENT_PX` drops the run and splits it between the
-## shoulders. A target level with or just past the trunk top LIFTS the gable:
-## the outward shoulder runs longer than the return so the return lands
-## [constant MIN_SEGMENT_PX] past `to` and the closing leg comes back down onto
-## it; `avail` is the perpendicular span minus that lift.
-##
-## The invariant both families keep, for every target outside the degenerate
-## zone: every segment heading is on the 45° grid, no bend exceeds 90° (never a
-## 135° double-back), no two consecutive segments are both cardinal, every
-## segment but the closing leg is at least [constant MIN_SEGMENT_PX], and the
-## closing leg is cardinal — a gable's at least [constant MIN_SEGMENT_PX], an
-## ahead route's the leftover `||rem.x| − |rem.y||` (zero on an exact 45°
-## target, where the route ends on its diagonal). A fraction-mode trunk floors
-## at [constant MIN_SEGMENT_PX] too, save `trunk == 0`, which draws none; a
-## `trunk_px` under the minimum is the caller's call. Degenerate: `|perp|` under
-## `2 × MIN_SEGMENT_PX` (the trunk's own column, which the fan layout keeps
-## panels out of), or a lifted gable whose `avail` is under that — the route
-## still returns `first == from` and `last == to`, with shoulders or a
-## diagonal under the minimum, tolerated rather than special-cased.
+## True PCB / 45-degree-only route: a cardinal trunk out of `from`, an exact 45
+## diagonal, then a cardinal run into `to`. `params.trunk_dir` (default up),
+## `params.trunk` (fraction, default 0.382) or `params.trunk_px` (fixed length)
+## shape the trunk. A target level with or behind the trunk top takes the GABLE
+## instead. Every heading is on the 45 grid and the closing leg is cardinal.
+## See docs/domain/tooltip-fan-units.md
 static func _pcb(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
 	var trunk_frac: float = params.get("trunk", 0.382)
 	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))

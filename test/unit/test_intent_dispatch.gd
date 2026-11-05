@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Intent-by-channel dispatch (issue #60). With turn phases gone,
 ## PlayerInputController disambiguates player intent by INPUT CHANNEL, each

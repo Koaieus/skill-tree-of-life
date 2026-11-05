@@ -14,11 +14,11 @@ const _AMMO_TYPES: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.
 signal core_location_changed
 signal leveled_up(new_level: int)
 signal died
-## The entity-hosted status rows changed (#996) — apply, tick, cure, remove.
-## Read them back through [method get_statuses]; #953's core readout binds here.
+## The entity-hosted status rows changed — apply, tick, cure, remove.
+## Read them back through [method get_statuses]; the core readout binds here.
 signal statuses_changed
 ## This entity's `node_health` BASELINE moved, so the derived cap of every node
-## it owns moved with it (#660).
+## it owns moved with it.
 ##
 ## [b]One signal, not one per owned node.[/b] It replaces the N per-node
 ## `value_changed` subscriptions the old CON fan-out kept — the cap itself is
@@ -33,7 +33,7 @@ signal turn_began
 ## Emitted LAST by [method finish_turn], once the turn-end bookkeeping has run.
 signal turn_finished
 
-## The player/enemy relation. Two teams for now (#384): [constant ALLIED] is
+## The player/enemy relation. Two teams for now: [constant ALLIED] is
 ## same-[member faction], [constant HOSTILE] is everything else. Enemies do
 ## not fight each other, so a scalar faction resolves it with no attitude
 ## matrix — going multi-faction later changes only [method attitude_to], not
@@ -45,7 +45,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## Team identity, composed like [member core_class]. Defaults to the shared
 ## [code]npc.tres[/code] faction; authored per-entity — a hand-authored
 ## scene sets its own export override, a roster-driven spawn gets it from
-## [method GameRoot.apply_roster] (#475). Singular, compared by
+## [method GameRoot.apply_roster]. Singular, compared by
 ## [member Faction.id]: two entities whose factions share an id are allies,
 ## even across separately-loaded/duplicated resource instances.
 @export var faction: Faction = preload("res://entity/factions/npc.tres")
@@ -53,7 +53,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## [method ControllerFactory.ensure_all] reads to attach [PlayerController]
 ## vs [AIController]. Authored per-entity (roster-driven spawn via
 ## [method GameRoot.apply_roster], or set directly on a hand-authored scene's
-## node) rather than derived from entity identity. See #475.
+## node) rather than derived from entity identity.
 @export var is_human_controlled: bool = false
 ## The entity's authoritative, SILENT state — [member stat_board],
 ## [member _tags], [member core_location] and [member _effect_instances] are
@@ -63,7 +63,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## surface.
 var state := EntityState.new()
 
-## One owner (#1031): outside the editor the setter stores a private
+## One owner: outside the editor the setter stores a private
 ## `duplicate(true)` from the moment of assignment — a `.tscn` instance gets
 ## its copy at `instantiate()`, a spawned entity at spawn — so no reader that
 ## grabbed the board before bring-up can ever hold a stale one. Once
@@ -97,16 +97,15 @@ var _board_sealed: bool = false
 ## into the active slot happens via [member MagicMemory.selected_spell].
 @export var spellbook: SpellBook = null
 
-## Reward tier (#300): sizes the SkillDust loot FRACTION
-## (`LootSystem.loot_fraction_by_tier[tier-1]`, #775 — was the pick count,
-## which is now a constant, [member LootSystem.loot_rounds]). No longer sizes
-## the killing-blow XP bonus (#774 deleted the tier-scaled term in favour of
-## a per-board `core_kill_xp` stat). Players and ordinary NPCs keep the
+## Reward tier: sizes the SkillDust loot FRACTION
+## (`LootSystem.loot_fraction_by_tier[tier-1]`; the pick count is the constant
+## [member LootSystem.loot_rounds]). Does not size the killing-blow XP bonus
+## (a per-board `core_kill_xp` stat). Players and ordinary NPCs keep the
 ## default 3 → loot at the full 1.0 rate; removable-node blockers author
 ## 1/2/3 for small/medium/large → loot at 0.25/0.5/1.0.
 @export var entity_tier: int = 3
 
-## Wire identity (#509) — the only legal way a [Command] refers to an entity,
+## Wire identity — the only legal way a [Command] refers to an entity,
 ## exactly as [member SkillNode.stable_id] is for nodes. Minted once by
 ## [method Graph._mint_entity_id] on entry to `entities_container` and never
 ## reused; 0 means unminted (an entity built in a test and never parented
@@ -116,7 +115,7 @@ var _board_sealed: bool = false
 var entity_id: int = 0
 
 ## Which [Participant] seats this entity — [member Participant.id], a
-## lobby-minted seat index unrelated to [member entity_id] above (#564). 0
+## lobby-minted seat index unrelated to [member entity_id] above. 0
 ## means unset: an NPC nobody seats, or an entity built outside a roster-driven
 ## run (a hand-authored scene, a test fixture). Assigned at
 ## [method GameRoot.apply_roster] time rather than authored — plain var for the
@@ -164,7 +163,7 @@ var faction_id: StringName:
 	get:
 		return faction.id if faction != null else &""
 
-## The ONLY place the player/enemy relation is decided (#384) — every other
+## The ONLY place the player/enemy relation is decided — every other
 ## hostility test (targeting, XP gating, AI) routes through this or through
 ## [method SkillNode.ownership_bit], which delegates here. Same-[member faction]
 ## is ALLIED, compared by [member Faction.id] (not resource reference — a
@@ -180,7 +179,7 @@ func attitude_to(other: Entity) -> Attitude:
 	return Attitude.HOSTILE
 
 ## Current level. A proxy onto the `level` ScalarStat on the stat board — that's
-## the canonical store (#200) so level-scaling formula modifiers can bind to it.
+## the canonical store so level-scaling formula modifiers can bind to it.
 ## Bumped (+1 base_value) on each xp fill in `_on_xp_replenished`; the getter's
 ## `.value` folds in any level modifiers and coerces to INT, the setter forwards
 ## to base_value. Falls back to 1 / no-ops for sparse boards with no `level` stat.
@@ -207,7 +206,7 @@ const READY_GROUP := &"ready_to_act"
 ## initiative and serve turns; death cleanup removes the corpse so it's skipped.
 const GROUP := &"entities"
 
-## #152: fallback AP→surplus conversion used only when a board carries no
+## Fallback AP→surplus conversion used only when a board carries no
 ## `ap_transfer_rate` stat (sparse / test boards). The live knob is the
 ## `ap_transfer_rate` ScalarStat — see `_transfer_unused_ap_to_surplus`.
 const DEFAULT_AP_TRANSFER_RATE := 2.0
@@ -233,7 +232,7 @@ var ring_spent: Array[StringName] = []
 ## (`.claude/rules/scene-composition.md`). The spell playground is the case that
 ## needs it: it parks its entities BESIDE the Graph inside a SubViewport, so no
 ## ancestor walk can ever reach it, and a navigator-less entity snapshots an
-## empty owned set — which since #536 means its nodes fall through to ownerless
+## empty owned set — which means its nodes fall through to ownerless
 ## orphan slices and a spell's landings are silently dropped.
 @export var graph_override: Graph
 
@@ -253,7 +252,7 @@ var _effect_instances: Array[EffectInstance]:
 	set(v):
 		state.effect_instances = v
 
-## The granted-atom ledger for CORE modifiers (#323) — every [StatModifier]
+## The granted-atom ledger for CORE modifiers — every [StatModifier]
 ## ever permanently granted onto this entity's core, UNFLATTENED. Two honest
 ## layers: this register is what LootSystem's draw reads from (composites stay
 ## intact, so a `loots_as_unit` pack is still one atom if this entity later
@@ -285,9 +284,9 @@ func buy_ring_cell(cell: StringName, grants: Array[StatModifier], cost: int) -> 
 ## Appends `m` to [member core_modifiers] (register) and mirrors it onto
 ## [member stat_board] (the flattened, computed layer). Both [CoreClass.apply]
 ## (class-template grants) and SkillDust pickup (looted grants) route through
-## this — see #323.
+## this.
 ##
-## Does NOT duplicate `m` — per #377, formula binding is stateless (lives on
+## Does NOT duplicate `m`, formula binding is stateless (lives on
 ## the Stat/Board, not the modifier), so the SAME shared `.tres` instance
 ## already applies safely to every entity of a class, and a looted candidate
 ## arrives here already an independent copy (LootSystem's draw duplicates when
@@ -384,7 +383,7 @@ static func _find_merge_target(mods: Array[StatModifier], key: Dictionary,
 ## [method StatBoard.read_dict] BEFORE its per-stat reconcile, so
 ## [member core_modifiers] gets the same pre-sync-then-privatise treatment
 ## [method StatBoard.sync_register_from_wire] gives `intrinsic_modifiers`
-## itself (#775 late-join amendment; see that method's doc for why this must
+## itself (late-join amendment; see that method's doc for why this must
 ## run before, not after, the reconcile).
 func _on_stat_board_restoring(d: Dictionary) -> void:
 	if stat_board != null:
@@ -414,7 +413,7 @@ var is_dead: bool = false
 ## probes) set this to 1 at build time, which is the honest claim: they are not
 ## on their first turn.
 ##
-## [b]Since #756 it DOES cross[/b] — [constant EntitySnapshot._R_TURNS]. The
+## [b]It DOES cross[/b] — [constant EntitySnapshot._R_TURNS]. The
 ## parenthesised gap above was the real one: a peer whose world arrived as a
 ## snapshot never counted the turns that produced it, so every entity in it read
 ## 0 and the next turn each one served re-granted the first-turn skip. The
@@ -428,18 +427,18 @@ var turns_taken: int = 0
 ## controller reads; controllers hold no turn state of their own.
 var is_taking_turn: bool = false
 
-## Sparse spent-set for the `spikes` pop budget (#778): a node lands here the
+## Sparse spent-set for the `spikes` pop budget: a node lands here the
 ## moment a melee contact drains its `spikes` pool ([method mark_spikes_spent],
 ## called from [BladePopResolver.LiveGate._mark_spent] on the LIVE world only).
 ## [method begin_turn] regenerates EXACTLY this set, then clears it — a
 ## sweep of a level's hundreds of allocated nodes to top up a pool that is
-## almost always full is explicitly not acceptable (#778). There is
+## almost always full is explicitly not acceptable. There is
 ## deliberately no dormant-node exception: an owner who never takes a turn
 ## never drains this set, so a node under a blocker absorbs a finite number
-## of pops for the whole run and that is intended (owner, #778).
+## of pops for the whole run and that is intended.
 var _spiked_nodes_spent: Dictionary[SkillNode, bool] = {}
 
-## Sparse fired-set for the per-leaf shot budget (#956): every node this
+## Sparse fired-set for the per-leaf shot budget: every node this
 ## entity fired an arrow from this turn, appended by the launch commit next to
 ## its [method SkillNode.mark_shot_fired] call. [method finish_turn] zeroes
 ## EXACTLY these nodes' [member SkillNode.shots_fired_this_turn] and clears
@@ -449,7 +448,7 @@ var _spiked_nodes_spent: Dictionary[SkillNode, bool] = {}
 var _fired_nodes_this_turn: Array[SkillNode] = []
 
 ## Volleys this entity has launched this turn, checked against the board's
-## `volleys_per_turn` by the plan side (#956). Reset in
+## `volleys_per_turn` by the plan side. Reset in
 ## [method begin_turn]. Derived from commands, so mirrors reproduce it — and
 ## also carried by [EntitySnapshot], so a resync or a load partway through a
 ## turn does not refill the budget.
@@ -461,7 +460,7 @@ var volleys_launched_this_turn: int = 0
 ## [EntitySnapshot] (turn-transient).
 var core_moved_this_turn: bool = false
 
-## The leaf set this entity held when its turn STARTED (#955) — the producer
+## The leaf set this entity held when its turn STARTED — the producer
 ## set a [ReloadCommand] sums `arrows_per_reload` over (∪ the core). Captured
 ## once per turn in [method begin_turn], never re-derived at reload
 ## time: the fixed set is what closes the allocate-then-reload pump, while
@@ -473,7 +472,7 @@ var _turn_start_leaves: Array[SkillNode] = []
 
 ## Has this entity's BRAIN concluded it is boxed in, this turn? Host-only,
 ## AI-only, and re-decided every turn by [method AIController.take_turn] from
-## [method AiRecon.is_growth_capped]. Two consequences, one cause (#604):
+## [method AiRecon.is_growth_capped]. Two consequences, one cause:
 ## Dormant Cores stop being scenery ([method AiRecon.is_ai_target]), and any
 ## target adjacent to this entity's own territory scores a breakout bonus
 ## ([method AiCombatScorer.score]) — a door out is worth more than a dent when
@@ -498,7 +497,7 @@ var _tags: Dictionary[StringName, int]:
 	set(v):
 		state.tags = v
 
-## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
+## The live combat-state slice (docs/domain/attack-timeline.md).
 ## Entity COMPOSES this — it owns the live one, it does not copy one.
 ## Constructed here (a field initializer, not `_ready`) so it exists before
 ## any pre-`_ready` caller could reach for it.
@@ -512,7 +511,7 @@ func get_combat() -> EntityCombat:
 	return _combat
 
 
-## The statuses hosted on the ENTITY itself (#996): rows that fell through a
+## The statuses hosted on the ENTITY itself: rows that fell through a
 ## cracked core. Live rows, read-only — see [method StatusHost.get_statuses].
 func get_statuses() -> Array[NodeStatus]:
 	return _combat.get_statuses()
@@ -568,7 +567,7 @@ func initialize() -> void:
 		if Engine.is_editor_hint():
 			stat_board = stat_board.duplicate(true)
 		stat_board.apply_intrinsics()
-		# #775 late-join amendment: a decoded snapshot pre-syncs
+		# late-join amendment: a decoded snapshot pre-syncs
 		# `stat_board.intrinsic_modifiers` itself (`StatBoard.read_dict`);
 		# `core_modifiers` lives here instead, so the board cannot reach it
 		# and asks us to via this signal — same helper, same timing (BEFORE
@@ -592,11 +591,11 @@ func initialize() -> void:
 			stat_board.skill_points.wounds_healed.connect(_emit_entity_healed)
 		# Core HP is the entity's `health` pool: combat-HP overflow on the core
 		# node eats it (see SkillNode.take_damage), and it hits 0 → the entity
-		# dies. The core node never emits `depleted` itself (#18).
+		# dies. The core node never emits `depleted` itself.
 		if stat_board.health != null:
 			stat_board.health.depleted.connect(_on_health_depleted)
-		# The single re-emit that stands in for every owned node's old binding
-		# (#660). Connected once, here, for the entity's whole life.
+		# The single re-emit that stands in for every owned node's old binding.
+		# Connected once, here, for the entity's whole life.
 		var node_hp_baseline: Stat = stat_board.get_stat(&"node_health")
 		if node_hp_baseline != null:
 			node_hp_baseline.value_changed.connect(node_health_cap_changed.emit)
@@ -651,7 +650,7 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	var bucket: Array = _hook_buckets.get(hook, [])
 	if bucket.is_empty():
 		return
-	# #647: two auras touching the same node board in ONE dispatch settle once,
+	# Two auras touching the same node board in ONE dispatch settle once,
 	# not twice. The scope is what [method EntityCombat.hold_batch] batches into;
 	# the boards actually touched are held open until the drain below, so a
 	# dispatch that touches none pays nothing. The early return above is safe to
@@ -690,7 +689,7 @@ func has_tag(tag: StringName) -> bool:
 
 ## How many times [param tag] is currently applied; 0 when it is not held.
 ##
-## The count, not just the name, is what crosses in an [EntitySnapshot] (#561):
+## The count, not just the name, is what crosses in an [EntitySnapshot]:
 ## a tag applied twice and removed once is still active, so a resync that
 ## restored names only would collapse every stacked marker to one application —
 ## the repair path silently becoming the bug.
@@ -712,7 +711,7 @@ func get_active_tags() -> Array[StringName]:
 ## bookkeeping today: replenish pools (per each pool's per_turn_mode, including
 ## skill_points' CUSTOM wound-heal), run the gated node regen sweep (D-9), run
 ## the class hook, then dispatch `_on_turn_start` — which is where a class's
-## healing aura (D-10, `HealAuraEffect` on `CoreClass.effects`, #720) lands.
+## healing aura (D-10, `HealAuraEffect` on `CoreClass.effects`) lands.
 ##
 ## NONE of it runs on the entity's FIRST turn: you open the game in the state
 ## you spawned in, not one free tick of income richer. Every pool is authored at
@@ -746,7 +745,7 @@ func can_reload() -> bool:
 ## ∪ core (allocation level and Watchtower bonuses live on the node board,
 ## see `default_node_board.tres`); each special's `<concept>_aspect`
 ## is flat off the entity board. The one implementation both [method reload]
-## and the Quiver tray's reload row (#954) read, so the row never promises
+## and the Quiver tray's reload row read, so the row never promises
 ## arrows the command will not mint.
 func reload_yield() -> Dictionary:
 	# Leaves ∪ core as a SET: a core with one neighbour is itself a leaf, and
@@ -773,7 +772,7 @@ func reload_yield() -> Dictionary:
 	return out
 
 
-## Reload the quiver (#955): 1 AP, then every AmmoType gets its
+## Reload the quiver: 1 AP, then every AmmoType gets its
 ## [method reload_yield] mint, clamped by its bin's room — plain arrows by
 ## capacity, a special by its type's `max_stock`. Returns the number of arrows
 ## actually added. A full quiver still pays.
@@ -820,13 +819,13 @@ func begin_turn() -> void:
 	if stat_board == null:
 		turn_began.emit()
 		return
-	# The reload producer set (#955), before the first-turn gate below: the
+	# The reload producer set, before the first-turn gate below: the
 	# opening turn has no income, but it may reload — the quiver starts empty.
 	_turn_start_leaves = navigator.get_leaf_nodes() if navigator != null \
 			else ([] as Array[SkillNode])
 	# Counted before the gate, so the tally stays honest about turns SERVED.
 	turns_taken += 1
-	# #956: the volley budget is per turn, first turn included — above the
+	# The volley budget is per turn, first turn included — above the
 	# turns_taken == 1 upkeep skip on purpose.
 	volleys_launched_this_turn = 0
 	core_moved_this_turn = false
@@ -917,7 +916,7 @@ func _apply_turn_upkeep() -> void:
 	# wound-heal, health HOST_ADD). New pools opt in via their def; nothing is
 	# wired here beyond the HOST_ADD hand-off below.
 	stat_board.apply_per_turn_upkeep()
-	# #997: a HOST_ADD pool's companion enters through THIS host's heal door,
+	# A HOST_ADD pool's companion enters through THIS host's heal door,
 	# so `healing_received` is consulted exactly once — `health` ← `core_healing`
 	# — and an entity-hosted Wither inverts the trickle like any node heal.
 	# The door only knows `health`; the mode is declared on the def, the
@@ -941,7 +940,7 @@ func _apply_turn_upkeep() -> void:
 	# D-9: turn-start refill-to-full is gone. Every owned node instead runs a
 	# gated, ramping regen (SkillNode.apply_turn_regen) — damage persists
 	# across turns. D-10's class aura (now a HealAuraEffect on
-	# core_class.effects, #720) is layered on top via the `_on_turn_start`
+	# core_class.effects) is layered on top via the `_on_turn_start`
 	# dispatch below: it walks the OWNED subgraph itself (never
 	# graph.navigator — see .claude/rules/graph.md "Reach queries") and heals
 	# outside this gate, through combat and with no ramp.
@@ -951,12 +950,12 @@ func _apply_turn_upkeep() -> void:
 			n.run_addon_turn_start()
 	if core_class != null:
 		core_class.on_turn_started(self)
-	# #778: sparse spikes regen — exactly the nodes marked spent since the
+	# Sparse spikes regen — exactly the nodes marked spent since the
 	# last upkeep, never a sweep of the whole owned subgraph (see
 	# _spiked_nodes_spent's doc for why that sweep is unaffordable). No
 	# dormant-node exception, deliberately: an owner who never reaches this
 	# method never regenerates, and a node under a blocker absorbing a finite
-	# number of pops for the whole run is the intended behaviour (#778).
+	# number of pops for the whole run is the intended behaviour.
 	for n in _spiked_nodes_spent:
 		if not is_instance_valid(n):
 			continue
@@ -973,14 +972,14 @@ func _apply_turn_upkeep() -> void:
 
 ## Called by [method TurnManager.end_turn] (and [method TurnManager.abandon_turn])
 ## before [signal TurnManager.turn_ended] is emitted. Transfers unused action points into next
-## turn's DP/MP surplus (#152), then runs effect dispatch. Surplus is written
+## turn's DP/MP surplus, then runs effect dispatch. Surplus is written
 ## here — not on turn start — because unused AP is only known once the turn is
 ## over; turn-start REFILL then leaves the surplus untouched (it sits outside the
 ## cap). set_surplus *overwrites*, so a turn ending with 0 unused AP self-clears
 ## last turn's boost.
 func finish_turn() -> void:
 	_transfer_unused_ap_to_surplus()
-	# #956: per-leaf shot budget resets at the FIRER's turn end, over exactly
+	# Per-leaf shot budget resets at the FIRER's turn end, over exactly
 	# the nodes it fired from — never a sweep — and whoever owns them now.
 	for n in _fired_nodes_this_turn:
 		if is_instance_valid(n):
@@ -1017,7 +1016,7 @@ func _on_initiative_ready() -> void:
 ## carry-over are handled by the def when it's a `GrowablePoolStatDef`; here
 ## we mint 1 SP via grant() (bumps both max and current), bump the `level` stat,
 ## and emit leveled_up. Writing base_value auto-emits value_changed, so any
-## level-scaling formula modifier bound to `level` recalculates (#200/#194).
+## level-scaling formula modifier bound to `level` recalculates.
 func _on_xp_replenished() -> void:
 	if stat_board == null or stat_board.xp == null:
 		return
@@ -1037,7 +1036,7 @@ func _on_xp_replenished() -> void:
 ## already reads 6 — anything narrating a *past* beat must ask about that
 ## beat's level, not the entity's current one.
 ##
-## D-16 (#271): the per-level yield is a stat, not a hardcoded 1, so a
+## D-16: the per-level yield is a stat, not a hardcoded 1, so a
 ## CoreClass/keystone/node can deviate through the normal modifier pipeline.
 ## Falls back to 1 for sparse boards with no such stat. A milestone level pays
 ## a ring point instead of extra SP — see [method is_milestone_level].
@@ -1069,7 +1068,7 @@ func die() -> void:
 		return
 	# Load-bearing ORDER, not just an idempotency latch: this must be set
 	# before `entity_dying` emits below, because `LootSystem._on_cascade_started`
-	# (#837) reads `defender.is_dead` to tell BattleSystem's core-outward
+	# reads `defender.is_dead` to tell BattleSystem's core-outward
 	# death wave apart from a live combat cascade — both fire the same
 	# `cascade_started` signal, and only this ordering makes "already true by
 	# the time the death wave's own entity_dying handler runs" hold.
@@ -1092,7 +1091,7 @@ func die() -> void:
 	# never ticks.
 	_combat.release_statuses()
 	Events.entity_died.emit(self)
-	# #504: the death is drawn at the moment the model dies, so this fires here
+	# The death is drawn at the moment the model dies, so this fires here
 	# rather than out of a replayed timeline. LAST, after `entity_died`, because
 	# GameRoot's handler for it despawns the corpse and AllocationSystem's
 	# `entity_died` strip must have run against a still-owned world first (see

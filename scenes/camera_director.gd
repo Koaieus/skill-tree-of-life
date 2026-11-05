@@ -1,7 +1,7 @@
 class_name CameraDirector
 extends Node
 
-## The one thing that decides where the camera looks (#515/#523), arbitrating
+## The one thing that decides where the camera looks, arbitrating
 ## between the local player's own pan/zoom and whatever the game wants to show
 ## them.
 ##
@@ -28,12 +28,12 @@ extends Node
 @export var camera: GraphCamera
 ## The fog gate: only what the local player can SEE may be framed.
 @export var vision_system: VisionSystem
-## The battle hook (#524): a non-local actor's committed attack frames its
+## The battle hook: a non-local actor's committed attack frames its
 ## from->to span.
 @export var battle_system: BattleSystem
 ## The seat's armed-input stack: the armed plan is read off its attack level.
 @export var armed_stack: ArmedStack
-## The command hook (#525): every confirmed territory change frames itself.
+## The command hook: every confirmed territory change frames itself.
 ## [signal CommandApplier.command_confirmed] rather than [AllocationSystem]'s
 ## signals, because a command carries THE ACTOR by construction
 ## ([member Command.entity_id]) and the forced channel — level-load core
@@ -60,7 +60,7 @@ extends Node
 @export_range(0.0, 2.0, 0.05) var default_focus_duration: float = 0.35
 ## Extra seconds held after the last hit lands, before handing the camera back.
 @export_range(0.0, 2.0, 0.05) var release_tail_seconds: float = 0.25
-## How long a confirmed command's focus is held (#525). The synchronous verbs
+## How long a confirmed command's focus is held. The synchronous verbs
 ## have no arrival clock to size a hold off — the applier drains them inside a
 ## stack frame — so unlike an attack they need a knob. [MoveCoreCommand] is the
 ## exception: it DERIVES its hold from the applier's own hop beat, so the
@@ -72,11 +72,11 @@ extends Node
 const ZOOM_LATTICE := 0.25
 
 ## How many lattice steps a wave's LANDING cluster may zoom in past the
-## player's own zoom (#1048) — a single-node ranged target is illegible from
+## player's own zoom — a single-node ranged target is illegible from
 ## far out. Tuned by look; release() restores the player's exact zoom.
 @export var shot_zoom_in_steps: int = 1
 
-## Who this machine plays — the predicate #524 gates its trigger on. Pushed by
+## Who this machine plays — the predicate gates its trigger on. Pushed by
 ## GameRoot rather than `@export`ed, because [SeatPolicy] is a RefCounted the
 ## level constructs during `_setup_level`, not a node in the scene.
 var seat_policy: SeatPolicy = null
@@ -88,7 +88,7 @@ var _seconds_since_manual: float = INF
 var _active: bool = false
 var _remaining: float = 0.0
 
-## True for the duration of a director's shot (#866, every mode since ADR
+## True for the duration of a director's shot (every mode since ADR
 ## 0027): the camera is the director's, HARD — manual pan/zoom is ignored
 ## entirely rather than merely losing a grace race, and the shot runs its full
 ## course. Owner picked "hard lock" over "soft break-in". Cleared by
@@ -100,13 +100,13 @@ var _shot_locked: bool = false
 ## ([method GraphCamera.retarget_directed_zoom]) instead of re-tweening the pan.
 var _shot_following: bool = false
 
-## The [Node2D] a shot's follow opens on / rebinds to (#931): the presenter's
+## The [Node2D] a shot's follow opens on / rebinds to: the presenter's
 ## [code]focus_marker()[/code] at commit (the melee ghost's `%FocusMarker`, or
 ## the pivot [SkillNode] before the ghost exists), then whatever
 ## `focus_marker_changed` hands over while locked. Null means no follow is open
 ## YET: ranged hands its marker over at first release, magic as its wind-up
 ## parks it on the caster, and [method _on_presenter_marker_ready] opens the
-## follow then (#1048); a presenter that never emits keeps the span framed
+## follow then; a presenter that never emits keeps the span framed
 ## once. A presenter answers null rather than a marker it has not placed — the
 ## opening pan targets the marker's position at that instant. Read by
 ## [method request_focus] rather than carried on a [FocusRequest], so
@@ -137,7 +137,7 @@ func _process(delta: float) -> void:
 	_seconds_since_manual += delta
 	if not _active:
 		return
-	# The rubber band (#866, #931) needs no push here any more: `GraphCamera`
+	# The rubber band needs no push here any more: `GraphCamera`
 	# polls its own followed node every frame ([method GraphCamera._follow]).
 	# This director only decides WHICH node that is, at commit and on
 	# `focus_marker_changed` — see [method _on_attack_committed] /
@@ -148,7 +148,7 @@ func _process(delta: float) -> void:
 
 
 ## A shot whose replay has not started while the launch is still in flight
-## (#894, every mode since ADR 0027). The span's hold is sized from the REPLAY
+## (every mode since ADR 0027). The span's hold is sized from the REPLAY
 ## — `schedule.duration()` is replay-relative — but opened at the widen beat,
 ## so on its own clock it expires mid-wind-up; and the wind-up itself has no
 ## fixed length (a `record_ready` hold can stretch it behind a wire). The
@@ -164,7 +164,7 @@ func _awaiting_replay() -> bool:
 ## flight dies this frame, and [method decide] refuses for
 ## [member manual_grace_seconds] afterwards.
 func _on_manual_input() -> void:
-	# ...unless a director's shot has the camera (#866). The lock is HARD:
+	# ...unless a director's shot has the camera. The lock is HARD:
 	# [GraphCamera] already drops the input before emitting, so reaching here
 	# while locked means a second caller — and it still must not cancel the shot
 	# or reset the grace clock.
@@ -186,12 +186,12 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 		return decision
 	if camera != null:
 		if _shot_following and camera.is_following():
-			# A widen on an open follow: zoom only (#928). The band owns the
+			# A widen on an open follow: zoom only. The band owns the
 			# pan, and re-tweening it here was the 2-step's second step.
 			camera.retarget_directed_zoom(decision.zoom_target)
 		elif _shot_following and _follow_node != null \
 				and is_instance_valid(_follow_node):
-			# The follow opens on the presenter's NODE (#931), not the
+			# The follow opens on the presenter's NODE, not the
 			# decision's plain-value target — [method decide] never learns the
 			# presenter exists, so the node to poll travels on
 			# [member _follow_node] instead, set by [method _on_attack_committed].
@@ -209,14 +209,13 @@ func request_focus(request: FocusRequest) -> FocusDecision:
 	_remaining = decision.duration + decision.hold
 	if _remaining <= 0.0:
 		# A hard cut with no hold — a hot-seat handover. Hand the camera back
-		# in the same call so the player's very next arrow key pans, exactly as
-		# it did before #459's focus was routed through here.
+		# in the same call so the player's very next arrow key pans.
 		release()
 	return decision
 
 
 ## Hand the camera back. Position stays where the action ended; only zoom
-## returns (#515 decision 5) — #866 keeps exactly that, no restore-to-pre-shot
+## returns — there is no restore-to-pre-shot
 ## framing. This is also the SOLE door out of the input lock: the shot runs
 ## its full course and the player's hands work again the instant it ends.
 func release() -> void:
@@ -239,9 +238,9 @@ func is_focusing() -> bool:
 
 ## The [AttackPlan] a commit is hanging off, or null for an unwired battle
 ## system. [member BattleSystem.in_flight_plan] is guaranteed live during a
-## commit — `_commit` holds it through the whole launch (#406), whoever
-## launched it. Mode-agnostic since ADR 0027: every mode takes the #866
-## treatment. Outside a launch it falls back to the seat's armed plan — the
+## commit — `_commit` holds it through the whole launch, whoever
+## launched it. Mode-agnostic since ADR 0027: every mode takes the
+## director's-shot treatment. Outside a launch it falls back to the seat's armed plan — the
 ## aim-time picture a request built off-commit frames.
 func _live_plan() -> AttackPlan:
 	if battle_system == null:
@@ -318,7 +317,7 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 ## the first value that fits and no further, and never past a zoom-out the
 ## player already chose.
 ##
-## Never IN — unless the request asks (#1048, [member FocusRequest.zoom_in_steps];
+## Never IN — unless the request asks ([member FocusRequest.zoom_in_steps];
 ## today only a wave's landing cluster): when [param fit_size] already fits at
 ## the player's zoom it steps in up to [param zoom_in_steps] lattice steps,
 ## stopping one short of where it would no longer fit. The step is ADDED to the
@@ -330,7 +329,7 @@ func decide(request: FocusRequest, ctx: CameraContext) -> FocusDecision:
 ## reachable by a manual scroll but not by the director). That is intended: the
 ## lattice is what lets the player's exact `_target_zoom` be restored, so the
 ## centre-of-mass fallback firing a little earlier than the raw floor implies
-## is the price, not a bug to fix by going off-lattice (#524 amendment 2).
+## is the price, not a bug to fix by going off-lattice.
 func _fit_zoom(fit_size: Vector2, ctx: CameraContext, zoom_in_steps: int = 0) -> float:
 	if _fits(fit_size, ctx.visible_size(ctx.zoom)):
 		var tight := ctx.zoom
@@ -400,9 +399,9 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 	return out
 
 
-## #524's trigger. See [method _build_attack_request] for the rule.
+## The trigger. See [method _build_attack_request] for the rule.
 ##
-## [b]The shot is staged pivot-first (#559 decision 7).[/b] That ordering is
+## [b]The shot is staged pivot-first.[/b] That ordering is
 ## decided by what EXISTS when, not by taste: the swept AABB IS the trajectory
 ## and exists only once the record does, while the pivot exists before it — so
 ## only pivot-framing can precede the replay. The pivot point is raised now,
@@ -410,7 +409,7 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 ## which is the same beat [method BattleSystem._stage_windup] delays the
 ## presenter's form-in by.
 ##
-## [b]Who follows, and from when, is the presenter's call (#1048).[/b] A melee
+## [b]Who follows, and from when, is the presenter's call.[/b] A melee
 ## ghost's marker moves through the wind-up, so it is handed over here and the
 ## widen is a zoom retarget on an open follow. Ranged hands over NOTHING at
 ## commit — nothing moves during its draw — so its widen is a plain one-shot
@@ -429,13 +428,13 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 	# arms the timer that [method release]s — a lock raised for it never lifts.
 	if request == null or request.points.is_empty():
 		return
-	# #866's director's shot, for EVERY commit — seated, AI, remote, and every
+	# the director's shot, for EVERY commit — seated, AI, remote, and every
 	# mode alike (ADR 0027). The lock goes up before the first focus and comes
 	# down only in `release`.
 	_lock_for_shot()
 	var plan := _live_plan()
 	var presenter: Node = battle_system.presenter() if battle_system != null else null
-	# Follow mode opens with the FIRST focus, on the presenter's marker (#931):
+	# Follow mode opens with the FIRST focus, on the presenter's marker:
 	# the melee ghost's `%FocusMarker`, or the pivot SkillNode itself before
 	# the ghost exists. With no presenter wired at all (a headless peer that
 	# still draws) a plan's LONE anchor stands in. A null marker means nothing
@@ -476,7 +475,7 @@ func _on_attack_committed(outcome: AttackOutcome, attacker: Entity) -> void:
 ##
 ## Every mode pivots on the CENTROID of its visible wind-up anchors
 ## ([method AttackPlan.windup_anchors]): melee's and magic's source, ranged's
-## firing leaves (#1048). A point focus, so the zoom is untouched. The live
+## firing leaves. A point focus, so the zoom is untouched. The live
 ## plan interprets [param outcome] — "which nodes the action hangs off" is a
 ## plan fact, but for ranged it is the leaves THIS outcome fires from, so the
 ## pivot, the span's "from" end and the presenter's follow agree.
@@ -490,7 +489,7 @@ func _windup_focus(plan: AttackPlan, outcome: AttackOutcome = null) -> FocusRequ
 	_append_anchor_centroid(points, plan, outcome)
 	if points.is_empty():
 		return null
-	# Mandatory for the same reason the span is (#866): this is the lead beat of
+	# Mandatory for the same reason the span is: this is the lead beat of
 	# a shot the player's own commit just asked for, and they were holding the
 	# camera a moment ago.
 	var req := FocusRequest.point(points[0], default_focus_duration, true,
@@ -550,7 +549,7 @@ func _widen(request: FocusRequest) -> void:
 	request_focus(request)
 
 
-## The replay starts moving (#894): re-size the hold from its own start — the
+## The replay starts moving: re-size the hold from its own start — the
 ## same `duration() + tail` the span request was sized with, now measured from
 ## the beat it was meant for. No-op after [method release]: a replay beat
 ## cannot re-arm a shot that has ended.
@@ -564,14 +563,14 @@ func _on_replay_started(outcome: AttackOutcome) -> void:
 	_remaining = maxf(_remaining, replay + release_tail_seconds)
 
 
-## The presenter's marker moved onto a new node (#931): swap the follow onto it
+## The presenter's marker moved onto a new node: swap the follow onto it
 ## — a rebind, never a re-tween, so the pan the pivot opened keeps its momentum
 ## straight through the handoff. Guarded on the lock:
 ## [signal MeleePreview.focus_marker_changed] also fires on every aim-phase
 ## selection change, and a stray late signal after [method release] must not
 ## drag a camera the player already has back.
 ##
-## It also OPENS the follow when none is running (#1048): a ranged presenter
+## It also OPENS the follow when none is running: a ranged presenter
 ## hands its marker over only at first release, once something moves. The open
 ## eases onto the marker from wherever the drift left the camera, at the zoom
 ## the drift chose, and the band takes over from there.
@@ -586,7 +585,7 @@ func _on_presenter_marker_ready(marker: Node2D) -> void:
 	camera.begin_directed_follow(marker, GraphCamera.current_zoom, default_focus_duration)
 
 
-## A wave is about to LAND (#1042, ADR 0027; ranged: its last release, #1048):
+## A wave is about to LAND (ADR 0027; ranged: its last release):
 ## the zoom refits to the wave's landing cluster and nothing else — never the
 ## full span, which the pan travels. It may tighten past the player's zoom by
 ## at most [member shot_zoom_in_steps] lattice steps (a single target node is
@@ -608,17 +607,17 @@ func _on_wave_landing(points: PackedVector2Array) -> void:
 ## Frame a committed attack's from->to span — every commit, every mode.
 ##
 ## [b]The seat predicate does not reach this path[/b] (owner call 2026-09-14
-## for melee, #866; extended to ranged/magic 2026-09-21, ADR 0027). #827's
+## for melee; extended to ranged/magic 2026-09-21, ADR 0027). The earlier
 ## constraint 2 and the "seat predicate is the whole rule" docstrings
-## #524/#525/#515 built on it are superseded for the ATTACK path: every commit
+## built on it are superseded for the ATTACK path: every commit
 ## — yours, an AI's, a remote human's — gets the same director's shot, *"take
-## away camera control for the duration of the move"*. The command path (#525)
+## away camera control for the duration of the move"*. The command path
 ## keeps its seat gate untouched. Such a request is also MANDATORY: the player
 ## has just spent the aim phase with their hands on the camera, so a grace-
 ## window refusal would make their own shot the one that never fires.
 ##
 ## The span is the centroid of the live plan's wind-up anchors plus every hit
-## target (#1048) — for melee and magic exactly the old origins ∪ targets (a
+## target — for melee and magic exactly the old origins ∪ targets (a
 ## melee origin IS the source; a magic hop's origin is a prior target), for
 ## ranged the leaves' centroid rather than every leaf. With no live plan the
 ## hit origins stand in, as before. Every point is filtered
@@ -630,7 +629,7 @@ func _build_attack_request(outcome: AttackOutcome, _attacker: Entity) -> FocusRe
 	if outcome == null or outcome.hits.is_empty():
 		return null
 	var points := PackedVector2Array()
-	# The schedule owns "how long does this take" (#543) — hand-computing a
+	# The schedule owns "how long does this take" — hand-computing a
 	# `maxf` over every hit's cached seconds was a second implementation of
 	# [method OutcomeSchedule.duration], free to drift the moment tempo became
 	# a per-peer setting. Compile if nothing has yet: a focus that outlives its
@@ -664,7 +663,7 @@ func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:
 		points.append(pos)
 
 
-## #525's trigger. See [method _build_command_request] for the rule.
+## The trigger. See [method _build_command_request] for the rule.
 ##
 ## [signal CommandApplier.command_confirmed] fires INSIDE `_drain`, after the
 ## gate passed and BEFORE the mutation — so this is a genuine pre-mutation hook,
@@ -736,11 +735,11 @@ func _build_command_request(command: Command) -> FocusRequest:
 
 ## The nodes [param command] wants framed, as stable ids — empty for every verb
 ## this path does not claim. The exclusions are deliberate, not an oversight:
-##   * [LaunchAttackCommand] — already framed by `attack_committed` (#524).
+##   * [LaunchAttackCommand] — already framed by `attack_committed`.
 ##   * [EndTurnCommand], [LootRoundCommand], [PickLootCommand] — no geometry.
 ##
 ## [MassAllocateCommand] over-frames by design: its affordable count is
-## re-computed at apply time (#458), so the path framed here may be longer than
+## re-computed at apply time, so the path framed here may be longer than
 ## what actually lands. The requested path is the intent, and framing the intent
 ## is not wrong.
 func _framed_node_ids(command: Command) -> Array[int]:

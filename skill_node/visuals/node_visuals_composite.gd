@@ -1,39 +1,11 @@
 @tool
 extends SkillNodeVisual
-## Orchestration scene composing all SkillNode-visual components (#126,
-## milestone #16). Children are scene-composed in
-## node_visuals_composite.tscn (not instantiated in code) — this script
-## forwards the knobs that must stay in sync *across* children (entity_tint,
-## archetype_tint, allocation_level, the rim radii, stake level/alloc).
-##
-## This is also the ONLY layer that knows both InnerDisk and RimRing exist:
-## [member geom_inner_r] is handed to both, so the disk's edge and the
-## ring's floor line up — RimRing itself carries no disk knowledge at all.
-##
-## It is also the sole authority on the node's identity — `entity_tint`,
-## `archetype_tint` and `allocated`, all inherited from [SkillNodeVisual] and
-## pushed into every child by `_sync_shared()`. Never merge the two tints back
-## into one: entity color says "this is MINE" (the central disk, the core
-## halos), archetype color says "this is what I AM" (every rim), and a component
-## decides for itself which it reads.
-##
-## SHELVED ENCODERS (#238, verdict in #132). RimBonuses (rim gems + the
-## segmented stake dial) and RuneRing were instanced here as *alternate* looks
-## the design labs authored, never as simultaneous layers, and they crowded each
-## other out. Both are cut from the production stack — the scenes stay in the
-## repo and stay previewable in the sandbox host's Node Visuals tab, which is
-## the shelf. Nothing hidden-but-instanced was left behind on purpose: a level
-## carries ~500-2500 of these, so an unused child is tree nodes, `_ready` work
-## and potentially an instance-uniform slot (#172) on every one of them (see
-## .claude/rules/skill-node-scale.md).
-##
-## #341 reclaimed the DIAL'S FUNCTION (not the RimBonuses scene, which stays
-## shelved) as a shader term on [RimRing] itself: [method _sync_stake] forwards
-## `allocation_level`/`stake_level` straight into `%RimRing.fill_current` /
-## `.fill_max`, so "1/3 vs 3/3 allocated" is visualized again without
-## re-instancing anything. `rim_bonuses.tscn`/`rune_ring.tscn` are still the
-## shelf for the OTHER encoders (rim gems, the rune band) that never got a
-## reclaim.
+## Orchestration scene composing all SkillNode-visual components (children are
+## scene-composed in node_visuals_composite.tscn). Forwards the knobs that must
+## stay in sync across children (identity tints, allocation_level, rim radii,
+## stake) and is the sole authority on the node's identity. The shelved
+## encoders (RimBonuses, RuneRing) are not instanced here.
+## See docs/domain/skillnode-visuals.md "Identity contract".
 
 const MAX_STAKE_CAP := 4
 

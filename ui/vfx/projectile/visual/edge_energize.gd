@@ -2,50 +2,13 @@
 class_name EdgeEnergize
 extends Node2D
 
-## #670 P5 — an animated travelling front of light laid ALONG a real edge,
-## drawn as an overlay quad. Trail Blazer's fuse and Resonator's converging
-## waves are built on this.
-##
-## [b]Paint-on-top. It never touches [Edge], [Graph] or the edge MultiMesh[/b]
-## (#670, settled — the reasoning lives in `edge_energize.gdshader`'s header and
-## on the issue). The overlay frees itself and the edge was never written to, so
-## there is no interrupt-restore semantics to get wrong: a cast cut short by
-## teardown cannot leave an edge stuck energized.
-##
-## [b]One material, one texture, for every overlay alive.[/b] At Resonator's ~60
-## that is one batch, not 60 draws — and the only thing that keeps it true is
-## that per-instance animation rides [b]transform and [member CanvasItem.modulate]
-## only[/b]. The ignition front is the quad's x-scale ([method set_front]);
-## intensity is `modulate` through [Emissive] tiers. Animating a per-overlay
-## shader UNIFORM duplicates the material and the batch is gone. See
-## `test/unit/vfx/test_edge_energize.gd`, which pins exactly that.
-##
-## [b]Width tracks the edge, with no CPU mirror.[/b] The shader reads the same
-## `edge_camera_zoom` global `graph/edge_mesh.gdshader` reads (pushed by
-## `GraphCamera` on every zoom step), and [method _sync_width] pushes the edge
-## material's own `width` onto the shared overlay material once at load. There
-## is therefore no per-frame sync between edge and overlay that can drift.
-##
-## [b]Fog-oblivious[/b] (owner call 2026-08-30), matching every existing spell
-## visual — see the shader header for the one-line upgrade whenever fog-gating
-## arrives.
-##
-## [b]Concurrency is bounded by LINGER, not by hop count.[/b] Trail Blazer's
-## `max_hops` is `inf`, so N is unbounded and any
-## assumption of 20 is wrong. What actually caps live overlays is
-## [method max_live_overlays] — at the shipped 2.5 s linger over 0.4 s beats
-## that is 7, whatever the path length.
-##
-## [b]Opt-in needs no new knob.[/b] The coordinator's per-verb `edge_visual`
-## slot already expresses it: a spell that wants energized edges composes this
-## scene in, one that does not, does not. A bool on the def or on the tempo
-## resource would be a second parallel opt-in channel for something the slot
-## system already says.
-##
-## Visual contract (see [Projectile]):
-##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`,
-##              `_on_crit(tier)`, `_on_context(entry)`
-##   outbound — [signal finished]
+## An animated travelling front of light laid ALONG a real edge, drawn as an overlay
+## quad. Paint-on-top: it never touches [Edge], [Graph] or the edge MultiMesh. One
+## material and texture for every overlay alive, so per-instance animation rides
+## transform and [member CanvasItem.modulate] only (never a shader uniform). Width
+## follows the shared `edge_camera_zoom` global; fog-oblivious. Concurrency is bounded
+## by linger ([method max_live_overlays]); opt-in is the coordinator's `edge_visual` slot.
+## See docs/domain/spell-vfx-kit.md
 
 signal finished
 

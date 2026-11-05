@@ -808,61 +808,11 @@ func privatize_register_entry(register: Array[StatModifier], old: StatModifier) 
 	return dup
 
 
-## Deep-clone this board INCLUDING its live state — every modifier already
-## applied to it, and every dynamically-minted stat.
-##
-## [b]Use this, not a bare `duplicate(true)`, whenever the source board is
-## already live.[/b] `duplicate(true)` carries only EXPORTED properties, so
-## every typed `Stat`/`PoolStat` field survives as its own resource but each
-## one's [member Stat.bins] (a plain, non-exported [ModifierBins]) comes back
-## fresh and EMPTY, and [member _extra_stats] — where every dynamically-minted
-## stat lives, `node_health` among them — does not survive at all. No error
-## either way; the clone just quietly reads as an unmodified board.
-##
-## Nothing needed this before #498, which is why the gap went unnoticed: every
-## other `duplicate(true)` in the codebase clones a VIRGIN template and builds
-## its bins up live afterwards ([method apply_intrinsics], [AllocationSystem]'s
-## `add_modifier` calls). A combat shadow ([method EntityCombat.snapshot]) is
-## the first caller that must clone an already-modified board and keep what is
-## on it — there, a bare `duplicate()` silently drops every applied modifier,
-## which is the scoring inaccuracy #498 exists to fix, reintroduced one layer
-## down.
-##
-## [member ModifierBins.multipliers] is copied one level deep: the Array is the
-## clone's own, so membership changes are isolated, but the [StatModifier]s
-## inside are SHARED with the source (as is `winning_set`). That is deliberate
-## and safe — a modifier is stateless and may live on N boards at once (#377),
-## and a shadow adds or revokes modifiers, it never edits one in place.
-## [member Stat._modifiers] and [member Stat._last_contrib] travel the same way,
-## and for a stronger reason than symmetry (#506):
-##
-## [b]The bin tally is only meaningful next to the modifier list it was folded
-## from.[/b] [method Stat.add_modifier] ends in
-## [method Stat._resync_bins_if_trivial], which WIPES every bin and rebuilds
-## from scratch whenever `_modifiers.size() <= 1`. On a clone that carried bins
-## but no `_modifiers`, the first modifier added afterwards therefore threw the
-## whole copied tally away — a board reading 40 STR came back 20 after a +10,
-## silently. `_last_contrib` is the same story on the remove side (an absent
-## entry falls back to re-deriving the contribution and then hits the same
-## wipe). Carrying both is what makes a clone a board you may go on to MUTATE,
-## rather than one you may only read.
-##
-## [b]Formula binding IS rebuilt here, but only after every formula-bearing
-## modifier has been replaced by a private copy (#506).[/b] Binding the SHARED
-## instances — the obvious one-liner — is wrong twice over: (a) a clone's
-## `value_changed` would drive `StatModifier._on_source_changed`, which
-## `emit_changed()`s on an instance the LIVE board is also subscribed to, so
-## simulating a CON buff on a shadow would fire recomputes and `value_changed`
-## storms on the real board, exactly what a shadow exists not to do; and (b) a
-## [Callable] connected to a live modifier's `changed` holds a strong reference
-## to the clone's [Stat], leaking every shadow for as long as that modifier
-## lives. With copies, the whole `source stat -> modifier -> target stat` chain
-## is owned by the clone, so it reacts fully and the source board hears nothing.
-##
-## Static modifiers stay shared and unsubscribed — they have no source to watch.
-## A clone therefore does not track later `value` edits to the live statics it
-## borrowed; see [method Stat.localize_formula_modifiers] for why that asymmetry
-## is the intended trade rather than an oversight.
+## Deep-clone this board INCLUDING live state (applied modifiers, minted stats).
+## Use this, never a bare `duplicate(true)`, on a live board. Modifiers are shared
+## by reference; formula-bearing ones are copied so the clone never drives the
+## live board.
+## See docs/domain/stat-board-classes.md
 func clone_live() -> StatBoard:
 	var dst := duplicate(true) as StatBoard
 	if dst == null:

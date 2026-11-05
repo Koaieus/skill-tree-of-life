@@ -2,15 +2,15 @@
 class_name HudRoot
 extends Control
 
-## Structural spine of the "Arcane Terminal" HUD (#98/#107) — the sole UI
-## layer since #118's cutover (replaced the old UIRoot). Anchors the six
+## Structural spine of the "Arcane Terminal" HUD — the sole UI
+## layer (it replaced the old UIRoot). Anchors the six
 ## design clusters via Control anchor presets + margins (translated from the
 ## design's 1440x900 absolute coords, not hardcoded pixel offsets) and hands
 ## cross-system deps to each cluster's own scene-local `bind()`/setter:
 ## scene-local children via `%UniqueName`, cross-system deps via one
 ## `compose(game_root)` call from GameRoot.
 
-## The off switch (#1006, ADR 0026; the root's old `show_ui`). Off, the HUD
+## The off switch (ADR 0026). Off, the HUD
 ## is a hidden layer that binds nothing: [method compose] / [method
 ## bind_systems] / [method rebind_player] return at once and every later
 ## presentation entry (link lost, peer left) is a no-op. What a showcase,
@@ -59,7 +59,7 @@ extends Control
 
 var _player: Entity
 ## The composition root, kept only to read [member GameRoot.seat_policy] when a
-## run ends (#517). Deliberately the ROOT and not the policy: `game_root.gd`
+## run ends. Deliberately the ROOT and not the policy: `game_root.gd`
 ## initialises a default couch policy at field-init and a roster REPLACES the
 ## object during `_setup_level`, so a policy cached in [method bind_systems]
 ## can be the stale pre-roster instance. Optional — a hand-built HUD fixture
@@ -71,11 +71,11 @@ var _turn_manager: TurnManager
 var _vision_system: VisionSystem
 var _allocation_system: AllocationSystem
 
-## Pending-modal queue (#204/#486): ONE [ModalBase] is up at a time, ever.
+## Pending-modal queue: ONE [ModalBase] is up at a time, ever.
 ## A kill can fire BOTH the dust pick and the spell draft synchronously (both
 ## routed off `Events.entity_dying` inside LootSystem), and a second `present()`
-## would just stomp the first's cards — worse, since #486 traded the tree pause
-## for `set_input_frozen` (a plain bool, not a counter), two overlapping modals
+## would just stomp the first's cards — worse, since modals freeze input with
+## `set_input_frozen` (a plain bool, not a counter), two overlapping modals
 ## would leave the first one to close unfreezing input under the second.
 ## Serializing here is what keeps that bool honest, so EVERY modal goes through
 ## this queue, not just the pickers.
@@ -89,7 +89,7 @@ var _modal_busy: bool = false
 
 ## Latch for the system-lifetime half of [method compose]. Everything keyed to
 ## a SYSTEM (the level's turn manager, battle system, hover bus) is wired once;
-## everything keyed to the PLAYER re-points on every hot-seat handover (#459).
+## everything keyed to the PLAYER re-points on every hot-seat handover.
 ## Without the split, `rebind_player` would re-run `turn_manager.turn_started`
 ## connections and each banner/gate would fire once per handover so far.
 var _systems_bound: bool = false
@@ -111,12 +111,12 @@ func _ready() -> void:
 		Events.loot_pick_requested.connect(_on_loot_pick_requested)
 		Events.spell_loot_requested.connect(_on_spell_loot_requested)
 		Events.run_ended.connect(_on_run_ended)
-		# The overlay asks to leave; GameRoot decides whether it may (#526).
+		# The overlay asks to leave; GameRoot decides whether it may.
 		run_end_overlay.main_menu_pressed.connect(_on_run_end_main_menu_pressed)
 		loot_picker.closed.connect(_on_modal_closed)
 		spell_loot_picker.closed.connect(_on_modal_closed)
 		mass_action_confirm_panel.closed.connect(_on_modal_closed)
-		# The catalogue (#853) is read-only and has no request; it still goes
+		# The catalogue is read-only and has no request; it still goes
 		# through the queue so its Esc is its own and not the pause menu's.
 		spell_catalogue_modal.closed.connect(_on_modal_closed)
 		ring_modal.closed.connect(_on_modal_closed)
@@ -227,9 +227,9 @@ func bind_systems(
 	# The glow reads the input controller, not the player, and a level with no
 	# player entity simply never arms anything.
 	armed_mode_glow.bind(_input_ctl)
-	# The badge (#664) is the glow's foveal counterpart and reads the same
+	# The badge is the glow's foveal counterpart and reads the same
 	# controller. It is bound here AND re-bound in `rebind_player` — a hot-seat
-	# handover (#459) can hand over a different controller, and a badge left
+	# handover can hand over a different controller, and a badge left
 	# driven by the outgoing one would describe the wrong player's next click.
 	armed_mode_icon.bind(_input_ctl)
 	blade_node_menu.bind(_input_ctl, tooltip_fan, _game_root.camera if _game_root != null else null)
@@ -268,13 +268,13 @@ func bind_systems(
 	# draws its board without a viewport outline.
 	minimap_panel.bind(graph,
 			game_root.camera if game_root != null else null, _allocation_system)
-	# The forecast strip (#910) hears `forecast_changed` — the ONE signal that
+	# The forecast strip hears `forecast_changed` — the ONE signal that
 	# carries every initiative pool/speed change — plus the fog recompute, and
 	# coalesces both to one rebuild per frame. Whose sigil is highlighted is
 	# per-seat and lives in `rebind_player`.
 	turn_forecast_strip.bind(_turn_manager, _vision_system, graph)
 	# The emblem badge is the card's, but the beat that bumps it is the XP
-	# bar's — one source for badge, banner and gauge (#317/#320). It rides
+	# bar's — one source for badge, banner and gauge. It rides
 	# `level_display_changed`, not `level_reached`, so a level granted outside
 	# the XP pool still reaches the badge (see XpTrack's signal docs).
 	xp_track.level_display_changed.connect(hero_sigil_card.show_level)
@@ -283,7 +283,7 @@ func bind_systems(
 
 ## Re-point every player-keyed cluster at [param player]. Called by [method
 ## compose] with the level's initial hero, and again on every hot-seat
-## handover (#459) by [method GameRoot.bind_player].
+## handover by [method GameRoot.bind_player].
 ##
 ## Each cluster releases its own previous connections (see [BindScope]) —
 ## this method only decides WHO, never bookkeeps the how. Null-safe: a level
@@ -321,7 +321,7 @@ func rebind_player(player: Entity) -> void:
 	action_cluster.set_player(_player)
 	gates_menu.refresh()
 	command_tray.set_player(_player)
-	# Re-read the badge on every hot-seat handover (#459, #664). The controller
+	# Re-read the badge on every hot-seat handover. The controller
 	# object survives a handover, so this is not about re-wiring a signal — it
 	# is about the incoming player's armed state being reflected immediately
 	# rather than at whatever they arm next. `bind` releases its previous scope,
@@ -340,11 +340,11 @@ func _on_blade_fan_hovered(scene: PackedScene) -> void:
 		body.show_detail(scene)
 
 
-## Pick-1-of-M loot claim (#173). Only the PLAYER's relics get the picker — set
+## Pick-1-of-M loot claim. Only the PLAYER's relics get the picker — set
 ## `claim` SYNCHRONOUSLY (before emit() returns) so LootRoundCommandHandler won't
 ## auto-resolve behind us; NPC relics fall through untouched to their auto-pick.
 ## `LOCAL` specifically: the tri-state exists to keep this case distinguishable
-## from a REMOTE human's pick, which no HUD on this machine can present (#522).
+## from a REMOTE human's pick, which no HUD on this machine can present.
 func _on_loot_pick_requested(request: LootPickRequest) -> void:
 	if _player == null or request.collector != _player:
 		return
@@ -352,7 +352,7 @@ func _on_loot_pick_requested(request: LootPickRequest) -> void:
 	_enqueue_modal(func() -> void: loot_picker.present(request))
 
 
-## Pick-1-from-M spell draft (#204). Same filter + handshake as the dust pick
+## Pick-1-from-M spell draft. Same filter + handshake as the dust pick
 ## above, queued behind it (see `_pending_modals`).
 func _on_spell_loot_requested(request: SpellLootRequest) -> void:
 	if _player == null or request.collector != _player:
@@ -361,7 +361,7 @@ func _on_spell_loot_requested(request: SpellLootRequest) -> void:
 	_enqueue_modal(func() -> void: spell_loot_picker.present(request))
 
 
-## The mass allocate-path / deallocate-cascade confirm (#486). Unlike the loot
+## The mass allocate-path / deallocate-cascade confirm. Unlike the loot
 ## picks this request has a LIVE lifetime on PlayerInputController — it can be
 ## revoked from outside the modal (`clear_transient_state` on level teardown),
 ## which is what the null branch is: take the panel down without answering,
@@ -373,7 +373,7 @@ func _on_mass_action_pending_changed(request: MassActionRequest) -> void:
 	_enqueue_modal(func() -> void: mass_action_confirm_panel.present(request))
 
 
-## The pause menu's SPELL CATALOGUE item (#853). The menu stays up beneath the
+## The pause menu's SPELL CATALOGUE item. The menu stays up beneath the
 ## modal — `_set_modal_busy` blocks its Esc while the catalogue is showing, and
 ## `closed` hands Esc back — so closing the catalogue lands on the pause menu,
 ## which is where the player came from.
@@ -430,7 +430,7 @@ func _on_modal_closed() -> void:
 	_drain_modals()
 
 
-## A modal is up/down (#486) — beyond the queue flag itself, this also gates
+## A modal is up/down — beyond the queue flag itself, this also gates
 ## AnnouncementLayer (a Tween-driven banner must not draw over a frozen, dimmed
 ## modal) and PauseMenu (Esc must not open the pause menu on top of one).
 func _set_modal_busy(busy: bool) -> void:
@@ -439,10 +439,10 @@ func _set_modal_busy(busy: bool) -> void:
 	pause_menu.set_blocked(busy)
 
 
-## Ports UIRoot's banner routing (#118 cutover parity) — "YOUR TURN" on the
+## Banner routing — "YOUR TURN" on the
 ## player's turn start. AI turns animate silently. LEVEL UP is deliberately NOT
 ## here: it belongs to the XP bar, which owns the replay queue and is therefore
-## the only thing that knows when a cascade is done ([LevelUpFlourish], #320).
+## the only thing that knows when a cascade is done ([LevelUpFlourish]).
 ## Also the initiative bar's show/hide beats.
 ##
 ## System-lifetime, despite every handler comparing against `_player`: the
@@ -465,7 +465,7 @@ func _on_turn_started_for_banner(entity: Entity) -> void:
 				"YOUR TURN", "", AnnouncementRequest.Style.DEFAULT, entity))
 
 
-## #116 — Turn Tracker Pill. InitiativeBar already implements the "hide
+## Turn Tracker Pill. InitiativeBar already implements the "hide
 ## during MY turn, show + climb otherwise" behavior UIRoot relies on
 ## (_on_owner_turn_started slides it out, _on_owner_turn_ended slides it
 ## back in) — reused verbatim, just wired the same way UIRoot.compose()
@@ -507,7 +507,7 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 			initiative_bar._on_owner_turn_ended(float(init_pool.current))
 
 
-## The run ended (#517). The HUD is where a POV-free [RunOutcome] becomes a
+## The run ended. The HUD is where a POV-free [RunOutcome] becomes a
 ## local reading, because the point of view is a fact about this MACHINE — the
 ## outcome names one winner and every screen watching may narrate it
 ## differently.
@@ -517,7 +517,7 @@ func _on_turn_ended_for_initiative(entity: Entity) -> void:
 ##   from [member RunOutcome.winning_camp] alone, so a camp holding two living
 ##   heroes announces once, as a camp. Plural phrasing ("Players win!" for coop)
 ##   is then an AUTHORING choice in the faction `.tres`, not a code branch.
-## - **The overlay always comes up** (#526) — it is the run's way OUT of the
+## - **The overlay always comes up** — it is the run's way OUT of the
 ##   level, so gating it would strand a couch and a draw. [SeatPolicy] picks its
 ##   copy instead; see [method _run_end_reading].
 ##
@@ -547,7 +547,7 @@ func present_link_lost(reason: String) -> void:
 
 
 ## A seated peer left and its hero was handed to the AI
-## ([method SeatHandover._adopt]). Raised on EVERY peer since #755,
+## ([method SeatHandover._adopt]). Raised on EVERY peer,
 ## not just the host: the handover crosses the wire because the mirrors have to
 ## flip [member Entity.is_human_controlled] too (fog is an allied-HUMANS reveal
 ## — see that method), and once they are told at all, telling the player is
@@ -572,11 +572,11 @@ func _run_end_banner(outcome: RunOutcome) -> AnnouncementRequest:
 
 
 ## How does THIS screen read the run's end? Resolved from seating, not from the
-## bound hero — which is the whole fix (#517): `rebind_player` fires on every
-## hot-seat handover (#459), so anything derived from "the current player"
+## bound hero — which is the whole fix: `rebind_player` fires on every
+## hot-seat handover, so anything derived from "the current player"
 ## answered from whoever acted last.
 ##
-## The reading decides the overlay's COPY only. Since #526 the overlay itself is
+## The reading decides the overlay's COPY only. The overlay itself is
 ## unconditional — it carries the way out of the level, and a couch or a draw
 ## needs that as much as a defeated seat does.
 ##

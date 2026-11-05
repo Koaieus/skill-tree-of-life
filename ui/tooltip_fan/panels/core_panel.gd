@@ -2,36 +2,13 @@
 class_name CorePanel
 extends FanPanel
 
-## Tooltip V2 (#226/#231) — crown, FAR rung (entity-scoped), CORE nodes only,
-## enforced by this panel's own [method has_content] since #314 (before that,
-## being mounted solely by `owned_core.tscn` was the gate). Envelope sized
-## to the worst case per the "Crown envelope inputs" issue comment: 8
-## modifier leaves (`pacifist_core.tres`) + 1 core-HP row = 9, with headroom
-## to 12 rows. Deliberate gold skin exception — a [GlassPanel] child with
-## [member FanPanel.glow_tint] set gold in-scene (there is no separate gold
-## skin scene; the two skins are [GlassPanel]/[HoloPanel] and this is the
-## fan's one intentional non-default choice) — because the core is the
-## entity's identity and must not read as just another readout.
-##
-## [method bind] renders: PanelHeader as the core class's `display_name`, core
-## HP as a numeric [StatValueRow] (never a bar, matching #230's convention),
-## then one row per flattened leaf of `entity.core_class.modifiers`, in
-## authored order (#183 composites — e.g. `ninja_core.tres`'s budget pack —
-## flatten to one row per leaf, never one opaque row). A formula-driven leaf
-## (per-level class bonuses, `value` is just the coefficient) does NOT render
-## through [method StatModifier.format] — reading `core_class.modifiers`
-## directly means it's never bound to a board, so `get_effective_value()`
-## falls back to the bare coefficient and a naive `format()` call would print
-## a misleading flat "+1" for what is actually a per-level scaling bonus.
-## Instead it renders the coefficient plus an explicit "(scales)" suffix so it
-## can never be mistaken for a flat bonus. Swaps to `StatFormula.description`
-## verbatim once that field lands on `StatFormula` (separate issue, not on
-## master yet) — not blocked on it, behind one small helper.
-##
-## [method has_content] answers false unless the hovered node IS a core. That
-## used to be guaranteed structurally — `owned_core.tscn` was the only variant
-## mounting this unit — but #314 mounts every unit for every hover, so the
-## condition has to be stated rather than assumed.
+## Crown, FAR rung (entity-scoped), CORE nodes only — [method has_content] answers
+## false unless the hovered node IS a core. Deliberate gold skin exception (a
+## [GlassPanel] with [member FanPanel.glow_tint] gold). [method bind] renders the
+## class `display_name`, core HP as a numeric [StatValueRow], then one row per
+## flattened leaf of `entity.core_class.modifiers`; a formula-driven leaf renders
+## its coefficient plus "(scales)", never [method StatModifier.format].
+## See docs/domain/tooltip-fan-units.md
 
 const _ENVELOPE_ROWS := 12
 

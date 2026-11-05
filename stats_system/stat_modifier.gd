@@ -2,43 +2,11 @@
 class_name StatModifier
 extends Resource
 
-## The designer-loop atom: pick a stat (by id), pick an op, enter a value,
-## optionally attach a formula. Sits on a SkillNode's `modifiers` or on a
-## StatBoard's `intrinsic_modifiers`. The runtime carrier for modifier state
-## — *not* an immutable schema (those are StatDef / PoolStatDef under defs/).
-##
-## Effective value:
-##   formula == null   → value                       (static modifier)
-##   formula != null   → value * formula.compute()   (derived modifier)
-##
-## `value` defaults to 1.0 so it acts as the identity in both branches — a
-## bare formula-only modifier reads its formula straight through, and a bare
-## static modifier contributes at least something.
-##
-## A live `value` edit fires `Resource.changed`; Stat.add_modifier wires that
-## into `_on_dependent_modifier_changed`. Formula-driven source updates flow
-## through the same path via `_on_source_changed → emit_changed()`. No manual
-## dirty-marking required.
-##
-## Pipeline (see Stat.get_value):
-##   SET (if present) returns immediately — highest `priority` wins,
-##   ties broken by insertion order (last-in wins).
-##   Otherwise:
-##     result = (base + Σ ADD_BASE)
-##           × (1 + Σ INCREASE / 100)
-##           × Π MULTIPLY
-##           + Σ ADD_BONUS
-##   Then coerced to definition.value_type (INT rounds once, here).
-##
-## Value scales:
-##   ADD_BASE / ADD_BONUS : raw amount       (value =  4   →  +4)
-##   INCREASE             : percent points   (value = 20   →  +20%; 5× gives ×2)
-##   MULTIPLY             : raw multiplier   (value =  1.5 →  ×1.5; 0.5 acts as ÷2)
-##   SET                  : the result       (value = 13   →  =13, pipeline bypassed)
-##
-## A `StatModifier` instance can be applied to any number of `StatBoard`s at
-## once (#377) — binding state lives on the board (`StatBoard.bind_modifier`/
-## `unbind_modifier`), not here, so sharing across entities is safe.
+## The designer-loop atom: stat id + op + value, optionally a formula (derived =
+## `value * formula.compute()`). Sits on a SkillNode's `modifiers` or a board's
+## `intrinsic_modifiers`. May be applied to any number of boards at once; binding
+## state lives on the board. Pipeline and value scales: see the doc.
+## See docs/domain/stats-system.md
 
 enum Operation {
 	## +X to base, before multipliers. Scales with INCREASE and MULTIPLY.
@@ -59,7 +27,7 @@ enum Operation {
 }
 
 
-## How this modifier reads for whoever HOLDS it (#1049) — never "good for me
+## How this modifier reads for whoever HOLDS it — never "good for me
 ## the viewer": hovering an enemy's `-3% Dexterity` still reports BANE.
 ## BANE earns the cursed slab, VOLATILE the volatile one; NEUTRAL renders
 ## plain.
@@ -70,7 +38,7 @@ enum Valence {
 	BANE,
 	## The op's neutral element applied: no change at all (`+0`, `x1`).
 	NEUTRAL,
-	## No side to pick, by owner call (#1049): a SET (no neutral element to
+	## No side to pick, by owner call: a SET (no neutral element to
 	## displace from — where it lands depends entirely on where you stand)
 	## and a sign-flipping MULTIPLY (`value <= 0`). A negative multiplier is
 	## the one op that breaks the `current >= 0` invariant every other static
@@ -82,7 +50,7 @@ enum Valence {
 
 ## The signed delta this modifier applies, expressed as its value's
 ## DISPLACEMENT FROM ITS OPERATION'S NEUTRAL ELEMENT — the one law that makes
-## every op judgeable by the same predicate (#1049):
+## every op judgeable by the same predicate:
 ##
 ## | Op | neutral | displacement |
 ## |---|---|---|
@@ -158,7 +126,7 @@ func valence(board: StatBoard = null) -> Valence:
 ## so `value` reads as the coefficient and the formula contributes the variable
 ## part. When null, effective value is just `value` (plain static modifier).
 ##
-## Has a setter for the same reason `stat_id`/`operation`/`value` do (#893):
+## Has a setter for the same reason `stat_id`/`operation`/`value` do:
 ## `formula` is the LAST field in export/declaration order, so on
 ## deserialization it is also the last setter to fire — wiring it into
 ## `_update_resource_name()` makes that final recompute the complete one,
@@ -181,10 +149,10 @@ func valence(board: StatBoard = null) -> Valence:
 
 ## Keeps the inspector's array-entry label (and any other `resource_name`
 ## reader) in sync with what this modifier actually does, instead of the
-## useless per-class default ("StatModifier" for every entry — #467). Reuses
+## useless per-class default ("StatModifier" for every entry). Reuses
 ## [method format] rather than building a second string — same pattern as
 ## [StatPool]'s `_update_resource_name`. Wired off `stat_id` / `operation` /
-## `value` / `formula` (#893) — `priority` alone stays unwired, since it isn't
+## `value` / `formula` — `priority` alone stays unwired, since it isn't
 ## part of [method format]'s coefficient-first rendering for an unbound
 ## modifier. `formula`'s setter matters even though [method format] already
 ## reads it on every call: `formula` is the LAST field in declaration order,
@@ -209,11 +177,11 @@ func _update_resource_name() -> void:
 ## Re-entrancy guard on THIS instance's own [method _on_source_changed] — stops
 ## A→B→A from looping indefinitely within one propagation. Not board-scoped:
 ## the guard is about the call stack, not which board triggered it, so it
-## doesn't move even though binding itself now lives on [StatBoard] (#377).
+## doesn't move even though binding itself now lives on [StatBoard].
 var _propagating: bool = false
 
 
-## Opt-out / custom-scaling seam for SkillNode's local-scale mutator (#376).
+## Opt-out / custom-scaling seam for SkillNode's local-scale mutator.
 ## Default returns `null` = follow the universal per-operation law. Overrides
 ## return one of:
 ##   - a Float: the modifier's new `value`, outright;
@@ -252,12 +220,12 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## The concrete leaf modifier(s) this stands for when it is APPLIED to a board
 ## or listed in a fully-expanded UI context. A plain modifier is its own
 ## singleton; [CompositeStatModifier] overrides this to expand its children
-## (recursively). This is the seam the #183 bundle feature turns on:
+## (recursively). This is the seam the bundle feature turns on:
 ## StatBoard.add_modifier / remove_modifier and the flattening display sites
 ## call it, while the STORAGE/authoring/loot arrays keep a composite whole (one
 ## entry, one lootable unit). A leaf pays nothing — one-element array, no state.
-## ── Wire form (#522) ─────────────────────────────────────────────────────────
-## Loot travels BY VALUE. The owner call on #522 settled this against pointing
+## ── Wire form ─────────────────────────────────────────────────────────
+## Loot travels BY VALUE. The owner call settled this against pointing
 ## at shared state with a locator: two of the three loot buckets read the
 ## VICTIM'S OWN board (`Entity.core_modifiers`, `StatBoard.intrinsic_modifiers`),
 ## which a peer holds only partially and possibly stale — so an index into it is
@@ -266,8 +234,8 @@ func get_effective_value(board: StatBoard = null) -> float:
 ## detached copies (`duplicate(true)`), so this is that same operation with a
 ## different target.
 ##
-## The `formula` is carried as its own tagged block, NOT dropped: #323 makes
-## stealing a level-scaler the intended roguelite loop, so a wire format that
+## The `formula` is carried as its own tagged block, NOT dropped: level-scaling
+## grants are lootable (the intended roguelite loop), so a wire format that
 ## cannot carry a [StatFormula] guts the feature rather than trimming an edge.
 ##
 ## Decoding lives on [StatModifierCodec] rather than here, for the same
@@ -317,7 +285,7 @@ static func flatten_all(mods: Array) -> Array[StatModifier]:
 
 
 ## Fold this modifier's dependency edges — `stat_id -> each formula input` —
-## into a `{stat_id: [depends_on_id, ...]}` graph, IN PLACE (#322). The single
+## into a `{stat_id: [depends_on_id, ...]}` graph, IN PLACE. The single
 ## definition of "what an edge is"; every consumer (the live board graph, the
 ## static shipped-content check, a candidate under test) folds through here.
 ##
@@ -348,7 +316,7 @@ func collect_formula_edges(out: Dictionary) -> void:
 ## Asks every leaf via flatten(), so a [CompositeStatModifier] reports true when
 ## ANY child scales — matching the way a bundle is applied and looted as a unit.
 ##
-## The `level` case drives both sides of #194: the HUD lists level-scaled
+## The `level` case drives both sides of one rule: the HUD lists level-scaled
 ## modifiers, LootSystem excludes them.
 func scales_with(source_id: StringName) -> bool:
 	for leaf in flatten():
@@ -381,37 +349,11 @@ func contribution_text(board: StatBoard = null) -> String:
 	return ""
 
 
-## The FULL sentence for this modifier — stat name included. The single home
-## for modifier-to-words grammar (#305): every UI that used to hand-append a
-## StatDef label to [method contribution_text] now calls this instead.
-##
-## Stat name comes from [member StatDef.modifier_name] (falls back to
-## [member StatDef.display_name], then to the bare `stat_id` when the def
-## can't be resolved — StatRegistry is @tool + autoload so this works
-## in-editor too). [member StatDef.display_as_percent] scales the value ×100
-## with a "%" suffix, but ONLY for ADD_BASE / ADD_BONUS / SET — INCREASE and
-## MULTIPLY values are already percent-points / raw multipliers and must not
-## be rescaled (see the field's own docstring).
-##
-## | Op | Renders as |
-## |---|---|
-## | ADD_BASE  | "+4 Intelligence" |
-## | INCREASE  | "+18% increased Intelligence" (negative: "3% reduced Intelligence" — #1053, the word carries the sign, the number does not) |
-## | MULTIPLY  | "×1.3 Magic Potency" |
-## | ADD_BONUS | "+3 bonus Armor" |
-## | SET       | "Armor is 3" |
-##
-## A formula-bound modifier appends the formula's own qualifier — "+1 Blade
-## Size **per 20 STR**" (#289) — and renders the COEFFICIENT rather than the
-## effective value, because the clause now carries the variable part.
-## Without the clause the coefficient was actively misleading: an unbound
-## keystone modifier printed a bare "+1 Blade Size" that meant nothing, which
-## is what #231's audit found. Use [method contribution_text] when you want
-## the live computed number instead. The coefficient shown is the formula's
-## [method StatFormula.display_coefficient] of `value`, and `value` is handed
-## to the clause: a [RatioFormula] uses both to normalise a merged rule to a
-## unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", not
-## "+1.33 … per 5 WIS" (#891) — while every other shape prints `value` as is.
+## The FULL sentence for this modifier, stat name included: the single home for
+## modifier-to-words grammar. A formula-bound modifier appends the formula's
+## qualifier and renders the COEFFICIENT, not the effective value; use
+## `contribution_text` for the live computed number. Per-op rendering: see the doc.
+## See docs/domain/stats-system.md
 func format() -> String:
 	var parts := _display_parts()
 	if formula != null:
@@ -438,7 +380,7 @@ func _display_parts() -> Array:
 ## [method get_effective_value] — never the formula coefficient + "per"
 ## clause branch. [method format] intentionally shows the coefficient for a
 ## formula-bound modifier (a definition reads better next to its rate); a
-## per-node effect readout (#621) wants the opposite: what this specific
+## per-node effect readout wants the opposite: what this specific
 ## grant is contributing RIGHT NOW, coefficient or not. [param board] is
 ## passed straight to [method get_effective_value] — the board to read
 ## formula inputs from, same as that method's own parameter.
@@ -450,14 +392,14 @@ func format_effective(board: StatBoard = null) -> String:
 	return _format_value(parts[0], parts[1], parts[2], get_effective_value(board))
 
 
-## The NUMBER-ONLY half of [method format_effective] (#791): what this
+## The NUMBER-ONLY half of [method format_effective]: what this
 ## modifier contributes right now, through the same [StatDef] value-type /
 ## `display_as_percent` path — "+2", "+10%", "×1.3", "3" — and no stat name.
 ## For the attribute tooltip, whose rule sentence ([method format]) already
 ## names the target stat, so the full sentence would print it twice. A BOOL
 ## stat has no magnitude and yields "" (its trait line IS the name).
 ##
-## Contrast [method contribution_text], the pre-#622 fragment that rounds
+## Contrast [method contribution_text], the earlier fragment that rounds
 ## unconditionally and knows nothing of the def.
 func effective_value_text(board: StatBoard = null) -> String:
 	var parts := _display_parts()
@@ -469,7 +411,7 @@ func effective_value_text(board: StatBoard = null) -> String:
 ## Appends the bound formula's own clause to `sentence` — [method
 ## StatFormula.describe_clause], not a hardcoded " per <phrase>": most
 ## formula shapes ARE a "per" rate and use the base class's default clause,
-## but [ThresholdFormula]'s non-geometric ladder (#773) is not a rate at all
+## but [ThresholdFormula]'s non-geometric ladder is not a rate at all
 ## and overrides the clause to say so without the word "per". An empty clause
 ## (an [ExpressionFormula] nobody authored a phrase for yet) degrades to the
 ## bare sentence rather than to a dangling connective.
@@ -478,17 +420,17 @@ func _with_per_clause(sentence: String) -> String:
 	return sentence if clause.is_empty() else "%s%s" % [sentence, clause]
 
 
-## `value_type`-aware (#622) — ADD_BASE / INCREASE / ADD_BONUS route their
+## `value_type`-aware — ADD_BASE / INCREASE / ADD_BONUS route their
 ## non-percent value through [method StatDef.format_number] (via [method _signed])
 ## so a FLOAT stat's decimals survive instead of an unconditional `roundi()`.
 ## `display_as_percent` stays on its own `roundi(v * 100.0)` path, unchanged
-## (#622 decision: it composes with the type rule rather than replacing it —
+## (decision: it composes with the type rule rather than replacing it —
 ## a percent display is already whole-number-of-percent regardless of the
 ## underlying stat's type). MULTIPLY / SET call [method NumFmt.num] directly
 ## rather than [method StatDef.format_number], because neither is type-aware;
 ## see [method StatDef.format_number]'s docstring.
 ##
-## BOOL (#805, owner call) renders as a bare TRAIT LINE — the stat's own name,
+## BOOL (owner call) renders as a bare TRAIT LINE — the stat's own name,
 ## no sign, no number — regardless of op, ahead of the match below: two
 ## presence bunkers are not "twice as solid", so there is no magnitude for
 ## ADD_BASE/ADD_BONUS/SET to carry, and neither op the match otherwise handles
@@ -504,7 +446,7 @@ func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType
 		return name
 	# A negative INCREASE is PoE's "reduced", not "-N% increased" — the word
 	# carries the sign, so the number that goes INSIDE the sentence must not
-	# carry it too (#1053). Decided once, here, above the percent/coefficient
+	# carry it too. Decided once, here, above the percent/coefficient
 	# branches in `_value_text`, so the word and the number cannot disagree.
 	var reduced := operation == Operation.INCREASE and v < 0.0
 	var number := _value_text(as_percent, value_type, v, reduced)
@@ -528,7 +470,7 @@ func _format_value(name: String, as_percent: bool, value_type: StatDef.ValueType
 ## Shared by the full sentence and [method effective_value_text] so the
 ## tooltip's right-hand column and the sentence's number are one code path.
 ##
-## [param unsigned] is [method _format_value]'s "reduced" decision (#1053):
+## [param unsigned] is [method _format_value]'s "reduced" decision:
 ## when true (INCREASE, negative `v`, inside a sentence whose WORD already
 ## carries the sign) the magnitude prints bare, no "-". Callers outside a
 ## sentence — [method effective_value_text] — never pass it, so the sign

@@ -2,52 +2,14 @@
 class_name LootSystem
 extends Node
 
-## Authority for killing-blow rewards (#68 XP, #888 tempo, #69/#173 SkillDust
-## loot, #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
-## PRE-cleanup phase, while the corpse still owns its nodes (so the XP payout
-## can count the territory held at death, and the spell draft can still
-## read core-sourced spells before the strip). The phase split guarantees this
-## runs before AllocationSystem's `entity_died` strip; no tree-order /
-## connection-order dependency. On the bus:
-##   * XP reward — the killer gains XP for every node this attack took off the
-##     victim, the core included, fed through the normal `xp` pool so it converts
-##     to SP / levels via the existing replenished cascade
-##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
-##     would skip the level-up. The complementary per-node trickle rides
-##     BattleSystem's `cascade_started` instead of this phase.
-##   * Tempo award (#888) — a HOSTILE killing blow spends 1 `tempo` to refund
-##     1 `action_points` on the killer, gated the same way as the XP reward
-##     (HOSTILE attitude, killer alive). The pool's own cap IS the
-##     once-per-turn latch: once `tempo.available() < 1` no further kill this
-##     turn pays out, so a multi-kill chain still nets exactly one refund
-##     unless a modifier raised the cap. `tempo` REFILLs at turn start like
-##     `action_points`/`deallocation_points`/`movement_points` — no bespoke
-##     upkeep wiring.
-##   * SkillDust drop (#323 re-cut) — a weighted draw over THREE provenance
-##     buckets (node grants on the victim's owned subgraph, class/register
-##     grants, board innates) is attached to the victim's former core node as a
-##     [SkillDustAddon]. The underlying node modifiers still return to the
-##     graph on the death strip — only a duplicated COPY enters the loot pool.
-##     Offered as N rounds of pick-1-of-3, `would_cycle`-filtered per round
-##     against the collector's live board at claim time (not draw time — the
-##     claimant isn't known until someone allocates the relic). See
-##     docs/domain/loot-system.md.
-##   * Spell draft (#204, re-cut #4xx) — every spell the victim currently knows
-##     (core, innate, AND territory-sourced) is snapshotted onto the SAME
-##     [SkillDustAddon] relic as a terminal BONUS round, offered AFTER every
-##     stat round has resolved. The offer is filtered against whoever actually
-##     CLAIMS the relic (allocates the node) — not the killer — minus spells
-##     that claimant already knows permanently; the chosen spell lands on the
-##     claimant's core via a [SpellGrant]. See the "#204: Spellbook loot draft"
-##     section below.
-##
-## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
-## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
-## damage both run in the attacker's `launch_attack` call stack), so
-## `turn_manager.current_entity` at death IS the killer. Resolving it in the
-## rewards authority keeps Entity dumb and keeps reward logic out of BattleSystem
-## (which owns attacks, not rewards). Thorns / counter-damage would kill on the
-## defender's turn — when those land this needs real source-threading.
+## Authority for killing-blow rewards: XP, tempo, SkillDust loot and the
+## spellbook draft. Reacts to `Events.entity_dying(victim)`, the PRE-cleanup
+## phase while the corpse still owns its nodes, so it runs before
+## AllocationSystem's `entity_died` strip with no tree- or connection-order
+## dependency. Killer attribution lives here: death fires synchronously inside
+## the attacker's turn, so `turn_manager.current_entity` at death IS the killer.
+## XP goes through the `xp` pool, never a raw `set_current`.
+## See docs/domain/loot-system.md.
 
 ## Injected so this system can attribute the killing blow. DI per the
 ## scene-composition rule (NodePath @export, wired in game_root.tscn) — the same
@@ -59,10 +21,10 @@ extends Node
 ## Null in headless fixtures that never run a cascade.
 @export var battle_system: BattleSystem
 
-## The command pipeline a relic's claim rounds are submitted through (#522),
+## The command pipeline a relic's claim rounds are submitted through,
 ## handed to the loot round controller on every claim this system opens. Null
 ## is a supported configuration (headless fixtures, the editor): the rounds
-## then land inline, the pre-#522 behaviour.
+## then land inline.
 @export var command_applier: CommandApplier
 
 ## The outstanding-pick book, both ends of the wire. The host's loot round
@@ -86,46 +48,15 @@ extends Node
 @export var drop_skill_dust_on_death: bool = true
 @export var award_spell_loot_on_death: bool = true
 
-## ── XP reward (#68, #173, #774 — strictly additive) ───────────────────────────
-## XP is paid for TERRITORY REMOVED, plus a flat bonus when the core itself
-## died. One rate, no multiplier, no rate-switching:
-##
-##   XP = xp_per_node_killed × |nodes this attack removed, core included|
-##        + (victim.stat_board.core_kill_xp.value, only if the core died)
-##
-## — each node's share then scaled by its local `bounty` read (node + entity
-## modifiers, [method _node_payout]) and the core bonus by the entity board's
-## `bounty` alone ([method _entity_payout]); at zero `bounty` modifiers it is
-## exactly the line above. Greed's Avarice face plants those modifiers.
-##
-## #774 (owner, 2026-09-07): "no more killing entity that has many nodes makes
-## those nodes count for more XP, it just muddies the calculations" — a node is
-## worth the same whether it fell mid-cascade, in the islanding sweep, or in the
-## same blow that took the core. The old `entity_kill_bonus` multiplier and
-## `tier_xp_base × entity_tier²` tier term are BOTH gone; the core bonus is now
-## a per-board stat (`core_kill_xp`) so it is owner-tunable per blocker size and
-## reachable by a modifier, same as any other stat — see docs/domain/loot-system.md.
-##
-## The core node is simply one of the counted nodes (#774 decision 1) — there is
-## no "+1 for the core" folded into the arithmetic anywhere; a caller passes the
-## count it actually removed, core included when the core died.
-##
-## NO NETTING. `_award_kill_xp` still has to avoid double-paying a node the
-## trickle already covered (`_on_cascade_started`, off `award_xp_on_node_kill`)
-## — it does that by building the CORRECT SET before calling `_kill_xp_total`
-## once (every node in `{core} ∪ held ∪ ledger` NOT already paid by the ledger),
-## never by computing the whole-board total and subtracting what was paid
-## earlier. `preview_kill_xp` takes the count directly and never nets anything,
-## by construction — the whole point is a number that doesn't move depending on
-## when in the cascade it's asked, per #538.
-##
-## Why XP and not looted stats: territory modifiers are only LENT by the graph
-## (granted on allocation, released back to neutral on death), so copying them
-## into loot would duplicate mods still on the battlefield and re-claimable. XP
-## is the honest reward for the scale of the kill; the stat loot draws strictly
-## from the core (see `_draw_payload`). See #173 discussion.
+## ── XP reward (strictly additive) ────────────────────────────────────────────
+## XP is paid for TERRITORY REMOVED (each node scaled by its local `bounty`
+## read, [method _node_payout]) plus a flat per-board `core_kill_xp` bonus when
+## the core died ([method _entity_payout]). The core is one of the counted
+## nodes, and there is NO NETTING: the payout prices the set of nodes not yet
+## paid by the trickle, never a whole-board total minus earlier payments.
+## See docs/domain/loot-system.md "The XP reward".
 
-## XP for removing one node — the whittling trickle (#182), and (#774) the
+## XP for removing one node — the whittling trickle, and the
 ## per-node rate for a killing blow too; there is only one rate now. Paid per
 ## node the attack takes off the board: the node actually depleted AND
 ## everything the cascade islands off it. Islanded nodes are not "collateral" —
@@ -133,15 +64,14 @@ extends Node
 ## severed is the thing you destroyed.
 @export var xp_per_node_killed: float = 10.0
 
-## ── Core loot draw (#173) ─────────────────────────────────────────────────────
+## ── Core loot draw ─────────────────────────────────────────────────────
 ## The SkillDust draw is CORE-ONLY: the victim's class-identity mods plus
 ## whatever was permanently accreted onto its core (previously-looted mods).
 ## These are the modifiers that VANISH with the entity — everything on its owned
 ## nodes merely returns to the graph, so drawing those would duplicate live mods.
 ## The whole core set is offered as pick-N-from-M candidates (M = core supply);
-## N (keep-count) is a CONSTANT [member loot_rounds] (#775 — was
-## [member Entity.entity_tier], #300, until the value-per-round was cut by
-## tier and rounds went constant to compensate; see [method _loot_fraction]).
+## N (keep-count) is a CONSTANT [member loot_rounds]
+## (value-per-round is cut by tier instead; see [method _loot_fraction]).
 ## When N >= M there's no real choice → auto-grant all.
 ##
 ##   N = loot_rounds, clamp [0, M]
@@ -152,7 +82,7 @@ extends Node
 ## unset, [method _drop_skill_dust] logs an error and skips the drop.
 @export var skill_dust_scene: PackedScene = null
 
-## Loot value scale, keyed off `victim.entity_tier` (#775 — exponential per the
+## Loot value scale, keyed off `victim.entity_tier` (exponential per the
 ## owner, 2026-09-13: "1: 0.25 2: 0.5 3: 1 (4: 2? Maybe reserved for bosses)").
 ## Indexed `clampi(tier - 1, 0, size - 1)`, so a player (default tier 3) loots
 ## at the full 1.0 rate and a small blocker's copies draw at a quarter value.
@@ -162,14 +92,13 @@ extends Node
 @export var loot_fraction_by_tier: Array[float] = [0.25, 0.5, 1.0, 2.0]
 
 ## How many pick-1-of-3 rounds every kill offers, regardless of victim tier
-## (#775 — replaces the old `victim.entity_tier` round count: "reduction in
-## loot value should be compensated by increasing the loot draw amount").
+## (owner: "reduction in loot value should be compensated by increasing the
+## loot draw amount").
 @export var loot_rounds: int = 3
 
-## ── Provenance buckets (#323) ─────────────────────────────────────────────────
+## ── Provenance buckets ─────────────────────────────────────────────────
 ## The draw is a weighted union of three source-array reads — see [method
-## _draw_payload]. All equal by default; numbers unset by design (docs — the
-## RE-CUT comment thread on #323), tune in the inspector.
+## _draw_payload]. All equal by default; numbers unset by design, tune in the inspector.
 @export var weight_bucket_node: float = 1.0
 @export var weight_bucket_class: float = 1.0
 @export var weight_bucket_innate: float = 1.0
@@ -252,7 +181,7 @@ func _on_entity_dying(victim: Entity) -> void:
 	# subsequent depletion into an early return.
 	#
 	# `BattleSystem` DOES fire one more `cascade_started` for this victim right
-	# here in the same `entity_dying` phase (#837's core-outward death wave,
+	# here in the same `entity_dying` phase (the core-outward death wave,
 	# announced before `AllocationSystem.deallocate_all_owned` strips the rest
 	# of the board) — but that one is presentation, not a new combat cascade:
 	# the kill XP `_award_kill_xp` just paid above already covers the WHOLE
@@ -276,15 +205,15 @@ func _resolve_killer(victim: Entity) -> Entity:
 	return killer if killer != victim else null
 
 
-# ── #68: XP reward ───────────────────────────────────────────────────────────
+# ── XP reward ───────────────────────────────────────────────────────────
 
-## Pure formula (#538, reworked #774): what `removed_node_count` removals off
+## Pure formula: what `removed_node_count` removals off
 ## `victim` are worth. Shared by [method _award_kill_xp] (which builds the
 ## correct SET before calling this — see that method's doc for why that's not
 ## netting) and [method preview_kill_xp] (which passes the count straight
 ## through). `removed_node_count` is the WHOLE count, core included when the
 ## core died — there is no folded-in "+1" here; the caller decides what counts
-## (#774 decision 1: "the core node IS one of the N nodes"). `kills_entity`
+## (owner: "the core node IS one of the N nodes"). `kills_entity`
 ## gates ONLY the core bonus, read live off `victim.stat_board.core_kill_xp` so
 ## a modifier can move it. The count-only form, for [method preview_kill_xp]:
 ## it cannot see per-node `bounty`, so it omits Avarice. A real payout prices
@@ -303,11 +232,11 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 		return
 	if killer == null or killer.is_dead:
 		return
-	# #384/#386: XP is a payment for a HOSTILE kill only — an ally kill (or the
+	# XP is a payment for a HOSTILE kill only — an ally kill (or the
 	# self-kill `_resolve_killer` already excludes) earns nothing.
 	if killer.attitude_to(victim) != Entity.Attitude.HOSTILE:
 		return
-	# Every node this attack removed: the core itself (#774 decision 1 — just
+	# Every node this attack removed: the core itself (just
 	# one of the nodes, no special-casing), everything still standing when the
 	# core popped (`_held_nodes`, territory), and everything the ledger already
 	# recorded (`_removed_this_attack` — the two OVERLAP mid-cascade, since the
@@ -319,7 +248,7 @@ func _award_kill_xp(victim: Entity, killer: Entity) -> void:
 		counted[victim.core_location] = true
 	for n in _held_nodes(victim):
 		counted[n] = true
-	# NO NETTING (#774): build the SET of nodes not yet paid, then price it
+	# NO NETTING: build the SET of nodes not yet paid, then price it
 	# once. A node in the ledger already collected its trickle at
 	# `_on_cascade_started` time (iff `award_xp_on_node_kill`) — exclude it
 	# here rather than pricing the whole set and subtracting what was paid,
@@ -367,18 +296,18 @@ func _base_overlay(base: float) -> Array[ModifierBins]:
 	return overlays
 
 
-# ── #888: Tempo award ─────────────────────────────────────────────────────────
+# ── Tempo award ─────────────────────────────────────────────────────────
 
 ## A HOSTILE killing blow spends 1 `tempo` to refund 1 `action_points` on the
 ## killer. Same guards as `_award_kill_xp` (killer null/dead, HOSTILE-only,
 ## the same `entity_dying` phase so it rides the reveal clock during replay
 ## exactly as kill-XP does) plus one more: the pool itself. `tempo.available()
-## < 1` IS the once-per-turn latch (owner, #888) — no separate bool, no
+## < 1` IS the once-per-turn latch (owner) — no separate bool, no
 ## per-attack ledger — so a second kill this turn, or a chain-kill spell
 ## dropping two victims in one cast, pays out at most once unless a modifier
 ## raised the cap above 1. A modifier setting the cap to 0 opts the entity out
 ## entirely. Assumes `_commit` already deducted this attack's `ap_cost` before
-## the replay in which the death fires (#888 decision 5), so the killer always
+## the replay in which the death fires, so the killer always
 ## has headroom under the `action_points` cap when the refund lands — breaks
 ## only if an `ap_cost = 0` attack ever kills.
 func _award_kill_tempo(victim: Entity, killer: Entity) -> void:
@@ -398,14 +327,14 @@ func _award_kill_tempo(victim: Entity, killer: Entity) -> void:
 
 
 ## Read-only. What this many removals on `victim` would pay `killer` in XP —
-## the TOTAL the attack is worth (owner's Added decision 2, #538), never netted
+## the TOTAL the attack is worth (owner's decision), never netted
 ## against trickle already banked earlier in the same cascade. Reads no
 ## `_removed_this_attack` ledger and no already-paid bookkeeping, so it is a
 ## pure function of its arguments: calling it twice, or mid-cascade vs. before
 ## the cascade started, returns the same number. Non-mutating — no `Events`,
 ## no rolls, no loot RNG, no instance-state writes. Honours the same guards
 ## `_award_kill_xp` does: `award_xp_on_kill`, a null/dead killer, and the
-## HOSTILE-only gate (#384/#386) all preview 0.0.
+## HOSTILE-only gate all preview 0.0.
 func preview_kill_xp(killer: Entity, victim: Entity, removed_node_count: int,
 		kills_entity: bool) -> float:
 	if not award_xp_on_kill:
@@ -422,13 +351,13 @@ func _on_attack_launched(_mode: int, _spell: SpellDef) -> void:
 	_removed_this_attack.clear()
 
 
-## Per-node removal trickle (#182). `layers` is BattleSystem's BFS-layered
+## Per-node removal trickle. `layers` is BattleSystem's BFS-layered
 ## cascade set — the depleted node plus everything it islanded — emitted BEFORE
 ## the strip, so the defender is still knowable. Pays the whole set, and records
 ## it so a kill later in the same attack can upgrade it to the bonus rate
 ## instead of double-paying or losing it.
 ##
-## `defender.is_dead` skips #837's entity-death wave: BattleSystem announces
+## `defender.is_dead` skips the entity-death wave: BattleSystem announces
 ## that one too (same signal, reused on purpose — the issue's decision #3, so
 ## AllocationVFX needs no change), but it fires from `entity_dying`, which
 ## `Entity.die()` only emits AFTER latching `is_dead = true` — a live combat
@@ -453,7 +382,7 @@ func _on_cascade_started(layers: Array, defender: Entity) -> void:
 	var killer := _resolve_killer(defender)
 	if killer == null or killer.is_dead:
 		return
-	# #384/#386: same HOSTILE gate as the kill bonus — see `_award_kill_xp`.
+	# Same HOSTILE gate as the kill bonus — see `_award_kill_xp`.
 	if killer.attitude_to(defender) != Entity.Attitude.HOSTILE:
 		return
 	var total := 0.0
@@ -473,10 +402,10 @@ func _grant_xp(entity: Entity, amount: float) -> void:
 	board.xp.replenish(amount)
 
 
-# ── #69/#173: SkillDust loot drop (core-only) ─────────────────────────────────
+# ── SkillDust loot drop (core-only) ─────────────────────────────────
 
-## Attaches the SkillDust relic — stat rounds (#173/#323) PLUS, as a terminal
-## bonus round, the victim's spell draft (#204). Each side is gated by its own
+## Attaches the SkillDust relic — stat rounds PLUS, as a terminal
+## bonus round, the victim's spell draft. Each side is gated by its own
 ## kill-switch independently (`drop_skill_dust_on_death` zeroes only the stat
 ## payload, `award_spell_loot_on_death` zeroes only the spell payload) so the
 ## addon still attaches — and still offers whichever half is on — when only
@@ -528,7 +457,7 @@ func _adopt_hand_placed(n: Node) -> void:
 		adopt_relic(n as SkillDustAddon)
 
 
-## THE HOST GATE (#522). `owned_by` flips on every peer that applies the
+## THE HOST GATE. `owned_by` flips on every peer that applies the
 ## confirmed [AllocateCommand], so every peer's relic announces the claim —
 ## without this gate a peer would open its OWN round and roll its OWN offer in
 ## parallel with the host's, agreeing only by luck. A peer's relic is driven
@@ -551,9 +480,9 @@ func _round_context() -> CommandContext:
 	return ctx
 
 
-## Build the loot draw (#323 re-cut): a weighted union of THREE provenance
+## Build the loot draw: a weighted union of THREE provenance
 ## buckets, each a straight source-array read (no `StatBoard.modifiers[]` to
-## filter — see the RE-CUT comment on #323). `weights` is parallel to
+## filter — one source array per bucket). `weights` is parallel to
 ## `candidates` (index-aligned) so the claimant can do weighted round-robin
 ## sampling per pick-1-of-3 round (see [SkillDustAddon]) without needing the
 ## bucket structure itself.
@@ -566,7 +495,7 @@ func _round_context() -> CommandContext:
 ## `rounds` (how many pick-1-of-3 rounds) scales with victim level as before, now
 ## against the TOTAL pool across all three buckets. When N >= supply there's
 ## no real choice, so at least one candidate is always left on the table
-## (supply >= 2) — same "keep the draw a genuine choice" invariant as #173.
+## (supply >= 2) — same "keep the draw a genuine choice" invariant.
 ## Every entry is `duplicate(true)`d so the dust owns independent copies.
 ## Returns { "candidates": Array[StatModifier], "weights": Array[float],
 ## "rounds": int }.
@@ -589,7 +518,7 @@ func _draw_payload(victim: Entity) -> Dictionary:
 			weights.append(weight)
 
 	var supply := candidates.size()
-	# #775: a constant round count for every tier — the reduced-per-round value
+	# A constant round count for every tier — the reduced-per-round value
 	# is compensated by more rounds, not by scaling round count with tier.
 	var rounds := clampi(loot_rounds, 0, supply)
 	# Keep the draw a genuine choice whenever one is possible. N == M is a
@@ -603,7 +532,7 @@ func _draw_payload(victim: Entity) -> Dictionary:
 	return {"candidates": candidates, "weights": weights, "rounds": rounds}
 
 
-## The loot-value scale for a victim of this tier (#775), clamped to the last
+## The loot-value scale for a victim of this tier, clamped to the last
 ## authored entry so a tier beyond the array (today: none) still gets a number
 ## rather than an out-of-bounds error.
 func _loot_fraction(victim: Entity) -> float:
@@ -631,7 +560,7 @@ func _scale_loot_value(copy: StatModifier, fraction: float) -> void:
 
 
 ## The non-core nodes the victim still owns at death — the TERRITORY signal
-## feeding the kill-XP payout (was the loot draw pre-#173-rework). Reads the
+## feeding the kill-XP payout (not the loot draw). Reads the
 ## owned-subgraph mirror, so cascade-stripped nodes are already excluded — which
 ## is exactly why the payout unions this with the removal ledger rather than
 ## trusting it alone.
@@ -646,7 +575,7 @@ func _held_nodes(victim: Entity) -> Array[SkillNode]:
 	return out
 
 
-## NODE-GRANT bucket (#323): the modifiers authored on every non-core node the
+## NODE-GRANT bucket: the modifiers authored on every non-core node the
 ## victim still owns at death (`_held_nodes` — pre-strip, since this runs
 ## during `entity_dying`). These mods are NOT removed from the node — they
 ## still return to the graph on the strip exactly as before; only a
@@ -659,7 +588,7 @@ func _node_grant_modifiers(victim: Entity) -> Array[StatModifier]:
 	return out
 
 
-## BOARD-INNATE bucket (#323): the victim's own [member
+## BOARD-INNATE bucket: the victim's own [member
 ## EntityStatBoard.intrinsic_modifiers] — rules true of every entity that plays
 ## by this board, not this entity's particular build.
 func _innate_modifiers(victim: Entity) -> Array[StatModifier]:
@@ -668,24 +597,20 @@ func _innate_modifiers(victim: Entity) -> Array[StatModifier]:
 	return victim.stat_board.intrinsic_modifiers
 
 
-## CLASS/REGISTER bucket (#323): [member Entity.core_modifiers] — the granted-
+## CLASS/REGISTER bucket: [member Entity.core_modifiers] — the granted-
 ## atom register. This is the ONLY bucket for anything ever permanently granted
 ## onto the core: original class-template grants AND previously-looted grants
-## both live here (there is no separate "looted" bucket — see the RE-CUT
-## comment on #323). `_is_lootable`'s old `scales_with(&"level")` exclusion is
-## GONE (#323) — stealing a level-scaler is the intended roguelite loop now,
-## not a hazard to filter out.
+## both live here (there is no separate "looted" bucket). Level-scaling grants
+## are lootable like any other — stealing a level-scaler is the intended
+## roguelite loop, not a hazard to filter out.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	return victim.core_modifiers
 
 
 ## Expands each [CompositeStatModifier] whose [member
-## CompositeStatModifier.loots_as_unit] is `false` into its children — separate
-## loot candidates, filtered per-leaf by [method _is_lootable] afterwards — and
-## leaves every other entry (a plain modifier, or a `true` pack) whole as one
-## candidate. Runs BEFORE the lootability filter so a `false` pack whose
-## children mix level-scaling and static entries filters per-leaf instead of
-## excluding the whole pack over one scaling child (D-27, #279).
+## CompositeStatModifier.loots_as_unit] is `false` into its children — each a
+## separate loot candidate — and leaves every other entry (a plain modifier, or
+## a `true` pack) whole as one candidate.
 func _expand_for_loot(mods: Array[StatModifier]) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	var untyped: Array = mods  # untyped: element `is` narrows cleanly (see stats-system.md)
@@ -703,18 +628,15 @@ func _attach_addon(node: SkillNode, addon: SkillNodeAddon) -> void:
 	node.add_child(addon)
 
 
-# ── #204: Spellbook loot draft (widened to the victim's full spellbook,
+# ── Spellbook loot draft (widened to the victim's full spellbook,
 # re-cut to fire on CLAIM, not on kill) ───────────────────────────────────────
 ## The draft draws from every spell the victim currently knows — core-sourced,
-## innate, AND territory-sourced. #204 originally restricted this to the
-## PERMANENT subset (core ∪ innate), reasoning that a territory-sourced spell
-## would "duplicate a spell still live on the battlefield" (re-obtainable by
-## allocating the same node). In practice every entity starts from the same
-## shared spellbook_default.tres and a SpellGrant landing on any given
-## entity's OWN core node is rare, so `permanent_spells` almost never diverges
-## between claimant and victim — the draft had nothing to offer. Widening to
-## the full spellbook is a deliberate design change, not the original spec:
-## whoever permanently claims the relic (allocates the node — the SAME actor
+## innate, AND territory-sourced — not restricted to the PERMANENT subset
+## (core ∪ innate): every entity starts from the same shared
+## spellbook_default.tres and a SpellGrant landing on an entity's OWN core node
+## is rare, so `permanent_spells` almost never diverges between claimant and
+## victim and a permanent-only draft would have nothing to offer. Whoever
+## permanently claims the relic (allocates the node — the SAME actor
 ## SkillDust's stat rounds already pay, not necessarily the killer) claims a
 ## spell the victim currently held by ANY means, territory included.
 ##
@@ -730,7 +652,7 @@ func _spell_candidates(victim: Entity) -> Array[SpellDef]:
 	return victim_book.spells.duplicate()
 
 
-# ── #564: mirror-side loot-pick adapter ───────────────────────────────────────
+# ── mirror-side loot-pick adapter ───────────────────────────────────────
 ## The consumer of [signal LootPickRegistry.offer_received]. A remote
 ## collector's peer receives a [LootPickOffer] addressed to it (see that class
 ## + [LootPickRegistry]'s class doc; the registry has already checked this peer
@@ -802,7 +724,7 @@ func _on_loot_offer_received(offer: LootPickOffer) -> void:
 ## means forfeit. Submits through [member command_applier], which for a
 ## MIRROR routes a [PickLootCommand] upward untouched
 ## ([method CommandApplier.submit] -> [method CommandApplier._submit_upward]);
-## nothing new is needed there (#564 verified against master).
+## nothing new is needed there.
 func _submit_pick_upward(chosen: Array, request_id: int, collector_id: int,
 		candidates: Array) -> void:
 	if command_applier == null:

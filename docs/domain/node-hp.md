@@ -102,3 +102,30 @@ in `BattleSystem._on_node_depleted` skips the wound + core-HP-loss steps if
 the defender has no board. So a test entity with no board still participates
 in the highlight / plan flow; it just can't take meaningful damage, and
 `apply_turn_regen` no-ops (no `node_health` pool to read).
+
+
+## HealthBar: subscribe only while shown
+
+`HealthBar` (`skill_node/health_bar.gd`) shows the SkillNode's per-node HP pool
+(max vs current) via `SkillNode.node_board`. Visibility is automatic: hidden when
+unallocated or at full HP, fading in on hover or damage.
+
+- **Query + subscription while shown.** The live subscriptions (the pool's
+  `current_changed` / `value_changed` and the owner's
+  `Entity.node_health_cap_changed`) are scoped into a `SubBag` bound only while
+  the bar is on screen and released when it fades out. The bar is on screen iff
+  the node is damaged or hovered, so the entity-level cap signal carries
+  O(visible) listeners rather than O(owned): undamaged, unhovered nodes hold no
+  subscription and do no per-node work when their owner's CON moves.
+- **Always-on is only the free, node-local triggers** that decide whether to
+  sprout: `owner_changed`, hover and `SkillNode.damaged`. Do not add a per-node
+  subscription to the entity board as a convenience.
+- **No-pop guarantee is `SubBag.now`:** the sprout connects and paints in one
+  step, snapping `value` / `max_value` to the pool's live state while alpha is
+  still 0, before the fade-in starts, so a stale fill never renders. Releasing is
+  symmetric and invisible: `clear()` touches no drawing state, and in-flight
+  fade and value tweens are animations, not subscriptions.
+- **`@tool`** so the editor-hosted Spell Playground shows live HP. `_ready` then
+  runs while `skill_node.tscn` is open, so every property it writes (`modulate`,
+  `value`) is baked in the scene to match (the @tool scene-baking gotcha in
+  `.claude/rules/godot-workflow.md`).

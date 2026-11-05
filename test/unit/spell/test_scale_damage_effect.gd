@@ -9,7 +9,6 @@ extends GutTest
 ## The numbers are deliberately unchanged so the coverage moved rather than
 ## being re-derived — see the enumeration on issue #851.
 
-const H := preload("res://test/unit/spell/spell_test_helper.gd")
 
 var h: SpellTestHelper
 

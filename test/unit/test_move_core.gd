@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## Core movement (#21). `AllocationSystem.move_core` hops an entity's
 ## `core_location` along an adjacent edge over an owned subgraph, spends

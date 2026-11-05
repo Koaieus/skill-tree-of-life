@@ -2,40 +2,12 @@
 class_name BoltBody
 extends Node2D
 
-## The spell-VFX workhorse body (#670 P1) — one additive sprite quad plus an
-## optional 0-4 segment micro-trail, all drawing from ONE shared texture
-## ([code]bolt_head_texture.tres[/code]) and ONE shared [CanvasItemMaterial]
-## ([code]bolt_additive_material.tres[/code]).
-##
-## [b]The batching contract is the whole design.[/b] Batching breaks on a
-## different texture [i]or[/i] a different material
-## (docs/domain/rendering-performance.md), and Resonator peaks at ~30-60
-## simultaneous bolts (#663's load table). So every instance shares those two
-## resources and all per-instance variation rides [member Node2D.scale],
-## [member Node2D.rotation] and [member CanvasItem.modulate]. Never give one
-## instance its own [ShaderMaterial]; that single change turns ~60 batched
-## quads into ~60 draw calls.
-##
-## Identity is [b]motion and heat, never hue[/b] (#663 D3): the five shipped
-## configs differ by silhouette, trail and size-ramp, and the body colour is
-## the [b]caster's[/b] identity tint (#663 D4) stamped by the coordinator —
-## the same [code]tint[/code] stamp precedent [ArrowVolleyCoordinator] already
-## uses on [LightArrow]. [GlowingDot]'s reserved-gold default does not carry
-## forward.
-##
-## Five inherited configs ship next to this scene and are the vocabulary the
-## per-spell units select from — [code]bolt_small[/code] (Spark),
-## [code]bolt_blunt[/code] (Bruiser), [code]bolt_streak[/code] (Leafblower),
-## [code]bolt_packet[/code] (Reverberator/Resonator), [code]bolt_soft[/code]
-## (Healing Beam).
-##
-## Visual contract (see [Projectile]):
-##   inbound  — `_on_launch()`, `_on_progress(t)`, `_on_arrival()`,
-##              `_on_crit(tier)`, `_on_context(entry)`
-##   outbound — [signal finished]
-##
-## [GlowingDot] is NOT deleted — it still has non-spell callers, and retiring
-## it is separate cleanup (#663 NOTES).
+## The spell-VFX workhorse body: one additive sprite quad plus an optional 0-4
+## segment micro-trail, all drawing from ONE shared texture and ONE shared
+## [CanvasItemMaterial] so ~60 simultaneous bolts batch. Per-instance variation rides
+## scale, rotation and modulate, never a per-instance [ShaderMaterial]. Identity is
+## motion and heat, never hue: the colour is the caster's tint, stamped by the
+## coordinator. Five inherited configs ship beside it. See docs/domain/spell-vfx-kit.md
 
 signal finished
 

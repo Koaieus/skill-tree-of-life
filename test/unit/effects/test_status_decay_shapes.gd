@@ -4,7 +4,7 @@ extends GutTest
 ## `effects/status/*.tres`, pinning the [member StatusDef.decay] member —
 ## [FlatDecay] vs [FractionDecay] — never the magnitude (its knob is the
 ## owner's). Why each family has its shape:
-## docs/domain/effect-system.md, "Status effects — the DoT model".
+## docs/domain/status-effects.md, "The DoT model".
 
 const _DIR := "res://effects/status/"
 
