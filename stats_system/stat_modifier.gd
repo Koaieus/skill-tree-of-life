@@ -349,37 +349,11 @@ func contribution_text(board: StatBoard = null) -> String:
 	return ""
 
 
-## The FULL sentence for this modifier — stat name included. The single home
-## for modifier-to-words grammar (#305): every UI that used to hand-append a
-## StatDef label to [method contribution_text] now calls this instead.
-##
-## Stat name comes from [member StatDef.modifier_name] (falls back to
-## [member StatDef.display_name], then to the bare `stat_id` when the def
-## can't be resolved — StatRegistry is @tool + autoload so this works
-## in-editor too). [member StatDef.display_as_percent] scales the value ×100
-## with a "%" suffix, but ONLY for ADD_BASE / ADD_BONUS / SET — INCREASE and
-## MULTIPLY values are already percent-points / raw multipliers and must not
-## be rescaled (see the field's own docstring).
-##
-## | Op | Renders as |
-## |---|---|
-## | ADD_BASE  | "+4 Intelligence" |
-## | INCREASE  | "+18% increased Intelligence" (negative: "3% reduced Intelligence" — #1053, the word carries the sign, the number does not) |
-## | MULTIPLY  | "×1.3 Magic Potency" |
-## | ADD_BONUS | "+3 bonus Armor" |
-## | SET       | "Armor is 3" |
-##
-## A formula-bound modifier appends the formula's own qualifier — "+1 Blade
-## Size **per 20 STR**" (#289) — and renders the COEFFICIENT rather than the
-## effective value, because the clause now carries the variable part.
-## Without the clause the coefficient was actively misleading: an unbound
-## keystone modifier printed a bare "+1 Blade Size" that meant nothing, which
-## is what #231's audit found. Use [method contribution_text] when you want
-## the live computed number instead. The coefficient shown is the formula's
-## [method StatFormula.display_coefficient] of `value`, and `value` is handed
-## to the clause: a [RatioFormula] uses both to normalise a merged rule to a
-## unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", not
-## "+1.33 … per 5 WIS" (#891) — while every other shape prints `value` as is.
+## The FULL sentence for this modifier, stat name included: the single home for
+## modifier-to-words grammar. A formula-bound modifier appends the formula's
+## qualifier and renders the COEFFICIENT, not the effective value; use
+## `contribution_text` for the live computed number. Per-op rendering: see the doc.
+## See docs/domain/stats-system.md
 func format() -> String:
 	var parts := _display_parts()
 	if formula != null:

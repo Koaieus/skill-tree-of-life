@@ -211,3 +211,37 @@ tallied as `skipped`, not silently dropped from the count — a clean
 compared, and that ratio is itself a finding.
 
 See `docs/domain/determinism-probe.md`.
+
+## WorldFingerprint (`command/world_fingerprint.gd`)
+
+A cheap "do two peers hold the same world?" checksum, for the multiplayer
+harness AND #527's join handshake.
+
+Folds four tiers (`GraphSnapshot`'s own tier table): ownership, topology (node identity +
+edges), ACCUMULATED per-node state — stake level, allocation level,
+regen stacks, node HP and the staking channel (target, progress) — and per-node STATUSES (#879: `(id, power)`
+pairs, see `_status_rows`). It does NOT fold derived `StatBoard` totals: the
+tier table says totals never cross the wire, so folding them would assert
+agreement on a quantity the sync layer deliberately does not transmit — a
+fingerprint that can fail for reasons the sync layer cannot cause is a
+fingerprint nobody reads.
+
+**HP folds QUANTIZED to int** (`roundi(hp * 100)`), never as a raw float.
+`PoolStat.current` is a float, and this number is compared ACROSS
+PROCESSES — folding a float through FNV-1a would make the fold depend on
+engine/platform float-formatting internals that are free to differ between
+builds, exactly the trap this file warned about before HP was foldable at
+all. HP is in the fold anyway: without it, a cast that kills nothing and a
+cast that never ran produce the same number.
+
+**One `compute`, not two fingerprints.** A component breakdown is
+surfaced through `describe` for diagnostics only — a mismatch there
+says *how* two peers differ, not just that they do — but the number peers
+actually compare is the single fold below.
+
+**Why this exists at all.** Node ids mint LAZILY, and every node in a
+hand-authored scene reads `0` until something forces a topology rebuild — so
+a command carrying `0` resolves to nothing, silently
+(`.claude/rules/multiplayer-sync.md`). Reading every id through
+`Graph.get_stable_id` here both forces the mint and turns a silent
+id disagreement into a visible mismatch at link-up.

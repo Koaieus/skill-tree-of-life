@@ -97,37 +97,11 @@ const BUDGET_PASS := &"budget"
 		value_overrides = v
 		_update_resource_name()
 
-## Tunable floor magnitude — "M" in #628. `L(min_tier) = range_floor`; every
-## higher tier's low bound is `H(previous tier) + range_floor` ([method
-## TierLadder.low]). Same units as `unit_value` — the *excess* for MULTIPLY
-## pools (the +1 is folded in at flatten, same as `unit_value`), raw
-## otherwise. Validation is sign-aware (#637): for a positive (or zero)
-## `unit_value` the constraint stays `range_floor <= unit_value` (a floor
-## above the T1 ceiling inverts the range) — negative `range_floor` is legal
-## and intended, it spans the range across zero so a normal pool can roll a
-## small penalty alongside its usual upside. For a negative `unit_value` the
-## constraint is magnitude-based instead — `sign(range_floor) ==
-## sign(unit_value) and abs(range_floor) <= abs(unit_value)` — because an
-## always-negative pool must stay always-negative; a floor that crossed zero
-## or overshot the T1 ceiling's magnitude would break that guarantee.
-## `_get_configuration_warnings` enforces both branches; see
-## docs/domain/procgen-v4.md.
-##
-## Sentinel default: [constant FLOOR_UNSET] means "not authored" and resolves
-## to `unit_value`, which is always valid under either branch above (equality
-## trivially satisfies both) and reproduces pre-#628 behaviour exactly — a
-## zero-width min_tier, unchanged highs. A literal numeric default could not
-## do this: it would fail validation for any pool whose `unit_value` is
-## smaller than it (e.g. `attribute .mul`'s 0.05) or wrong-signed (a negative
-## pool's `unit_value`). Every already-authored `.tres` under
-## `procgen/pools/` that doesn't deliberately author a `range_floor` omits
-## this field and so gets `range_floor == unit_value` for free — the "no
-## existing pool rebalances" regression the acceptance spec asks for.
-##
-## Negative pools (`unit_value < 0`, D9) are NOT exempt from `range_floor` as
-## of #637 — they roll a real range like any other pool. See [method
-## _tier_magnitude_bounds] for how the recurrence's near/far pair is ordered
-## for a negative pool.
+## Tunable floor magnitude "M": `L(min_tier) = range_floor`; each higher tier's low
+## bound is `H(previous) + range_floor`. Validation is sign-aware (for a negative
+## `unit_value`, `range_floor` must share its sign and not exceed its magnitude).
+## `FLOOR_UNSET` resolves to `unit_value`.
+## See docs/domain/procgen-v4.md
 const FLOOR_UNSET := INF
 @export var range_floor: float = FLOOR_UNSET:
 	set(v):

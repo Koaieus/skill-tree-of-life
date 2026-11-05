@@ -242,3 +242,31 @@ Value scales:
 A `StatModifier` instance can be applied to any number of `StatBoard`s at
 once (#377) — binding state lives on the board (`StatBoard.bind_modifier`/
 `unbind_modifier`), not here, so sharing across entities is safe.
+
+## StatModifier full-sentence text (`stats_system/stat_modifier.gd`)
+
+The FULL sentence for this modifier — stat name included. The single home
+for modifier-to-words grammar (#305): every UI that used to hand-append a
+StatDef label to `contribution_text` now calls this instead.
+
+Stat name comes from `StatDef.modifier_name` (falls back to
+`StatDef.display_name`, then to the bare `stat_id` when the def
+can't be resolved — StatRegistry is @tool + autoload so this works
+in-editor too). `StatDef.display_as_percent` scales the value ×100
+with a "%" suffix, but ONLY for ADD_BASE / ADD_BONUS / SET — INCREASE and
+MULTIPLY values are already percent-points / raw multipliers and must not
+be rescaled (see the field's own docstring).
+
+| Op | Renders as |
+|---|---|
+| ADD_BASE  | "+4 Intelligence" |
+| INCREASE  | "+18% increased Intelligence" (negative: "3% reduced Intelligence" — #1053, the word carries the sign, the number does not) |
+| MULTIPLY  | "×1.3 Magic Potency" |
+| ADD_BONUS | "+3 bonus Armor" |
+| SET       | "Armor is 3" |
+
+the live computed number instead. The coefficient shown is the formula's
+`StatFormula.display_coefficient` of `value`, and `value` is handed
+to the clause: a `RatioFormula` uses both to normalise a merged rule to a
+unit numerator — `value 4/3` over `/5` reads "+1 … per 3.75 WIS", not
+"+1.33 … per 5 WIS" (#891) — while every other shape prints `value` as is.

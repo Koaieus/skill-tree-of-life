@@ -86,3 +86,51 @@ dies when THAT runs out — so for a core the arrows-to-kill reach is node
 hp + the owner's remaining health. (The scorer's `ScoredCandidate
 .is_kill` keeps its node-hp read — the #512 golden freezes that
 prediction — this helper is what sizes the volley.)
+
+## AIController (`entity/controller/ai_controller.gd`)
+
+Minimum-viable NPC controller (AI v1, #22). There are no turn phases —
+the controller sequences its own actions within the single turn, pausing
+briefly between them so the player can read what happened, then ends the
+turn. No infinite loops — every branch exits in bounded steps.
+
+Sequence (budget-driven, not phase-driven): NPC v1 never voluntarily
+deallocates → recon pass (fog-aware, per-entity — see `AiRecon`) → spend
+all SP on frontier growth, scored via `AiCombatScorer.score_frontier`
+(directional-toward-enemies + a tactical-enable bonus for a pick that lands
+a near-miss kill) → if no hostile is visible, end turn (growth-only
+short-circuit); otherwise the AP×2 loop scores every ranged + magic
+candidate against every visible hostile via `AiCombatScorer`, executes the
+best, and re-evaluates — the re-eval is what makes dent-then-finish and the
+1-damage floor fall out naturally rather than needing special-casing.
+Melee candidates come from `AiBladeRollout` (#378 slice C) — a bounded
+reach-bound-reject / steerable-proposal / two-tier-evaluation rollout
+rather than exhaustive enumeration (the induced-subgraph space is too
+large and a full swing resolve is milliseconds, not microseconds).
+
+**The AI emits commands, it does not call systems** (#512). Every
+mutation it decides on leaves through `_submit_and_wait` as a
+`Command` applied by the one `CommandApplier`, the same queue the player's
+clicks feed — which is what makes the applier the ONLY mutation path rather
+than merely one of them. Read-only system access for scoring stays
+(`BattleSystem` for plan composition, the navigator for reachability); what
+went is the `AllocationSystem` reference the AI could have mutated through.
+`turn_delay` is unaffected and deliberately kept: it is host-local
+presentation pacing with no sync meaning — see
+`docs/domain/multiplayer-sync-model.md`.
+
+**Dormant Cores are scenery until they are a wall** (#604). An NPC is
+indifferent to them by default (`Faction.targeted_by_ai`) — but the
+indifference is a stance, not a rule, and it is re-decided every turn from
+`AiRecon.is_growth_capped`. Asked AFTER the growth step (that is when
+"nowhere left to allocate" is a fact rather than a guess), a capped NPC
+unlocks them for the rest of its turn, shoots its way out through one, and
+spends its still-banked SP on the freed node in a second growth pass — kill,
+relic, expand, all on the same turn. Nothing about the *player's* ability to
+clear a core changes; see `AiRecon.is_ai_target`.
+
+Fog-aware since #378: each AI consults `AiRecon` for its OWN visibility
+(not the shared player-only VisionSystem instance) — settled 2026-08-07,
+"each enemy acts only on what it personally sees", no faction-shared
+reveal in v1. Faction filtering uses `Entity.faction` so future
+multi-faction support drops in trivially.
