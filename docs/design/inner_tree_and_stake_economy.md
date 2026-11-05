@@ -60,9 +60,7 @@ knob, the milestone +1 SP stays. The wheel, radar and milestone-draft shapes are
 **Re-cut 2026-10-17 (owner, #1652 pass):** the ring is *"a hand authored scene
 with nodes and edges and node content readily composed"* — an authored Graph
 of SkillNodes, PoE-passive-tree-like, buyable by adjacency to the core or a
-bought cell. This reverses the earlier "never a second graph of SkillNodes"
-reading; the build and the surface are #1651 and #1652's children
-(`inner_ring_ui.md`).
+bought cell. The surface is `docs/domain/inner-ring-ui.md`.
 
 **Settled the same day — the "taken" channel beside this "earned" one:**
 faced Dormant Cores (a per-aspect core class granting size-scaled count /
