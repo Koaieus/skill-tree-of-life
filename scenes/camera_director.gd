@@ -399,7 +399,7 @@ func _clamp_target(ideal: Vector2, at_zoom: float, ctx: CameraContext) -> Vector
 	return out
 
 
-## the trigger. See [method _build_attack_request] for the rule.
+## The trigger. See [method _build_attack_request] for the rule.
 ##
 ## [b]The shot is staged pivot-first.[/b] That ordering is
 ## decided by what EXISTS when, not by taste: the swept AABB IS the trajectory
@@ -663,7 +663,7 @@ func _append_if_visible(points: PackedVector2Array, node: SkillNode) -> void:
 		points.append(pos)
 
 
-## the trigger. See [method _build_command_request] for the rule.
+## The trigger. See [method _build_command_request] for the rule.
 ##
 ## [signal CommandApplier.command_confirmed] fires INSIDE `_drain`, after the
 ## gate passed and BEFORE the mutation — so this is a genuine pre-mutation hook,

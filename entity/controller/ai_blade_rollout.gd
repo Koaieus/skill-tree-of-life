@@ -343,7 +343,7 @@ static func _grow_path(pivot: SkillNode, adjacency: Dictionary, target_pos: Vect
 const _SPIKE_REACH_BONUS := 1000.0
 
 
-## the reach-phase preference: how attractive [param node] is as the next
+## The reach-phase preference: how attractive [param node] is as the next
 ## pick, once the handle is settled and centroid direction has already done
 ## its job (this pivot cleared [method _reach_bound]; the actual swing
 ## direction and contact are judged downstream by the coarse rank + finalist
@@ -363,7 +363,7 @@ static func _reach_score(node: SkillNode, distances: Dictionary) -> float:
 	return score
 
 
-## the reach-phase walk: from [param tip], greedily pick the
+## The reach-phase walk: from [param tip], greedily pick the
 ## highest-[method _reach_score] unselected neighbour, move the tip there,
 ## repeat up to [param budget] times or until the tip runs out of unselected
 ## neighbours (a dead end reads as a "flail" tip — the walk simply stops

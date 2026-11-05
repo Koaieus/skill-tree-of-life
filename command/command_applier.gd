@@ -245,7 +245,7 @@ func _submit_upward(command: Command) -> void:
 ##
 ## [b]This peer still runs the full [method _drain].[/b] It validates, it
 ## [method confirm]s — so [signal command_confirmed] fires HERE too, on every
-## peer that applies, not only on the authority. the camera director hangs
+## peer that applies, not only on the authority. The camera director hangs
 ## off that signal; making the confirm authority-only would leave a mirror
 ## peer's camera dead.
 func apply_remote(command: Command) -> void:
@@ -291,7 +291,7 @@ func _enqueue(command: Command) -> void:
 ## feedback path.
 ##
 ## [b]It must never [method confirm].[/b] A refused command changed nothing, and
-## the camera director pans on [signal command_confirmed] — a confirm here
+## The camera director pans on [signal command_confirmed] — a confirm here
 ## would pan to a node that did not move.
 ##
 ## [param reason] is an enum-ish [StringName], never a UI string; see
