@@ -5,7 +5,7 @@ extends Control
 ## rows + hover tooltip (shared [AttributeRules] text) + Senses row
 ## (vision/sensor). Reads [StatDef.tint_color] — no second palette.
 ##
-## Root stays a plain Control (not a Container) because [member Tooltip] is
+## Root stays a plain Control (not a Container) because the `%Tooltip` child is
 ## a free-floating absolute-positioned overlay — a Container parent would
 ## force it into the layout flow instead. A plain Control's default
 ## [method _get_minimum_size] ignores children entirely (returns
