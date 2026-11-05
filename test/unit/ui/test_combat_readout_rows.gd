@@ -96,6 +96,65 @@ func test_row_colours_value_volatile_when_board_stat_is_volatile() -> void:
 	assert_false(value.has_theme_color_override(&"font_color"))
 
 
+func test_row_recolours_on_a_value_preserving_flip_without_rebind() -> void:
+	# A x-1 on a stat at 0 leaves the value unchanged: the row must still pick
+	# up volatility from the stat's own notification, never needing a re-bind.
+	var graph := TestWorld.create(self).graph
+	var entity := _spawn_entity(graph)
+	entity.stat_board.min_damage_taken.base_value = 0.0
+	var card: CombatReadoutCard = _BASE_CARD_SCENE.instantiate()
+	add_child_autofree(card)
+	var row: CombatValueRow = _ROW_SCENE.instantiate()
+	row.stat_id = &"min_damage_taken"
+	card.get_node("Padded/TitleAndBody/Body").add_child(row)
+	card.bind(entity)
+	var value: Label = row.get_node("%Value")
+	var before := value.text
+
+	var flip := StatModifier.new()
+	flip.stat_id = &"min_damage_taken"
+	flip.operation = StatModifier.Operation.MULTIPLY
+	flip.value = -1.0
+	entity.stat_board.add_modifier(flip)
+	assert_eq(value.text, before, "precondition: 0 x -1 leaves the value unchanged")
+	assert_true(row.value_volatile)
+	assert_eq(value.get_theme_color(&"font_color"), Emissive.VOLATILE)
+
+	entity.stat_board.remove_modifier(flip)
+	assert_false(row.value_volatile)
+	assert_false(value.has_theme_color_override(&"font_color"))
+
+
+func test_row_recolours_when_a_formula_multiply_crosses_zero_without_rebind() -> void:
+	var graph := TestWorld.create(self).graph
+	var entity := _spawn_entity(graph)
+	entity.stat_board.strength.base_value = 3.0
+	var lin := LinearFormula.new()
+	lin.source_stat_id = &"strength"
+	var m := StatModifier.new()
+	m.stat_id = &"armor"
+	m.operation = StatModifier.Operation.MULTIPLY
+	m.value = 2.0
+	m.formula = lin
+	entity.stat_board.add_modifier(m)
+	var card: CombatReadoutCard = _BASE_CARD_SCENE.instantiate()
+	add_child_autofree(card)
+	var row: CombatValueRow = _ROW_SCENE.instantiate()
+	row.stat_id = &"armor"
+	card.get_node("Padded/TitleAndBody/Body").add_child(row)
+	card.bind(entity)
+	var value: Label = row.get_node("%Value")
+	assert_false(row.value_volatile, "precondition: x6 is a plain boon")
+
+	entity.stat_board.strength.base_value = 0.0
+	assert_true(row.value_volatile, "x0 is volatile — picked up with no rebind")
+	assert_eq(value.get_theme_color(&"font_color"), Emissive.VOLATILE)
+
+	entity.stat_board.strength.base_value = 3.0
+	assert_false(row.value_volatile)
+	assert_false(value.has_theme_color_override(&"font_color"))
+
+
 # --- Acceptance 2: hover override shows and clears --------------------------
 
 func test_hover_node_override_shows_then_clears_on_unhover() -> void:
