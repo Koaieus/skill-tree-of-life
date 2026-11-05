@@ -24,6 +24,11 @@
 #   - stdout is buffered per attempt so a retry never double-prints. stdin is
 #     buffered only when an argument asks gh to read it (`-`, `--input -`,
 #     `=@-`), so an inherited open pipe never blocks the shim.
+#   - Cloud sessions have no GraphQL (403): when the cached probe says so (or
+#     GH_SHIM_REST=1; GH_SHIM_REST=0 never) the `gh issue view|list|comment|
+#     close|reopen|edit|create` subset is answered over REST, and what has no
+#     REST form (project, pr, --parent, ...) exits 2 with one line —
+#     .mise/tasks/lib/gh_rest.sh, docs/domain/issue-workflow.md → Cloud sessions.
 #   - The give-up message is the documentation: it fires exactly when an
 #     agent needs it. Long form: docs/domain/issue-workflow.md → Rate limits.
 set -u
@@ -68,6 +73,17 @@ scan="$(dirname "$(readlink -f "$0")")/../tasks/lib/gh_mention_scan.py"
 if [ -f "$scan" ]; then
   python3 "$scan" "$stdin_file" "$@"; [ $? -eq 64 ] && exit 64
 fi
+
+case "${1:-}" in
+  issue|pr|project|discussion)
+    lib="$(dirname "$(readlink -f "$0")")/../tasks/lib/gh_rest.sh"
+    if [ -f "$lib" ] && command -v jq >/dev/null; then
+      # shellcheck source=../tasks/lib/gh_rest.sh
+      . "$lib"
+      REAL=$real STDIN_FILE=$stdin_file
+      if gh_graphql_down; then gh_rest_dispatch "$@"; fi
+    fi ;;
+esac
 
 if [ "${GH_SHIM:-}" = "off" ]; then
   if [ -n "$stdin_file" ]; then exec "$real" "$@" <"$stdin_file"; else exec "$real" "$@"; fi
