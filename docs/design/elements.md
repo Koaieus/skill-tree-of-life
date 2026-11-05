@@ -218,9 +218,9 @@ not trip it.
 element on the node it lands on are one reach source, not two: its size is
 `S_total = S + SI`, the node's stacks plus the hit's load (owner, 2026-11-04,
 #1733 round 3, said of Charge: *"Incoming load: S_total = S + SI … sounds
-best i think"*; the pass extends it to Fire — the owner also said *"just
-because explosive does it, doesnt mean that lightning hop reach ALSO needs
-to"*, so the extension is open to redirect). #1660's *"its power is the
+best i think"*; confirmed for Fire and as the one rule, owner, 2026-11-05:
+*"Fire load and fuel held are one and the same basically (binned, grouped,
+summed). Same for charge x charge"*). #1660's *"its power is the
 node's fuel"* is the same formula with a hit load of zero, since Heat
 ignition carries no load. A *landing's* go-off spends **one** stack of the
 node's medium (owner, #1733 round 3: *"consuming 1 at a time"*), never the
@@ -257,18 +257,22 @@ Cold arrow onto a charged node lays Cold along the arcs (owner, 2026-11-05:
 *"stuff that mutates the terrain (by adding fuel or charge or cold) i think
 should be able to be proliferated just fine, throw 5 Cold on a Fueled up
 volatile target node and watch it apply Cold to its surroundings in an AoE
-blast"*). Pass proposal to close the one loop this opens (a Charge rider on an
-arc replants the Charge the arc spent, a wire that never depletes): **a copy
-carries every rider except the medium its reach just spent** — a blast copy
-carries no Fuel rider, an arc copy no Charge rider, and Cold rides both.
-Tentative; a two-element build (Fire reach, Charge ride, Fuel ride) still
-seeds a territory over several casts, bounded per node by the cap, and that
-is the fuse network, not a bug.
+blast"*). **A copy carries every rider, the medium its reach just spent
+included.** Shown the loop this opens (a Charge rider on an arc copy replants
+`ceil(r × s) ≥ 1` Charge on every node the arc reaches while the go-off spent
+one, a wire that never depletes), the owner kept it — 2026-11-05: *"Leaning
+2. My reasoning: if buildup is too strong we can always tune up decay
+rates/mechanisms"*. So a medium's per-def decay (ADR 0048) and the k × T cap
+are the only bounds on a wire or fuse that re-lays itself: **no medium ships
+without a decay**, and its rate is the knob that tunes buildup. Rejected: a
+copy carrying every rider except the medium its reach spent.
 
 **A copy lands raw.** `ceil(r × s)` of the hit's payload *as cast* — after
 an Ice concentrate put its mass on the seed, before any per-landing fold —
-so `stacks_per_hit` never multiplies with reach (#1733 R2).
-Whether a reach copy copies its parent's crit stays open (§ The hit).
+so `stacks_per_hit` never multiplies with reach (#1733 R2). A hit's copies
+take the hit's own target mask (the shipped bolt filters to hostile); only a
+terrain hit is side-blind, so a medium is side-less but a landing's copies
+are not. Whether a reach copy copies its parent's crit stays open (§ The hit).
 
 **Damage type: none.** Elements change reach, aspects change payload, damage
 stays one number. Movers get `<mover>_resistance` as any status does. If a
@@ -610,9 +614,7 @@ here.
   1–4 and 6's fold half are settled above. Still wanting a call: (5) "a
   planting hit never trips its medium" vs "read sees the pre-hit node" —
   pass lean: a hit carrying a ride row for medium X is exempt from X's
-  go-off at its own landing only; (6) copies' target mask (the shipped bolt
-  filters to hostile; a hit's copies take the hit's mask, a terrain hit is
-  side-blind).
+  go-off at its own landing only.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
