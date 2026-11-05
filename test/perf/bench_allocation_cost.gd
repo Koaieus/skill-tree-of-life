@@ -83,7 +83,8 @@ extends GutTest
 ##   100 |     100 |   850 |     252 |      1553 us  |    262 +   905 =  1164 us
 ##   200 |     200 |  1315 |     604 |      2751 us  |    570 +  1220 =  1826 us
 ## [/codeblock]
-## (The old grid's build was ~100 us and is folded into its query column.)
+## (The old grid's build was not timed separately: it is lazy, inside the
+## first query, so it sits in that column.)
 ## 10 -> 200 owned: 2.9x before, 2.1x after; at 200 the pass is 1.5x cheaper.
 ## What remains is not the circle count: at 10 owned the bounding box rejects
 ## ~80% of the 2000 nodes with four comparisons, at 200 it covers the whole

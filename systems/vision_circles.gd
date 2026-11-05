@@ -31,7 +31,7 @@ extends RefCounted
 ## circles overlap the point — which is what the previous grid (cell = largest
 ## radius, 3x3 neighbourhood scan) could not deliver: at 86px spacing a 550px
 ## radius put ~100 circles in every scanned neighbourhood, and the pass grew
-## 4-6x from 10 to 200 owned.
+## 2.9x (2026-11-05) to 6.1x (2026-08-17) from 10 to 200 owned.
 ##
 ## [b]Exactness[/b] is non-negotiable and rests on one asymmetry: every
 ## classification error the build can make demotes a cell toward the scan,
