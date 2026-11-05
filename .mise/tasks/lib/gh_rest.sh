@@ -180,7 +180,7 @@ _rest_comment() {
   while [ $# -gt 0 ]; do
     case "$1" in
       -b|--body|--body=*) _take "$@"; body=$VAL; have=1; shift "$SHIFT" ;;
-      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x); body=${body%x}; have=1; shift "$SHIFT" ;;
+      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x) || exit $?; body=${body%x}; have=1; shift "$SHIFT" ;;
       -R|--repo|--repo=*) _take "$@"; REST_REPO=$VAL; shift "$SHIFT" ;;
       -*) _rest_die "issue comment: unsupported flag $1" ;;
       *) num=$(_rest_num "$1") || exit $?; shift ;;
@@ -240,7 +240,7 @@ _rest_edit() {
     case "$1" in
       -t|--title|--title=*) _take "$@"; title=$VAL; set_title=1; shift "$SHIFT" ;;
       -b|--body|--body=*) _take "$@"; body=$VAL; set_body=1; shift "$SHIFT" ;;
-      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x); body=${body%x}; set_body=1; shift "$SHIFT" ;;
+      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x) || exit $?; body=${body%x}; set_body=1; shift "$SHIFT" ;;
       --add-label|--add-label=*) _take "$@"; add=${add:+$add,}$VAL; shift "$SHIFT" ;;
       --remove-label|--remove-label=*) _take "$@"; rem=${rem:+$rem,}$VAL; shift "$SHIFT" ;;
       --add-assignee|--add-assignee=*) _take "$@"; add_as=${add_as:+$add_as,}$VAL; shift "$SHIFT" ;;
@@ -293,7 +293,7 @@ _rest_create() {
     case "$1" in
       -t|--title|--title=*) _take "$@"; title=$VAL; shift "$SHIFT" ;;
       -b|--body|--body=*) _take "$@"; body=$VAL; shift "$SHIFT" ;;
-      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x); body=${body%x}; shift "$SHIFT" ;;
+      -F|--body-file|--body-file=*) _take "$@"; body=$(_rest_body "$VAL"; echo x) || exit $?; body=${body%x}; shift "$SHIFT" ;;
       -l|--label|--label=*) _take "$@"; labels=${labels:+$labels,}$VAL; shift "$SHIFT" ;;
       -a|--assignee|--assignee=*) _take "$@"; assignees=${assignees:+$assignees,}$VAL; shift "$SHIFT" ;;
       -m|--milestone|--milestone=*) _take "$@"; milestone=$VAL; shift "$SHIFT" ;;
