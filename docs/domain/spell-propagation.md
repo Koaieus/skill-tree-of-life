@@ -137,7 +137,7 @@ Stock subclasses (`propagation/spread/`):
 
 - `FanAllSpread` — one full-share pick per eligible node
   (covers Lightning / Crunch / Flood / Resonator)
-- The Trailblazer walk lives in its filter + slam, not a spread: the `ExpressionFilter` clause `from_entity_degree <= 2 and to_entity_degree >= 2` (`trail_blazer.tres`) and the `ScaleDamageEffect` + `JunctionCondition` pair. Design prose: `docs/design/spells.md` § Trailblazer.
+- The Trailblazer walk lives in its filter + slam, not a spread: the `ExpressionFilter` clause `from_entity_degree <= 2 and to_entity_degree >= 2` (`trail_blazer.tres`) and the `ScaleDamageEffect` + `JunctionCondition` pair (the slam, authored before `DamageEffect` on `on_hit_effects`, so it fires where the spell lands and a seed cast onto a junction is slammed too). The walk reads **entity** degree, not graph degree: an unrelated enemy node beside the string must not read as a junction (`degree.md`). The ramp is `PropagationConfig.hop_damage`, typically `FlatAddProgression(2)`; on a pure string exactly one candidate survives per hop. Example, seed 1, string B-C-D-E, junction F: 1, 3, 5, 7, 9, then F = (9 + 2) x 2 = 22 and the walk stops.
 - `TakeTopNSpread` — sort by a ranker, take top N. Sorting and picking ONLY —
   narrowing the set first is `RankThresholdFilter` / `TopTiesFilter` on the
   filter side. `NodeRanker` and its subclasses live in `propagation/ranker/`,
