@@ -96,7 +96,7 @@ echo "✓ msdfgen 1.13 → $BIN"
 '''
 
 [tasks.lint]
-depends = ["check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals", "lint-module-deps", "lint-house-rules"]
+depends = ["ensure-class-cache", "check-shaders", "lint-editor-hint-guard", "lint-scene-instance-depth", "lint-instanced-anchors", "lint-transcendentals", "lint-module-deps", "lint-house-rules"]
 description = "Every lint in one go (`check` depends on this): check-shaders, lint-editor-hint-guard, lint-scene-instance-depth, lint-instanced-anchors, lint-transcendentals, lint-module-deps, lint-house-rules, and lint-gdscript-warnings (GDScript analyzer warnings promoted to errors) over what differs from master plus its --self-test"
 run = '''
 #!/usr/bin/env bash

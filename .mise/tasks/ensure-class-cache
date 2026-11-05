@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+#MISE description="Run `godot --headless --import` once when .godot has no class cache (a fresh clone), so check/lint don't fail on \"Identifier not declared\"; a no-op otherwise. `mise run ensure-class-cache`"
+set -uo pipefail
+cd "${MISE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}"
+[ -f .godot/global_script_class_cache.cfg ] && exit 0
+echo "no class cache (fresh clone?) — running \`godot --headless --import\` first; this takes a while once…"
+godot --headless --import >/dev/null 2>&1
+if [ ! -f .godot/global_script_class_cache.cfg ]; then
+  echo "✗ godot --headless --import did not produce a class cache — \`mise run doctor\`" >&2
+  exit 1
+fi
+echo "✓ class cache built"
