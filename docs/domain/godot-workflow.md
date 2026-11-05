@@ -173,6 +173,9 @@ main's caches via `.worktreeinclude`, as current as main's was). Symptoms: *"Cou
 cannot resolve a type is skipped silently (`.claude/rules/testing.md`). Refresh
 first; don't audit the test file.
 
+`mise run doctor` is the one-shot check for this and the neighbouring cold-clone
+symptoms: godot vs the `mise.toml` pin, class cache, native lib, submodules.
+
 **`mise run test` / `test:one` / `test:dir` refresh for you** (#919): before GUT
 starts, `.mise/tasks/test` diffs the tree's `class_name` set against the cache
 (~50 ms) and, only on drift, prints `class cache stale (N new / M gone):

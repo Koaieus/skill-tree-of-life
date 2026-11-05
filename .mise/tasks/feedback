@@ -26,6 +26,8 @@ gql() {
   jq -n --arg q "$1" --argjson v "$2" '{query: $q, variables: $v}' >"$tmp/req.json"
   local out
   if ! out=$(gh api graphql -X POST --input "$tmp/req.json" 2>"$tmp/err"); then
+    grep -qi 'not available from Claude Code' "$tmp/err" &&
+      die "feedback boards are GitHub Discussions (GraphQL-only) and GraphQL is unavailable in a cloud session — post from a local session"
     die "GitHub call failed: $(head -c 400 "$tmp/err") ${out:0:400}"
   fi
   if [ "$(jq '.errors // [] | length' <<<"$out")" -gt 0 ]; then

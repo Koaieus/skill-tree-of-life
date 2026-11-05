@@ -9,6 +9,20 @@ mkdir -p "$work/fake"
 # `ok` = success echoing its args and stdin), and counts calls in $work/n.
 cat >"$work/fake/gh" <<'EOF'
 #!/usr/bin/env bash
+# `api` calls are answered by $WORK/api/ (REST-mode cases) and kept out of the plan:
+# argv -> api.log, stdin -> api.in.<k>; graphql -> $WORK/gql (the probe's verdict).
+if [ "$1" = api ] && [ -d "$WORK/api" ]; then
+  echo "$*" >>"$WORK/api.log"; k=$(wc -l <"$WORK/api.log"); [ -t 0 ] || cat >"$WORK/api.in.$k"
+  if [ "$2" = graphql ]; then
+    [ "$(cat "$WORK/gql")" = down ] && { echo "gh: GitHub GraphQL is not available from Claude Code sessions; use REST (HTTP 403)" >&2; exit 1; }
+    echo '{"data":{}}'; exit 0
+  fi
+  for a in "$@"; do case "$a" in repos/*) path=${a%%\?*} ;; esac; done
+  f="$WORK/api/$(echo "$path" | tr / _)"; [ -f "$f" ] || f=/dev/null
+  prev=""; for a in "$@"; do [ "$prev" = --jq ] && { jq -r "$a" "$f"; exit 0; }; prev=$a; done
+  case " $* " in *" --silent "*) exit 0 ;; esac
+  cat "$f"; exit 0
+fi
 n=$(( $(cat "$WORK/n" 2>/dev/null || echo 0) + 1 )); echo "$n" >"$WORK/n"
 mode=$(sed -n "${n}p" "$WORK/plan")
 case "$mode" in
@@ -20,7 +34,9 @@ case "$mode" in
 esac
 EOF
 chmod +x "$work/fake/gh"
-export WORK="$work" PATH="$root/.mise/bin:$work/fake:$PATH" GH_SHIM_BACKOFF=0
+export WORK="$work" PATH="$root/.mise/bin:$work/fake:$PATH" GH_SHIM_BACKOFF=0 TMPDIR="$work"
+# This suite may itself run in a cloud session: REST mode is opt-in per case below.
+export GH_SHIM_REST=0; unset CLAUDE_CODE_REMOTE
 fail=0
 check() { if [ "$2" = "$3" ]; then echo "  ok   $1"; else echo "  FAIL $1: expected [$3] got [$2]"; fail=1; fi; }
 reset() { printf '%s\n' "$@" >"$work/plan"; rm -f "$work/n"; }
@@ -109,12 +125,81 @@ check "a read is never scanned" "$rc:$(cat "$work/n")" "0:1"
 # regression fails fast instead of forking the machine over.
 mkdir -p "$work/wt/.mise/bin"; cp "$root/.mise/bin/gh" "$work/wt/.mise/bin/gh"
 reset ok
-if command -v systemd-run >/dev/null; then
+if command -v systemd-run >/dev/null && systemd-run --user --quiet --scope true 2>/dev/null; then
   out=$(systemd-run --user --quiet --scope -p TasksMax=200 --setenv=PATH="$work/wt/.mise/bin:$root/.mise/bin:$work/fake:$PATH" \
         --setenv=WORK="$work" --setenv=GH_SHIM_BACKOFF=0 timeout 10 gh issue view 9 </dev/null 2>"$work/err"); rc=$?
   check "two shims on PATH (worktree + main) reach the real gh once, never each other" "$rc:$out:$(cat "$work/n" 2>/dev/null)" "0:ok:issue view 9:1"
 else
-  echo "  skip two-shims check: no systemd-run to cage a regression"
+  echo "  skip two-shims check: no usable systemd-run to cage a regression"
 fi
+
+# REST mode: with GraphQL unreachable, `gh issue ...` is answered by `gh api repos/...`.
+# The repo comes from the git remote (cwd is a scratch repo here).
+git init -q "$work/repo" && git -C "$work/repo" remote add origin https://github.com/o/r.git
+mkdir -p "$work/api"
+cat >"$work/api/repos_o_r_issues_7" <<'JSON'
+{"number":7,"title":"Seven","state":"closed","state_reason":"completed","body":"the body","html_url":"https://github.com/o/r/issues/7","node_id":"I_7","user":{"login":"ann"},"labels":[{"name":"bug","color":"f00","description":"d"}],"assignees":[],"milestone":null,"created_at":"2026-01-01T00:00:00Z","updated_at":"2026-01-02T00:00:00Z","closed_at":null}
+JSON
+cat >"$work/api/repos_o_r_issues_7_comments" <<'JSON'
+[{"node_id":"C_1","html_url":"u","body":"first!","created_at":"2026-01-03T00:00:00Z","user":{"login":"bob"},"author_association":"NONE"}]
+JSON
+cat >"$work/api/repos_o_r_issues" <<'JSON'
+[{"number":9,"title":"Nine","state":"open","state_reason":null,"body":null,"html_url":"u9","node_id":"I_9","user":{"login":"ann"},"labels":[{"name":"x","color":"0","description":null}],"assignees":[],"milestone":null,"created_at":"a","updated_at":"b","closed_at":null},
+ {"number":8,"title":"A PR","pull_request":{},"state":"open","body":"","html_url":"u8","node_id":"P_8","user":{"login":"ann"},"labels":[],"assignees":[],"milestone":null,"created_at":"a","updated_at":"b","closed_at":null}]
+JSON
+cat >"$work/api/repos_o_r_milestones" <<'JSON'
+[{"number":3,"title":"M3"}]
+JSON
+rest() { : >"$work/api.log"; rm -f "$work"/api.in.*; ( cd "$work/repo" && GH_SHIM_REST=1 gh "$@" </dev/null ) 2>"$work/err"; }
+argv() { sed -n "${1}p" "$work/api.log"; }
+
+out=$(rest issue view 7 --comments); rc=$?
+check "REST: issue view -> one issue GET, one comments GET" "$rc:$(wc -l <"$work/api.log")" "0:2"
+check "  ...first call is repos/o/r/issues/7" "$(argv 1)" "api repos/o/r/issues/7"
+check "  ...human format: title, state+reason, body" "$(grep -cE '^(title:.Seven|state:.CLOSED \(COMPLETED\)|labels:.bug|the body)$' <<<"$out")" "4"
+check "  ...comment shows author and body" "$(grep -cE '^(author:.bob|first!)$' <<<"$out")" "2"
+out=$(rest issue view 7 --json number,state,labels --jq '.state')
+check "REST: --json/--jq maps gh field names" "$out" "CLOSED"
+out=$(rest issue view 7 --json title); check "REST: view without --comments fetches no comments" "$(wc -l <"$work/api.log"):$out" '1:{"title":"Seven"}'
+rest issue view 7 --json parent; rc=$?
+check "REST: a GraphQL-only --json field fails fast" "$rc:$(grep -c 'GraphQL-only' "$work/err")" "2:1"
+out=$(rest issue list --label bug --state all --limit 5)
+check "REST: issue list filters PRs, tab-separated" "$out" "$(printf '9\tOPEN\tNine\tx\tb')"
+check "  ...label and state ride the query" "$(argv 1 | grep -c 'labels=bug.*state=all\|state=all.*labels=bug')" "1"
+rest issue list --search foo; rc=$?
+check "REST: --search is refused, not dropped" "$rc:$(wc -l <"$work/api.log")" "2:0"
+rest issue comment 7 --body 'hi "there"'; rc=$?
+check "REST: comment -> POST issues/7/comments" "$rc:$(argv 1)" "0:api -X POST repos/o/r/issues/7/comments --input - --jq .html_url"
+check "  ...JSON body from stdin" "$(jq -r .body "$work/api.in.1")" 'hi "there"'
+printf 'from file\n' >"$work/b.md"; rest issue comment 7 --body-file "$work/b.md"
+check "REST: comment --body-file keeps the text" "$(jq -r .body "$work/api.in.1")" "from file"
+rest issue close 7 --reason 'not planned' --comment done; rc=$?
+check "REST: close = comment then PATCH state" "$rc:$(argv 1 | cut -c1-39):$(argv 2)" "0:api -X POST repos/o/r/issues/7/comments:api -X PATCH repos/o/r/issues/7 --input - --silent"
+check "  ...with state_reason not_planned" "$(jq -c . "$work/api.in.2")" '{"state":"closed","state_reason":"not_planned"}'
+rest issue reopen 7; check "REST: reopen PATCHes state open" "$(jq -r .state "$work/api.in.1")" "open"
+rest issue edit 7 --add-label a,b --remove-label old --title T --milestone M3 --body-file "$work/b.md" >/dev/null; rc=$?
+check "REST: edit -> PATCH, label POST, label DELETE" "$rc:$(argv 2 | cut -d" " -f3):$(argv 3 | cut -d" " -f3):$(argv 4 | cut -d" " -f3)" "0:PATCH:POST:DELETE"
+check "  ...milestone name resolved to its number" "$(jq -c . "$work/api.in.2")" '{"title":"T","body":"from file\n","milestone":3}'
+check "  ...added labels" "$(jq -c .labels "$work/api.in.3")" '["a","b"]'
+rest issue edit 7 --parent 3; rc=$?
+check "REST: edit --parent is refused with one line, no API call" "$rc:$(wc -l <"$work/api.log"):$(wc -l <"$work/err")" "2:0:1"
+rest issue create --title 'New' --body-file "$work/b.md" --label x --label y; rc=$?
+check "REST: create -> POST issues" "$rc:$(argv 1)" "0:api -X POST repos/o/r/issues --input - --jq .html_url"
+check "  ...payload" "$(jq -c . "$work/api.in.1")" '{"title":"New","body":"from file\n","labels":["x","y"]}'
+rest project list; check "REST: gh project fails fast" "$?:$(grep -c 'GraphQL-only' "$work/err")" "2:1"
+rest issue develop 7; check "REST: an untranslatable issue verb fails fast" "$?:$(grep -c 'GraphQL-only' "$work/err")" "2:1"
+
+# Auto-detect: only inside a Claude Code remote session, one probe per session (cached).
+rm -f "$work"/gh-graphql-*; echo down >"$work/gql"; : >"$work/api.log"
+out=$(cd "$work/repo" && GH_SHIM_REST= CLAUDE_CODE_REMOTE=true CLAUDE_CODE_REMOTE_SESSION_ID=s1 gh issue view 7 --json title </dev/null 2>/dev/null)
+check "probe: GraphQL 403 -> REST answer" "$out" '{"title":"Seven"}'
+(cd "$work/repo" && GH_SHIM_REST= CLAUDE_CODE_REMOTE=true CLAUDE_CODE_REMOTE_SESSION_ID=s1 gh issue view 7 --json title </dev/null >/dev/null 2>&1)
+check "  ...verdict cached: a second call probes nothing" "$(grep -c 'api graphql' "$work/api.log")" "1"
+rm -f "$work"/gh-graphql-*; echo up >"$work/gql"; reset ok
+out=$(cd "$work/repo" && GH_SHIM_REST= CLAUDE_CODE_REMOTE=true CLAUDE_CODE_REMOTE_SESSION_ID=s2 gh issue view 7 </dev/null 2>/dev/null)
+check "probe: GraphQL reachable -> passthrough to gh" "$out" "ok:issue view 7"
+reset ok
+out=$(cd "$work/repo" && GH_SHIM_REST= gh issue view 7 </dev/null 2>/dev/null)
+check "no CLAUDE_CODE_REMOTE and no force -> passthrough, no probe" "$out" "ok:issue view 7"
 
 [ "$fail" -eq 0 ] && echo "gh-shim-selftest: all green" || { echo "gh-shim-selftest: FAILED"; exit 1; }

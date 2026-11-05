@@ -12,43 +12,27 @@ paths:
 
 ## Graph accessors rebuild their result — never call them inside a loop
 
-`get_skill_nodes()`, `get_edges()`, and `get_neighbours()` look like O(1) field
-reads. They are not. Each one walks `get_children()` on a container, type-checks
-every child, and builds a fresh typed Array.
+`get_skill_nodes()` and `get_edges()` look like O(1) field reads. They are not:
+each walks `get_children()` on a container, type-checks every child and builds a
+fresh typed Array. `get_neighbours()` is the exception — it reads the cached
+adjacency index, O(degree).
 
-**Why:** the containers are the source of truth; there is no stored list. So an
-accessor call is O(N) or O(E), and calling one *per node* silently makes the
-caller quadratic.
-
-This shipped as a real bug. `Graph.get_neighbours()` called `get_edges()`, and
-`VisionSystem`'s sensed traversal called `get_neighbours()` once per popped
-node — so every hop rebuilt all 230 Edge objects into a new array. Allocating a
-node cost 13.9ms at 41 owned nodes on a 150-node graph and grew from there. The
-symptom read as "the fog/aura shader is slow"; the overlays were flat at 0.4ms.
-Fixed in c5f3e42 by adding a cached adjacency index.
+**Why:** the containers are the source of truth; there is no stored list, so an
+accessor call per node makes the caller quadratic (a per-hop rebuild of every
+Edge once made a single allocation cost milliseconds on a 150-node graph).
 
 **How to apply:**
 
-- Hoist the call out of the loop: `var edges := graph.get_edges()` once, then
-  iterate `edges`. Most existing quadratic risk is one hoist away.
-- For per-node neighbour queries, use `get_neighbours()` — it now reads a cached
-  adjacency index, so it *is* O(degree). Don't hand-roll an edge walk.
-- Before adding a new accessor here, decide whether it rebuilds or caches, and
-  say so in its docstring. `get_neighbours()` documents that it's on a hot path.
-- **The same quadratic has a second shape: a predicate asked per point.** Not an
-  accessor in a loop — a *test* run once per candidate against a set that never
-  changes during the sweep. `VisionSystem.is_within_circles(p, positions, radii)`
-  was a linear scan over every owned node's circle, called once per graph node:
-  2025 × 200 = 400k iterations, 13.3ms of a 19.4ms recompute, on every
-  allocation (and the identical shape in `AiRecon` per AI turn). Fixed
-  2026-08-17 by giving the set a home that can carry an index
-  (`VisionCircles`, a uniform grid) instead of passing two packed arrays around.
-  **The tell:** a `static` predicate taking a *collection* plus one point. If
-  callers ask about many points, the collection wants to be an object.
-- When profiling something that "must be the GPU", **measure the CPU first.**
-  `Time.get_ticks_usec()` around the suspect functions, run the sandbox headless,
-  watch which number grows with graph size. The overlay shaders were the obvious
-  suspect and the innocent party.
+- Hoist the call out of the loop: `var edges := graph.get_edges()` once.
+- For per-node neighbour queries use `get_neighbours()`; don't hand-roll an edge walk.
+- A new accessor's docstring says whether it rebuilds or caches.
+- The same quadratic has a second shape: a predicate asked per point against a
+  set that never changes during the sweep. **The tell:** a `static` predicate
+  taking a *collection* plus one point. If callers ask about many points, the
+  collection wants to be an object that can carry an index (`VisionCircles`, a
+  uniform grid).
+- Measure the CPU (`Time.get_ticks_usec()` in a headless sandbox, watch what grows
+  with graph size) before blaming a shader.
 
 ## The adjacency cache is invalidated by child add/remove, not by `Edge.from`/`to`
 

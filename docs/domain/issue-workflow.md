@@ -111,7 +111,7 @@ or P1 might work, i can intake them first"*. The scale is a tentative pick:
 `P4` exists on the board and is the owner's to set, never a filer's.
 
 There is deliberately no prose priority file (the milestone is the live
-priority; `docs/FOCUS.md` rotted twice, story in `adr.md`). A sentence
+priority; a prose priority file rotted twice, story in `adr.md`). A sentence
 about an issue goes **on** the issue.
 
 ## Roadmap + hygiene
@@ -258,6 +258,10 @@ Two limits, opposite responses:
 prints which one it hit. It is first on PATH for `mise run` tasks; a session's
 own shell gets it only if its parent process started after the change.
 `GH_SHIM=off` bypasses it; `GH_SHIM_RETRIES` / `GH_SHIM_BACKOFF` tune it.
+
+## Cloud sessions: no GraphQL, issues over REST
+
+A claude.ai/code session's proxy answers every GraphQL call with 403 ("not available from Claude Code sessions"); repo-scoped REST works. The `gh` shim (`.mise/bin/gh`, `lib/gh_rest.sh`) probes once per session (cached 30 min under `$TMPDIR`; `GH_SHIM_REST=1` forces REST, `=0` never) and then answers `gh issue view|list|comment|close|reopen|edit|create` through `gh api repos/...` — same flags, output close to gh's non-tty format. Not translatable, so it exits 2 with one line: `--search`, `--parent`, `--add-blocked-by`, `--json` fields like `parent`/`subIssuesSummary`, `gh project|pr|discussion`. `mise gh-project` and `mise run feedback` (board, Discussions) likewise exit 2 early; lane moves and feedback posts wait for a local session.
 
 ## Never pass `gh --body "..."` with backticks
 

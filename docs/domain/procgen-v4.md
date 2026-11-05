@@ -272,7 +272,7 @@ nodes. Resistances are T2+, so they never crowd a T1 draw. Subtype rules:
 ## Budget envelope
 
 Budget is `BudgetPolicy.compute_budget` = `max(1, round(lerp(base_min, base_max) × budget_field × role bonus))`.
-`first_level/content.tres`: `base_min 1 .. base_max 4`, a `RadialGradientField`
+`procgen/modules/first_level/content.tres`: `base_min 1 .. base_max 4`, a `RadialGradientField`
 1.0 → 4.0 over r = 200..2500, `anomalous` ×1.75. Floor of 1 = no budget-0 dead nodes;
 the field's authored 4x is the entire rim power ratio. Live numbers: the preset's `content.tres`.
 

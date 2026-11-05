@@ -132,7 +132,8 @@ whatever it did), ADR 0034 (armed input is a statechart stack).
   **`Events.skill_node_depleted(node)`** — re-emitted by `SkillNode.take_damage`.
   Damage numbers (`ui/floating_number_layer/`, `floater_*`) subscribe to the
   former so any damage source, present or future, gets a number for free;
-  `BattleSystem` listens to the latter for the cascade.
+  `BattleSystem` listens to the latter for the cascade. The removed-modifier
+  floater is its own scene: [strikethrough-toast.md](strikethrough-toast.md).
 - **`SkillNode.current_hp` / `take_damage()` / `refill()`** — per-node combat HP,
   a plain field outside the modifier pipeline (`docs/domain/node-hp.md`). Core
   nodes never deallocate; overflow past `current_hp` routes to

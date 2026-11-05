@@ -111,7 +111,7 @@ what a test must put in the tree (`test/unit/test_shot_pips.gd`).
 `skill_node.tscn` parks `HealthBar` at y -59..-46 and `CoreHealthBar` at y
 -44..-28, both spanning x about +-35, and `FloatAnchor` at (0, -50). The
 `WatchtowerVisual` script default is `stand_bearing_deg = 45`, which puts its
-silhouette below y of about -21; the shipped `defs/watchtower_addon.tscn` sets
+silhouette below y of about -21; the shipped `skill_node/addons/defs/watchtower_addon.tscn` sets
 `stand_bearing_deg = -90` (straight up). Check the bars and `FloatAnchor` before
 moving a structure's bearing.
 

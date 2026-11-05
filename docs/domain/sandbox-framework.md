@@ -11,7 +11,8 @@ and what to do instead — read it before touching `game_root.tscn` for
 Module-testing surfaces each re-derived graph + nodes + edges + entities +
 systems their own way, so they drifted from real gameplay. **If a sandbox
 mismatches the game, it's not proving anything.** One full-screen editor host
-with tabs; every tab drives the real systems.
+with tabs; every tab drives the real systems. Tab scenes live under
+`addons/sandbox_host/`; the `tabs/…` paths below are relative to that.
 
 | Surface | Home | Mode |
 |---|---|---|

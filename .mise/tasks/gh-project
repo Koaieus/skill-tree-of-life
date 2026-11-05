@@ -2,6 +2,16 @@
 #MISE description="Manage the kanban board: `mise gh-project -- add|status|priority|size <issue> [value]`"
 set -euo pipefail
 
+# The board is Projects v2 = GraphQL; a cloud session's proxy refuses all of it.
+# One line and exit 2 (a skill can branch on it) instead of a wall of 403s.
+case "${1:-}" in -h|--help|help|"") ;; *)
+  . "$(dirname "$0")/lib/gh_rest.sh"
+  if gh_graphql_down; then
+    echo "gh-project: the board is GraphQL-only and $GH_REST_MSG — lane/priority moves need a local session (issues still work: gh issue ... falls back to REST)" >&2
+    exit 2
+  fi ;;
+esac
+
 PROJECT=${GH_PROJECT_NUMBER:-1}
 OWNER=${GH_PROJECT_OWNER:-@me}
 PROJECT_ID=${GH_PROJECT_ID:-PVT_kwHOAExWR84BcS99}
