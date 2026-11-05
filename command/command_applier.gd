@@ -139,36 +139,11 @@ var local_peer_id: int = 0
 ## empty — spanning every await inside every command, not just the mutation.
 var is_applying: bool = false
 
-## [b]Submitted, awaiting confirmation[/b] (#541) — a command has been handed to
-## this applier and the authority has not yet decided it is going ahead. The
-## world has not moved and the player must not act.
-##
-## [b]Zero-length locally for every verb (#545).[/b] [method submit] drains
-## synchronously down to [method _validate], so on a peer that DECIDES this is
-## true for a stack frame. It is not dead code: it is the round trip on a peer
-## that is told, which is what #463 opens, and it is the only phase name that
-## fits the window — [member BattleSystem.is_launching] means "an attack is in
-## flight" and [member is_applying] means "a mutation is under way", and neither
-## is true yet.
-##
-## [b]#548 opened that round trip.[/b] On a peer that is TOLD, this is true from
-## [method _submit_upward] until the authority's confirm lands in
-## [method apply_remote] carrying the same [member Command.intent_id] — or until
-## [method refuse_intent] closes it on a refusal. Still zero-length on a peer
-## that decides.
-##
-## The attack used to be the exception and the LONG one, spanning its whole
-## resolve + mutation loop because it confirmed late. It no longer is: its
-## resolve happens inside the validate this flag closes on, so the window is a
-## stack frame here too — the same shape, not a special case with a shorter tail.
-##
-## [b]Nested inside [member is_applying] everywhere but one place.[/b] The gate
-## is an OR ([method PlayerInputController.can_player_act]) and on every path but
-## that one the OR cannot change the answer. The exception is the first
-## [method submit] of a drain: this flips true BEFORE `is_applying` does, which
-## is both the honest reading — the command is submitted, nothing is applying
-## yet — and the only moment the third gate is the sole reason the player cannot
-## act. Do not "simplify" it to a read after the pop.
+## Submitted, awaiting confirmation: handed to this applier, the authority has not
+## yet decided. The world has not moved and the player must not act. Zero-length on
+## a peer that DECIDES; on a peer that is told, it spans `_submit_upward` to the
+## confirm (or refusal). Nested inside `is_applying` except for a drain's first submit.
+## See docs/domain/multiplayer-sync-model.md
 var is_awaiting_confirmation: bool = false
 
 ## How many relic claim chains this applier is currently driving OUTSIDE the

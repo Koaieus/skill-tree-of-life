@@ -478,3 +478,66 @@ called. Everything else is optional and listed in `HOOKS`.
 **Effects are shared resources.** One `.tres` may sit on many entities.
 Never store runtime state on the effect; use the `EffectInstance` ledger via
 `EffectContext`.
+
+## HealAuraEffect (`effects/heal_aura_effect.gd`)
+
+The D-10 healing channel, ported onto `AuraEffect` (#720, replacing the
+standalone `CoreAura`/`HealAura` pair): heals through
+combat (ignores the D-9 damage gate, `SkillNode.apply_turn_regen`)
+and grants no ramp — a flat top-up applied alongside, never through, that
+method's `node_healing` / `regen_stacks` term.
+
+**A payload-channel subclass, per the `AuraEffect` docstring's
+`_has_payload` / `_grant_to` split.** `TagAuraEffect` is
+that split on the tag channel; this is the same split on a per-turn
+channel — the heal is not a membership grant, so it lands from an
+overridden `_on_turn_start` instead. Everything else (the three
+knobs, the origin rule, batching, the #626 incremental
+`AuraEffect._topology_changed` paths) is inherited unchanged, and
+stays harmless for this channel because `_grant_to` never grants
+anything — an alloc/dealloc between turns walks and no-ops, it does not
+double-heal.
+
+**Clamped at 0 regardless of `AuraEffect.discard`.** A negative
+heal at turn start would be damage with no `AttackRecord` behind it (see
+`.claude/rules/attack-timeline.md`), so the floor is an explicit `maxf`
+here, never `discard`'s job — `discard` only ever decided whether a
+MODIFIER-channel value was worth granting.
+
+**Whole HP, rounded once by the heal door (ADR 0033).** This effect hands
+the clamped raw amount to `SkillNode.heal_damage`; the door applies
+`healing_received` and rounds up to whole HP. A computed `6.667` heals `7`.
+
+**Readout.** `readout_payloads` answers the tooltip's "+N HP/turn"
+through the same `_heal_frame` / `amount_at` pair
+`_on_turn_start` uses, so the scaled, clamped math is never mirrored.
+
+## DistanceScale (`effects/distance_scale/distance_scale.gd`)
+
+Maps a distance to the VALUE an aura grants at that distance (#900).
+
+**It returns the value, not a multiplier.** The third parameter is the
+authored value it is shaping — a leaf modifier's `value`, or a heal effect's
+`base` — so a library scale spells itself as `value * <its multiplier>` and
+an `ExpressionScale` can ignore `value` entirely (`5 - d` is the heal ramp:
+
+**Deliberately not called "falloff."** The return is an unbounded scalar,
+not an attenuation. It may rise with distance (the Serpent's hop buff), fall
+(a fortress zone), spike at exactly one ring (a halo), or deepen a negative modifier
+(the Ninja's armor debuff). "Falloff" would imply `<= 1` and monotonic
+decrease — precisely the constraint this abstraction must not have.
+
+Also not "Gradient": Godot ships a built-in `Gradient`, and `Edge.gd` already
+carries one. Shadowing it in a `@tool` script is a live footgun.
+
+**Sign lives on the modifier, shape lives here.** A negative `value` makes a
+debuff aura; a rising scale makes its magnitude grow with distance. The two
+compose freely, which is why this must stay direction-agnostic.
+
+`max_distance` is the aura's reach bound in the same units, or -1.0 when
+unbounded. A scale that doesn't normalize ignores it — say so by leaving
+`uses_bound` at its default.
+
+**Whether a computed value is worth granting is not this class's call.**
+A 0 (or a sign flip) is a legitimate result; `AuraEffect.discard`
+decides whether it lands. See that enum's docs for the authoring recipes.

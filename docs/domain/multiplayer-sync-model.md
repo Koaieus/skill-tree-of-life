@@ -818,3 +818,32 @@ terminates exactly when handlers stop feeding it — there is no re-entrancy
 depth to run out of, so a runaway handler is an infinite loop, not a stack
 overflow. Every fallback here latches (PIC's cascade offer fires only on a
 failed deallocate, and the request it opens waits on the player).
+
+## CommandApplier is_awaiting_confirmation (`command/command_applier.gd`)
+
+**Submitted, awaiting confirmation** (#541) — a command has been handed to
+this applier and the authority has not yet decided it is going ahead. The
+world has not moved and the player must not act.
+
+**Zero-length locally for every verb (#545).** `submit` drains
+synchronously down to `_validate`, so on a peer that DECIDES this is
+true for a stack frame. It is not dead code: it is the round trip on a peer
+that is told, which is what #463 opens, and it is the only phase name that
+fits the window — `BattleSystem.is_launching` means "an attack is in
+flight" and `is_applying` means "a mutation is under way", and neither
+is true yet.
+
+**#548 opened that round trip.** On a peer that is TOLD, this is true from
+`_submit_upward` until the authority's confirm lands in
+`apply_remote` carrying the same `Command.intent_id` — or until
+`refuse_intent` closes it on a refusal. Still zero-length on a peer
+that decides.
+
+
+**Nested inside `is_applying` everywhere but one place.** The gate
+is an OR (`PlayerInputController.can_player_act`) and on every path but
+that one the OR cannot change the answer. The exception is the first
+`submit` of a drain: this flips true BEFORE `is_applying` does, which
+is both the honest reading — the command is submitted, nothing is applying
+yet — and the only moment the third gate is the sole reason the player cannot
+act. Do not "simplify" it to a read after the pop.
