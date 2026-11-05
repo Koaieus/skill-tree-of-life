@@ -64,8 +64,11 @@ func _live_game_root() -> GameRoot:
 ## forever — nobody in a solo fixture answers its pull), so this is only used
 ## where the role in play is guaranteed to finish opening the link, and stays
 ## bounded so a genuine regression fails the assert instead of hanging GUT.
+## The bound is the integration tier's 15 s, not a tight 2 s: shards share the
+## CPU with each other and with concurrent runs, and the wait returns the
+## moment the flag flips, so the headroom costs nothing on a green run.
 func _wait_for_reveal(root: GameRoot) -> void:
-	await wait_until(root.is_reveal_ready, 2.0)
+	await wait_until(root.is_reveal_ready, 15.0)
 
 
 ## Dispose of a scene that was instantiated but never added to the tree.

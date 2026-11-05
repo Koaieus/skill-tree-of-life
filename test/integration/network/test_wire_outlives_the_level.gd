@@ -318,7 +318,9 @@ func test_a_game_root_adopts_the_lobby_s_link_rather_than_reopening_it() -> void
 	# A bounded wait on the event, not a frame count — under suite load the
 	# `_ready` coroutine has been caught not yet at open_link six frames in
 	# (see test_link_mount.gd's `_wait_for_reveal` for the same flake class).
-	await wait_until(root.is_reveal_ready, 2.0)
+	# The budget is the integration tier's 15 s: it returns the moment the root
+	# is ready, so only a genuinely stuck `_ready` ever spends it.
+	await wait_until(root.is_reveal_ready, 15.0)
 
 	assert_true(root.transport is EnetTransport, "sanity: the swap took")
 	assert_eq(root.transport.role, NetworkConfig.Role.HOST,
