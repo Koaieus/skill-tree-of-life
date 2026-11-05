@@ -1,5 +1,7 @@
 extends GutTest
 
+const _LOBBY_SCENE := preload("res://ui/frontmatter/panels/lobby_screen.tscn")
+
 ## [LobbyScreen] as a VIEW over [LobbyRoster] (#1002): the rows, the pickers,
 ## the run-section ladders and the status copy. Every domain rule (roster
 ## shape, colour separation, rebuild survival, preset templating, vetoes) is
@@ -40,9 +42,10 @@ func after_each() -> void:
 
 
 func _make_lobby(mode: RunConfig.Mode) -> LobbyScreen:
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(mode)
 	add_child_autofree(lobby)
+	lobby.refresh()
 	return lobby
 
 
@@ -287,9 +290,10 @@ func test_raising_ai_count_after_preset_armed_seats_new_ai_on_it() -> void:
 func test_a_client_lobby_offers_no_ai_preset_row() -> void:
 	# Owner, 2026-09-10: gate it the same as the AI-count row beside it — a
 	# client authors no AI slots at all, so it has nothing to template.
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("10.0.0.4", 7777))
 	add_child_autofree(lobby)
+	lobby.refresh()
 
 	assert_null(lobby._ai_preset_row)
 
@@ -426,9 +430,10 @@ const _POLICY_VERSUS := preload("res://session/policies/lobby_policy_versus.tres
 func _policied_lobby(
 	mode: RunConfig.Mode, policy: LobbyPolicy, network: NetworkConfig = null
 ) -> LobbyScreen:
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(mode, network, policy)
 	add_child_autofree(lobby)
+	lobby.refresh()
 	return lobby
 
 
@@ -1300,9 +1305,10 @@ func test_a_hosting_lobby_says_where_a_joiner_should_dial() -> void:
 	# Nothing discovers a host: LAN broadcast was evaluated and dropped (#463),
 	# so "one room, one number" means a human reads the number to another human.
 	# This is where that number is said.
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.host(7777))
 	add_child_autofree(lobby)
+	lobby.refresh()
 
 	var caption := _caption_of(lobby)
 	assert_string_contains(caption, "7777", "the port a joiner types")
@@ -1313,9 +1319,10 @@ func test_a_hosting_lobby_says_where_a_joiner_should_dial() -> void:
 func test_a_joining_lobby_is_told_nothing_about_its_own_addresses() -> void:
 	# It already knows what it dialled, and its own local address is at best
 	# noise and at worst the wrong number (#582 D6).
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, NetworkConfig.join("10.0.0.4", 7777))
 	add_child_autofree(lobby)
+	lobby.refresh()
 
 	assert_eq(_caption_of(lobby), NetworkConfig.join("10.0.0.4", 7777).describe())
 
@@ -1368,3 +1375,36 @@ func test_picking_turn_limit_resolves_the_turn_limit_condition() -> void:
 		assert_not_null(bonus, "%s: the bonus is the turn limit" % where)
 		if bonus != null:
 			assert_eq(bonus.limit, (authored.bonus_conditions[0] as TurnLimitCondition).limit)
+
+
+# --- #721: the screen is a scene, configured after it is already in the tree ---
+
+## The screen is `_ready` before anybody configures it — the whole point of an
+## authored scene. [method LobbyScreen.refresh] is what reads the roster, so a
+## host route still gets its AI-opponent row and a join route still does not.
+func _configured_after_ready(network: NetworkConfig) -> LobbyScreen:
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
+	add_child_autofree(lobby)
+	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, network)
+	lobby.refresh()
+	return lobby
+
+
+func test_a_host_lobby_configured_after_ready_offers_the_ai_count_row() -> void:
+	var lobby := _configured_after_ready(NetworkConfig.host(7777))
+	assert_not_null(lobby._ai_count_row, "a host authors AI seats, so it gets the count row")
+	assert_string_contains(_caption_of(lobby), "7777", "and the caption follows the late roster")
+
+
+func test_a_join_lobby_configured_after_ready_offers_no_ai_count_row() -> void:
+	var lobby := _configured_after_ready(NetworkConfig.join("10.0.0.4", 7777))
+	assert_null(lobby._ai_count_row, "a client authors no AI seats")
+
+
+func test_refreshing_twice_does_not_duplicate_rows() -> void:
+	var lobby := _make_lobby(RunConfig.Mode.COOP_HOTSEAT)
+	var before := lobby.get_child_count()
+	var rows := lobby._rows_container.get_child_count()
+	lobby.refresh()
+	assert_eq(lobby.get_child_count(), before, "no second column")
+	assert_eq(lobby._rows_container.get_child_count(), rows, "no second set of rows")

@@ -1,5 +1,7 @@
 extends GutTest
 
+const _LOBBY_SCENE := preload("res://ui/frontmatter/panels/lobby_screen.tscn")
+
 ## #714: two lobbies, one wire, one rule set.
 ##
 ## [b]Two [LobbyScreen]s in one process, faced at each other over a
@@ -62,9 +64,10 @@ func _join() -> void:
 
 
 func _lobby(network: NetworkConfig, policy: LobbyPolicy) -> LobbyScreen:
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, network, policy)
 	add_child_autofree(lobby)
+	lobby.refresh()
 	return lobby
 
 
@@ -346,9 +349,10 @@ func test_a_remote_pick_from_peer_zero_is_refused() -> void:
 ## [constant NetworkConfig.Role.OFFLINE], no transport, no traffic, and every row still
 ## editable, which is the whole hot-seat shape.
 func test_an_offline_lobby_mounts_nothing() -> void:
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT)
 	add_child_autofree(lobby)
+	lobby.refresh()
 
 	assert_null(lobby._link, "no link")
 	assert_null(lobby._transport, "no transport")

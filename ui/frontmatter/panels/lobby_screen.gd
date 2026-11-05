@@ -181,6 +181,9 @@ func configure(
 	_roster = LobbyRoster.new(mode, network, policy)
 	_roster.changed.connect(_on_roster_changed)
 
+func refresh() -> void:
+	pass
+
 func _ready() -> void:
 	if _roster == null:
 		configure(RunConfig.Mode.SINGLE)

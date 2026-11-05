@@ -1,5 +1,7 @@
 extends GutTest
 
+const _LOBBY_SCENE := preload("res://ui/frontmatter/panels/lobby_screen.tscn")
+
 ## #716 in the lobby: a joiner clears the build gate before it is seated, a
 ## dropped peer's seat goes back to waiting, and a client whose link dies is
 ## told so on screen. #736 adds the host-side half of that same gap: a peer
@@ -47,9 +49,10 @@ func before_each() -> void:
 
 
 func _lobby(network: NetworkConfig) -> LobbyScreen:
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCENE.instantiate()
 	lobby.configure(RunConfig.Mode.COOP_HOTSEAT, network)
 	add_child_autofree(lobby)
+	lobby.refresh()
 	return lobby
 
 
