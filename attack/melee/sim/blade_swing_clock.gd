@@ -65,7 +65,7 @@ var drag: float = 0.0
 ## contributes its drag AT MOST ONCE for the whole swing — never disc +
 ## capsule, never once per incident edge, and never twice for a node that
 ## carries `deflection` as well as `swing_drag` (that is ONE zone of two kinds,
-## #811). This is the only latch: [BladeObstacleField.project] asks
+## #811). This is the only latch: the native `field_project` pass asks
 ## [method has_banked] rather than keeping a second set of its own.
 var touched: Dictionary = {}
 
@@ -177,7 +177,7 @@ func progress() -> float:
 
 
 ## Bank zone [param z]'s drag, once, because some part of the blade has just
-## touched it. Called by [method BladeObstacleField.project] the moment its
+## touched it. Called by the native `field_project` pass the moment its
 ## contact test passes; a second call for the same zone is a no-op.
 ##
 ## [b]Causal, never global.[/b] The drag applies to the REST of the arc and
@@ -204,7 +204,7 @@ func bank_drag(z: int, amount: float) -> void:
 
 
 ## True if zone [param z] has already banked its drag this swing — the latch
-## [method BladeObstacleField.project] early-outs a wall contact on.
+## the native `field_project` pass early-outs a wall contact on.
 func has_banked(z: int) -> bool:
 	return touched.has(z)
 

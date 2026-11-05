@@ -148,9 +148,9 @@ extends GutTest
 ## deliberately generous, so a size-4 blade on this map pulls dozens of zones
 ## into its field where the old rest-pose cull found a handful — and the field
 ## is walked per SOLVER ITERATION, not per sample. Measured naively that cost
-## +29% (20414 us). [method BladeObstacleField.project]'s AABB broad phase —
+## +29% (20414 us). The native `field_project`'s AABB broad phase —
 ## recomputed from the current pose every iteration, so it needs no safety
-## margin — brings it back to noise. Keep that reject if you touch `project`.
+## margin — brings it back to noise. Keep that reject if you touch `field_project`.
 ##
 ## [b]The proposal-count term after #811 (measured at the then-192 count; the shipped bound is now _MAX_PIVOTS x 4 = 24, #833).[/b] The coarse pass now issues ONE defender
 ## query per PIVOT and shares the immutable zone set across that pivot's

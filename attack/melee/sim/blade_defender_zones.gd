@@ -36,7 +36,7 @@ extends RefCounted
 ## whatever order the broadphase found them — undefined, and not reproducible
 ## across machines. Two first-wins tie-breaks read this order ([member
 ## BladeSwingClock._warping]'s seeding, and which zone arms a break first in
-## [method BladeObstacleField.end_substep]), so a mirror peer redrawing the
+## native `field_end_substep`), so a mirror peer redrawing the
 ## swing must see the same one. The old walks were implicitly scene-child
 ## ordered; this is explicit. See `test/unit/attack/test_attack_determinism.gd`.
 

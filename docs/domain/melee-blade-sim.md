@@ -415,7 +415,7 @@ loop's `consume_break` handling severs.
 `blade_mass` plain members (`inv_mass` divided) and recoils off a plate at
 `blade_restitution` × its approach speed along the plate normal, written into
 the Verlet history (`prev`) after the substep's projection
-(`BladeObstacleField.restitute`). Disc contact only; every other contact stays
+(native `field_restitute`). Disc contact only; every other contact stays
 position-based and inelastic. Knobs tentative.
 
 **The impact bank and the Bunker knock-off.** Each obstacle zone banks the peak
@@ -445,7 +445,7 @@ sharpen the separation and never shift the verdict.
 
 Contact and failure need not coincide (ADR 0005), and *whether* a break happens
 is the strain meter above alone; this is only *which edge*. Each substep with
-refused drive, `BladeObstacleField.end_substep` banks it against the zone onto
+refused drive, native `field_end_substep` banks it against the zone onto
 every **contact element** the pushout moved: a vertex disc or an edge capsule.
 When a zone's strain crosses `SHATTER_DISTANCE` (8 px), `_pick_edge` takes the
 element with the most banked drive (ties: vertices first, then lowest index):
@@ -477,7 +477,7 @@ the wielder dismembers their own blade at the handle.
 `BladeObstacleField` is sim state like `BladeSwingClock`: per-zone strain, element-load
 banks, driven-particle history and the pending break are captured/restored by its
 `Bank`, with a chunk-local `history` of one bank per sample. A break is never
-applied directly: `end_substep` only *arms* a `BladeObstacleField.Break` (edge
+applied directly: `field_end_substep` only *arms* a `BladeObstacleField.Break` (edge
 index, GLOBAL step, defender). The per-sample walk checks `obstacles.has_break_at(step)`
 exactly alongside a pop, stops, and rewinds by *reading* the severance sample
 (`chunk.samples[local]`, `prev_samples[local]`, `clock.history[local]`,
