@@ -4,10 +4,10 @@ status: exploring
 
 # LifeLine grace — surviving disconnection (design, unbuilt: #240)
 
-> The marker half of LifeLine has shipped: the refcounted tag channel
-> (`EffectContext.grant_tag`, `TagAuraEffect`, an aura radiating from its
-> carrier node) is `docs/domain/effect-system.md` § "Known limits". What
-> follows is the unbuilt half — the grace mechanic. Its design home is #240;
+> Nothing of LifeLine is built. The refcounted status-tag channel this sketch
+> assumed (`grant_tag`, `TagAuraEffect`) was removed unused (#1579); a
+> "protected" marker today would be a status (`StatusDef`) consumers ask about,
+> as `scouted` is. Below, "the tag" means that marker. Its design home is #240;
 > the rationale is D-28/D-29 in `docs/adr/legacy-mvp-decisions.md`.
 
 ## The tag is necessary, not sufficient
@@ -39,8 +39,8 @@ core-sourced tag at the moment the cascade reads it.
 
 ## Touch points (once this gets scheduled)
 
-- A `LifelineEffect` (a concrete `TagAuraEffect` resource) granting the tag
-  from its carrier node.
+- A `LifelineEffect` granting the marker status from its carrier node (the
+  aura origin rule already radiates from a carrier).
 - The shared depletion resolver: the grace-period bookkeeping, the cascade
   consult, the turn-boundary tick, the reconnection cancel.
 - Tests: the cascade skip, the countdown expiry, and the

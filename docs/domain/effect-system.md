@@ -278,10 +278,9 @@ an incremental path**, `_topology_changed`, which is three branches cheapest-fir
    node can need touching, so one metric read and one grant-or-revoke).
 
 `AuraEffect` also owns the **payload seam** the channels share:
-`_has_payload()` and `_grant_to(ctx, node, distance, bound)` — the scale is evaluated *inside* the seam now, per modifier leaf, since it needs each leaf's authored value. `TagAuraEffect` is those two
-methods and nothing else — the walk, the knobs, the origin rule and the batching
-below are inherited, not copied. `HealAuraEffect` (#720) is a third shape on the
-same seam: its payload is a per-turn amount rather than a membership grant, so
+`_has_payload()` and `_grant_to(ctx, node, distance, bound)` — the scale is evaluated *inside* the seam now, per modifier leaf, since it needs each leaf's authored value. The walk, the
+knobs, the origin rule and the batching below are inherited by a subclass, not
+copied. `HealAuraEffect` (#720) is a second shape on the same seam: its payload is a per-turn amount rather than a membership grant, so
 it overrides `_on_turn_start(ctx)` instead of `_grant_to` (which it leaves a
 no-op) and reuses `_distances`/`_bound` directly from inside that hook — the
 inherited `_topology_changed` incremental paths still run on alloc/dealloc but
@@ -316,9 +315,8 @@ read is already correct.
 - **LifeLine** — "kept alive despite being islanded" overrides the islanding rule.
   It needs a **query hook with a return value** inside
   `nodes_islanded_by_removing_set` / the cascade, not a fire-and-forget notification
-  and not a modifier grant. Different hook shape; its own issue (#240). The tag
-  channel it rides on has shipped (Known limits below); the grace mechanic
-  itself is a design sketch in [lifeline-grace.md](../design/lifeline-grace.md).
+  and not a modifier grant. Different hook shape; its own issue (#240). The
+  grace mechanic is a design sketch in [lifeline-grace.md](../design/lifeline-grace.md).
 - **Presentation** — icon + `get_description()` rendering in the HUD.
 
 
@@ -327,13 +325,10 @@ read is already correct.
 This is the boundary of what the effect system can express **today**. Hitting one
 of these is the signal to file (or revisit) an issue, not to work around it locally.
 
-Two rows left this table in #267 and are now ordinary features: a **non-numeric
-marker** on a node/entity (`poisoned`, `marked`) is `EffectContext.grant_tag` —
-refcounted on the carrier (`_tags: Dictionary[StringName, int]` on `SkillNode`
-and `Entity`; `add_tag`/`remove_tag`/`has_tag`/`get_active_tags`, no
-`StatRegistry` entry and no board slot), ledgered alongside modifier rows so
-`revoke_all()` sweeps both, radiated by `TagAuraEffect`; and an aura **radiating from its carrier node** rather than the
-core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
+A **non-numeric marker** on a node/entity (`scouted`, `marked`) is a status
+(`StatusDef`) that consumers ask about — there is no separate tag channel; one
+without a shipped consumer was removed (#1579). An aura **radiating from its
+carrier node** rather than the core is the origin rule `ctx.source_node ?? ctx.core_location`, resolved once in
 `AuraEffect.recompute`.
 
 | You want… | Status | Extend via |
