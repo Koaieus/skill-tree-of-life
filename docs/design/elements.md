@@ -39,9 +39,9 @@ at. Owner: *"that table looks very good, should be persisted"*.
 
 | Element | Count (entity) | Medium — terrain, side-less, gives reach | Mover — sided, hurts, spreads | State — derived, no count of its own |
 |---|---|---|---|---|
-| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | **Burning** = Heat ≥ T (derived, no count; T as Frozen's); a keg goes off only while its node is Burning (owner, 2026-11-05) |
+| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | **Burning** = Heat ≥ T (derived, no count; T as Frozen's); a keg goes off only while its node is Burning (owner, 2026-11-05); § Derived states |
 | Ice | `ice` | **Cold** (what a pack sheds; #1444's resting stacks; was *Frost* — owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*; Cold below the threshold still drags blades, #1444) | **Frostbite** (#1444's inward pack; the working name *Hypothermia* retires) | **Frozen** = Cold at or above a threshold; the "timer" is Cold decaying back under it |
-| Lightning | `lightning` | **Charge** | none in v1 | none in v1; *Shocked* parked |
+| Lightning | `lightning` | **Charge** | none in v1 | **Shocked** = Charge ≥ T — #1733 round 3's *critical Charge* (Charge > graph degree) under its name |
 
 - **The count never ticks on anyone.** Only movers deal damage, and a mover is
   an ordinary sided status that clears with its owner like Poison does.
@@ -67,18 +67,21 @@ at. Owner: *"that table looks very good, should be persisted"*.
   (Frozen blocks travel, #1444) but holds no stacks. It is derived at every
   read, never saved: Frozen re-forms whenever Cold is back at or above T
   (owner, 2026-11-05: *"Yes, pure threshold"*).
-- **A medium is capped per node at k × T**, T = graph degree + 1, k a knob
-  (pass number: 3, so a degree-3 node holds at most 12 Cold, Fuel or Charge;
-  surplus planted beyond the cap is wasted). Owner, 2026-11-05, asked whether
+- **A medium is capped per node at k × T**, T = graph degree + 1,
+  **k = 2 + the node's `stake_level`** (owner, 2026-11-06: *"k = 2 (base
+  value) + stake_level (statformula)"*) — a derived scaling rule on the node
+  board (manage-stats), so a deeper-staked node holds more terrain and bare
+  ground (`stake_level` 1) gives k = 3, the pass's earlier default exactly.
+  Range: `stake_ceiling` is 3 unless raised, so k runs 3–5; a leaf (T 2)
+  holds 6–10, a degree-5 hub (T 6) 18–30, which late counts of 20–50 can
+  fill in one cast. Stacks past the cap are not wasted: they are the
+  **excess band**, § Derived states. Owner, 2026-11-05, asked whether
   a 100-Cold wall should be nigh impossible to remove: *"option 1 sounds
   good"* (the cap) over proportional decay alone. One rule bounds a Cold
   wall's depth (a wall is at most k breaks deep), a Fuel blast's radius and a
   Charge node's leaps — the medium-magnitude fork of #1733 round 3.
-- **Start with one state and no lightning mover** (owner, 2026-11-04: *"Fun
-  but maybe start with just the 1"*). Parked: Shocked as Lightning's derived
-  state, Burning as Fire's (owner: *"Shocked might be the derived status for
-  lightning. Or perhaps burning is so too for fire? Or a sleuth of ramping up
-  fire der states to blaze to inferno"*).
+- **No lightning mover in v1** (owner, 2026-11-04: *"Fun but maybe start
+  with just the 1"*). The three derived states are § Derived states.
 
 ## The count is supply, never a load (owner, 2026-11-04)
 
@@ -502,6 +505,67 @@ are the reach it brings. A Cold arrow onto a charged or fuelled node spreads
 Cold along the arcs or into the disc — Lightning carrying Ice is a feature
 that needs no rule of its own.
 
+## Derived states: Frozen, Burning, Shocked (owner, 2026-11-06)
+
+A state is Medium ≥ T, remembers nothing, is side-less like its medium, and
+has five cells: what it does to reach arriving, to **travel through the
+node**, on the world tick, what it costs the holder, what breaks it. Frozen
+fills all five (§ Pair rules). **Shocked already existed under another
+name**: #1733 round 3's *critical Charge* (Charge > graph degree) is Charge
+≥ T exactly, so its landing cell — every neighbour struck plus leaps growing
+with the excess — is built into the arc rule; naming it collapses two facts
+into one. Burning's landing cell is ignition (§ Temperature).
+
+**The travel cell completes the triad** (owner, 2026-11-06: *"picture A
+sounds very good. also in some sense: elec - hops -> 1D (lines); fire - discs
+-> 2D; cold - point -> 0D. it checks out"*). Each element is one mode's
+native reach made terrain, and its state is that reach's verb on travel:
+
+| State | Dimension | Travel verb | Spends |
+|---|---|---|---|
+| **Frozen** | 0D, a point | a path **ends**: hops, chains and arcs stop here (the Frostbite toll, #1444, is the one exception) | nothing; the glass is § Pair rules |
+| **Shocked** | 1D, a line | a path **conducts**: a spell walk or an arc entering a Shocked node leaves it without spending a hop — a line of Shocked nodes is a wire for anyone's magic | one Charge per pass-through |
+| **Burning** | 2D, a disc | a disc **re-blasts**: a blast whose disc covers a Burning node blasts again from it at the same size with no Fuel needed (backdraft) | Heat down to T − 1, so the node leaves Burning |
+
+Leaf (T 2): wires and backdrafts are cheap along chains; a degree-5 hub
+(T 6) rarely qualifies, so corridors conduct and hubs do not. Both verbs are
+side-less: your own cast conducts through the enemy's wire, your own blast
+backdrafts off your own Burning node. Rejected for v1 (offered as picture B):
+Burning denying allocation while it burns, Shocked self-discharging on the
+tick at any Charge ≥ T (the tick discharge returns, scoped to the excess
+band, below).
+
+**Burning is a light source** (owner, 2026-11-06: *"burning being a light
+source does sound clever, could be one of the cells filled by burning"*): a
+Burning node is visible through fog to every entity and reveals its
+neighbours — a VisionSystem fact, no combat rule. A Shocked "crackle"
+revealing charged nodes within leap radius is parked as minor (owner:
+*"likely minor?"*, *"more related to the `sensor_range` system, just not sure
+how"*).
+
+**The excess band: a second state above the cap** (owner, 2026-11-06: *"a
+2nd "post cap" state sounds good too … the excess is there but burns off
+quickly. like over-limit portion either triggers some collapse / expunge
+trading it for damage (or nothing if unallocated) or it spreads out, or gets
+chunked for bonus damage next incoming hit … or a mix of all of these, each
+fitting to the status effect"*). The cap k × T is **soft**: stacks past it
+exist as the *excess*, decay fast (a per-def rate, knob), and do one thing
+per element — the owner's earlier ladder (*"ramping up fire der states to
+blaze to inferno"*) realised as one threshold at the cap rather than at 2T
+and 3T. The excess is only stacks above a threshold, so a state still
+remembers nothing. Pass proposals for the three verbs, each pairing with its
+element's travel verb; the owner authored Ice's:
+
+| Excess | Verb (pass proposal unless quoted) |
+|---|---|
+| **Deep freeze** (Cold past cap) | owner: *"deep-freeze stacks dealing bonus damage on breaking ice and get removed along with it"* — a shatter removes T plus the whole excess and the excess adds to the shatter's damage; overfreezing a chokepoint is the kiter's risk |
+| **Blaze** (Heat past cap) | owner's direction *"excess-fire spreading faster"*: the excess portion flows to every neighbour each tick with no dead band (Metropolis without the floor), a flare that lights neighbouring leaves and settles in a tick or two; onto unallocated ground it is deleted as any Heat |
+| **Supercharge** (Charge past cap) | owner: *"god knows what"* — pass: the excess arcs out on the world tick as a terrain hit, one arc per excess stack, spending the excess; Charge up to the cap is a wire you lay, past it leaks on the clock |
+
+The "chunked for the next incoming hit" shape is lawful only as the excess
+itself being the stored amount (deep freeze is exactly that); a separate
+charged-up bonus would be a count, not a state.
+
 ## Temperature: Heat and Cold are one flow (owner, 2026-11-04/05)
 
 Exactly one pair nets: **Heat against Cold**. Owner, 2026-11-05, on whether
@@ -668,4 +732,5 @@ here.
 - The arc pick rule's numbers (leap radius per excess Charge) and
   radius-per-load: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
-- Shocked / Burning, and a fire ladder (blaze, inferno): parked above.
+- The excess-band verbs for Heat and Charge (pass proposals, § Derived
+  states) await the owner; the Cold one is authored.
