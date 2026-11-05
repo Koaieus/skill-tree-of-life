@@ -2,46 +2,10 @@
 class_name DeterminismProbe
 extends Node
 
-## #529: measure whether a peer could have DERIVED what the host sent it,
-## instead of arguing about it. This class produces a NUMBER, not a feature —
-## the input to the owner's choice between #463's confirm-down model and
-## lockstep + snapshot recovery.
-##
-## [b]It mutates nothing and changes nothing about what the client applies.[/b]
-## [CommandChannel] still submits the host's version through the same
-## [CommandApplier]; this only watches, tallies, and prints. It is
-## [member enabled]-gated and OFF by default, so a normal run pays one branch
-## per command.
-##
-## [b]Two independent questions, tallied separately.[/b]
-##
-##   1. [b]RESOLVE[/b] — could this peer have derived the host's result from
-##      the same inputs? Only [LaunchAttackCommand] can even be asked: it is
-##      the one verb whose result rides the wire (an [AttackRecord]) alongside
-##      the inputs that produced it (the plan + [member
-##      LaunchAttackCommand.resolve_seed]). Every other verb carries intent
-##      only, so "re-resolving" it is just applying it, and question 2 is the
-##      whole answer.
-##   2. [b]LAND[/b] — could this peer have derived the host's LAND-TIME
-##      arithmetic: the post-mitigation numbers, the HP bars, the reclassified
-##      hit kind, the gated bit, and the forced-dealloc cascades? This column
-##      was added 2026-08-24 and it is the one the model decision actually
-##      turns on — see [constant LAND_KEYS].
-##   3. [b]WORLD[/b] — after applying, do the two worlds agree? That is
-##      [method WorldFingerprint.compute], which [WorldSyncChannel] already
-##      compares; the probe only attributes each verdict to the command type
-##      that produced it, because "3 mismatches out of 412, all launch_attack"
-##      is the useful output and a single boolean is not.
-##
-## [b]The denominator is reported, not assumed.[/b] [method
-## CommandChannel._on_remote_command] deliberately SKIPS the fingerprint compare
-## while the queue is non-empty or a newer command has superseded it (a
-## spurious ✗ poisons the only diagnostic the harness has). Those commands are
-## tallied as `skipped`, not silently dropped from the count — a clean
-## "0 diverged" read is worthless if a third of the commands were never
-## compared, and that ratio is itself a finding.
-##
-## See `docs/domain/determinism-probe.md`.
+## Measures whether a peer could have DERIVED what the host sent it; produces a
+## number, not a feature. Mutates nothing, `enabled`-gated and off by default.
+## Tallies RESOLVE, LAND and WORLD per command type, and reports skipped compares.
+## See docs/domain/determinism-probe.md
 
 ## What half of a landing a peer could plausibly re-derive, and what it could
 ## not. Straight off [method AttackRecord.capture]'s own field notes, traced

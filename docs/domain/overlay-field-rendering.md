@@ -435,3 +435,36 @@ small fraction of a 16 ms/frame budget on this card, where the naive
 extrapolation of the pre-#177 ~1.6 µs/circle/frame constant would have put a
 single overlay at ~6.4 ms at that count. #177's acceptance criterion — overlay
 cost decoupled from total circle count, local density only — holds.
+
+## Overlay GPU perf harness (`scenes/overlay_perf_harness.gd`)
+
+GPU cost harness for `FogOverlay` / `AuraOverlay`. See #133.
+
+**This is the only way to answer the question #133 actually asks.** Both
+overlays draw one screen-covering rect whose fragment shader loops over every
+circle, so their cost is O(pixels × circles) per frame. That cost is
+invisible to the test suite (dummy renderer never runs a fragment shader) and
+meaningless under `xvfb` + opengl3 (llvmpipe is a software rasterizer; it
+cannot parallelize the loop the way real hardware does, so it overstates the
+cost by an unknown factor).
+
+**So: run this on real hardware, with the real driver.**
+```
+godot --path . scenes/overlay_perf_harness.tscn
+```
+Under xvfb it is good for exactly one thing — proving the shaders compile and
+the scene runs. **Do not read its timings there.**
+
+The number that decides #133 is the *delta*: overlay-on minus overlay-off
+GPU milliseconds, at circle counts spanning today (~15) to the planned late
+game (~400+). If that delta stays small as circles grow, the per-pixel loop
+was never the ceiling and #133's GPU half closes as "the 256-cap was the
+actual bug". If it grows linearly in circle count, the loop is real.
+
+Drives `FogOverlay.set_sources` / `AuraOverlay.set_field` — the
+same entry points the game uses — so it keeps measuring the right thing
+across any change to how those overlays render.
+
+Note this isolates the *GPU*: with no VisionSystem wired, FogOverlay's
+per-element dimming pass short-circuits. The CPU half of #133 was measured
+separately and fixed (VisionSourceIndex).

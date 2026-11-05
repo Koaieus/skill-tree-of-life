@@ -3,36 +3,11 @@
 class_name DistanceScale
 extends Resource
 
-## Maps a distance to the VALUE an aura grants at that distance (#900).
-##
-## [b]It returns the value, not a multiplier.[/b] The third parameter is the
-## authored value it is shaping — a leaf modifier's `value`, or a heal effect's
-## `base` — so a library scale spells itself as `value * <its multiplier>` and
-## an [ExpressionScale] can ignore `value` entirely (`5 - d` is the heal ramp:
-## 5 at the core, 4 one hop out, …). Before #900 this returned the multiplier
-## alone and [EffectContext] multiplied; the aura could then never express an
-## absolute per-hop ladder, and `LinearScale` forced the rim ring to 0.
-##
-## [b]Deliberately not called "falloff."[/b] The return is an unbounded scalar,
-## not an attenuation. It may rise with distance (the Serpent's hop buff), fall
-## (a fortress zone), spike at exactly one ring (a halo), or deepen a negative modifier
-## (the Ninja's armor debuff). "Falloff" would imply `<= 1` and monotonic
-## decrease — precisely the constraint this abstraction must not have.
-##
-## Also not "Gradient": Godot ships a built-in [Gradient], and `Edge.gd` already
-## carries one. Shadowing it in a `@tool` script is a live footgun.
-##
-## [b]Sign lives on the modifier, shape lives here.[/b] A negative `value` makes a
-## debuff aura; a rising scale makes its magnitude grow with distance. The two
-## compose freely, which is why this must stay direction-agnostic.
-##
-## [param max_distance] is the aura's reach bound in the same units, or -1.0 when
-## unbounded. A scale that doesn't normalize ignores it — say so by leaving
-## [method uses_bound] at its default.
-##
-## [b]Whether a computed value is worth granting is not this class's call.[/b]
-## A 0 (or a sign flip) is a legitimate result; [member AuraEffect.discard]
-## decides whether it lands. See that enum's docs for the authoring recipes.
+## Maps a distance to the VALUE an aura grants there. Returns the value, not a
+## multiplier (the third parameter is the authored value being shaped). Not called
+## "falloff" or "gradient". Sign lives on the modifier, shape here; whether a
+## result lands is `AuraEffect.discard`'s call.
+## See docs/domain/effect-system.md
 
 ## The one result that is NOT a value: "no modifier here". NaN, so no
 ## comparison the discard policy could make is ever true of it — [AuraEffect]

@@ -311,3 +311,128 @@ shipped). Determinism is guarded by the self-comparing `test_procgen_determinism
 the repo at 6 `value_overrides` (D11). Adding a seventh turns it red on
 purpose — that is the escape hatch's budget working, not fragility. Raise the
 budget deliberately or use the ladder instead.
+
+## Blocker footprint growth (`procgen/graph_procgen.gd`)
+
+Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
+a Dormant Core from "the node it sits on" into territory whose extent reads
+its size.
+
+Per blocker, in the same insertion (tier) order `_place_blocker_indices` produced: roll `randi_range` over the tier's authored
+`GraphProcgenBlockers.footprint_range`, then grow that many nodes by
+repeatedly picking a random ELIGIBLE node adjacent to what the blocker
+already holds.
+
+**Randomized frontier growth, not "BFS then sample".** Sampling `n` nodes
+out of the hop-ball could hand a blocker a hop-2 node without the hop-1 that
+connects it — and then `blocker_footprint_falloff.tres` measures hops over
+the OWNED subgraph, where that node is unreachable and takes no falloff at
+all. Growing through the frontier makes the footprint connected by
+construction, which is also what bounds the max hop at the rolled count and
+so keeps `node_health` off zero without a stat floor (#777 decision 5).
+
+Eligibility is the placement pass's own filter plus the claim set: never a
+starter core, never an authored-scene node, never inside a starter's `GraphProcgenBlockers.blocker_min_hops_from_core` ball (the safe radius covers
+the whole footprint, not just the core — #777 decision 6), and never a node
+another blocker already holds as a core or a footprint node. Short of
+candidates, a blocker shrinks its footprint rather than stealing a claim or
+reaching inside a camp.
+
+Returns index → `PackedInt32Array` of bonus-node indices (core excluded);
+a blocker that rolled 0, or found nothing to grow into, is simply absent.
+
+## Blocker index placement (`procgen/graph_procgen.gd`)
+
+Pre-loop pass picking which node INDICES get a removable blocker (#477),
+so `generate` can instantiate `_BLOCKER_NODE_SCENE` for them
+before the edges/self-loops wire nodes by reference (#478 — a node can't be
+swapped after that). Picks each size tier's count — `floor(config.topology.node_count
+/ denom)`, where denom 0 disables the tier and any positive denominator
+below `GraphProcgenBlockers.MIN_BLOCKER_PER` is clamped up to it —
+by sampling uniformly WITHOUT replacement from the regular node indices.
+Excluded from the pool: every starter core (the first `ctx`.starter_indices.size() indices), every authored-scene index
+(`ctx`.scenes[i] != null, the pre-roll pass's `ScenePlacement` slot), and —
+per `GraphProcgenBlockers.blocker_min_hops_from_core` — every node
+inside the hop-ball around ANY starter core, so no camp opens the run
+boxed in by boulders.
+
+Exclusion shrinks the POOL, never the requested count: a tier whose count
+exceeds what's left simply places fewer blockers (the existing
+`mini(count, eligible.size())` clamp). It never falls back to a node inside
+the safe radius — a too-dense level yielding zero blockers is a legible
+failure, a blocker two hops off a core is not.
+
+**The denominator basis is `node_count` — `GraphProcgenTopology.node_count`, the AUTHORED count — never `positions`.size().** Poisson-disk sampling routinely yields fewer points
+than requested, and `test_blocker_placement.gd`'s density tests assert
+exact counts against the authored value; silently switching the basis to
+the sampled count would drift those counts for no reason a level author
+could see in the inspector.
+
+Returns a `Dictionary` mapping index → `EntityFactory.BlockerSize` int, in
+insertion (tier) order. Rides its own derived `rng` (see
+`_BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
+uses — so placements are still seed-deterministic without perturbing every
+other roll.
+
+## StatPool range_floor (`procgen/pools/stat_pool.gd`)
+
+Tunable floor magnitude — "M" in #628. `L(min_tier) = range_floor`; every
+higher tier's low bound is `H(previous tier) + range_floor` (`TierLadder.low`). Same units as `unit_value` — the *excess* for MULTIPLY
+pools (the +1 is folded in at flatten, same as `unit_value`), raw
+otherwise. Validation is sign-aware (#637): for a positive (or zero)
+`unit_value` the constraint stays `range_floor <= unit_value` (a floor
+above the T1 ceiling inverts the range) — negative `range_floor` is legal
+and intended, it spans the range across zero so a normal pool can roll a
+small penalty alongside its usual upside. For a negative `unit_value` the
+constraint is magnitude-based instead — `sign(range_floor) ==
+sign(unit_value) and abs(range_floor) <= abs(unit_value)` — because an
+always-negative pool must stay always-negative; a floor that crossed zero
+or overshot the T1 ceiling's magnitude would break that guarantee.
+`_get_configuration_warnings` enforces both branches; see
+docs/domain/procgen-v4.md.
+
+Sentinel default: `FLOOR_UNSET` means "not authored" and resolves
+to `unit_value`, which is always valid under either branch above (equality
+trivially satisfies both) and reproduces pre-#628 behaviour exactly — a
+zero-width min_tier, unchanged highs. A literal numeric default could not
+do this: it would fail validation for any pool whose `unit_value` is
+smaller than it (e.g. `attribute .mul`'s 0.05) or wrong-signed (a negative
+pool's `unit_value`). Every already-authored `.tres` under
+`procgen/pools/` that doesn't deliberately author a `range_floor` omits
+this field and so gets `range_floor == unit_value` for free — the "no
+existing pool rebalances" regression the acceptance spec asks for.
+
+Negative pools (`unit_value < 0`, D9) are NOT exempt from `range_floor` as
+of #637 — they roll a real range like any other pool. See `_tier_magnitude_bounds` for how the recurrence's near/far pair is ordered
+for a negative pool.
+
+## StatPool tier magnitude bounds (`procgen/pools/stat_pool.gd`)
+
+One (lo, hi) magnitude pair per tier in `min_tier..max_tier` — the shared
+computation behind `to_entries`, `format_table`, and
+`_get_configuration_warnings`. "Magnitude" = pre-"+1" excess for
+MULTIPLY pools, raw value otherwise (the transform is applied by callers,
+same split `to_entries` always used for `unit_value`). Single
+source of the low-bound recurrence so every reader sees the same chain
+through (possibly overridden) highs — see `TierLadder.low`.
+
+the old exemption ("low ends up right of high") was a **naming** problem,
+not a math failure: `TierLadder.low` is sign-agnostic, and for a
+negative pool the recurrence yields the tier's *near*-zero end while the
+ladder (`unit_value × V(t)`) yields its *far* end — the mirror image of a
+positive pool, where the recurrence yields the near end and the ladder the
+far end. This function orders the pair by that role (not by raw numeric
+sort) before returning it, so both `to_entries`'s `value_range` and
+`_get_configuration_warnings`'s inversion check can keep comparing
+`lo` against `hi` with the exact same `>` — unchanged for either sign — and
+get the right answer: `lo` is always "the end nearer zero should not have
+overshot past hi" in the appropriate direction. Example, the repo's INT
+pool (`unit_value = -3`, `range_floor = -1`): T1 near = -1, far = -3 →
+ordered (lo, hi) = (-3, -1); T2 near = -4, far = -9 → (lo, hi) = (-9, -4).
+
+A tier with a `value_overrides` entry is ALSO a fixed point at its
+own tier — #629's decision text: "value_overrides still pins a tier to an
+exact value, bypassing the roll entirely." Its (overridden) `H` still
+feeds the NEXT tier's low bound via the chain — the guard `_get_configuration_warnings` enforces is specifically about THAT: a large
+override can invert a LATER, non-overridden tier, not the overridden tier
+itself (which can never invert — its own lo and hi are the same number).

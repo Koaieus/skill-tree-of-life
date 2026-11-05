@@ -1,47 +1,11 @@
 class_name CommandChannel
 extends LinkChannel
-## Bridges one [CommandApplier] to a [NetworkLink]: the host broadcasts the
-## commands it confirmed, every client applies them through its own applier.
-##
-## [b]It runs BOTH ways.[/b] Host-authoritative intent-up / confirmed-command-down
-## (owner call, 2026-08-24): a client's [method CommandApplier.submit] does not
-## queue — it emits the command upward as a [constant KIND_INTENT], the host puts
-## it through the same `_validate -> confirm -> apply` a local command takes, and
-## the confirm comes back down as an ordinary [constant KIND_COMMAND] the client
-## applies through [method CommandApplier.apply_remote]. There is no local
-## pre-application and no prediction.
-##
-## [b]A refusal has its own leg[/b] ([constant KIND_REFUSAL]), because a command
-## the host's gate rejects never confirms and so never crosses down — and a
-## client waiting on a confirmation that will never arrive is the failure mode
-## this feature most needs to not ship. There is deliberately NO timeout, retry
-## or heartbeat for a confirm that is simply lost: ENet's reliable-ordered
-## channel is the guarantee, and a desync on a one-room LAN is a restart.
-##
-## [b]Every verb [CommandApplier] handles mirrors[/b] — launch_attack rides down
-## with an [AttackRecord] the client replays rather than re-resolving, loot as a
-## [LootRoundCommand] per round carrying what was granted BY VALUE. This class
-## mirrors whatever the applier handles, so a verb missing from the wire is
-## almost always a missing submission site, not a transport gap. Check who
-## raises the command first.
-##
-## [PickLootCommand] is the one verb built for the upward direction, and the
-## exception on both ends: the applier answers it through
-## [method PickLootCommandHandler.apply], NOT through its queue, so it never
-## confirms and can never be broadcast back down. For the same reason it opens
-## no awaiting window and is not watched for refusal; see [method _on_intent].
-##
-## [b]The determinism probe hangs off the mirror path here[/b] as two optional
-## calls into [DeterminismProbe] and no logic of its own; the per-command
-## compare is [WorldSyncChannel]'s. It never changes what is applied, and it is
-## off unless a harness turns it on.
-##
-## This channel is also the one that tells the applier whether it DECIDES or is
-## told: the core's [member NetworkLink.role] reaches it through
-## [method _on_identity_changed], so the core holds no applier.
-##
-## See `docs/domain/multiplayer-harness.md` and
-## `docs/domain/determinism-probe.md`.
+## Bridges one `CommandApplier` to a `NetworkLink`: intent up (`KIND_INTENT`),
+## confirmed command down (`KIND_COMMAND`), refusals on their own leg
+## (`KIND_REFUSAL`); no prediction, no timeout. `PickLootCommand` is the upward-only
+## exception. Tells the applier whether it DECIDES or is told.
+## See docs/domain/network-session.md, docs/domain/multiplayer-harness.md and
+## docs/domain/determinism-probe.md
 
 ## Wire envelope keys. The command's own dictionary is nested rather than merged
 ## so the codec keeps owning its whole namespace.
