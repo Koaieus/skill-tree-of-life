@@ -25,16 +25,16 @@ Ready items got milestone `Cross-cutting / infra`; Ready requires a milestone, s
 - **Gates aren't in the first-level sandbox** because procgen places none. That's #1208 (Needs design, no priority). Owner noticed; bump it if wanted.
 - **New VFX idea:** panels lens the space beneath them (owner, P1, Needs design, VFX & juice). The feasibility notes are in its body.
 
+## Third pass (2026-11-05, late evening): the four filings
+- **#1186 → Ready as one unit.** Ten `mp:e2e` runs at b6d215aa: 10/10 pass, 13–17 s wall, 17–30 entity-turns. The owner's condition held, so F1 = A (`--timeout` 600 as a knob); the turn-bounded-pass child is dissolved. #1770 did not reproduce.
+- **#435 → 4 children filed Ready** (uniforms; non-tinted sweep; tinted sweep blocked by 1; delete blocked by 2+3). Tentative pass pick: the minimap takes the shared translucent fill, allow-list stays empty; owner eyeball pass is acceptance 5 of child 3.
+- **#422 → 7 children filed Ready**, strictly serial, golden-hash test first (integration tier). Labelled `needs Opus` + "Fable drone (owner call)" in the body, the #471 convention.
+- **#441 → Ready** with the re-scope spec: `FoldReducer` abstract base with a virtual `_fold_damage`; CancelIfMulti extends FirstReducer with the guard (the Retract-over-Max shape). No `.tres` changes.
+- Milestones: `Cross-cutting / infra` for #1186, #422 and its children, #435's children; #441 keeps `Status effects & spell automata`.
+
 ## Still to do
-- **File children (spec skill, drift stamps, Ready):**
-  - **#1186's `--seed` child.** Then time about 10 mp:e2e runs. If runs end around 15 turns, F1 is A (`--timeout` 600).
-  - **#435's 4 children.** F1 is B: 3 instance uniforms; GlassPanel deleted at the end.
-  - **#422's 7 children,** strictly serial, Fable. The golden-hash test child goes first.
-  - **#441:** a fresh spec for the re-scope (FoldReducer base, the 4 folds become thin subclasses, no `.tres` churn).
-- **"Your calls" section (not started):**
+- **"Your calls" section (not started — a design conversation, its own pass):**
   - #1620's VFX judgments.
   - About 35 dated owner decisions with no ADR (in the #1761 PR description).
   - Stale In-progress and In-review claims (#1076, #1107, #1108 and others).
   - Hygiene's 16 flags: stale Designing (#1429, #1590, #1659, #1708); hub drift (#1313, #1397, #1591, #1608, #1646); all-parked hubs (#199, #420, #1255, #1380, #1439, #1615, #1711).
-
-Apply verdicts through a Haiku `clerk` work order that names a milestone for every Ready move. A Ready move needs a drift stamp on the issue.
