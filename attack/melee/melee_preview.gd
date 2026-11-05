@@ -35,13 +35,13 @@ const _SWING_FADE: float = 0.45
 		if is_node_ready():
 			_refresh()
 
-## Look profile stamped onto every blade this preview spawns (#256). Null keeps
+## Look profile stamped onto every blade this preview spawns. Null keeps
 ## [SkillBlade]'s own default. Set here rather than on each blade because the
 ## preview OWNS blade lifetime — it rebuilds the ghost every cycle, so anything
 ## written onto a blade from outside is erased on the next rebuild.
 @export var blade_style: BladeStyle = null
 
-## Trajectory samples the aim-time prediction resolves per frame (#821).
+## Trajectory samples the aim-time prediction resolves per frame.
 ##
 ## A melee resolve is a ~72 sample physics scan; run whole it is a multi-frame
 ## stall on the one input the player is watching for an answer to. Stepping it
@@ -56,7 +56,7 @@ const _SWING_FADE: float = 0.45
 @export var prediction_slice_steps: int = 12
 
 ## Trajectory samples a MIRROR's committed-swing draw-only resim steps per
-## frame (#796) — same shape as [member prediction_slice_steps], different
+## frame — same shape as [member prediction_slice_steps], different
 ## consumer. That one exists so an AIMING click never stalls; this one exists
 ## so a COMMITTED swing's resim never bakes whole before [method launch] can
 ## start drawing it. Kept as its own knob rather than reusing the aim-time one
@@ -106,7 +106,7 @@ var _ghost: SkillBlade
 var last_clock: BladeSwingClock = null
 # The blade [method begin_windup] claimed for the committed swing, or null when
 # no wind-up staged one. What makes [method launch] a HANDOFF rather than a
-# re-spawn (#559 decision 2).
+# re-spawn.
 var _windup_blade: SkillBlade = null
 # Generation token so in-flight playback coroutines self-cancel when the
 # selection changes underneath them. Bump on every spawn/teardown.
@@ -115,7 +115,7 @@ var _gen: int = 0
 # Gates `_refresh()` — see its docstring for the hang this prevents.
 var _live_swing: bool = false
 
-# #504: this class is now PURE ANIMATION — it holds no per-swing bookkeeping
+# This class is now PURE ANIMATION — it holds no per-swing bookkeeping
 # at all. It used to mirror the applier's accepted set (`_dead_at`,
 # `_pending_pops`, `_pending_hits`, read from
 # `MeleeAttackPlan.last_live_gate.result`) so it could re-announce damage
@@ -136,7 +136,7 @@ func _on_plan_changed(_plan: AttackPlan) -> void:
 	_refresh()
 
 
-## #504: a COMMITTED swing is not a preview, and must not be refreshable.
+## A COMMITTED swing is not a preview, and must not be refreshable.
 ##
 ## The mutation now runs concurrently with the swing, and mutating fires plan
 ## signals (the forced-dealloc cascade invalidates the plan's own nodes), which
@@ -154,7 +154,7 @@ func _refresh() -> void:
 	var plan := _armed_plan()
 	if preview_enabled and plan is MeleeAttackPlan and plan.is_valid():
 		var melee := plan as MeleeAttackPlan
-		# #782: the PUSH that keeps the prediction off the repaint path. This is
+		# The PUSH that keeps the prediction off the repaint path. This is
 		# the only surface that wants one, it already knows the selection is
 		# valid and the swing is not live, and it runs synchronously inside the
 		# `attack_plan_state_changed` dispatch — so the overlay's own repaint,
@@ -163,7 +163,7 @@ func _refresh() -> void:
 		# nothing, which is the shape `BattleSystem`'s draw-only resolve already
 		# wants.
 		#
-		# #821: one SLICE of it, not the whole resolve. The click gets a
+		# One SLICE of it, not the whole resolve. The click gets a
 		# partial arc in this very frame and `_process` extends it; the plan's
 		# own invalidation cancels an in-flight run, so a click landing
 		# mid-slice can never be answered with the previous selection's swing.
@@ -178,14 +178,14 @@ func _refresh() -> void:
 ## Resolve one frame's worth of the aim-time prediction, and keep `_process`
 ## running exactly while there is more to do.
 ##
-## The budget is spent per FRAME, which is the whole point (#821 decision 5):
+## The budget is spent per FRAME, which is the whole point:
 ## no single frame blocks, regardless of blade size.
 func _pump_prediction(plan: MeleeAttackPlan) -> void:
 	var complete := plan.advance_prediction(prediction_slice_steps)
 	set_process(not complete)
 
 
-## Start a MIRROR's committed-swing draw-only resim (#796) and arm the frame
+## Start a MIRROR's committed-swing draw-only resim and arm the frame
 ## pump that steps it. Called by [BattleSystem] the moment a REPLAY command's
 ## record lands — well before [method begin_windup] / [method launch] run —
 ## so the wind-up's own seconds are free head start on top of whatever
@@ -219,7 +219,7 @@ func _process(_delta: float) -> void:
 		replay_plan = null
 		_replay_plan = null
 	if replay_plan != null:
-		# #796: a committed swing's resim keeps stepping regardless of
+		# A committed swing's resim keeps stepping regardless of
 		# `_live_swing` / `preview_enabled` — [method launch]'s docstring
 		# already establishes both are ignored for a committed swing, and this
 		# is what [method launch] is waiting on.
@@ -240,7 +240,7 @@ func _process(_delta: float) -> void:
 
 ## The ghost currently mounted, or null. For a sandbox that wants to poke at the
 ## live blade's visuals (force a vertex de-lit, re-push a [BladeStyle]) or at
-## its sim state (#781's strain readout reads `.state.obstacles` off it) —
+## its sim state (the strain readout reads `.state.obstacles` off it) —
 ## nothing in the game reads this.
 func current_blade() -> SkillBlade:
 	return _ghost
@@ -281,10 +281,10 @@ func focus_marker() -> Node2D:
 ## [OutcomeApplier] actually lands. Note the old objection to a rescan — that
 ## it "would run after the depletion cascade" — described replaying a FINISHED
 ## mutation, which is no longer the shape of this call; the no-rescan rule
-## survives on the drift argument alone. #502's landing gate lives in
+## survives on the drift argument alone. the landing gate lives in
 ## [BladeDamageInstance.land_on] and needs nothing from here.
 ## [param schedule] is the compiled presentation timeline this swing's hits land
-## on. It is what the blade's playback rate is DERIVED from (#818): the schedule
+## on. It is what the blade's playback rate is DERIVED from: the schedule
 ## already folds in the player's `combat_time_scale`, and without it the tween
 ## drew at 1.0 while the hits arrived on a rate-scaled clock — at 2.0x the arc
 ## finished a full second before the last damage number. Null (a sandbox, a
@@ -306,7 +306,7 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	var traj := plan.last_trajectory
 	var events := plan.last_events
 	# The swing's own pop outcome, so a vertex that dies mid-swing goes de-lit
-	# at the `t` it died (#256's interim pop). Read off the plan, never
+	# at the `t` it died (the interim pop). Read off the plan, never
 	# re-derived here — same no-rescan rule the events follow.
 	blade.pop_result = plan.last_pops
 	# Claim the ghost for the whole swing — set AFTER `_spawn_blade`, which
@@ -318,7 +318,7 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 	var playback_rate := 1.0
 	if schedule != null:
 		playback_rate = schedule.blade_playback_rate(MeleeAttackPlan.SWING_DURATION)
-	# #796: a MIRROR's resim may still be stepping — `plan.replay_duration()`
+	# A MIRROR's resim may still be stepping — `plan.replay_duration()`
 	# is the swing's real trajectory-time span either way (in flight or
 	# already finished; see its docstring), so `play` always sizes its tween
 	# correctly rather than reading a partial `traj.duration()`.
@@ -343,7 +343,7 @@ func launch(plan: MeleeAttackPlan, schedule: OutcomeSchedule = null) -> void:
 ## [BattleSystem] waits out the returned length on its own beat clock, so no
 ## animation gates the mutation loop (`.claude/rules/presentation-clock.md`).
 ##
-## [b]This is a HANDOFF, never a re-predict (#559 decision 2).[/b] The ghost
+## [b]This is a HANDOFF, never a re-predict.[/b] The ghost
 ## the player has been watching loop is CLAIMED rather than rebuilt: nothing
 ## here calls [method MeleeAttackPlan.refresh_prediction], so
 ## [member MeleeAttackPlan.prediction_runs] cannot move during a launch. With
@@ -439,7 +439,7 @@ func _spawn_blade(plan: MeleeAttackPlan) -> void:
 ## [b]#782: this loop no longer simulates.[/b] It used to run its own
 ## [method SkillBlade.simulate] every cycle, with a fresh drag clock and a fresh
 ## bunker field — which was both the expensive half of an always-running surface
-## and, since #801, wrong: the authoritative resolve REBAKES from each severance
+## and,, wrong: the authoritative resolve REBAKES from each severance
 ## sample, so a plain sim could not reproduce an arc that loses a vertex partway
 ## through. Replaying [method MeleeAttackPlan.prediction]'s own trajectory makes
 ## the ghost arc the resolved arc by construction, drag and breaks included, and
@@ -463,7 +463,7 @@ func _run_preview_loop(gen: int) -> void:
 		# outlives the `_refresh` that primed it, and a plan re-validated
 		# mid-loop would otherwise replay nothing.
 		_pump_prediction(live_plan)
-		# #821: the PARTIAL is a head start, not a first cycle. The run appends
+		# The PARTIAL is a head start, not a first cycle. The run appends
 		# to this same trajectory in place, so a cycle started mid-slice is
 		# sized to the WHOLE swing (`prediction_duration`, the #796 shape
 		# `launch` already uses) and `play` picks up each slice as it lands
@@ -479,7 +479,7 @@ func _run_preview_loop(gen: int) -> void:
 			# trajectory, whose duration is zero.
 			return
 		last_clock = prediction.clock
-		# The sandbox's strain readout reads the field off the ghost (#781), and
+		# The sandbox's strain readout reads the field off the ghost, and
 		# the ghost no longer builds one — hand it the predicted swing's.
 		blade.state.obstacles = prediction.obstacles
 		blade.pop_result = prediction.pops

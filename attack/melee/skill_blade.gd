@@ -18,7 +18,7 @@ extends Node2D
 signal hit(hitter_idx: int, is_edge: bool, target: SkillNode, t: float, damage: float)
 signal playback_finished
 
-## How far below its authored tier a blade part sits while forming (#559) — a
+## How far below its authored tier a blade part sits while forming — a
 ## VALUE dimmer on `modulate`, so the [BladeStyle] tiers underneath are dimmed
 ## and restored rather than re-authored (`.claude/rules/hdr-color.md`). At 0.45
 ## an [constant Emissive.VALUE] rim lands well under the bloom threshold, which
@@ -32,7 +32,7 @@ const _STAMP_SCALE: float = 1.22
 ## [member _glint_extent] with no sweep running.
 const _GLINT_UNSET := Vector2(INF, -INF)
 ## How much harder the pivot pulls the blade's centre of interest than any
-## other vertex (#930) — the camera's rubber band leans toward the arc but
+## other vertex — the camera's rubber band leans toward the arc but
 ## never lets go of the hinge. Presentation, not sim: [BladeTrajectory] stores
 ## the flat centroid and [method weighted_focus] applies this on top.
 const FOCUS_PIVOT_WEIGHT: float = 5.0
@@ -40,7 +40,7 @@ const FOCUS_PIVOT_WEIGHT: float = 5.0
 const SCENE := preload("res://attack/melee/skill_blade.tscn")
 const BLADE_NODE := preload("res://attack/melee/blade_node.tscn")
 const BLADE_EDGE := preload("res://attack/melee/blade_edge.tscn")
-## An inherited scene of #835's `shatter_field.tscn`, material overridden to
+## An inherited scene of the `shatter_field.tscn`, material overridden to
 ## `blade_shard_material.tres` (`resource_local_to_scene`, so every
 ## `instantiate()` — one per SkillBlade — gets its own uniform set rather than
 ## scrubbing together). See `get_shard_field`.
@@ -48,8 +48,8 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 
 @export var owned_by: Entity
 
-## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns
-## (#256). One resource per blade, so a sandbox can retune the whole swing live.
+## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns.
+## One resource per blade, so a sandbox can retune the whole swing live.
 @export var style: BladeStyle = BladeNode.DEFAULT_STYLE:
 	set(value):
 		if style != null and style.changed.is_connected(queue_redraw):
@@ -63,7 +63,7 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 ## The swing's pop outcome, set by the caller BEFORE [method play] when one is
 ## known ([member MeleeAttackPlan.last_pops]). Vertices it reports dead go
 ## [member BladeNode.death_progress] from 0 to 1 across [member BladeStyle.pop_window]
-## starting at exactly the `t` they died (#787, replacing #256's de-lit
+## starting at exactly the `t` they died (#787, replacing the de-lit
 ## interim), and spawn their shards into [member _shard_field] the frame
 ## playback crosses that `t`. Null (the preview loop) means nothing ever dies.
 ##
@@ -83,7 +83,7 @@ var _node_visuals: Array[BladeNode] = []
 var _edge_visuals: Array[BladeEdge] = []
 var _nodes_container: Node2D
 var _edges_container: Node2D
-## #787's shard field, one per blade — mounted directly under THIS node
+## the shard field, one per blade — mounted directly under THIS node
 ## (`Nodes`/`Edges`'s sibling), which is the static one: nothing ever writes
 ## `SkillBlade`'s own transform, only its children's (`BladeNode.global_position`
 ## each frame). A field under a moving `BladeNode` would re-seed its fracture
@@ -107,12 +107,12 @@ var _source_nodes: Array[SkillNode] = []
 ## Each piece's explosive charges at build, before any resolve spent the
 ## state's working copy — the start [method _charges_at] counts down from.
 var _build_charges: PackedInt32Array = PackedInt32Array()
-## The single Tween driving the wind-up (#559). One tween with parallel,
+## The single Tween driving the wind-up. One tween with parallel,
 ## delayed tweeners rather than a coroutine chain, so [method stop] can kill
 ## the whole sequence in one call and [method play] cannot end up fighting a
 ## leftover form tweener for `modulate`.
 var _form_tween: Tween
-## Which vertex indices the form-in has PLACED (#930) — an explicit set, not
+## Which vertex indices the form-in has PLACED — an explicit set, not
 ## an alpha read. [method form_in] starts it empty and fills it on each
 ## vertex's stagger delay; a build, [method form_instantly] and
 ## [method _finish_form] fill it whole. Keys are indices, values unused.
@@ -127,14 +127,14 @@ var glint_progress: float = 0.0:
 ## sweep — min/max over vertices of `dot(position, n) ∓ radius` — or
 ## [constant _GLINT_UNSET] between sweeps.
 var _glint_extent: Vector2 = _GLINT_UNSET
-## The blade's centre of interest, authored in the scene (#930): a composite
+## The blade's centre of interest, authored in the scene: a composite
 ## whose origin is not its point of interest exposes one of these and keeps
 ## its `global_position` current itself — the camera follows the node.
 @onready var _focus_marker: Marker2D = %FocusMarker
 
 
 func _ready() -> void:
-	# A projectile, not a board fixture (#928): the blade's vertices and edges
+	# A projectile, not a board fixture: the blade's vertices and edges
 	# draw above every SkillNode and Edge — including the ones the fog promotes
 	# to SENSED — or the staggered form-in is invisible under the board.
 	z_as_relative = false
@@ -193,7 +193,7 @@ func build_from_skill_nodes(
 	_pending_pops = PackedVector2Array()
 	if _shard_field != null:
 		_shard_field.clear()
-	# Held so the wind-up (#559) can ask which vertices carry an addon without
+	# Held so the wind-up can ask which vertices carry an addon without
 	# re-deriving it from the plan — [BladeState] deliberately keeps no handle
 	# on the SkillNodes it was built from, and `apply_to_blade` below is a pure
 	# virtual dispatch that tells us nothing about who dispatched.
@@ -252,7 +252,7 @@ func simulate(
 ##   - playback_rate: 1.0 (default) preserves today's real-time pace exactly;
 ##     0.5 takes twice the wall-clock to play the same trajectory. See the
 ##     sim/presentation invariant in docs/domain/melee-blade-sim.md — hit
-##     scheduling stays in trajectory time regardless of this knob (#619).
+## scheduling stays in trajectory time regardless of this knob.
 ##   - duration_override: >= 0.0 overrides [method BladeTrajectory.duration] as
 ##     the tween's trajectory-time span. #796: a mirror's committed-swing resim
 ##     may still be stepping when this call starts (`traj.samples` grows in
@@ -275,7 +275,7 @@ func play(
 	_finish_form()
 	modulate = Color(1.0, 1.0, 1.0, 0.35) if ghostly else Color.WHITE
 	# A fresh play() is a fresh clock: drop anything the LAST swing's pool
-	# still had in flight (#835's pool caveat — a spawn after the pool is
+	# still had in flight (the pool caveat — a spawn after the pool is
 	# empty re-bases `time_base` to this swing's own spawn times) and
 	# re-derive the pending shard spawns from `pop_result` as it stands now.
 	if _shard_field != null:
@@ -309,8 +309,8 @@ func _apply_playback_frame(
 		traj: BladeTrajectory,
 		pending: Array[BladeHitEvent],
 		ghostly: bool) -> void:
-	# Scrub-safety (#787 acceptance 3): a backward seek is the only thing that
-	# can invalidate the shard pool's forward-only assumption (#835's pool
+	# Scrub-safety: a backward seek is the only thing that
+	# can invalidate the shard pool's forward-only assumption (the pool
 	# caveat) — nothing here otherwise accumulates. Detect it off the LAST `t`
 	# this was called with and react exactly as the pool caveat prescribes:
 	# clear() + re-drain the pending spawns, never just a smaller `elapsed`.
@@ -328,10 +328,10 @@ func _apply_playback_frame(
 			_node_visuals[i].charges = _charges_at(i, t)
 			_node_visuals[i].spend_progress = _spend_progress_at(i, t)
 			_node_visuals[i].shrug_progress = _shrug_progress_at(i, t)
-	# The marker rides the trajectory's stored centroid (#930): the one place
+	# The marker rides the trajectory's stored centroid: the one place
 	# the swing writes vertex positions is the one place the focus follows them.
 	# Only the committed swing, though — the idle preview loop plays the ghost
-	# `ghostly`, and a camera following this marker (#931) must not rock while
+	# `ghostly`, and a camera following this marker must not rock while
 	# the player aims (#894 arms tracking on the swing-start beat for exactly
 	# that reason), so the ghost loop leaves the marker on the rest centre.
 	if not ghostly and state != null and positions.size() > 0:
@@ -340,8 +340,8 @@ func _apply_playback_frame(
 		queue_redraw()
 	if pop_result != null:
 		for i in _edge_visuals.size():
-			# Edge index into state.edges is stable for the whole swing
-			# (#785/#801), and _edge_visuals was spawned in that same order —
+			# Edge index into state.edges is stable for the whole swing,
+			# and _edge_visuals was spawned in that same order —
 			# see _spawn_visuals — so i indexes both alike.
 			_edge_visuals[i].severed = pop_result.severed_at.has(i) \
 					and t >= pop_result.severed_at[i]
@@ -359,7 +359,7 @@ func _apply_playback_frame(
 	while not pending.is_empty() and pending[0].t <= t:
 		var ev: BladeHitEvent = pending.pop_front()
 		if not ghostly:
-			# Edges are live CONTACTS (#785) but deal no damage (ADR 0005):
+			# Edges are live CONTACTS but deal no damage (ADR 0005):
 			# they exist so a bunker cannot slip between two vertices into the
 			# blade's interior. A vertex contact carries the coefficient and
 			# the speed curve; an edge contact carries 0.
@@ -373,7 +373,7 @@ func _apply_playback_frame(
 					is_edge, ev.target as SkillNode, ev.t, damage)
 
 
-## The speed-scaled damage curve (#779), read off [member owned_by]'s board —
+## The speed-scaled damage curve, read off [member owned_by]'s board —
 ## this is the VISUAL playback path (the floater/emit-only site), never the
 ## authority's real damage. That number comes off [BladeDamageInstance] at
 ## [MeleeAttackPlan] resolve time; this only has to agree with it so a
@@ -497,7 +497,7 @@ func _shrug_progress_at(idx: int, t: float) -> float:
 ## ascending by time (Vector2's default sort compares `.x` then `.y`) so
 ## [method _apply_playback_frame] can drain it with the same
 ## `while pending[0].t <= t` shape [method play]'s hit events already use.
-## Called on every [method play] and every backward seek (#835's pool caveat:
+## Called on every [method play] and every backward seek (the pool caveat:
 ## a rewind clears the field, so its pending spawns must be re-derived too).
 func _rebuild_pending_pops() -> void:
 	_pending_pops = PackedVector2Array()
@@ -508,8 +508,8 @@ func _rebuild_pending_pops() -> void:
 	_pending_pops.sort()
 
 
-## Fragments vertex `idx` into [member _shard_field] at the moment it died
-## (#787 decision 5). `dead_t` is trajectory time, matching `traj`'s own
+## Fragments vertex `idx` into [member _shard_field] at the moment it died.
+## `dead_t` is trajectory time, matching `traj`'s own
 ## clock; the field's `elapsed` is already trajectory time too (set by
 ## [method _apply_playback_frame] just before this is called).
 func _spawn_shard_for(idx: int, dead_t: float, traj: BladeTrajectory) -> void:
@@ -525,7 +525,7 @@ func _spawn_shard_for(idx: int, dead_t: float, traj: BladeTrajectory) -> void:
 			s.pop_shard_count, s.pop_kick_speed)
 
 
-## The velocity a popped vertex hands its shards (#787 acceptance 4): the last
+## The velocity a popped vertex hands its shards: the last
 ## MOVING sample pair before `dead_t`, `(sample[k] - sample[k-1]) / dt`. Walks
 ## back past any STALLED pair rather than reading the first one it finds —
 ## [method BladeState.remove_vertex] zeroes the dead vertex's `inv_mass`, so
@@ -550,7 +550,7 @@ static func seed_velocity(traj: BladeTrajectory, idx: int, dead_t: float) -> Vec
 	return Vector2.ZERO
 
 
-## The shard field this blade's pops spawn into (#787) — exposed for
+## The shard field this blade's pops spawn into — exposed for
 ## look-tuning (`addons/melee_sandbox`) and test inspection, same as [method
 ## get_node_visuals].
 func get_shard_field() -> ShatterField:
@@ -573,13 +573,13 @@ func stop() -> void:
 		playback_finished.emit()
 
 
-## Stage the committed swing's WIND-UP (#559) and return the seconds it
+## Stage the committed swing's WIND-UP and return the seconds it
 ## occupies. [b]Never awaited by anyone[/b] — this starts a Tween and returns
 ## immediately; [BattleSystem] waits out the returned length on its own beat
 ## clock, so a dropped frame or a killed tween cannot move when the swing
 ## begins (`.claude/rules/presentation-clock.md`).
 ##
-## The sequence, owner-authored (#559 decision 4):
+## The sequence, owner-authored:
 ## [codeblock]
 ## (pivot focus, the camera's beat) -> vertices form in, staggered by hop
 ## distance from the pivot -> addon stamps land on the vertices that carry one
@@ -627,7 +627,7 @@ func form_in(lead: float, stagger_span: float, stamp_time: float,
 	tween.set_parallel(true)
 	_form_tween = tween
 	var glow_at := lead + stagger_span + stamp
-	# Nothing is placed until its stagger delay fires (#930): the focus sits
+	# Nothing is placed until its stagger delay fires: the focus sits
 	# on the pivot alone through the lead and grows with the form-in.
 	_placed.clear()
 	_refresh_focus_marker()
@@ -734,7 +734,7 @@ func _style_or_default() -> BladeStyle:
 
 ## The zero-length wind-up: every beat authored (or gated) to 0, so the blade
 ## is simply there, fully formed and fully lit. This is what a SEATED actor
-## gets — #559's sharpening on decision 1 is that the sequence still RUNS for
+## gets — the sharpening on decision 1 is that the sequence still RUNS for
 ## every actor, and only its durations collapse, so the await point #796 needs
 ## survives on the one machine that most needs it.
 func form_instantly() -> void:
@@ -760,7 +760,7 @@ func _finish_form() -> void:
 	_mark_all_placed()
 
 
-## The form-in's per-vertex beat (#930): vertex [param i] is placed the moment
+## The form-in's per-vertex beat: vertex [param i] is placed the moment
 ## its pop begins, and the focus grows to include it.
 func _mark_placed(i: int) -> void:
 	_placed[i] = true
@@ -780,7 +780,7 @@ func _pivot_position() -> Vector2:
 	return state.positions[state.pivot_index]
 
 
-## Re-derive the marker off the PLACED vertices' rest positions (#930): at
+## Re-derive the marker off the PLACED vertices' rest positions: at
 ## rest that is every vertex, mid form-in only those whose pop has begun. The
 ## pivot is placed first (hop 0), so until it is, the focus is the pivot.
 func _refresh_focus_marker() -> void:
@@ -989,7 +989,7 @@ func get_node_visuals() -> Array[BladeNode]:
 	return _node_visuals
 
 
-## Has the form-in PLACED vertex [param i] yet (#928, #930)? The stagger pops
+## Has the form-in PLACED vertex [param i] yet? The stagger pops
 ## each vertex in on its own delay and marks it placed as that pop begins — an
 ## explicit set, never an alpha read. Everything is placed on a blade at rest,
 ## mid-swing, or fading out; only a vertex still waiting for its stagger delay
@@ -1003,19 +1003,19 @@ func is_vertex_placed(i: int) -> bool:
 
 ## The spawned edge visuals, in [member BladeState.edges] order — the edge
 ## counterpart of [method get_node_visuals], for the same look-tuning /
-## test-inspection use (#781's bunker break de-lights one of these).
+## test-inspection use (the bunker break de-lights one of these).
 func get_edge_visuals() -> Array[BladeEdge]:
 	return _edge_visuals
 
 
-## The blade's centre of interest as a node (#930) — `global_position` is kept
+## The blade's centre of interest as a node — `global_position` is kept
 ## current by the blade itself (on build, on each placed vertex, on every
 ## playback frame; never in `_process`), so a camera can simply follow it.
 func focus_marker() -> Marker2D:
 	return _focus_marker
 
 
-## The pivot-weighted focus from a FLAT centroid, closed form (#930): with the
+## The pivot-weighted focus from a FLAT centroid, closed form: with the
 ## pivot pinned and counted once inside [param flat_centroid] over [param n]
 ## vertices, weighting it [param pivot_weight]× instead of 1× is
 ## `(w·pivot + flat·n − pivot) / (w + n − 1)` — so the flat centroid the sim

@@ -20,8 +20,8 @@ class Pop extends RefCounted:
 	## is an edge break, else -1. Exactly one of `particle_idx` / `edge_idx` is
 	## set, mirroring [BladeHitEvent]'s own convention.
 	##
-	## [b]Nothing produces one today[/b] — [method LiveGate._sever_edge] is #781's
-	## seam and has no caller until the bunker lands. Under ADR 0005 a spike
+	## [b]Nothing produces one today[/b] — [method LiveGate._sever_edge] is the
+	## bunker-break seam and has no caller until the bunker lands. Under ADR 0005 a spike
 	## never breaks an edge, so a spike drain can no longer mint an edge Pop; the
 	## record shape is kept because a bunker break needs exactly it, and needs to
 	## reach the replay as a cue the same way a vertex pop does.
@@ -46,23 +46,22 @@ class Pop extends RefCounted:
 
 
 ## One SEVERANCE EVENT: the set of vertices that stopped being reachable from
-## the pivot at [member t], recorded the moment it happened (#801).
+## the pivot at [member t], recorded the moment it happened.
 ##
 ## [b]These vertices are COASTING, not dead.[/b] Nothing is pulling on them any
 ## more, so plain Verlet keeps carrying them through the rest of the same
-## trajectory — armed, still landing #779-scaled hits, still poppable. They are
+## trajectory — armed, still landing speed-scaled hits, still poppable. They are
 ## deliberately NOT in [member Result.dead_at]; the only thing this record
 ## drives is [method MeleeAttackPlan.resolve_against] writing
 ## [member BladeState.damping] for exactly this set before it re-bakes the tail.
-## (Under #186 they were a second BODY, which is the model this replaced.)
 ##
 ## [b]Trigger-agnostic on purpose.[/b] A severance is described by "which
 ## vertices left the handle, and when" and by nothing about WHY — a spike pop
-## today, #781's bunker break tomorrow. Whatever severs feeds
+## today, the bunker break tomorrow. Whatever severs feeds
 ## [method LiveGate._disintegrate_unreachable], and there is one continuation.
 ##
-## `vertices` are indices into [BladeState] — index-stable for the whole swing
-## (#785), never compacted — and are ascending, so a consumer's iteration is
+## `vertices` are indices into [BladeState] — index-stable for the whole swing,
+## never compacted — and are ascending, so a consumer's iteration is
 ## deterministic without re-sorting.
 class Severance extends RefCounted:
 	var t: float
@@ -101,7 +100,7 @@ class Contact extends RefCounted:
 		centre = struck_.global_position if struck_ != null else Vector2.ZERO
 
 
-## One explosive charge spend a blade contact decided (#1595): [member count]
+## One explosive charge spend a blade contact decided: [member count]
 ## charges off [member node] at [member t]. Recorded, never written: the
 ## resolve lands it as a 1-stack-per-charge cleanse on the attack record.
 class Spend extends RefCounted:
@@ -140,7 +139,7 @@ class BlastToken extends HitInstance:
 
 
 ## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
-## at `ev.t >= dead_at[idx]` must be dropped. Since #801 this holds destroyed
+## at `ev.t >= dead_at[idx]` must be dropped. This holds destroyed
 ## vertices only — a vertex that merely lost its path to the handle coasts on
 ## and is recorded in `severances` instead, so `dead_at.size()` and
 ## [method vertex_pop_count] now agree by construction rather than by filter.
@@ -149,10 +148,10 @@ class Result extends RefCounted:
 	var dead_at: Dictionary = {}
 	## edge_idx -> time it was severed. The edge counterpart of `dead_at`; the
 	## vertices it orphaned land in `dead_at` as usual. Written only by
-	## [method LiveGate._sever_edge], i.e. by #781's bunker break once it exists.
+	## [method LiveGate._sever_edge], i.e. by the bunker break once it exists.
 	var severed_at: Dictionary = {}
 	var pops: Array[Pop] = []
-	## Severance events in the order they happened (#801). Each entry is one
+	## Severance events in the order they happened. Each entry is one
 	## call to [method LiveGate._disintegrate_unreachable] that actually
 	## orphaned something. The vertices are deliberately NOT in `dead_at`: they
 	## are coasting, not destroyed, and they go on hitting things in the same
@@ -165,16 +164,14 @@ class Result extends RefCounted:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
 
 	## How many of the attacker's own VERTICES a defender actually destroyed
-	## (#799) — [member AttackOutcome.popped_nodes]'s one source.
+	## ([member AttackOutcome.popped_nodes]'s one source).
 	##
-	## [b]Kept as a `pops` walk, not switched to `dead_at.size()`.[/b] Since
-	## #801 an orphan never enters `dead_at` at all, so the two agree — but they
-	## agree for a reason that lives in `_disintegrate_unreachable`, and the
-	## EDGE exclusion below is this method's own. #799 filed the conflation
-	## (#186 put orphans in `dead_at`, which made the AI's shape-risk term
-	## over-avoid spiked defenders); #801 removed the premise.
+	## [b]Kept as a `pops` walk, not switched to `dead_at.size()`.[/b] An
+	## orphan never enters `dead_at` at all, so the two agree — but they agree
+	## for a reason that lives in `_disintegrate_unreachable`, and the EDGE
+	## exclusion below is this method's own.
 	##
-	## Edge [Pop]s (#781's bunker seam, no caller today) are excluded by the
+	## Edge [Pop]s (the bunker seam, no caller today) are excluded by the
 	## `particle_idx >= 0` test: a broken edge destroys structure, not matter.
 	func vertex_pop_count() -> int:
 		var n := 0
@@ -184,7 +181,7 @@ class Result extends RefCounted:
 		return n
 
 
-## The pop/disconnect gate for one swing (#502): the kill/disconnect predicates
+## The pop/disconnect gate for one swing: the kill/disconnect predicates
 ## fed one [BladeHitEvent] at a time, in true land order, by
 ## [method BladeDamageInstance.land_on] as [OutcomeApplier] walks the swing's
 ## hits — so an earlier-in-time hit's cascade is visible to a later event's
@@ -197,7 +194,7 @@ class Result extends RefCounted:
 ## no preview flag anywhere below — see [method admit].
 class LiveGate extends RefCounted:
 	## Accepted pops so far, in the same shape [method resolve] returns —
-	## [MeleePreview] replays this post-application (#502's "Watch": the
+	## [MeleePreview] replays this post-application (the "Watch": the
 	## preview replays the applier's ACCEPTED set, never a fresh rescan).
 	var result := Result.new()
 	var _state: BladeState
@@ -207,21 +204,21 @@ class LiveGate extends RefCounted:
 	## which is the one thing a false return cannot say on its own (a dead
 	## target and a spike pop both refuse). [BladeDamageInstance] reads it to
 	## stamp [member HitInstance.popped_vertex]; see that member for why the cue
-	## is recorded rather than emitted from here (#536).
+	## is recorded rather than emitted from here.
 	var _last_pop: Pop = null
 	## particle_idx -> true for every vertex currently in `result.dead_at`
 	## (killed OR disintegrated). Maintained incrementally by [method _kill]
-	## (#795) rather than rebuilt from `result.dead_at` every call — it only
+	## rather than rebuilt from `result.dead_at` every call — it only
 	## ever grows within a swing.
 	var _removed: Dictionary = {}
 	## particle_idx -> true for every vertex already reported in
 	## `result.severances`. Separate from `_removed` precisely because a coasting
 	## vertex is still THERE — it is not removed from the sim, it is only no
 	## longer pulled — so it must not enter the BFS's removed set. This dict only
-	## stops the same vertex being reported twice (#801).
+	## stops the same vertex being reported twice.
 	var _orphaned: Dictionary = {}
 	## vertex index -> Array[int] of neighbour indices, over `_state.edges`.
-	## Built lazily on first use and cached for the rest of this swing (#795):
+	## Built lazily on first use and cached for the rest of this swing:
 	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
 	var _adjacency: Dictionary = {}
 	var _adjacency_built: bool = false
@@ -244,8 +241,8 @@ class LiveGate extends RefCounted:
 	## Finder per warhead reach, so one reach gathers once per landing cache.
 	var _finders: Dictionary = {}
 
-	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override
-	## (#778), consulted BEFORE the state's own
+	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override,
+	## consulted BEFORE the state's own
 	## [member BladeState.vertex_blunting] array. Production never passes it:
 	## both blade-build call sites fill the array from each source node's
 	## `get_local_value(&"blunting")`, so the [SpikeRingAddon] raise to 2
@@ -268,7 +265,7 @@ class LiveGate extends RefCounted:
 	## turns out to be a live pop.
 	##
 	## [param world] selects which world the allocation / ownership / spike
-	## reads come from (#535). Required, not defaulted, for the same reason
+	## reads come from. Required, not defaulted, for the same reason
 	## [method OutcomeApplier.apply]'s is — a nullable world hides an implicit
 	## live branch inside a gate whose whole job is to read one specific world.
 	func admit(ev: BladeHitEvent, world: CombatWorld) -> bool:
@@ -281,13 +278,12 @@ class LiveGate extends RefCounted:
 		var real_node := ev.target as SkillNode
 		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
 		if node == null or not node.is_allocated():
-			return false  # #502: dead target, no dud — indistinguishable from a miss
+			return false  # dead target, no dud — indistinguishable from a miss
 		# The pivot / handle is exempt from popping — popping the wielder's own
-		# grip is out of scope. Since #801 there is exactly one state per swing
+		# grip is out of scope. There is exactly one state per swing
 		# and exactly one pivot in it, so this is unconditional: a coasting
 		# vertex has no handle of its own to be exempt by, and pops like any
-		# other (#186 acceptance: "its root is not exempt", now true because
-		# there is no second root).
+		# other (its root is not exempt, because there is no second root).
 		if ev.particle_idx == _state.pivot_index:
 			return true
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
@@ -306,7 +302,7 @@ class LiveGate extends RefCounted:
 			_kill(ev.particle_idx, ev.t, real_node, blunting)
 			return false  # the popping contact itself deals no damage
 		# Remaining < blunting: drain the remainder and let the vertex THROUGH —
-		# "pop only if full amount is removed" (#778). No Pop record: the vertex
+		# "pop only if full amount is removed". No Pop record: the vertex
 		# survives and its hit lands normally.
 		pool.deplete(remaining)
 		_mark_spent(node, w)
@@ -502,13 +498,13 @@ class LiveGate extends RefCounted:
 	## [b]This is an explicit SKIP of the spike gate, and it has to be.[/b] The
 	## tempting one-liner — give an edge blunting 0 and let the ladder run — is a
 	## bug, not a shortcut: `remaining >= blunting` is then trivially true, so
-	## every edge contact would `deplete(0)` and sever, which is #778's "zero
+	## every edge contact would `deplete(0)` and sever, which is the "zero
 	## means unfilled" gotcha inverted. Hence there is no `_blunting_for_edge`
 	## anywhere in this file, and no pool read below.
 	##
 	## Liveness still applies — "neither endpoint has died and the edge itself is
 	## intact", since an edge hanging off a popped vertex is no longer swinging —
-	## and a de-allocated target is still #502's "no dud for melee".
+	## and a de-allocated target is still a "no dud for melee".
 	func _admit_edge(ev: BladeHitEvent, w: CombatWorld) -> bool:
 		if _state == null or ev.edge_idx < 0 or ev.edge_idx >= _state.edges.size():
 			return false
@@ -526,11 +522,11 @@ class LiveGate extends RefCounted:
 
 	## Sever [param edge_idx] and disintegrate whatever it was the only path to.
 	## The vertex-kill twin of [method _kill]: same record, same reachability
-	## sweep, same "recorded, never announced from here" rule (#536) — only the
+	## sweep, same "recorded, never announced from here" rule — only the
 	## thing that died differs. [method BladeState.remove_edge] drops the
 	## distance constraint too.
 	##
-	## [b]This is #781's seam, and it currently has no caller.[/b] Its one caller
+	## [b]This is the bunker-break seam, and it currently has no caller.[/b] Its one caller
 	## used to be a full spike drain on an edge contact; ADR 0005 retired that —
 	## [b]a spike destroys matter, a bunker destroys structure[/b], so the thing
 	## that breaks an edge is a rigid blade shattering against a bunker, not a
@@ -542,7 +538,7 @@ class LiveGate extends RefCounted:
 	## of `edges`, so every edge index stays stable and the cached map stays
 	## correct — [method _reachable_from_pivot] skips the severed edge by index
 	## as it walks. Rebuilding here would put an O(E) pass back on every
-	## severance and undo #795 (acceptance 7: no per-severance rescan).
+	## severance and undo the cached adjacency (no per-severance rescan).
 	## [method invalidate_adjacency] remains for a caller that mutates
 	## `_state.edges` itself.
 	func _sever_edge(edge_idx: int, t: float, defender: SkillNode, blunting_spent: float) -> void:
@@ -557,7 +553,7 @@ class LiveGate extends RefCounted:
 	## minted one — i.e. an unspiked node ([SpikeRingAddon] is the only source,
 	## see spike_ring_addon.gd). Reads through [method NodeCombat.board], so it
 	## resolves to the SHADOW's own cloned board on a shadow [param node], same
-	## as every other per-world board read in this file (#778 — mirrors how
+	## as every other per-world board read in this file (mirrors how
 	## [method NodeCombat.take_damage] already deletes per-world HP with no
 	## special-casing for which world it's handed).
 	static func _spikes_pool(node: NodeCombat) -> PoolStat:
@@ -587,7 +583,7 @@ class LiveGate extends RefCounted:
 		return _blunting_for_dict({}, particle_idx)
 
 	## Registers [param node]'s real [SkillNode] on its owner's sparse
-	## turn-start refresh set (#778 — Entity._on_turn_started sweeps exactly
+	## turn-start refresh set (Entity._on_turn_started sweeps exactly
 	## this set, never all owned nodes; see entity.gd). Gated to the LIVE world
 	## ONLY: a shadow's owner is the same real [Entity] the live world would
 	## resolve to, and marking through a shadow (AI scoring / preview, or the
@@ -608,9 +604,9 @@ class LiveGate extends RefCounted:
 		result.dead_at[particle_idx] = t
 		var pop := Pop.new(particle_idx, t, defender, blunting_spent)
 		result.pops.append(pop)
-		# #504: a spike pop is a MODEL event, announced on the mutation clock —
+		# A spike pop is a MODEL event, announced on the mutation clock —
 		# the same clock the damage, the health bar and the shatter are on. It
-		# is not announced from HERE, though (#536): under #498 step 3 the
+		# is not announced from HERE, though: the
 		# authority runs this gate against a SHADOW world, where an emit would
 		# have no audience, and then replays its own record on the live world
 		# like any peer. So the pop is RECORDED — [BladeDamageInstance] reads
@@ -630,8 +626,7 @@ class LiveGate extends RefCounted:
 	## BFS reads both `_removed` and [member BladeState.removed_edges].
 	func _disintegrate_unreachable(t: float) -> void:
 		# The BFS root is always the pinned handle, and it cannot die (the
-		# exemption in `admit`). #186's re-rooting is gone with the second body
-		# it existed for: there is one state, one pivot, one trajectory.
+		# exemption in `admit`): there is one state, one pivot, one trajectory.
 		var root := _state.pivot_index
 		var reachable := BladePopResolver._reachable_from_pivot(
 				_state, _removed, _ensure_adjacency(), null, root)
@@ -645,14 +640,14 @@ class LiveGate extends RefCounted:
 				_orphaned[v] = true
 				orphaned.append(v)
 		if not orphaned.is_empty():
-			# RECORDED here, simulated elsewhere (#801). This gate stays a pure
+			# RECORDED here, simulated elsewhere. This gate stays a pure
 			# predicate over one swing — it does not own a solver, a physics
 			# query or a second AttackOutcome, and it must not, because it is
 			# also the AI-rollout and preview path. The RESOLVE loop reads this
 			# and does the state mutation.
 			result.severances.append(Severance.new(t, orphaned))
 
-	## Lazily builds, then caches, this swing's adjacency map (#795) — one
+	## Lazily builds, then caches, this swing's adjacency map — one
 	## O(E) build total instead of one per [method _kill]/[method admit].
 	func _ensure_adjacency() -> Dictionary:
 		if not _adjacency_built:
@@ -660,8 +655,8 @@ class LiveGate extends RefCounted:
 			_adjacency_built = true
 		return _adjacency
 
-	## Explicit invalidation seam (#795, for #781): nothing in this file
-	## mutates `_state.edges` mid-swing today, but #781 (bunker edge breaks)
+	## Explicit invalidation seam: nothing in this file
+	## mutates `_state.edges` mid-swing today, but a bunker edge break
 	## will remove edges from it mid-swing. Whatever does that MUST call this
 	## before the next [method admit]/[method _kill], or the cached adjacency
 	## goes stale and the BFS walks edges that no longer exist. Discards the
@@ -674,15 +669,14 @@ class LiveGate extends RefCounted:
 
 ## `state.edges` as an undirected adjacency map: vertex index -> Array[Vector2i]
 ## of (neighbour index, EDGE index), in the same order those neighbours would be
-## discovered by a linear rescan of `state.edges` for that vertex (#795 —
-## preserves [method _reachable_from_pivot]'s traversal order exactly, so
+## discovered by a linear rescan of `state.edges` for that vertex (preserves [method _reachable_from_pivot]'s traversal order exactly, so
 ## caching this instead of rescanning is behaviour-preserving, not just
 ## complexity-preserving).
 ##
-## The edge index rides along so the BFS can skip a SEVERED edge (#785/#781)
+## The edge index rides along so the BFS can skip a SEVERED edge
 ## without a second lookup — pairing it into the same Vector2i keeps the walk
 ## O(V + E) and adds no per-vertex rescan of `state.edges`, which is exactly
-## what #785 acceptance 7 forbids. Removed edges are NOT pruned at build time:
+## what must not be done. Removed edges are NOT pruned at build time:
 ## the map is built once per swing and edges are severed during it, so the skip
 ## has to happen at traversal, and [method LiveGate.invalidate_adjacency] stays
 ## available for a caller that mutates `state.edges` itself.
@@ -700,7 +694,7 @@ static func _build_adjacency(state: BladeState) -> Dictionary:
 
 
 ## BFS from the pivot over an adjacency map, skipping any vertex in `removed`
-## and any EDGE in `removed_edges` (#785 — a bunker that snaps an edge, #781,
+## and any EDGE in `removed_edges` (a bunker that snaps an edge
 ## orphans whatever hung off it just as surely as a popped vertex does).
 ## Returns a set (Dictionary) of reachable particle indices.
 ##
@@ -708,14 +702,14 @@ static func _build_adjacency(state: BladeState) -> Dictionary:
 ## characterization test does): when omitted, this builds a fresh map from
 ## `state.edges` — still O(V + E) for THIS call, just not amortized across a
 ## whole swing. [method LiveGate._kill] passes its cached map instead, so a
-## swing's repeated pops share the one O(E) build (#795's actual fix; see
+## swing's repeated pops share the one O(E) build (see
 ## [method LiveGate._ensure_adjacency]).
 ##
 ## `removed_edges` defaults to the state's own [member BladeState.removed_edges]
 ## when omitted (`null`), which is where severance is recorded — an explicit
 ## `{}` therefore means "walk every edge", not "ask the state".
 ## `root` defaults to -1, meaning [member BladeState.pivot_index] — the handle,
-## for every driven blade. A free fragment (#186) whose root vertex has itself
+## for every driven blade. A free fragment whose root vertex has itself
 ## died passes an explicit surviving one instead; see
 ## [method LiveGate._disintegrate_unreachable].
 static func _reachable_from_pivot(

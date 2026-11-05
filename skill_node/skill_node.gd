@@ -12,8 +12,8 @@ const EmblemResolver = preload("res://skill_node/visuals/emblem/emblem_resolver.
 
 ## Collision layer bits (1-based, Godot's [method Area2D.set_collision_layer_value]
 ## convention) toggled on/off as this node's sparse DEFENDER stats come and go
-## (#810) — the physics-queryable half of "does this node carry `swing_drag`
-## / `deflection`", consumed by #811's merged obstacle-field build via
+## the physics-queryable half of "does this node carry `swing_drag`
+## / `deflection`", consumed by the merged obstacle-field build via
 ## `intersect_shape`. **Additive** to layer 1, the untouched Godot default this
 ## node's `Area2D` root has never set explicitly: layer 1 is "the gameplay
 ## hitbox", what blade sweeps and range gathers query.
@@ -42,7 +42,7 @@ signal archetype_changed
 signal subtype_changed
 ## Emitted at the end of [method _apply_sensed_state], after `sensed` (or
 ## `revealed`) has already been mirrored onto the visual stack — lets a
-## fog-reactive visual (e.g. [BlockerVisual], #478) re-sync off a signal
+## fog-reactive visual (e.g. [BlockerVisual]) re-sync off a signal
 ## instead of polling [member sensed] every frame. `_apply_sensed_state` fires
 ## for either flag changing, and early-returns before `is_node_ready()`, so a
 ## pre-ready sensed/revealed write never emits this.
@@ -50,7 +50,7 @@ signal sensed_changed
 ## Emitted after `_addons` gains or loses a member (never on a rejected
 ## duplicate-unique attach, which returns before mutating the ledger) — see
 ## `_attach_addon`/`_detach_addon`. Lets a listener (e.g. `Edge`, for
-## ClampAddon's edge-width gradient, #455) react without polling `get_addons()`.
+## ClampAddon's edge-width gradient) react without polling `get_addons()`.
 signal addons_changed
 signal left_clicked(skill_node: SkillNode)
 ## Emitted on every take_damage call (even at 0 effective). Local twin of
@@ -66,9 +66,9 @@ signal healed(amount: float, source: HitInstance)
 ## cascade dealloc.
 signal depleted
 ## Emitted by [method notify_statuses_changed] on every apply/tick/remove of
-## this node's status slice (#880) — mirrors the `damaged`/`_on_damaged_flash`
+## this node's status slice — mirrors the `damaged`/`_on_damaged_flash`
 ## shape (see [method notify_damaged]) rather than a poll. `_sync_status_tint`
-## is the sole subscriber today; #876's readout row gets the same trigger.
+## is the sole subscriber today.
 signal statuses_changed
 ## Emitted after every allocation_level change, once the local-scale mutator
 ## has retuned this node's modifiers — a listener re-reads level-dependent
@@ -127,10 +127,10 @@ var last_owned_vision: float:
 	set(value):
 		state.effects = value
 
-## Tooltip identity — a single line, PoE-keystone style (#179). Empty means
+## Tooltip identity — a single line, PoE-keystone style. Empty means
 ## "no name to show"; callers render nothing. Opt-in authoring surface: a
-## procgen node without an authored name stays unnamed on purpose (#288's generated
-## name composer later fills the empty branch — never key layout on this).
+## procgen node without an authored name stays unnamed on purpose (a generated
+## name composer may later fill the empty branch — never key layout on this).
 @export var display_name: String = ""
 
 ## This node's archetype identity — carries the primary stat, colour, and
@@ -148,7 +148,7 @@ var last_owned_vision: float:
 		if is_node_ready():
 			_sync_visuals()
 
-## This node's second identity, orthogonal to [member archetype] (#1056):
+## This node's second identity, orthogonal to [member archetype]:
 ## `regular` / `blight` / `bless`. Procgen stamps the resolved subtype on every
 ## archetype-bearing node; `null` means unset, as on a hand-authored sandbox
 ## node. Carries the tint and emissive tier the visuals read — see
@@ -270,7 +270,7 @@ var inner_radius: float:
 
 ## The body composite, for a presenter that drives its
 ## [member NodeVisualsComposite.feedback_tint] (the hit-flash channel) — never
-## `visuals.modulate`, which would multiply the hover ring down (#304).
+## `visuals.modulate`, which would multiply the hover ring down.
 func node_visuals() -> Node2D:
 	return _node_visuals
 
@@ -282,12 +282,12 @@ func carve_params() -> CarveParams:
 	return _node_visuals.carve_params() if _node_visuals != null else CarveParams.none()
 @onready var _collision: CollisionShape2D = $CollisionShape2D
 @onready var _pick_collision: CollisionShape2D = $PickArea/Shape
-## The shots-left pip row (#959) — see `shots_pips.gd`. Typed via preload,
+## The shots-left pip row — see `shots_pips.gd`. Typed via preload,
 ## not a `class_name`, for the same cache-refresh reason as line 6.
 @onready var shot_pips: Sprite2D = $Visuals/ShotsPips
 
 ## Attached addons, in child order — the ledger that makes attach/detach
-## idempotent (#334). NOT merely a cache of a child scan: a SkillNode
+## idempotent. NOT merely a cache of a child scan: a SkillNode
 ## re-entering the tree re-fires `child_entered_tree` for every existing child,
 ## so membership here (not call ordering) is what decides whether an addon's
 ## modifiers still need transferring. See .claude/rules/skill-node-addons.md.
@@ -300,7 +300,7 @@ var _bound_owner: Entity = null
 ## Canonical ledger of node-LOCAL modifiers (addons, direct grants, effect
 ## node-grants) — the complement of [member modifiers] (entity-scoped). Kept
 ## as the PARENT instances (composites stay whole) so the local-scale mutator
-## (#376) can walk the walk and consult each parent's override. Populated by
+## can walk the walk and consult each parent's override. Populated by
 ## [method add_local_modifier] / emptied by [method remove_local_modifier].
 var _local_modifiers: Array[StatModifier] = []:
 	get:
@@ -308,26 +308,18 @@ var _local_modifiers: Array[StatModifier] = []:
 	set(value):
 		state.local_modifiers = value
 
-## [b]Two of the four ledgers this comment used to describe are gone — see
-## #377.[/b] `_addon_local_clones` / `_addon_entity_clones` existed because a
-## `.tscn`-instantiated addon's `local_modifiers` / `entity_modifiers` were
-## Godot-cached sub-resources shared across every `instantiate()` of that
-## scene; the local-scale mutator's `value` writes would have leaked across
-## carriers. Fixed at the source instead of worked around: every addon
-## `.tscn` carrying a `StatModifier` sub-resource now sets
-## `resource_local_to_scene = true` (see docs/domain/resource-local-to-scene.md),
-## so each instantiation already gets its own private copy — `_attach_addon` /
-## `_detach_addon` route `a.get_local_modifiers()` / `a.get_entity_modifiers()`
-## straight through, no clone, no ledger.
+## An addon's `local_modifiers` / `entity_modifiers` need no clone ledger: every
+## addon `.tscn` carrying a `StatModifier` sub-resource sets
+## `resource_local_to_scene = true` (docs/domain/resource-local-to-scene.md), so
+## each instantiation owns a private copy and `_attach_addon` / `_detach_addon`
+## route `a.get_local_modifiers()` / `a.get_entity_modifiers()` straight through.
 ##
-## The two below are NOT a binding-state artifact and #377 does not remove
-## them — they're composition bookkeeping for the local-scale mutator's
-## Array-override path (#376 decision 8), independent of how a modifier binds
-## to a board. Killing these needs #376's swap-the-active-leaf-set mechanism
-## itself to change (always-live leaves + a read-time scale factor instead);
-## that's a separate, unstarted redesign — see the #377 backlog follow-up.
+## The two ledgers below are composition bookkeeping for the local-scale
+## mutator's Array-override path, independent of how a modifier binds to a board.
+## Removing them needs the swap-the-active-leaf-set mechanism itself to change
+## (always-live leaves plus a read-time scale factor).
 
-## Composition-swap ledger (#376, decision 8): parent modifier -> the scaled
+## Composition-swap ledger: parent modifier -> the scaled
 ## leaf-set currently applied in its place on its contribution board. Only
 ## populated while an override returns an Array; the value path is drift-free
 ## by construction and keeps no state.
@@ -355,7 +347,7 @@ var _last_allocation_level: int = 0:
 		state.last_allocation_level = value
 
 ## Sensed-but-not-visible flag, written by VisionSystem on every recompute.
-## Drives NodeVisualsComposite's archetype-only outline (SensedOutline, #141).
+## Drives NodeVisualsComposite's archetype-only outline (SensedOutline).
 ## Not a stat — purely a per-frame render hint, no signals, no persistence.
 var sensed: bool = false:
 	set(value):
@@ -369,7 +361,7 @@ var sensed: bool = false:
 ## "sensed-only blip" set). Fog gates readable detail — the core HP bar shows
 ## only when its node is actually revealed, not merely not-sensed (a fully-fogged
 ## node also has `sensed == false`, so `not sensed` would leak an enemy core's HP
-## through darkness — #94). Defaults `true` so fog-less scenes/tests still read
+## through darkness). Defaults `true` so fog-less scenes/tests still read
 ## the bar. Not a stat — a per-frame render hint.
 var revealed: bool = true:
 	set(value):
@@ -390,7 +382,7 @@ var lantern_lit: bool = false:
 		lantern_lit = value
 		_apply_sensed_state()
 
-## Scouted flag (#1033), written by VisionSystem on every recompute: true
+## Scouted flag, written by VisionSystem on every recompute: true
 ## while this MACHINE's vision group holds a live scouted mark on the node —
 ## never a hostile scout's, so it leaks nothing. The disc in the fog is the
 ## primary feedback; this drives the [ScoutMarker] ring beside it, whose
@@ -473,7 +465,7 @@ var _tags: Dictionary[StringName, int] = {}:
 ## node-board `stake_level` PoolStat (the baked [member NodeStatBoard.stake_level]).
 ## `allocation_level` is that pool's `.current`: 0 = unowned, 1 = baseline,
 ## 2+ = staked (e.g. stake_level=3 + allocation_level=1 reads as a 1/3 node).
-## The pool's clamp is the single guard that keeps fill ≤ cap (#374).
+## The pool's clamp is the single guard that keeps fill ≤ cap.
 ##
 ## These two are PROXY properties over the node-board pool: authors stay at
 ## SkillNode scope, the pool is minted by [method _init_node_board], and each
@@ -546,7 +538,7 @@ var regen_stacks: int = 0:
 	set(value):
 		state.regen_stacks = value
 
-## Arrows fired from this leaf during the current turn (#956). Runtime state,
+## Arrows fired from this leaf during the current turn. Runtime state,
 ## not a stat — the `regen_stacks` precedent: per-node combat bookkeeping
 ## nothing should be able to modify through the pipeline. Deliberately NOT
 ## touched by (de)allocation, so a same-turn dealloc → re-allocate keeps the
@@ -561,7 +553,7 @@ var shots_fired_this_turn: int = 0:
 		return state.shots_fired_this_turn
 	set(value):
 		state.shots_fired_this_turn = value
-		# #959: both writers — mark_shot_fired's `+=` and the firer's turn-end
+		# Both writers — mark_shot_fired's `+=` and the firer's turn-end
 		# `= 0` in Entity._on_turn_ended — land here, so the pip row refreshes
 		# off the write itself and never per frame.
 		if is_node_ready():
@@ -622,7 +614,7 @@ var _damaged_since_upkeep: bool = false:
 # damage doesn't visually merge into one stuck red.
 var _hit_flash_tween: Tween
 
-# Denial-feedback bookkeeping (#89). Killed + reset on every trigger so spamming
+# Denial-feedback bookkeeping. Killed + reset on every trigger so spamming
 # the deallocate key doesn't stack shakes / leave a stuck offset or tint.
 var _feedback_tweens: Array[Tween] = []
 
@@ -636,14 +628,14 @@ var self_loop_count: int:
 ## on never writing a derived value back into an @export.
 var stable_id: int = 0
 
-## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
+## The live combat-state slice (docs/domain/attack-timeline.md).
 ## SkillNode COMPOSES this — it owns the live one, it does not copy one.
 ## Constructed here (a field initializer, not `_ready`) so it exists for a
 ## pre-`_ready` scene-authored write, same reasoning as [member _addons].
 var _combat := NodeCombat.new(self)
 
 
-## Public accessor for [member _combat] (#498 step 2) — [EntityCombat.snapshot]
+## Public accessor for [member _combat] — [EntityCombat.snapshot]
 ## needs it to build a shadow's owned [NodeCombat] set from the real navigator
 ## mirror; a plain getter keeps `_combat` itself construction-assigned with no
 ## public setter. Mirrors [method Entity.get_combat].
@@ -680,7 +672,7 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(_on_damaged_flash.unbind(2))
 	statuses_changed.connect(_sync_status_tint)
-	# Addons are plain direct children (#334) — no filing bin. Adopt the ones
+	# Addons are plain direct children — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
 	# then listen for later arrivals. `child_entered_tree` fires for DIRECT
 	# children only — verified empirically, a grandchild never fires it — which
@@ -709,7 +701,7 @@ func _refresh_core_presence() -> void:
 	var _is_core := owned_by != null and owned_by.core_location == self
 	var dressed := _is_core and core_presence_visible
 	# Gate the composite's core-only presence (CorePresence: the owner class's
-	# look + CoreSigilBloom, #128/#1108) to the one core node. The look is null
+	# look + CoreSigilBloom) to the one core node. The look is null
 	# off-core, so a non-core node instances nothing. `sensed` hiding the whole
 	# ShaderStack (CorePresence's parent) keeps a fogged core hidden.
 	if _node_visuals != null:
@@ -734,13 +726,13 @@ func _refresh_core_health_bar(_is_core: bool) -> void:
 	if _is_core and owned_by != null and owned_by.stat_board != null:
 		pool = owned_by.stat_board.health
 	core_health_bar.bind_health(pool)
-	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one, #94).
+	# Fog-gated: only a revealed core reads its HP (not a fogged/sensed one).
 	core_health_bar.visible = (revealed or lantern_lit) and _is_core
 
 
 ## Mirror the `sensed` flag onto the visual stack. Three things shift:
 ## NodeVisualsComposite switches to its archetype-only outline draw
-## (SensedOutline, #141), the SkillNode is promoted above the fog overlay's z
+## (SensedOutline), the SkillNode is promoted above the fog overlay's z
 ## so the outline isn't dimmed into nothing, and owner/mechanic detail (core
 ## marker, addons) is hidden so a sensed-only viewer reads archetype only. The
 ## hide is a global placeholder — proper per-viewer info gating is the next
@@ -753,7 +745,7 @@ func _apply_sensed_state() -> void:
 	var look_revealed := revealed or lantern_lit
 	if _node_visuals != null:
 		_node_visuals.sensed = look_sensed
-		# Half of the core look's gate (#802). `sensed` hides the whole
+		# Half of the core look's gate. `sensed` hides the whole
 		# ShaderStack, but a FULLY fogged node is neither sensed nor revealed —
 		# its halo stayed visible under the fog overlay and kept rebuilding.
 		_node_visuals.set_core_revealed(look_revealed)
@@ -817,11 +809,11 @@ func _sync_visuals() -> void:
 		return
 
 	# NodeVisualsComposite (disk + rim + rune/halo dress) is the whole
-	# disk/allocation render (#304) — InnerDisk and RimRing both draw opaquely
+	# disk/allocation render — InnerDisk and RimRing both draw opaquely
 	# across their full band regardless of allocation (dark dome / dim silver
 	# rim when unallocated), so an unallocated node already reads as a
 	# footprint with no separate wash layer needed. The sensed-fog outline is
-	# the composite's own SensedOutline (#141).
+	# the composite's own SensedOutline.
 	hover_ring.configure(radius)
 	for a in _addons:
 		a.configure_visual(radius)
@@ -829,7 +821,7 @@ func _sync_visuals() -> void:
 	_node_visuals.geom_inner_r = inner_radius
 	_node_visuals.geom_crest_r = radius - RIM_CREST_INSET
 	_node_visuals.geom_outer_r = radius
-	# #504: entity tint / allocation fill are drawn off `owned_by` — the model.
+	# Entity tint / allocation fill are drawn off `owned_by` — the model.
 	# There is no `shown_owner` to lag behind it: an attack's ownership loss now
 	# happens at the landing's own `arrival_time` (see [BeatClock]), so the
 	# repaint this triggers already IS the reveal.
@@ -854,7 +846,7 @@ var _pips_battle_system: BattleSystem = null
 var _pips_armed_stack: ArmedStack = null
 
 
-## Repaints ONLY the shots-left pip row (#959): shown iff the local
+## Repaints ONLY the shots-left pip row: shown iff the local
 ## attacker's plan is RANGED, this node is that attacker's, and it is a leaf
 ## of their territory (`GraphMirror.get_degree == 1` — the mirror is the
 ## right accessor inside a territory, `.claude/rules/degree.md`). Deliberately
@@ -909,7 +901,7 @@ func is_core() -> bool:
 	return owned_by != null and owned_by.core_location == self
 
 
-## The four mutually exclusive ownership buckets (#384), as `@export_flags`
+## The four mutually exclusive ownership buckets, as `@export_flags`
 ## bit values — see [NodeTargeting.ownership_filter] for the composites.
 enum Ownership { NEUTRAL = 1, MINE = 2, ALLY = 4, HOSTILE = 8 }
 
@@ -923,7 +915,7 @@ enum Ownership { NEUTRAL = 1, MINE = 2, ALLY = 4, HOSTILE = 8 }
 ## A null [param viewer] can't be MINE or an ALLY (there's no one to be allied
 ## with), so an owned node reads HOSTILE to it.
 ##
-## State half moved to [method NodeCombat.ownership_bit] (#498 step 3), so a
+## State half moved to [method NodeCombat.ownership_bit], so a
 ## landing gate asks the question the same way against a shadow world as against
 ## the real one.
 func ownership_bit(viewer: Entity) -> int:
@@ -944,7 +936,7 @@ func edge_point(world_target: Vector2, extra_pad: float = 0.0) -> Vector2:
 	return global_position + dir * (radius + extra_pad)
 
 
-## Ring band convention (#67) — the single source of truth for how every
+## Ring band convention — the single source of truth for how every
 ## decorative ring around a node expresses its span. A ring is a stroke of
 ## [param width] whose INNER edge sits [param inner_offset] outward from the
 ## node's canonical [member radius] (negative `inner_offset` insets the ring,
@@ -986,7 +978,7 @@ static func segment_between(a: SkillNode, b: SkillNode, pad: float = 0.0) -> Pac
 # ── Combat HP ──────────────────────────────────────────────────────────────
 
 ## Max combat HP for this node. State half moved to [method NodeCombat.get_max_hp]
-## (#498 step 2) — see it for why a shadow needs to compute this differently
+## see it for why a shadow needs to compute this differently
 ## than a live node does. 0 if unallocated.
 func get_max_hp() -> float:
 	return _combat.get_max_hp()
@@ -1016,7 +1008,7 @@ func restore_current_hp(value: float) -> void:
 ## visible to this node (entity board if owned, or StatRegistry default if
 ## orphaned). Does NOT create a stat on [member node_board] — use
 ## [method _ensure_local_stat] when you need a modifier target. State half
-## moved to [method NodeCombat.get_local_value] (#498 step 2) — that's what
+## moved to [method NodeCombat.get_local_value] — that's what
 ## makes [Mitigation]'s armor/floor reads work on a shadow too.
 func get_local_value(stat_id: StringName) -> Variant:
 	return _combat.get_local_value(stat_id)
@@ -1085,11 +1077,11 @@ func remove_entity_modifier(m: StatModifier) -> void:
 ## Mirror every entity-scoped modifier this node carries onto [param board].
 ## Called by [AllocationSystem] when the node becomes owned.
 ##
-## No multi-board guard here (#377 removed StatModifier._board, which is what
+## No multi-board guard here (`StatModifier` holds no `_board`, which is what
 ## made one cheap): a `board.add_modifier` on an already-applied instance is
 ## idempotent by design. The local-scale mutator's single-owner assumption
 ## (decision 9) still holds structurally — this node's own [member modifiers]
-## are authored per-node, not shared across SkillNodes — so #377's new
+## are authored per-node, not shared across SkillNodes — so the
 ## capability (one instance safely live on N boards) doesn't put THIS array's
 ## contents on two owners at once; it only makes doing so possible elsewhere,
 ## deliberately (that's the point of the issue).
@@ -1133,7 +1125,7 @@ func _rejects_local_grant(m: StatModifier) -> bool:
 
 ## The handles this node is currently contributing to its owner's board — what
 ## [method remove_entity_modifiers_from] would take off, [b]without taking
-## anything off[/b] (#520).
+## anything off[/b].
 ##
 ## Pure by design, and that is the whole point: a shadow's cascade has to revoke
 ## this node's grants from ITS board, and the mutating helper below erases
@@ -1184,7 +1176,7 @@ func remove_entity_modifiers_from(board: StatBoard) -> void:
 ## without allocating.
 ##
 ## Mirrors [method StatBoard.add_modifier]'s cycle-check -> bind -> resolve-target
-## sequence (cross-referenced there too — #340), but does NOT route through it:
+## sequence (cross-referenced there too), but does NOT route through it:
 ## StatBoard.add_modifier resolves its target with plain get_stat, which returns
 ## null on a sparse node board (silently dropping the modifier), and making it
 ## ensuring instead would let a stray node-only stat id (stake_level,
@@ -1201,16 +1193,16 @@ func add_local_modifier(m: StatModifier) -> void:
 		return
 	# flatten() so a CompositeStatModifier lands its children on node_board;
 	# a plain modifier is its own singleton. Mirrors StatBoard.add_modifier —
-	# the node-local channel is bundle-aware too (#183).
+	# the node-local channel is bundle-aware too.
 	for leaf in m.flatten():
 		node_board.bind_modifier(leaf)
 		_ensure_local_stat(leaf.stat_id).add_modifier(leaf, node_board)
-	# Canonical ledger for the local-scale mutator (#376): the PARENT instance
+	# Canonical ledger for the local-scale mutator: the PARENT instance
 	# (composites stay whole) so the walk can consult its override.
 	if not _local_modifiers.has(m):
 		_local_modifiers.append(m)
-	# #634: a freshly bound handle always arrives at its AUTHORED (al=1)
-	# value — an aura re-grant included, since #623 scales the aura's
+	# A freshly bound handle always arrives at its AUTHORED (al=1)
+	# value — an aura re-grant included, since the aura scales by its
 	# distance, never the node's allocation ladder. Bring it up to this
 	# node's CURRENT allocation level right here, or it sits at baseline
 	# until the next stake_level change happens to fire
@@ -1249,7 +1241,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 
 
 ## Increment [param tag]'s refcount, creating the entry at 1 if new. State half
-## on [method NodeCombat.add_tag] (#520), so an aura recomputing against a
+## on [method NodeCombat.add_tag], so an aura recomputing against a
 ## shadow tags the shadow instead of the real node.
 func add_tag(tag: StringName) -> void:
 	_combat.add_tag(tag)
@@ -1299,10 +1291,10 @@ func get_node_effects() -> Array[Effect]:
 #endregion
 
 
-## Tooltip identity — [member display_name] verbatim (#179). Deliberately no
+## Tooltip identity — [member display_name] verbatim. Deliberately no
 ## fabricated id, no scene node name, no hash: an empty string means "no name
-## to show", and callers render nothing (#288's name composer later fills the
-## empty branch). See Tooltip V2 (#294).
+## to show", and callers render nothing (a name composer may later fill the
+## empty branch). See Tooltip V2.
 func get_display_name() -> String:
 	return display_name
 
@@ -1371,7 +1363,7 @@ func get_addons() -> Array[SkillNodeAddon]:
 ## `has_addon(ClampAddon)`). Iterates `_addons` directly, not `get_addons()` —
 ## same reasoning as `can_attach_addon` above: the accessor duplicates the
 ## whole ledger just to check membership, and this is meant to be cheap enough
-## to call from `Edge`'s render-state push (#455). `get_script() == script`
+## to call from `Edge`'s render-state push. `get_script() == script`
 ## rather than an `is` check, so it generalizes to any addon script without a
 ## hardcoded type test. A script question, not a kind one — kind is
 ## [method SkillNodeAddon.get_kind], the scene.
@@ -1386,7 +1378,7 @@ func has_addon(script: Script) -> bool:
 ## vertex takes when it sweeps in (0 when unspiked). Sums every SpikeRingAddon's
 ## `blade_damage` local modifier (one quantity drives both the offensive
 ## blade_damage and this defensive pop — see docs/design/skill_node_addons.md
-## "Spikes"). Read by BladePopResolver during an attacker's swing resolution (#170).
+## "Spikes"). Read by BladePopResolver during an attacker's swing resolution.
 ## A temporary ring is blade-local: it never adds defensive power.
 func get_spike_power() -> float:
 	var total := 0.0
@@ -1431,7 +1423,7 @@ func get_addon_tooltip_sections() -> Array[Dictionary]:
 ## contributing nothing: it claims its (higher) rung so the node reads as an
 ## empty dome, instead of the archetype fallback winning and dressing a
 ## landmark node up as a plain territory node. A landmark scene sets no
-## archetype, so it contributes nothing here (#929) — the KEYSTONE rung stays
+## archetype, so it contributes nothing here — the KEYSTONE rung stays
 ## on the ladder for a future bespoke carve.
 func get_emblem_contributions() -> Array:
 	var out: Array = []
@@ -1463,7 +1455,7 @@ func refill(silent: bool = false) -> void:
 
 ## Notification half of [method refill]'s state change (see [NodeCombat]).
 ## The HP number itself needs no announcement here: [HealthBar] draws the
-## `node_health` pool and hears its `current_changed` directly (#504).
+## `node_health` pool and hears its `current_changed` directly.
 func notify_refilled(prev: float, after: float, silent: bool) -> void:
 	if not silent:
 		var delta := after - prev
@@ -1483,7 +1475,7 @@ func notify_refilled(prev: float, after: float, silent: bool) -> void:
 ##
 ## Aura healing (D-10) is [i]not[/i] computed here — it ignores this gate and
 ## grants no ramp, so it lands separately via [HealAuraEffect]'s
-## `_on_turn_start` hook (#720), which calls [method heal_damage] on top of
+## `_on_turn_start` hook, which calls [method heal_damage] on top of
 ## whatever this method does. Folding it in here would wrongly gate it on
 ## damage-this-turn.
 func apply_turn_regen() -> void:
@@ -1519,7 +1511,7 @@ func take_damage(amount: float, source: HitInstance) -> void:
 ## mitigation defensive-effect dispatch. `amount`/`before`/`after` name the
 ## HP pool's values around the deplete; `effective` is the post-mitigation
 ## number (`damaged.emit` and the dispatch both carry it, matching the
-## pre-#498 contract).
+## original contract).
 func notify_damaged(_before: float, _after: float, effective: float, source: HitInstance) -> void:
 	damaged.emit(effective, source)
 	Events.skill_node_damaged.emit(self, effective, source)
@@ -1530,7 +1522,7 @@ func notify_damaged(_before: float, _after: float, effective: float, source: Hit
 ## Notification half of [method take_damage]'s state change for the "HP hit
 ## 0, non-core" branch (see [NodeCombat]). [param source] is the [HitInstance]
 ## that depleted this node, forwarded so [method BattleSystem._on_node_depleted]
-## can record the cascade it runs back onto that hit (#518) — the emit is
+## can record the cascade it runs back onto that hit — the emit is
 ## synchronous, so the record is in place before `take_damage` continues. The core-node branch never calls
 ## this — an overflowing core node returns before the depleted check, exactly
 ## as before extraction (core HP is bottomless in the death sense; see
@@ -1553,7 +1545,7 @@ func notify_healed(_prev: float, _after: float, effective: float, source: HitIns
 		Events.skill_node_healed.emit(self, effective, source)
 
 
-## Notification half of a status-slice mutation (#880) — [method
+## Notification half of a status-slice mutation — [method
 ## NodeCombat.apply_status]/`tick_statuses`/`remove_status` call this on every
 ## apply/tick/remove, mirroring [method notify_damaged]'s host-hook-then-signal
 ## shape. Never fires for a shadow resolve (`host == null` there — see
@@ -1587,7 +1579,7 @@ func _sync_status_tint() -> void:
 		_node_visuals.set_status_tint(strongest.def.tint, strongest_power)
 
 
-## [member subtype] setter's push-down (#1057), sibling of
+## [member subtype] setter's push-down, sibling of
 ## [method _sync_status_tint]. `null` (no subtype stamped, e.g. a
 ## hand-authored sandbox node) restores WHITE — same identity-element idiom as
 ## "no status". A stamped subtype composes its [member NodeSubtype.tint]
@@ -1607,11 +1599,9 @@ func _sync_subtype_tint() -> void:
 
 ## Ownership changed: materialize the board and refill, or reset to empty.
 ##
-## [b]This used to be a subscription, and the subscription is what #660
-## deleted.[/b] Every owned node held a `value_changed` connection to its
-## owner's `node_health` and re-pushed the cap into its own pool whenever CON
-## moved — O(owned) full pipeline evaluations per allocation. The cap is now
-## DERIVED on read from that same baseline ([method NodeCombat._hp_pool]'s
+## [b]There is no per-node subscription to the owner's `node_health`[/b] (one
+## per owned node would be O(owned) full pipeline evaluations per allocation).
+## The cap is DERIVED on read from that same baseline ([method NodeCombat._hp_pool]'s
 ## provider), and the pool stores damage taken rather than an absolute fill
 ## ([method PoolStat.stores_missing]), so there is no per-node copy to keep in
 ## step and nothing to invalidate. What is left is the ownership transition
@@ -1655,13 +1645,13 @@ func _init_node_board() -> void:
 	# The clone itself is state's: see NodeState.ensure_board. Everything from
 	# here down is the node's wiring onto that fresh instance.
 	state.ensure_board(DEFAULT_NODE_BOARD)
-	# The reactive edge feeding the #376 local-scale mutator, and the read side
+	# The reactive edge feeding the local-scale mutator, and the read side
 	# of the `stake_level__current` accessor. Connected here rather than in the
 	# template because a signal connection is not a resource property.
 	node_board.stake_level.current_changed.connect(_on_stake_level_changed)
 	# `addon_slots = base(0) + stake_level` — authored on the template as an
 	# intrinsic instead of built in code, so the formula is a one-file edit and
-	# binds through the ordinary reactive path (#375). Unconditional, mirroring
+	# binds through the ordinary reactive path. Unconditional, mirroring
 	# Entity._ready: an authored board needs its intrinsics applied just as much
 	# as a cloned template does.
 	node_board.apply_intrinsics()
@@ -1669,7 +1659,7 @@ func _init_node_board() -> void:
 	# the pool's just-cloned state and overwrite what the author set.
 	node_board.stake_level.base_value = float(_stake_level_backing)
 	node_board.stake_level.set_current(float(_allocation_level_backing))
-	# #810: the collision-bit registry. Connected here (once, guarded by
+	# The collision-bit registry. Connected here (once, guarded by
 	# `_node_board_ready` above) rather than in the template, same reasoning as
 	# `stake_level.current_changed` two lines up — a signal connection is not a
 	# resource property, and `node_board` is a fresh instance from this point on.
@@ -1678,15 +1668,14 @@ func _init_node_board() -> void:
 	# defender stat (an authored board assigned pre-ready, or a future decode
 	# path) — `duplicate(true)` above would have carried it over, and its mint
 	# (and `stat_created` emission) already happened before the connect just
-	# above could see it. No such .tres is authored today; this is the "for any
-	# already-minted stat at ready" half of #810's acceptance.
+	# above could see it. No such .tres is authored today.
 	for id in _DEFENDER_LAYER_BITS:
 		var existing := node_board.get_stat(id)
 		if existing != null:
 			_watch_defender_stat(id, existing)
 
 
-## [signal StatBoard.stat_created] handler (#810) — fires once, the moment
+## [signal StatBoard.stat_created] handler — fires once, the moment
 ## [method StatBoard._mint_stat] first mints a sparse stat on [member
 ## node_board]. Every mint on this board reaches here, including ids nothing
 ## below cares about (`armor`, `node_healing`, …); the dictionary lookup is
@@ -1715,11 +1704,11 @@ func _watch_defender_stat(id: StringName, stat: Stat) -> void:
 	_sync_defender_bit(id, stat)
 
 
-## The registry's single writer (#810 acceptance 3): keyed on [param stat]'s
+## The registry's single writer: keyed on [param stat]'s
 ## own LOCAL value, never on which addon — or bare granted [StatModifier],
-## the #406 temporary-upgrade path included — put a nonzero value there. A
+## the temporary-upgrade path included — put a nonzero value there. A
 ## node that never has the stat never reaches this at all; that is correct,
-## not a missed case (#810).
+## not a missed case.
 func _sync_defender_bit(id: StringName, stat: Stat) -> void:
 	# float(), not a bare `!= 0.0` — get_value() on a BOOL stat (`deflection`)
 	# returns a real GDScript `bool` (Stat._coerce), and a cross-type
@@ -1746,7 +1735,7 @@ func _push_allocation_level() -> void:
 
 
 ## Hooked to the stake pool's `current_changed` — the reactive edge that runs
-## the local-scale mutator (#376) once per allocation_level change. Per-node
+## the local-scale mutator once per allocation_level change. Per-node
 ## cost, not per-read: the mutator retunes the canonical modifier instances
 ## in place, and `Resource.changed` propagation re-derives every board that
 ## holds a reference.
@@ -1758,13 +1747,13 @@ func _on_stake_level_changed(new_current: Variant) -> void:
 	allocation_level_changed.emit()
 
 
-## The local-scale law lives in [LocalScaleMutator] (#376, docs/adr/0004);
+## The local-scale law lives in [LocalScaleMutator] (docs/adr/0004);
 ## this node owns only the trigger above and the two forwarders below.
 var _mutator := LocalScaleMutator.new()
 
 
 ## Every leaf currently applied through a scaled effect-set — the read half of
-## [method clear_scaled_effect_sets] (#520), for the same reason
+## [method clear_scaled_effect_sets], for the same reason
 ## [method granted_entity_modifiers] exists.
 func scaled_effect_leaves() -> Array[StatModifier]:
 	return _mutator.scaled_effect_leaves(state)
@@ -1777,7 +1766,7 @@ func clear_scaled_effect_sets(board: StatBoard) -> void:
 	_mutator.clear_scaled_effect_sets(state, board)
 
 
-## Ownership-transition fill writer (#337): a node that stops being owned
+## Ownership-transition fill writer: a node that stops being owned
 ## empties its fill. NO LONGER the fill authority — it never invents a 1 for
 ## newly-owned nodes; the allocate path (allocate / force_allocate /
 ## register_scene_authored_ownership) owns increments. The old `elif
@@ -1814,8 +1803,8 @@ func _refresh_radius() -> void:
 # is immediate — same StatModifier instance, no double-pop because
 # AllocationSystem iterates the (now-updated) array on dealloc.
 #
-# Attaching is `add_child` — there is deliberately no `attach_addon()` wrapper
-# (#334). A second entry point would be the old AddonAnchor rebuilt with extra
+# Attaching is `add_child` — there is deliberately no `attach_addon()` wrapper.
+# A second entry point would be the old AddonAnchor rebuilt with extra
 # steps; future validation (slot caps, compatibility) belongs right here, in
 # the `child_entered_tree` handler every path already flows through.
 
@@ -1837,11 +1826,10 @@ func get_addon_count() -> int:
 
 ## Whether an addon of `kind` (a scene path — [method SkillNodeAddon.get_kind])
 ## would legally attach
-## right now: an open slot AND no unique-collision (#406). Read-only —
+## right now: an open slot AND no unique-collision. Read-only —
 ## `_attach_addon` itself is UNCHANGED and still enforces only `unique`,
 ## never slots (slot enforcement stays locally scoped to the temp-upgrade
-## gate per #406's acceptance spec; this is not #348's general-enforcement
-## work). Callers that want slot enforcement call this instead of
+## gate; this is not general enforcement). Callers that want slot enforcement call this instead of
 ## reimplementing it.
 func can_attach_addon(kind: String) -> bool:
 	if get_addon_count() >= int(get_local_value(&"addon_slots")):
@@ -1862,14 +1850,14 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 		for existing in _addons:
 			if existing.get_kind() == a.get_kind():
 				push_error("Duplicate unique addon %s on %s; rejecting." % [a.get_kind(), name])
-				# Refuse it, but never FREE it under the editor — since #334 made
-				# scene authoring the blessed path, freeing here would silently
+				# Refuse it, but never FREE it under the editor — scene
+				# authoring is the blessed path, so freeing here would silently
 				# delete an authored node out of the user's open scene on load.
 				if not Engine.is_editor_hint():
 					a.queue_free()
 				return
 	_addons.append(a)
-	# Mint the addon_slots stat for addon carriers (#375) — must run after the
+	# Mint the addon_slots stat for addon carriers — must run after the
 	# ledger append (the mint's sparse check reads it) and before any modifier
 	# transfer below, so a formula-bound addon modifier can bind the pool.
 	_init_node_board()
@@ -1880,12 +1868,11 @@ func _attach_addon(a: SkillNodeAddon) -> void:
 	# this under the editor would serialize addon-derived modifiers into the
 	# .tscn and compound them on every save (see .claude/rules/godot-workflow.md,
 	# "never write a DERIVED value back into an @export"). The editor still gets
-	# the addon's visuals — it just doesn't get its stats. #335 removes this
-	# guard by splitting authored from derived modifiers.
+	# the addon's visuals — it just doesn't get its stats.
 	# A temporary addon (a swing's temp upgrade) never transfers: the swing
 	# folds its modifiers as overlays (MeleeAttackPlan.overlays_for).
 	if not Engine.is_editor_hint() and not a.is_temporary:
-		# No clone-and-track needed (#377): every StatModifier sub-resource an
+		# No clone-and-track needed: every StatModifier sub-resource an
 		# addon .tscn carries sets `resource_local_to_scene = true`, so Godot
 		# already hands each `instantiate()` its own private copy — the modifier
 		# a script-built addon builds in code was always private too. Either
@@ -1906,13 +1893,13 @@ func _detach_addon(a: SkillNodeAddon) -> void:
 	_addons.erase(a)
 	# Mirror `_attach_addon`'s `_sync_visuals()`: a departing addon stops
 	# contributing its emblem, so the carve must be re-resolved — otherwise a
-	# consumed SkillDustAddon (looted relic) leaves its LOOT gem dent behind
-	# (#369). Runs in the editor branch too, same as attach.
+	# consumed SkillDustAddon (looted relic) leaves its LOOT gem dent behind.
+	# Runs in the editor branch too, same as attach.
 	_sync_visuals()
 	if Engine.is_editor_hint() or a.is_temporary:
 		addons_changed.emit()
 		return
-	# Reverse whatever attach added (#377): identity never changed at attach
+	# Reverse whatever attach added: identity never changed at attach
 	# time, so `a` (still alive here — this fires from `child_exiting_tree`,
 	# before it's freed) hands back the exact same instances to remove.
 	for m in a.get_local_modifiers():
@@ -1932,13 +1919,13 @@ func run_addon_turn_start() -> void:
 
 
 ## How long a core's presence takes to glide between two nodes. Named because
-## [CameraDirector] sizes a [MoveCoreCommand]'s camera hold off it (#525) and a
+## [CameraDirector] sizes a [MoveCoreCommand]'s camera hold off it and a
 ## bare literal there would silently drift out of step with this one. It sits
 ## slightly ABOVE [constant CommandApplier.CORE_HOP_SLIDE_DELAY] on purpose —
 ## the hops of a multi-hop walk overlap so the walk reads as a cascade.
 const CORE_SLIDE_DURATION := 0.25
 
-## Core-movement slide-in (#21, #128). Called on the *new* core slot after
+## Core-movement slide-in. Called on the *new* core slot after
 ## AllocationSystem.move_core commits; retargets the old CoreMarker glide onto
 ## [CorePresence] (the slot look + CoreSigilBloom) — the look offsets to the
 ## previous slot's world position and tweens back to local zero, while the
@@ -1965,7 +1952,7 @@ func play_hit_flash() -> void:
 		return
 	if _hit_flash_tween != null:
 		_hit_flash_tween.kill()
-	# Tweens NodeVisualsComposite.feedback_tint (#304) only — leaves
+	# Tweens NodeVisualsComposite.feedback_tint only — leaves
 	# visuals.modulate free for other consumers (selection tint, status
 	# effects, etc.) without colliding.
 	_node_visuals.feedback_tint = _DENY_COLOR
@@ -1973,12 +1960,12 @@ func play_hit_flash() -> void:
 	_hit_flash_tween.tween_property(_node_visuals, "feedback_tint", Color.WHITE, 0.25)
 
 
-# ── Denial feedback (#89) ────────────────────────────────────────────────────
+# ── Denial feedback ────────────────────────────────────────────────────
 # Two registers for a rejected deallocation, driven by PlayerInputController:
 # the nodes that WOULD be islanded pulse danger-red (blink_blocked); the node
 # the player actually tried to drop gets a short "bzzt — no" shake (shake_denied).
 #
-# The red tint lands on `_node_visuals` (NodeVisualsComposite, #304's
+# The red tint lands on `_node_visuals` (NodeVisualsComposite's
 # feedback_tint channel), NOT on `visuals` — the hover glow (HoverRing) is a
 # child of `visuals`, so a `visuals.modulate` tint multiplied the glow down to
 # near-black and read as "the glow vanished". Body tint keeps the hover
@@ -1987,7 +1974,7 @@ func play_hit_flash() -> void:
 # don't move); the hover glow is counter-translated to stay world-fixed — the
 # pointer isn't shaking, so its feedback shouldn't either.
 
-## Also the hit-flash channel's color (#304) — one shared feedback-tint value
+## Also the hit-flash channel's color — one shared feedback-tint value
 ## for both registers, since both drive [member NodeVisualsComposite.feedback_tint].
 const _DENY_COLOR := Color(1.0, 0.3, 0.3)
 const _BLINK_STEP := 0.11
@@ -2010,7 +1997,7 @@ func _reset_feedback() -> void:
 		_node_visuals.feedback_tint = Color.WHITE
 
 
-## Danger-red pulse — marks a node that a denied deallocation would island (#89).
+## Danger-red pulse — marks a node that a denied deallocation would island.
 func blink_blocked() -> void:
 	if not is_node_ready() or _node_visuals == null:
 		return
@@ -2023,7 +2010,7 @@ func blink_blocked() -> void:
 
 
 ## Short "bzzt — no" shake + red tint — the node the player tried but failed to
-## deallocate (#89). Horizontal decaying jitter on the body; hover glow held put.
+## deallocate. Horizontal decaying jitter on the body; hover glow held put.
 func shake_denied() -> void:
 	if not is_node_ready() or visuals == null:
 		return
@@ -2041,7 +2028,7 @@ func shake_denied() -> void:
 		shake.tween_property(visuals, "position", off, step).set_trans(Tween.TRANS_SINE)
 		if hover_ring != null:
 			shake.parallel().tween_property(hover_ring, "position", -off, step).set_trans(Tween.TRANS_SINE)
-		# Addons are siblings of `visuals`, not children (#334) — they no longer
+		# Addons are siblings of `visuals`, not children — they no longer
 		# ride its offset for free, so shake them alongside it or the node body
 		# jitters out from under a stationary addon sprite.
 		for addon in _addons:
@@ -2122,7 +2109,7 @@ func _take_hover() -> void:
 
 
 ## Highlights this node from outside real mouse hover — e.g. the melee command
-## tray's blade blips (#406 follow-up), where hovering a blip should light up
+## tray's blade blips, where hovering a blip should light up
 ## the SkillNode it represents. A plain bool, not a ref-count: the one caller
 ## (MeleeBody) owns exactly one hovered node at a time and clears it explicitly
 ## on refresh/teardown, so there's nothing to double-count.

@@ -11,7 +11,7 @@ enum AttackMode {
 
 ## Fired once a launch commits (resource checks passed, about to resolve).
 ## `spell` is the active [MagicAttackPlan]'s spell, null for melee/ranged.
-## Consumed by [AnnouncementLayer] (#117, #135) for the mode-tinted CALLOUT FX.
+## Consumed by [AnnouncementLayer] for the mode-tinted CALLOUT FX.
 signal attack_launched(mode: AttackMode, spell: SpellDef)
 ## The same moment, carrying the APPLIED outcome — for a presentation observer
 ## that needs to know what the attack will touch and when (#524:
@@ -34,7 +34,7 @@ signal attack_committed(outcome: AttackOutcome, attacker: Entity)
 ## melee, right before the coordinator runs for ranged/magic — in both cases
 ## with the outcome's schedule already compiled so an observer can size itself
 ## off [method OutcomeSchedule.duration]. [CameraDirector] re-sizes its hold on
-## this beat (#894) rather than on a wall-clock re-derivation of the wind-up,
+## this beat rather than on a wall-clock re-derivation of the wind-up,
 ## which could not see the hold and drifted from the swing.
 signal attack_replay_started(outcome: AttackOutcome)
 ## Forced-deallocation cascade about to run. `layers[i]` holds every cascade
@@ -58,12 +58,12 @@ signal record_ready
 @export var turn_manager: TurnManager
 @export var allocation_system: AllocationSystem
 @export var graph: Graph
-## What draws a launch — the wind-up, the swing or volley, the camera's focus
-## (#1196). Null, or the no-op [AttackStage] base, is a headless peer: nothing
-## staged, nothing held, and a world identical to a presented launch's (#474).
+## What draws a launch — the wind-up, the swing or volley, the camera's focus.
+## Null, or the no-op [AttackStage] base, is a headless peer: nothing
+## staged, nothing held, and a world identical to a presented launch's.
 ## The level mounts an `AttackPresenter`; this system names no `ui/` class.
 @export var stage: AttackStage
-## The queue an attack is applied through (#511). Optional: without one,
+## The queue an attack is applied through. Optional: without one,
 ## [method launch_attack] applies straight, which is what every headless
 ## fixture and the editor do. Wired by [CommandApplier] itself at `_ready`
 ## rather than by a second NodePath export, so "the applier that will call me
@@ -76,11 +76,11 @@ signal record_ready
 var seat_policy: SeatPolicy = null
 
 ## A debug multiplier on every presentation rate this system compiles, for the
-## melee sandbox's playback slider (#820). [b]Sandbox-only[/b]: it never writes
+## melee sandbox's playback slider. [b]Sandbox-only[/b]: it never writes
 ## [member GameSettings.combat_time_scale] and never persists. Deliberately a
 ## plain instance var and not an `@export` — a tuning knob has no business in
 ## every level's inspector, and an instance var cannot leak across test files
-## the way a process-global would (#815).
+## the way a process-global would.
 var presentation_rate_scale: float = 1.0
 
 ## See [method await_record_ready]. False means the record is already in hand,
@@ -88,7 +88,7 @@ var presentation_rate_scale: float = 1.0
 var _record_pending: bool = false
 
 ## Latched by [method drain_pending_mutations] for the rest of the current
-## launch. The wind-up (#559) put a SECOND clock on this path, so a drain that
+## launch. The wind-up put a SECOND clock on this path, so a drain that
 ## released the first one would otherwise be followed by `_apply_outcome`
 ## minting a fresh real-time clock against a tree that is going away — the
 ## drain has to outlive the clock it drained. Cleared on entry to
@@ -97,13 +97,13 @@ var _draining: bool = false
 
 var command_applier: CommandApplier = null
 
-## Design B (#504): the clock the CURRENT attack's mutation loop is walking, or
+## Design B: the clock the CURRENT attack's mutation loop is walking, or
 ## null between attacks. Held so [method drain_pending_mutations] can cut the
 ## window short — the one mitigation for B's single real risk, a loop
 ## interrupted mid-volley leaving its remaining hits permanently unlanded.
 var _beat_clock: BeatClock = null
 
-## Land the whole outcome synchronously instead of on the beat clock (#504).
+## Land the whole outcome synchronously instead of on the beat clock.
 ## For fixtures and headless callers that read world state on the line after
 ## `launch_attack`. Production leaves this false: the beat clock IS the
 ## presentation clock, so turning it off makes an attack land invisibly.
@@ -140,7 +140,7 @@ var instant_mutation: bool = false
 var is_launching := false
 
 
-## The offerable temp-upgrade kinds (#406, #1008) — authored data, wired to
+## The offerable temp-upgrade kinds — authored data, wired to
 ## `attack/melee/temp_upgrade_catalog.tres` by the composing scene. The launch
 ## decode reads it to rebuild a plan's addons off the wire; the tray reads the
 ## offer. Optional: unwired, [method temp_upgrade_by_kind] answers null and
@@ -233,7 +233,7 @@ static func mint_plan(mode: AttackMode, attacker: Entity, vision: VisionSystem) 
 ## `LootSystem`, or `SkillDustAddon`."* Reproducibility comes from the
 ## per-attack stamp, which is strictly better for sync: a run-level stream
 ## would couple every peer's result to having consumed prior draws in the same
-## order — the ordering fragility that sank lockstep in #473.
+## order — the ordering fragility that sank lockstep.
 ##
 ## The consequence is deliberate: same seed, same MAP, not the same FIGHTS.
 ## See `.claude/rules/game-session.md`.
@@ -325,7 +325,7 @@ func build_launch_command(plan: AttackPlan) -> LaunchAttackCommand:
 	return command
 
 
-## [b]The VALIDATE half of a launch (#545)[/b] — [method CommandApplier._validate]'s
+## [b]The VALIDATE half of a launch[/b] — [method CommandApplier._validate]'s
 ## entry point for a [LaunchAttackCommand], and the one place an attack is
 ## decided. Returns whether the command may go ahead; the world is untouched
 ## either way.
@@ -333,7 +333,7 @@ func build_launch_command(plan: AttackPlan) -> LaunchAttackCommand:
 ## [b]This is a gate that also PRODUCES its command's payload[/b], which is what
 ## makes it unlike every other branch of `_validate`. The attack's real gate —
 ## resolve, then check affordability — cannot be asked without resolving, and
-## the resolution IS the payload. Since #536 resolving costs nothing real (a
+## the resolution IS the payload. resolving costs nothing real (a
 ## [method CombatWorld.shadow], see [method _compute_record]), so doing it here
 ## is legal; doing it here is what lets the record be final BEFORE the confirm,
 ## which is what stopped the authority mutating a full window ahead of every
@@ -405,7 +405,7 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 			return false
 		command.local_plan = plan
 		# Melee draws off `last_trajectory` / `last_events`, which only a
-		# resolve fills in; the stage starts that draw-only resim (#796),
+		# resolve fills in; the stage starts that draw-only resim,
 		# stepped, never baked whole before this method returns. The outcome
 		# it produces is DISCARDED — the record is what lands (see
 		# [AttackRecord]). A stage-less peer pays nothing for it.
@@ -413,7 +413,7 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 			stage.prepare_replay(plan)
 	# Everyone, authority included, from here down.
 	# Seconds are minted here, on THIS machine, at THIS machine's rate for this
-	# actor — the one melee rate door (#819/#820). Passed rather than left
+	# actor — the one melee rate door. Passed rather than left
 	# ambient because [AttackRecord] is pure data with no opinion about seats.
 	var outcome := AttackRecord.rebuild(command.record, graph,
 			OutcomeSchedule.actor_rate(seat_policy, plan.attacker, presentation_rate_scale))
@@ -426,7 +426,7 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 ## decides what an attack does. Stamps [param command]'s record and returns
 ## true, or refuses on affordability and returns false. Runs inside
 ## [method prepare_launch_command], which is to say inside the VALIDATE half,
-## ahead of the confirm (#545) — never inside the apply.
+## ahead of the confirm — never inside the apply.
 ##
 ## [b]Nothing real is touched here.[/b] The whole pass runs against a
 ## [method CombatWorld.shadow]: the hits land, the cascades cascade, mitigation
@@ -457,7 +457,7 @@ func _compute_record(plan: AttackPlan, command: LaunchAttackCommand) -> bool:
 	return affordable
 
 
-## The ranged volley's cost (#957), paid HERE beside AP so every machine —
+## The ranged volley's cost, paid HERE beside AP so every machine —
 ## authority and mirror alike — deducts it from the same rebuilt command. Owner
 ## (2026-09-18): *"a shot fired is a shot fired and a shot fired uses ammo"* —
 ## consumption is per SHOT, never per landing, so a dud still costs (every hit
@@ -475,7 +475,7 @@ func _consume_volley(plan: RangedAttackPlan, outcome: AttackOutcome) -> void:
 		for entry in plan.effective_ammo():
 			quiver.take(StringName(entry.type), int(entry.count))
 	for hit in outcome.hits:
-		# One shot per ARROW: a typed arrow's status hit (#495) shares its
+		# One shot per ARROW: a typed arrow's status hit shares its
 		# arrow's origin and must not burn a second shot. Skipped by CLASS,
 		# never by `kind` — a heal-flipped arrow (ADR 0012) is still a shot
 		# fired; a status never was one.
@@ -601,7 +601,7 @@ func _commit(plan: AttackPlan, outcome: AttackOutcome) -> void:
 	# behind it. Two ways out, because the two modes want different things:
 	#
 	#   * MELEE parks on the swing (`stage.holds_release`). A melee plan's
-	#     temp-upgrade addons (#406) must keep rendering through the visible
+	# temp-upgrade addons must keep rendering through the visible
 	#     blade, and the ghost the preview animates IS the plan — clearing at
 	#     mutation-end would let a player arm and fire again mid-swing with the
 	#     previous plan still mounted.
@@ -640,7 +640,7 @@ func _stage_holds(plan: AttackPlan) -> bool:
 ## record outstanding via [method hold_record].
 ##
 ## [b]Today this is a satisfied no-op on every path that exists[/b], and it is
-## named and awaited anyway. Since #545 the [AttackRecord] is final BEFORE the
+## named and awaited anyway. the [AttackRecord] is final BEFORE the
 ## confirm — the authority computes it inside the synchronous
 ## [method prepare_launch_command], and a mirror receives setup and outcome in
 ## the same command — so by the time [method _commit] reaches the swing there
@@ -721,12 +721,12 @@ func _stage_windup(plan: AttackPlan) -> void:
 ## synchronous), also runs the forced-dealloc cascade. VFX never calls this;
 ## it only replays what already landed. See the class-level VFX note.
 ##
-## Presentation clock (#504): the applier walks the hits on a [BeatClock],
+## Presentation clock: the applier walks the hits on a [BeatClock],
 ## landing each at its own `arrival_time`. What is drawn is the model, at every
 ## beat — there is no view store and no replay.
 ##
 ## [member instant_mutation] is the opt-out, and it is deliberately NOT
-## inferred from whether VFX happens to be mounted. #474's acceptance is that
+## inferred from whether VFX happens to be mounted. the acceptance is that
 ## the applied world is identical whether or not a [member stage] is wired — so
 ## making the clock depend on that is exactly the thing that must not matter.
 ## A fixture that wants the whole outcome on one line says so out loud.
@@ -772,8 +772,8 @@ func _new_beat_clock() -> BeatClock:
 ##   * `dealloc_damage` HP off the entity's `health` pool — bypass-mitigation
 ##     chip damage tunable per class.
 ##
-## [b]This is the live cascade's ENTRY, no longer its implementation[/b]
-## (#518). The set, the pre-strip `allocation_level` read, the wound, the chip
+## [b]This is the live cascade's ENTRY, no longer its implementation[/b].
+## The set, the pre-strip `allocation_level` read, the wound, the chip
 ## and the [DeallocEntry] record all live in [method EntityCombat.apply_cascade]
 ## — one driver, which a SHADOW reaches directly (its `notify_depleted` is
 ## never called, so this handler never runs for one). What stays here is what
@@ -798,7 +798,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 	var combat := defender.get_combat()
 	# ── Recorded, or derived? ────────────────────────────────────────────────
 	# ANY machine replaying an [AttackRecord] arrives here with the cascade the
-	# authority ran already on its hit (#518). It applies THAT set rather than
+	# authority ran already on its hit. It applies THAT set rather than
 	# walking its own navigator for one: under the filtered-delta model
 	# (docs/domain/multiplayer-sync-model.md) a fogged client may not hold the
 	# nodes that walk would visit, so the derivation is not merely redundant,
@@ -816,7 +816,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 	# replay: anything else that damages a node to zero on the live world. It
 	# stays because those exist, not as the authority's path.
 	#
-	# This is also where #501's warning landed. A hit must be applied exactly
+	# This is also where the warning landed. A hit must be applied exactly
 	# ONCE per world, or the second pass takes the replay branch and re-applies
 	# a stale set; magic now lands its waves during resolution, so the thing
 	# that keeps this true is that the authority never re-uses a computed
@@ -843,7 +843,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 	# ripple outward layer-by-layer.
 	var layers: Array = _cascade_layers(node, cascade_nodes)
 	cascade_started.emit(layers, defender)
-	# #504: the cascade mutates SYNCHRONOUSLY, every layer inside this one beat,
+	# The cascade mutates SYNCHRONOUSLY, every layer inside this one beat,
 	# and it must stay that way. This runs from `Events.skill_node_depleted`
 	# inside `take_damage` inside a landing — and an awaiting signal handler
 	# does NOT block its emitter, so staggering the MUTATION here would unwind
@@ -867,7 +867,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 			if n != null:
 				ordered.append(n.get_combat())
 	var entries := combat.apply_cascade(ordered, allocation_system)
-	# Record the cascade back onto the hit that caused it (#518). This handler
+	# Record the cascade back onto the hit that caused it. This handler
 	# runs synchronously inside `NodeCombat.take_damage`, so the hit is still
 	# mid-application and the entries land on it before it is read by anything
 	# — the AI's scoring, or [AttackRecord]'s capture on the way to the wire.
@@ -887,7 +887,7 @@ func _on_node_depleted(node: SkillNode, source: HitInstance = null) -> void:
 		(source as HitInstance).deallocations = entries
 
 
-## Entity-death cascade wave (#837). `AllocationSystem.deallocate_all_owned`
+## Entity-death cascade wave. `AllocationSystem.deallocate_all_owned`
 ## strips a dying entity's whole board un-staggered and MUST keep the core
 ## last (it is the only path that ever force-deallocates a core — islanding
 ## checks need it gone last). The wanted VISUAL wave is the opposite: core

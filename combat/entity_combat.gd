@@ -35,17 +35,17 @@ var _mirror: GraphMirror
 ## Real [SkillNode] -> shadow [NodeCombat] — needed because [member _mirror] is
 ## keyed by the real node (topology lives there) while every other shadow
 ## accessor is keyed by [NodeCombat] (ownership lives here). Grows one node at
-## a time through [method shadow_for] (#695); membership never shrinks, so a
+## a time through [method shadow_for]; membership never shrinks, so a
 ## node stripped by [method apply_cascade] can still be translated afterwards,
 ## and the roster of MINTED boards [method free_shadow] releases is exactly this.
 ##
 ## The [b]other[/b] direction is [method NodeCombat.real], not a second
-## dictionary here (#498 step 3). A shadow node already had to know its real
+## dictionary here. A shadow node already had to know its real
 ## node to be nameable in a [DeallocEntry]; keeping a parallel map of the same
 ## fact is the shape `.claude/rules/` warns about, and the two could go out of
 ## step only in one direction — silently.
 var _shadow_by_real: Dictionary[SkillNode, NodeCombat] = {}
-## True once [method _materialize_all] has minted every owned node (#695).
+## True once [method _materialize_all] has minted every owned node.
 ## Latched rather than re-derived: [member _mirror] only ever shrinks and
 ## [member _shadow_by_real] only ever grows, so once every mirrored node has a
 ## board the shadow stays complete, and the entity-wide entry points that call
@@ -58,7 +58,7 @@ var _materialized: bool = false
 ## [method NodeCombat.ownership_bit], which a landing gate asks on every hit.
 var _origin: Entity
 ## Meaningful ONLY when [member host] == null — the shadow's stand-in for
-## [member Entity._effect_instances] (#520). Populated at [method snapshot] from
+## [member Entity._effect_instances]. Populated at [method snapshot] from
 ## [method Entity.get_effects] via [method EffectInstance.clone_for], one twin
 ## per live instance, each with COPIED ledger rows and a context bound to this
 ## slice. Without it a shadow could strip a node's ownership but not the
@@ -76,14 +76,14 @@ var _world: CombatWorld
 ## any one entity in it.
 var _owns_world: bool = false
 
-## Dispatch-scoped batch ledger (#647). Depth of the currently running
+## Dispatch-scoped batch ledger. Depth of the currently running
 ## [method dispatch] (0 = none), and the [StatBoard]s [method hold_batch] has
 ## opened for its duration.
 ##
 ## [b]Why the ledger, and not the obvious shape.[/b] #627 batches inside one
 ## [method AuraEffect.recompute], so two auras touching the SAME node board in
 ## the same hook dispatch still settle twice. The naive fix — bracket every
-## owned node's board around every dispatch — was rejected on #647's own
+## owned node's board around every dispatch — was rejected on the own
 ## grounds: it is `2 * owned` begin/end calls per dispatch (300 on a 150-node
 ## Serpent), paid even when no aura touches a node board at all. This batches
 ## only the boards actually touched, so the cost is zero on a dispatch that
@@ -136,7 +136,7 @@ func _notification(what: int) -> void:
 ## caller drops its own reference. No-op on a LIVE slice — nothing to tear
 ## down; [member host] != null never entered a cycle in the first place.
 ##
-## [b]The cloned stat boards are a SECOND cycle of the same shape[/b] (#514):
+## [b]The cloned stat boards are a SECOND cycle of the same shape[/b]:
 ## every [Stat] backpoints at the [StatBoard] holding it, so a board dropped
 ## without [method StatBoard.release] is never collected either — 122 objects
 ## per entity board, measured, plus one node board per owned node. Releasing
@@ -148,7 +148,7 @@ func free_shadow() -> void:
 		return
 	# Over `_shadow_by_real`, not `_owned` — a node this shadow's own cascade
 	# stripped is gone from `_owned` but its cloned board is still allocated and
-	# still uncollectable (#514's cycle). `_shadow_by_real` never shrinks, which
+	# still uncollectable (the cycle). `_shadow_by_real` never shrinks, which
 	# is what makes it the complete roster.
 	for n in _shadow_by_real.values():
 		if n._state.board != null:
@@ -315,9 +315,9 @@ func core() -> NodeCombat:
 ## real owned set (see the class doc for why a real [SkillNode] is still needed
 ## for that one piece), and clones the effect twins.
 ##
-## [b]Owned node boards are NOT cloned here[/b] (#695). A preview walk touches
+## [b]Owned node boards are NOT cloned here[/b]. A preview walk touches
 ## a handful of a defender's nodes and used to pay for a clone of every one of
-## them — 8-24 ms per hover at 50-200 owned, the whole of #681's overrun. Each
+## them — 8-24 ms per hover at 50-200 owned, the whole of the overrun. Each
 ## board is minted on first touch by [method shadow_for] instead, and every
 ## entity-wide entry point mints the remainder through [method _materialize_all]
 ## before it reads or writes the set. The one board always cloned up front is
@@ -354,7 +354,7 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 		# `core_location` without allocating) — the same answer the eager
 		# lookup gave.
 		shadow._core = shadow.shadow_for(host.core_location)
-	# The entity's own rows, cloned the way a node's are (#996): same shared
+	# The entity's own rows, cloned the way a node's are: same shared
 	# defs, own power, so a shadow tick never moves the live row.
 	_status_host.clone_into(shadow._status_host)
 	# Last, so every twin's context sees a fully-populated shadow: an
@@ -366,7 +366,7 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 
 
 ## The shadow [NodeCombat] for [param real_node], minted now if this shadow has
-## not touched it yet (#695). Null on a live slice, and null for a node this
+## not touched it yet. Null on a live slice, and null for a node this
 ## entity does not own — the caller ([method CombatWorld.combat_for]) then falls
 ## through to an ownerless slice, as it always did for a node whose `owned_by`
 ## disagrees with the navigator.
@@ -397,7 +397,7 @@ func shadow_for(real_node: SkillNode) -> NodeCombat:
 
 
 ## Mint every owned node this shadow has not touched yet, so the set is
-## complete before anything entity-wide reads or writes it (#695). Idempotent
+## complete before anything entity-wide reads or writes it. Idempotent
 ## and O(1) after the first call (see [member _materialized]).
 ##
 ## Called at the top of every entity-wide entry point — [method owned],
@@ -458,7 +458,7 @@ func world() -> CombatWorld:
 ## not. Both are keyed by real [SkillNode]s, and both track only what this
 ## entity currently owns — including, on a shadow, after [method apply_cascade]
 ## has taken nodes out of it, which is what makes an aura recompute against a
-## shadow read the POST-cascade set (#520).
+## shadow read the POST-cascade set.
 func mirror() -> GraphMirror:
 	return host.navigator if host != null else _mirror
 
@@ -527,7 +527,7 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	# instead, because that is where `AllocationSystem` / `SkillNode` enter —
 	# they call `entity.dispatch()` directly, never through this slice.
 	# A hook may enumerate the owned set (an aura recompute does), so the set
-	# must be whole before the first one runs (#695).
+	# must be whole before the first one runs.
 	_materialize_all()
 	begin_dispatch()
 	for inst in _effects.duplicate():
@@ -539,7 +539,7 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 	end_dispatch()
 
 
-## Open the dispatch scope [method hold_batch] batches into (#647). Re-entrant:
+## Open the dispatch scope [method hold_batch] batches into. Re-entrant:
 ## a hook may dispatch again (or grant an effect, whose `_on_granted` recomputes),
 ## and only the OUTERMOST scope drains — an inner one closing boards the outer is
 ## still filling would defeat the merge and, worse, close a batch twice.
@@ -576,7 +576,7 @@ func end_dispatch() -> void:
 ## opened joins that batch instead of nesting a second one, which is the whole
 ## 48 -> 24 collapse.
 ## How many boards [method hold_batch] is currently holding open. The probe for
-## #647's no-op acceptance: a dispatch whose hooks touch no node board must
+## the no-op acceptance: a dispatch whose hooks touch no node board must
 ## report 0 here, which is what distinguishes this ledger from the rejected
 ## "pre-bracket every owned board" shape it would otherwise silently regress to.
 func held_batch_count() -> int:
@@ -599,7 +599,7 @@ func hold_batch(board: StatBoard) -> bool:
 ## (there is nothing to index — [method SkillNode.get_combat] already is the
 ## lookup). Handed out directly rather than copied: [CombatWorld] folds it into
 ## its own dictionary and never mutates this one. Holds only the nodes MINTED
-## so far (#695) — a miss on an owned node is answered by [method shadow_for],
+## so far — a miss on an owned node is answered by [method shadow_for],
 ## not by this index.
 func shadow_index() -> Dictionary[SkillNode, NodeCombat]:
 	return _shadow_by_real
@@ -644,7 +644,7 @@ func nodes_islanded_by_removing(node: NodeCombat, anchor: NodeCombat) -> Array[N
 ## Must be answered before the strip either way: removing the depleted node
 ## from the navigator mirror first would make its own islanded set go stale.
 ##
-## On a shadow this is where laziness ends (#695): the islanded set is
+## On a shadow this is where laziness ends: the islanded set is
 ## translated real -> shadow through [member _shadow_by_real], which silently
 ## drops any node not minted yet, so the whole territory is minted first.
 func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
@@ -657,7 +657,7 @@ func cascade_set(node: NodeCombat) -> Array[NodeCombat]:
 	return out
 
 
-## [b]The one cascade driver[/b] (#518). Strips every node in [param nodes]
+## [b]The one cascade driver[/b]. Strips every node in [param nodes]
 ## from this entity and charges what leaving costs: one SP wound and one
 ## `dealloc_damage` chip per node, both scaled by the PRE-strip
 ## `allocation_level`. Returns a [DeallocEntry] per node actually stripped —
@@ -692,7 +692,7 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		return entries
 	# Before the first strip: the `_on_node_deallocated` dispatch below re-grants
 	# aura modifiers onto owned node boards, and a board minted from the live
-	# node AFTER that would miss the delta (#695).
+	# node AFTER that would miss the delta.
 	_materialize_all()
 	var b := board()
 	# What was actually charged — a node skipped after its wound still counts.
@@ -746,9 +746,9 @@ func apply_cascade(nodes: Array[NodeCombat], alloc: AllocationSystem = null,
 		else:
 			strip_node(n, StatusSpread.CAUSE_DEATH)
 		if b != null and charge and entry.chip > 0.0:
-			# #504: the core bar draws `health` directly and hears its
+			# The core bar draws `health` directly and hears its
 			# `current_changed`, so the chip announces itself — nothing to
-			# record or patch for presentation. Through the one door (#995),
+			# record or patch for presentation. Through the one door,
 			# never a bare deplete. AFTER the strip: a chip that kills
 			# re-enters [method AllocationSystem.deallocate_all_owned], and the
 			# `owner() != self` guard above is written for that order.
@@ -787,14 +787,14 @@ func simulate_entity_death() -> Array[DeallocEntry]:
 	_materialize_all()
 	var entries := apply_cascade(_owned.duplicate(), null, false)
 	_core = null
-	# The shadow's "alive" flips here (#996): the entity-hosted rows go the
+	# The shadow's "alive" flips here: the entity-hosted rows go the
 	# way a stripped node's do, and `is_allocated()` gates any later apply.
 	_dead = true
 	_status_host.release_statuses()
 	return entries
 
 
-# ── Status host (#996) ───────────────────────────────────────────────────────
+# ── Status host ───────────────────────────────────────────────────────
 #
 # The duck-typed host contract [StatusHost] lists, on the ENTITY: the board is
 # the entity board with no node layer in front of it, "max hp" is the
@@ -844,7 +844,7 @@ func remove_local_modifier(m: StatModifier) -> void:
 		b.remove_modifier(m)
 
 
-## Host contract: no sparse subscription (#879) on the entity — the tick is
+## Host contract: no sparse subscription on the entity — the tick is
 ## wired unconditionally in [method Entity.resolve_turn_end].
 func _on_first_status() -> void:
 	pass
@@ -861,7 +861,7 @@ func _on_pile_rose(_def: StatusDef, _key: Variant) -> void:
 	world().note_pile(self)
 
 
-## Host contract: the live entity announces its rows changed (#880's node
+## Host contract: the live entity announces its rows changed (the node
 ## tint has no entity twin yet — #953 reads the rows at the core's readout).
 func _on_statuses_changed() -> void:
 	if host != null:
@@ -1039,7 +1039,7 @@ func revoke_node(node: SkillNode) -> void:
 	var b := board()
 	if b != null:
 		# Strip swapped effect-sets BEFORE the revoke sweep — the set leaves were
-		# applied outside the effect ledger and would strand otherwise (#376).
+		# applied outside the effect ledger and would strand otherwise.
 		if host != null:
 			node.clear_scaled_effect_sets(b)
 		else:
