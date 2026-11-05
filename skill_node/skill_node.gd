@@ -622,13 +622,9 @@ var _damaged_since_upkeep: bool = false:
 	set(value):
 		state.damaged_since_upkeep = value
 
-# Hit-flash bookkeeping. Killed and re-created on every hit so back-to-back
-# damage doesn't visually merge into one stuck red.
-var _hit_flash_tween: Tween
-
-# Denial-feedback bookkeeping (#89). Killed + reset on every trigger so spamming
-# the deallocate key doesn't stack shakes / leave a stuck offset or tint.
-var _feedback_tweens: Array[Tween] = []
+## Hit flash + denial shake/blink — see `node_feedback.gd`. Untyped for the
+## same cache-refresh reason as line 6.
+@onready var feedback: Node = $Feedback
 
 ## Live self-loops only: a freed or since-reassigned entry never counts.
 var self_loop_count: int:
@@ -1972,96 +1968,21 @@ func play_core_slide_from(world_pos: Vector2, duration: float = CORE_SLIDE_DURAT
 	_node_visuals.glide_core_presence(offset, duration)
 
 
-## Brief red pulse on NodeVisualsComposite. Auto-runs on the `damaged` signal;
-## also callable externally (FloatingNumberLayer triggers it on wound/heal
-## events so the core flashes alongside the floater).
+## Brief red pulse on the body. Auto-runs on the `damaged` signal; also
+## callable externally (FloatingNumberLayer flashes the core with its floater).
 func play_hit_flash() -> void:
-	if not is_node_ready() or _node_visuals == null:
-		return
-	if _hit_flash_tween != null:
-		_hit_flash_tween.kill()
-	# Tweens NodeVisualsComposite.feedback_tint (#304) only — leaves
-	# visuals.modulate free for other consumers (selection tint, status
-	# effects, etc.) without colliding.
-	_node_visuals.feedback_tint = _DENY_COLOR
-	_hit_flash_tween = create_tween()
-	_hit_flash_tween.tween_property(_node_visuals, "feedback_tint", Color.WHITE, 0.25)
-
-
-# ── Denial feedback (#89) ────────────────────────────────────────────────────
-# Two registers for a rejected deallocation, driven by PlayerInputController:
-# the nodes that WOULD be islanded pulse danger-red (blink_blocked); the node
-# the player actually tried to drop gets a short "bzzt — no" shake (shake_denied).
-#
-# The red tint lands on `_node_visuals` (NodeVisualsComposite, #304's
-# feedback_tint channel), NOT on `visuals` — the hover glow (HoverRing) is a
-# child of `visuals`, so a `visuals.modulate` tint multiplied the glow down to
-# near-black and read as "the glow vanished". Body tint keeps the hover
-# register (a different visual meaning: "pointer is here") clean. The shake
-# offsets `visuals.position` (edges anchor on the node root, so endpoints
-# don't move); the hover glow is counter-translated to stay world-fixed — the
-# pointer isn't shaking, so its feedback shouldn't either.
-
-## Also the hit-flash channel's color (#304) — one shared feedback-tint value
-## for both registers, since both drive [member NodeVisualsComposite.feedback_tint].
-const _DENY_COLOR := Color(1.0, 0.3, 0.3)
-const _BLINK_STEP := 0.11
-const _SHAKE_TIME := 0.30
-const _SHAKE_AMPLITUDE := 5.0
-
-
-func _reset_feedback() -> void:
-	for t in _feedback_tweens:
-		if t != null and t.is_valid():
-			t.kill()
-	_feedback_tweens.clear()
-	if visuals != null:
-		visuals.position = Vector2.ZERO
-	if hover_ring != null:
-		hover_ring.position = Vector2.ZERO
-	for addon in _addons:
-		addon.position = Vector2.ZERO
-	if _node_visuals != null:
-		_node_visuals.feedback_tint = Color.WHITE
+	if is_node_ready() and feedback != null: feedback.play_hit_flash()
 
 
 ## Danger-red pulse — marks a node that a denied deallocation would island (#89).
 func blink_blocked() -> void:
-	if not is_node_ready() or _node_visuals == null:
-		return
-	_reset_feedback()
-	var t := create_tween()
-	for i in 2:
-		t.tween_property(_node_visuals, "feedback_tint", _DENY_COLOR, _BLINK_STEP)
-		t.tween_property(_node_visuals, "feedback_tint", Color.WHITE, _BLINK_STEP)
-	_feedback_tweens.append(t)
+	if is_node_ready() and feedback != null: feedback.blink_blocked()
 
 
 ## Short "bzzt — no" shake + red tint — the node the player tried but failed to
-## deallocate (#89). Horizontal decaying jitter on the body; hover glow held put.
+## deallocate (#89).
 func shake_denied() -> void:
-	if not is_node_ready() or visuals == null:
-		return
-	_reset_feedback()
-	if _node_visuals != null:
-		_node_visuals.feedback_tint = _DENY_COLOR
-		var tint := create_tween()
-		tint.tween_property(_node_visuals, "feedback_tint", Color.WHITE, _SHAKE_TIME)
-		_feedback_tweens.append(tint)
-	var shake := create_tween()
-	var amps := [1.0, -0.72, 0.5, -0.32, 0.16, 0.0]
-	var step := _SHAKE_TIME / float(amps.size())
-	for a in amps:
-		var off := Vector2(a * _SHAKE_AMPLITUDE, 0.0)
-		shake.tween_property(visuals, "position", off, step).set_trans(Tween.TRANS_SINE)
-		if hover_ring != null:
-			shake.parallel().tween_property(hover_ring, "position", -off, step).set_trans(Tween.TRANS_SINE)
-		# Addons are siblings of `visuals`, not children (#334) — they no longer
-		# ride its offset for free, so shake them alongside it or the node body
-		# jitters out from under a stationary addon sprite.
-		for addon in _addons:
-			shake.parallel().tween_property(addon, "position", off, step).set_trans(Tween.TRANS_SINE)
-	_feedback_tweens.append(shake)
+	if is_node_ready() and feedback != null: feedback.shake_denied()
 
 
 ## Whether the cursor is inside this node's padded pick ring. Several nodes can

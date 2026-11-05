@@ -9,6 +9,7 @@
 [ext_resource type="Script" uid="uid://drxjp5sanc7cf" path="res://skill_node/core_health_bar.gd" id="7_corehb"]
 [ext_resource type="PackedScene" path="res://skill_node/shots_pips.tscn" id="8_pips"]
 [ext_resource type="PackedScene" path="res://ui/status_overlay/status_overlay.tscn" id="9_overlay"]
+[ext_resource type="Script" path="res://skill_node/node_feedback.gd" id="10_feedback"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -124,6 +125,13 @@ layout_mode = 1
 
 [node name="ShotsPips" parent="Visuals" instance=ExtResource("8_pips")]
 z_index = 10
+
+[node name="Feedback" type="Node" parent="." node_paths=PackedStringArray("host", "visuals", "hover_ring", "node_visuals")]
+script = ExtResource("10_feedback")
+host = NodePath("..")
+visuals = NodePath("../Visuals")
+hover_ring = NodePath("../Visuals/HoverRing")
+node_visuals = NodePath("../Visuals/NodeVisualsComposite")
 
 [node name="FloatAnchor" type="Marker2D" parent="." unique_id=2130772427]
 unique_name_in_owner = true
