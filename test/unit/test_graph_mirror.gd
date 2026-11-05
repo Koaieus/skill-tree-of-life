@@ -152,3 +152,36 @@ func test_hop_distances_from_an_unmirrored_anchor_is_empty() -> void:
 	m.graph = _graph
 	m.mirror_add(n[1]) # n[0] deliberately left out of the mirror
 	assert_true(m.hop_distances_from(n[0]).is_empty())
+
+
+func _gate(a: SkillNode, b: SkillNode) -> Gate:
+	var g := Gate.new()
+	autofree(g)
+	g.from = a
+	g.to = b
+	return g
+
+
+func test_flip_pairs_toggles_topology_persistently() -> void:
+	var ns := _add_nodes(3)
+	_connect(ns[0], ns[1])
+	var m := _mirror_all(ns)
+	var gates: Array[Gate] = [_gate(ns[0], ns[1]), _gate(ns[1], ns[2])]
+	m.flip_pairs(gates)
+	assert_false(m.astar.are_points_connected(m.vertex_id(ns[0]), m.vertex_id(ns[1])), "existing pair cut")
+	assert_true(m.astar.are_points_connected(m.vertex_id(ns[1]), m.vertex_id(ns[2])), "absent pair joined")
+	m.flip_pairs(gates)
+	assert_true(m.astar.are_points_connected(m.vertex_id(ns[0]), m.vertex_id(ns[1])), "second flip restores")
+
+
+func test_flip_pairs_skips_unmirrored_endpoints() -> void:
+	var ns := _add_nodes(3)
+	var m := GraphMirror.new()
+	autofree(m)
+	m.graph = _graph
+	m.mirror_add(ns[0])
+	m.mirror_add(ns[1])
+	var gates: Array[Gate] = [_gate(ns[1], ns[2])]
+	m.flip_pairs(gates)
+	assert_false(m.astar.are_points_connected(m.vertex_id(ns[0]), m.vertex_id(ns[1])))
+	assert_eq(m.vertex_id(ns[2]), -1)

@@ -354,6 +354,11 @@ func nodes_islanded_by_flipping(gates: Array[Gate], anchor: SkillNode) -> Array[
 	return result
 
 
+## STUB
+func flip_pairs(_gates: Array[Gate]) -> Array[Array]:
+	return []
+
+
 ## Convenience: single-node form of [method nodes_islanded_by_removing_set].
 func nodes_islanded_by_removing(node: SkillNode, anchor: SkillNode) -> Array[SkillNode]:
 	var single: Array[SkillNode] = [node]
