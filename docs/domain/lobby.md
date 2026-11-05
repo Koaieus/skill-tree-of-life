@@ -55,3 +55,53 @@ just what to call an index when talking about one):
 2 Violet      6 Olive       10 Teal       14 Plum
 3 Magenta     7 Cyan        11 Steel      15 Rose
 ```
+
+## LobbyRoster (`session/lobby_roster.gd`)
+
+The lobby's DOMAIN half (#1002): who is in the run, what each seat picked,
+and whether START is allowed. `LobbyScreen` holds one, renders rows from it,
+forwards every edit here and calls `to_run_config` at START — the
+screen is a view, this is the run's shape before it becomes a `RunConfig`.
+
+**Three shapes, decided by the `NetworkConfig` rather than by a mode the
+player picked** (#554):
+
+```
+  offline, SINGLE      1 human at peer 0 on `player.tres`    -> SINGLE
+  offline, hot-seat    2 humans at peer 0 sharing `camp_1`    -> COOP_HOTSEAT
+  host / join          1 human on camp_1 at THIS peer +
+                       1 human on camp_2 at the other one     -> VERSUS
+```
+
+**Which of those humans is "me" is never written down (#562)** — the two
+seats differ only by `Participant.peer_id`, and each machine derives
+its own answer with `Participant.is_local`.
+
+**Why the remote seat is declared before anybody joins.** The mode is
+derived at START from the roster and procgen reads the camp shape at level
+setup — both before a peer's socket is anywhere near this machine. So a
+networked roster seats the second human immediately, at
+`PENDING_PEER_ID`, and the join stamps that placeholder with the
+real id (`clear_remote`). "The roster grows on join" is true of the
+peer id, not of the seat.
+
+**Pick memory.** Changing the AI count rebuilds the participant list from
+scratch (`build_participants` is pure), so what a player explicitly
+chose lives beside the list as one `LobbyRoster.Pick` per seat id and is
+re-applied after every rebuild — a slot's colour must not silently revert to
+its palette default because a DIFFERENT slot was added. A field's zero value
+is "still on the default": white for colour (the palette never offers it),
+null for core, camp and tier, "" for the name.
+
+**Colour is run shape, for every slot (#616).** It crosses the wire in
+`Participant.to_dict`, so the AI slots are this roster's problem
+too: defaults come round-robin off the palette across the WHOLE roster.
+
+**The run section is NOT here.** Map size, blockers, arrangement, victory
+and budget are ladders the route's `LobbyPolicy` unlocks and the screen
+composes into [ScenarioOverride]s — `to_run_config` takes the settled
+scenario + overrides as arguments rather than owning the ladders, so this
+file never has to know what an `OptionChoiceRow` is.
+
+Emits `changed` after every mutation that altered a seat or the
+START gate; the screen's one handler repaints from it.
