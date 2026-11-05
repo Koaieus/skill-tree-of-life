@@ -671,21 +671,17 @@ func _innate_modifiers(victim: Entity) -> Array[StatModifier]:
 ## CLASS/REGISTER bucket (#323): [member Entity.core_modifiers] — the granted-
 ## atom register. This is the ONLY bucket for anything ever permanently granted
 ## onto the core: original class-template grants AND previously-looted grants
-## both live here (there is no separate "looted" bucket — see the RE-CUT
-## comment on #323). `_is_lootable`'s old `scales_with(&"level")` exclusion is
-## GONE (#323) — stealing a level-scaler is the intended roguelite loop now,
-## not a hazard to filter out.
+## both live here (there is no separate "looted" bucket). Level-scaling grants
+## are lootable like any other — stealing a level-scaler is the intended
+## roguelite loop, not a hazard to filter out.
 func _core_modifiers(victim: Entity) -> Array[StatModifier]:
 	return victim.core_modifiers
 
 
 ## Expands each [CompositeStatModifier] whose [member
-## CompositeStatModifier.loots_as_unit] is `false` into its children — separate
-## loot candidates, filtered per-leaf by [method _is_lootable] afterwards — and
-## leaves every other entry (a plain modifier, or a `true` pack) whole as one
-## candidate. Runs BEFORE the lootability filter so a `false` pack whose
-## children mix level-scaling and static entries filters per-leaf instead of
-## excluding the whole pack over one scaling child (D-27, #279).
+## CompositeStatModifier.loots_as_unit] is `false` into its children — each a
+## separate loot candidate — and leaves every other entry (a plain modifier, or
+## a `true` pack) whole as one candidate.
 func _expand_for_loot(mods: Array[StatModifier]) -> Array[StatModifier]:
 	var out: Array[StatModifier] = []
 	var untyped: Array = mods  # untyped: element `is` narrows cleanly (see stats-system.md)

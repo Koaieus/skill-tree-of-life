@@ -6,16 +6,12 @@ extends RefCounted
 ## walk instead (#1136's dirty-frame fallback, [method mark_broadphase_dirty]).
 ##
 ## [b]One question, one query.[/b] "Which nodes near this swing carry
-## `swing_drag` or `deflection`?" used to be asked twice — [method
-## MeleeAttackPlan.build_swing_clock] and [method
-## MeleeAttackPlan.build_obstacle_field] each walked all 800 [SkillNode]s and
-## resolved a stat on every one, then culled by a rest-pose radius that
-## measured 65% short of a whipped blade's real reach (#808). Since #810 the
-## predicate lives on the physics layer bits [constant
-## SkillNode.DRAG_COLLISION_LAYER] / [constant SkillNode.DEFLECT_COLLISION_LAYER],
-## so both walks collapse into a single [method
-## PhysicsDirectSpaceState2D.intersect_shape] against a mask of both bits, and
-## the radius stops being what makes the work cheap.
+## `swing_drag` or `deflection`?" is answered by the physics layer bits
+## [constant SkillNode.DRAG_COLLISION_LAYER] /
+## [constant SkillNode.DEFLECT_COLLISION_LAYER]: one [method
+## PhysicsDirectSpaceState2D.intersect_shape] against a mask of both bits, never
+## a walk of every [SkillNode] (a rest-pose radius cull also undershoots a
+## whipped blade's real reach).
 ##
 ## [b]Immutable, and that is what makes it shareable.[/b] Nothing here is sim
 ## state: [BladeObstacleField] wraps an instance of this and owns every mutable

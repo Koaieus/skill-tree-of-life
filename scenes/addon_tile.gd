@@ -2,9 +2,9 @@
 class_name AddonTile
 extends PanelContainer
 
-## One tile in the [member dev_addon_gallery] grid: a SkillNode wearing a single
-## addon, with a name label. Scene-authored (was procedural node composition) so
-## the layout is editor-tunable. Call [method configure] after the tile is in the
+## One tile in the `scenes/dev_addon_gallery.tscn` grid: a SkillNode wearing a
+## single addon, with a name label. Scene-authored so the layout is
+## editor-tunable. Call [method configure] after the tile is in the
 ## tree.
 
 const SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
