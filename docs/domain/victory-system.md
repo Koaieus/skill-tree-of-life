@@ -199,3 +199,90 @@ including after it dies, which is why the overlay cannot be found by walking
   button, and `run_end_route_delay` as the fallback. `route_to_meta_on_run_end`
   vetoes both so tooling does not teleport itself to the menu; the action row
   still appears under the veto and the press then dismisses the overlay.
+
+## CombinedVictoryCondition (`session/victory/combined_victory_condition.gd`)
+
+The combinator (#746). Layers 0..N bonus conditions on top of the shipped
+floor, OR-ed: the run ends the moment ANY bonus fires, otherwise exactly
+when the floor itself would end it.
+
+**Owner, 2026-09-03, verbatim:** "in practice the last camp standing rule is
+the implicit one, absent all other conditions it would always end like
+that. bonus conditions should be add-able on top... any bonus condition
+wins you the game." And on scope: "combinator now, conditions later with
+the next wave... the composability of 0..N bonus rules should follow from
+the mechanism, concrete units + UI is the second drone."
+
+**The floor cannot be unset — by design, not by omission.** It is
+`_FLOOR`, a preload of the shipped `LastCampStandingCondition`
+asset, never an `@export` field: nothing authoring a
+`CombinedVictoryCondition` has a slot to swap or null it out. Preloading the
+asset (rather than `LastCampStandingCondition.new()`) matters beyond
+avoiding an allocation per `evaluate` call (this runs on every
+death, see `VictorySystem`) — a fresh instance is a SECOND, parallel
+authority on what the floor is, correct only by accident today because
+nothing has yet authored a `VictoryCondition.contestants` rule onto
+`last_camp_standing.tres`. The moment something does, a `.new()` floor would
+silently stop matching the shipped condition. Preloading the asset makes
+that impossible by construction.
+
+**Precedence is a decision, not a consequence:** a bonus that would fire on
+the same tick as the floor (the last hostile dies AND someone crosses a
+bonus threshold in the same resolution) wins over the floor, because a
+player who deliberately raced for a bonus condition should not have it
+silently overridden by the default ending. Bonus conditions are checked in
+authored array order and the first to fire wins, which is also the tie
+break between two bonuses landing on the same tick.
+
+**The inherited `contestants` export is inert on this class.**
+`VictoryCondition` declares `VictoryCondition.contestants` and this
+class does not hide it, so a `CombinedVictoryCondition.tres` shows a
+`contestants` slot in the inspector — but `evaluate` never reads
+`self.contestants`; it delegates entirely to `_FLOOR`, which
+carries its own. Setting it here is silently ignored: exactly the
+second-parallel-authority failure `_FLOOR`'s own docstring
+argues against, just arriving from the base class instead of from a
+fresh `.new()`. To change who contests the run, edit
+`last_camp_standing.tres` (the floor) or the bonus condition in
+question — never this class's own `contestants`.
+
+**No `is_empty()` special case.** `evaluate` walks
+`bonus_conditions` and falls through to the floor whether that array
+holds 0, 1, or N entries — the same code path every time, which is what
+makes 0..N composability a property of the mechanism rather than something
+bolted on at either end.
+
+## ContestantRule (`session/victory/contestant_rule.gd`)
+
+Is this entity in the contest at all? (#517) — the predicate a
+`VictoryCondition` applies before it counts anyone. Replaces
+`Faction.counts_for_victory`, which could only author inertness per CAMP and
+so could never express a per-entity exception without minting a faction.
+
+**Owner call 2026-08-22:** "i feel like the game mode decides the victory
+conditions, and entities themselves just should be agnostic of all this...
+i think a predicate (customizable to any condition) would be a more useful
+construct than a single bool... i feel like victorycond would be the one to
+apply them anyway."
+
+That is why membership lives here and not on `Entity` or `Faction`: the rule
+belongs to whoever decides how the run ends. The per-entity handle it reads
+is a plain Godot group (see `ExcludeGroupRule`) — the engine's own version of
+a per-unit tag — so `Entity` gains no field and learns nothing about victory.
+
+**Pure**, same contract as `VictoryCondition`: no state, no signals, no
+subscriptions. A `.tres` is shared and `duplicate()`d freely, so per-run
+mutable state here would silently fork between two levels or a reloaded
+scene. `includes` must be a function of its argument alone.
+
+**Pull, not push:** membership is computed at evaluation time, never stamped
+onto entities at spawn or run start. A stamping pass would have to run after
+`victory_system.condition` is assigned — later than `_setup_level`, so it
+would re-stamp anything a level deliberately un-stamped, and a boolean group
+cannot tell "not yet stamped" from "deliberately out". A materialised view
+computed from this same rule stays purely additive if save/replay/spectating
+ever wants one.
+
+The sanctioned answer for genuinely bespoke run-end logic is a
+`VictoryCondition` subclass, not a cleverer rule — do not grow this class to
+anticipate one.

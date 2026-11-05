@@ -451,36 +451,11 @@ func ap_cost() -> int:
 
 
 func resolve_against(world: CombatWorld) -> AttackOutcome:
-	# One DamageInstance per scheduled shot, in the authored firing order
-	# (see get_firing_schedule) — flat-armour-friendly, stagger-VFX-friendly.
-	# Each hit's STRUCTURAL KEY is where the firing leaf sits in the volley's
-	# own DISTANCE SPAN — never append order, and never distance/speed:
-	#   frac = (distance - d_min) / (d_max - d_min)   # 0 .. 1
-	# and that is the whole of what this plan records about timing (#543). The
-	# seconds it used to stamp —
-	# `DRAW_TIME + frac * TOTAL_STAGGER + FLIGHT_TIME` — are now
-	# [constant ScheduleEntry.Cadence.RAMP] arithmetic inside
-	# [method OutcomeSchedule.compile], reading
-	# [member PresentationTempo.volley_stagger_span] and friends, so a
-	# slow-motion replay stretches the ramp instead of re-authoring it.
-	# The compiled schedule is still the ordering authority OutcomeApplier reads
-	# (docs/domain/attack-timeline.md "The ranged volley ramp").
-	#
-	# The ramp is METRIC, not ordinal (it used to lerp on rank / (n - 1)):
-	# two leaves 0.1px apart now launch 0.1px apart in the span rather than a
-	# full 1/(n-1) slice apart, so a clustered firing line reads as one salvo
-	# and a lone outlier owns the whole tail. Allocation order still cannot
-	# influence it — distance is pure geometry off `global_position`.
-	#
-	# WAVES (#957): the volley is wave-major (see get_firing_schedule) and one
-	# volley is ONE ramp — waves sit back-to-back inside it and
-	# `volley_draw_time` is paid once. The key therefore encodes both:
-	#   key = (wave + frac) / waves
-	# with frac over the volley's whole distance span, so it stays in [0, 1]
-	# (the RAMP branch's assumption) and collapses to plain frac for a
-	# single wave. The last shot of wave k and the first of wave k+1 share a
-	# key; the schedule's (structural_key, original_index) sort keeps them in
-	# wave order, they just land on one beat.
+	# One DamageInstance per scheduled shot, in authored firing order. Each hit's
+	# STRUCTURAL KEY is its leaf's metric position in the volley's distance span:
+	# key = (wave + frac) / waves, frac = (d - d_min) / (d_max - d_min). Only
+	# structure is recorded; seconds come from OutcomeSchedule.compile (RAMP).
+	# See docs/domain/attack-timeline.md "The ranged volley ramp".
 	var outcome := AttackOutcome.new()
 	outcome.cadence = ScheduleEntry.Cadence.RAMP
 	outcome.resolve_seed = resolve_seed

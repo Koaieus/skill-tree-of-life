@@ -1,70 +1,13 @@
 class_name VisionCircles
 extends RefCounted
 
-## A set of vision circles plus the one geometric rule that reads them:
-## "is this point inside the union?". Both fog consumers build one of these —
-## [VisionSystem] (the scene's shared, player-scoped instance) and [AiRecon]
-## (a fresh per-entity set each AI turn) — so the vision rule never forks into
-## two implementations.
-##
-## [b]Why this is a class and not a static predicate over two packed arrays[/b]
-## (which is what it replaced): every caller asks the same question about
-## [i]many[/i] points against the [i]same[/i] circles. A per-point linear scan is
-## O(points x circles), and at the scale this project targets
-## (see [code].claude/rules/skill-node-scale.md[/code] — ~2000 nodes, ~200 owned)
-## that is 400k GDScript iterations per recompute, measured at 13.3ms of a
-## 19.4ms [code]VisionSystem._recompute()[/code]. Owning the circle set lets it
-## carry a spatial index that the scan could not.
-##
-## [b]The index[/b] is a uniform grid over the union's bounding box whose cell
-## is a FRACTION of the largest radius ([constant _CELL_DIVISOR]), and every
-## cell is classified at build time:
-##   - [b]full[/b] — the whole cell square lies inside one circle. A query
-##     landing here is true with no distance test at all. In a dense territory
-##     (the real level: one radius on every owned node, nodes ~86px apart) this
-##     is nearly every cell the union covers.
-##   - [b]empty[/b] — no circle reaches the cell: false, no scan.
-##   - [b]partial[/b] — the cell holds only the circles whose rim crosses it.
-##     These are the cells along the union's boundary; a query here scans that
-##     short list with the exact `distance <= radius` rule.
-## A query is therefore one cell lookup, and its cost no longer tracks how many
-## circles overlap the point — which is what the previous grid (cell = largest
-## radius, 3x3 neighbourhood scan) could not deliver: at 86px spacing a 550px
-## radius put ~100 circles in every scanned neighbourhood, and the pass grew
-## 2.9x (2026-11-05) to 6.1x (2026-08-17) from 10 to 200 owned.
-##
-## [b]Exactness[/b] is non-negotiable and rests on one asymmetry: every
-## classification error the build can make demotes a cell toward the scan,
-## never away from it. A cell is marked full only if it fits inside the circle
-## shrunk by [constant _EPS_FRAC] of a cell, and a circle joins a cell's list if
-## it reaches the cell grown by the same amount, so float32 rounding in
-## `Vector2` (ulp ~1e-3px at 10k coordinates) can only cost a scan, never an
-## answer. Points outside the bounding box are rejected by four float
-## comparisons, exactly as before.
-##
-## [b]Do not merge this grid with [OverlayFieldTileIndex][/b] (the fog overlay's
-## tile index, via [VisionSourceIndex]). They look like the same uniform grid
-## over the same circles, and they are not — investigated and rejected
-## 2026-08-17:
-##   - Cell size differs semantically: `max_radius` here vs
-##     `(1 + union_smoothness) * max_radius` there, deliberately widened for the
-##     smin fold's reach.
-##   - Margins differ: 1x max_radius here; 2x cell_size plus a hand-tuned
-##     `1e-4 * cell_size` epsilon there, which exists to fix a MEASURED
-##     CPU/shader darkness mismatch from floor() boundary ties, with only 0.0013
-##     of headroom under the visible threshold.
-##   - Storage differs: a dense flat Array here; a sparse Dictionary there,
-##     because it must also serialize into GPU data textures in deterministic
-##     row-major order.
-##   - This answers a hard boolean union; that answers a soft field fold whose
-##     CPU walk must match the fragment shader's tile-gather order exactly.
-## A shared substrate would need parameters for every one of those and would
-## risk that epsilon. ~15-20 lines of superficial shape is not worth it.
-##
-## Build cost is O(circles) and lazy: adding a circle only invalidates the
-## index, so a caller may [method add] freely and pay for the grid on its first
-## query. A set queried once still beats the linear scan for any realistic node
-## count.
+## A set of vision circles plus the one rule that reads them: "is this point
+## inside the union?". [VisionSystem] and [AiRecon] both build one, so the rule
+## never forks. Carries a lazily built uniform grid whose cells (a fraction of the
+## largest radius) are classified full/empty/partial at build, so a query is one
+## cell lookup and stays exact. Do not merge it with [OverlayFieldTileIndex]: they differ in
+## cell size, margins, storage and semantics (rejected 2026-08-17).
+## See docs/domain/vision-system.md "VisionCircles".
 
 ## Grid resolution ceiling per axis. A pathological set (one huge circle and one
 ## pinprick, spread across the map) would otherwise ask for a cell count

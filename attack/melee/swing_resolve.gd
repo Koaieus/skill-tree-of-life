@@ -1,36 +1,14 @@
 class_name SwingResolve
 extends RefCounted
-## One resumable run of the swing resolve — the loop [method
-## MeleeAttackPlan._resolve_swing] used to hold inline, hoisted into an object
-## so it can be driven either straight through (the authoritative path: one
-## optimistic bake of the whole remaining swing per severance) or a slice at a
-## time across frames (#821's aim-time preview).
-##
-## [b]There is still exactly ONE chunked loop.[/b] Slicing is not a second code
-## path — [method advance] takes a step budget, and an unbounded budget (<= 0)
-## reproduces the old whole-remainder bake exactly. Everything the severance
-## head-replay already did to stitch a chunk boundary is what a slice boundary
-## rides on: one [BladeSwingClock] instance carried across, one
-## [BladeObstacleField] carried across, and [member BladeState.speed_history]
-## accumulated out of each bake's chunk-local array.
-##
-## [b]Those three histories are chunk-local BY DESIGN[/b] — `clock.history`,
-## `obstacles.history` and `state.speed_history` are rebuilt per bake, so a
-## sliced caller has to stitch them rather than assume they accumulate. Getting
-## it wrong is not a visible glitch: a fresh clock mid-swing un-banks a
-## dragging wall's drag and silently stops it sheltering what is behind it
-## (`test_blade_chunked_parity.gd:200-203`). That an arbitrary boundary is
-## bit-identical to no boundary at all is pinned by
-## `test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary`.
-##
-## A slice boundary differs from a severance boundary in exactly one way: there
-## is nothing to rewind to. The bake ran to the boundary and stopped, so the
-## state, the clock and the field are already where the next bake continues
-## from — nothing is restored, which is the shape that parity test runs.
-## The bundle, LIVE. `outcome`, `pops`, `live_gate`, `clock` and `obstacles`
-## are set before the first step; `trajectory`, `events` and `hits` the
-## moment the guards pass — and they are the very arrays the run appends to,
-## so a PARTIAL run is readable and grows in place. See
+## One resumable run of the swing resolve, driven either straight through (the
+## authoritative path) or a slice at a time across frames (the aim-time
+## preview). Exactly ONE chunked loop: [method advance] takes a step budget and
+## `<= 0` is the whole-remainder bake. The clock, the obstacle field and
+## [member BladeState.speed_history] are chunk-local and stitched across
+## boundaries. See docs/domain/melee-blade-internals.md "SwingResolve".
+
+## The bundle, LIVE: `trajectory`, `events` and `hits` are the very arrays the
+## run appends to, so a PARTIAL run is readable and grows in place. See
 ## [method MeleeAttackPlan.prediction_partial].
 var result: SwingResult = SwingResult.new()
 

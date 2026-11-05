@@ -2,54 +2,13 @@
 class_name MagicBounceCoordinator
 extends VFXCoordinator
 
-## Plays a multi-hop spell's visual sequence. Walks [member AttackOutcome.timeline]
-## ([PropagationEvent]s), groups it by [member PropagationEvent.beat], and fires
-## one wave per beat on a fixed clock read off the cast's compiled
-## [OutcomeSchedule] (#543): beat N impacts at
-## [code]lead_in + N * beat_interval[/code] relative to [method play].
-##
-## ## The clock is the ground truth
-##
-## Animations do NOT gate the clock. Each spawned [Projectile] is given
-## [member flight_time] as its flight budget so the visual lands
-## roughly when the next wave fires — but if a visual lingers past its
-## window (long trail, slow fade) it keeps playing in parallel with the
-## next hop's projectiles. That parallel-stacking IS the look for branchy
-## spells (fork lightning). Awaiting "previous projectile finished" would
-## let a slow fork hold up the propagation; we don't do that.
-##
-## ## Three-clocks timing
-##
-## Impact is pinned to the beat, not to launch (#201). Projectiles are
-## spawned early (one [method OutcomeSchedule.lead_in] ahead of the beat) so
-## they arrive exactly at the beat. The visual's own windup/linger is free to
-## start before and outlive impact — the coordinator only gates on the wave
-## clock.
-##
-## [b]Both numbers come from the schedule, not from an export here[/b] (#543
-## D3). They used to exist twice — as `const`s in [SpellResolver] stamped into
-## the model's landing times, and as `@export`s on this node driving the
-## picture — deliberately unwired, with a documented "retune either and
-## re-check both" tax. [PresentationTempo] is now their single home and
-## [method OutcomeSchedule.compile] their only reader, so the mutation clock
-## and the picture cannot drift apart.
-##
-## ## Verb → ProjectilePath mapping
-##
-## Each [PropagationEvent.Verb] can carry its own path and visual:
-##   * [member jump_path] / [member jump_visual]  — JUMP (the seed)
-##   * [member edge_path] / [member edge_visual]  — EDGE (along the edge)
-##   * [member self_loop_path] / [member self_loop_visual] — SELF_LOOP
-##   * [member cancel_visual] — CANCEL dissipate (no projectile path)
-## Unset slots fall back to [member projectile_path] / [member visual_scene],
-## then to built-in defaults.
-##
-## ## Pure observer (#474)
-##
-## [member PropagationEvent.hits] have ALREADY landed by the time [method play]
-## runs — BattleSystem applies the whole [AttackOutcome] synchronously before
-## any VFX await starts. This
-## coordinator never calls take_damage/heal_damage; it only renders.
+## Plays a multi-hop spell's visual sequence: walks [member AttackOutcome.timeline],
+## groups it by [member PropagationEvent.beat], and fires one wave per beat on the
+## fixed clock of the cast's compiled [OutcomeSchedule] (beat N impacts at
+## `lead_in + N * beat_interval`). Animations never gate the clock; a lingering
+## visual keeps playing in parallel. Per-verb path/visual slots fall back to
+## [member projectile_path] / [member visual_scene]. A pure observer: hits have
+## ALREADY landed. See docs/domain/vfx-units.md
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/glowing_dot.tscn")
 const _DEFAULT_CANCEL: PackedScene = preload("res://ui/vfx/projectile/visual/cancel_dissipate.tscn")
@@ -102,8 +61,8 @@ signal wave_started(hop_index: int, events_in_wave: int)
 
 ## Visual for a landing that CLOSED a loop — spawned once per event whose
 ## [member PropagationEvent.closed_ring] is non-empty, and handed the whole
-## event through its [ScheduleEntry] context so it can light the ring as a ring
-## (#710). Null means "nothing", exactly how [member cancel_visual] behaves;
+## event through its [ScheduleEntry] context so it can light the ring as a ring.
+## Null means "nothing", exactly how [member cancel_visual] behaves;
 ## eight of the nine spells never close anything and leave it unset.
 ##
 ## [b]Once per EVENT, not once per arc.[/b] A merged landing spawns one bolt per
@@ -121,12 +80,12 @@ signal wave_started(hop_index: int, events_in_wave: int)
 @export var visual_scene: PackedScene = _DEFAULT_VISUAL
 
 ## The streak each territory neighbour sends INTO the caster during the
-## wind-up's draw span (#1043). A per-spell override goes here; per-spell FX
+## wind-up's draw span. A per-spell override goes here; per-spell FX
 ## layered on top of the draw is [member SpellDef.windup_vfx_scene].
 @export var draw_streak_visual: PackedScene = _DEFAULT_STREAK
 
 ## The hitscan line an aimed cast ([member AttackOutcome.aim]) draws from its
-## origin to full length inside the lead-in, before beat 0 (#1498). A spell
+## origin to full length inside the lead-in, before beat 0. A spell
 ## picks its look by pointing this at its own [HitscanStreak] scene; null =
 ## no streak.
 @export var aim_streak_visual: PackedScene = _DEFAULT_AIM_STREAK
@@ -138,7 +97,7 @@ const _DRAW_GLOW_TIER: float = Emissive.VALUE
 const _LANTERN := preload("res://ui/fog_overlay/lantern.tscn")
 
 # The `waves` / beat-index / `pending` triple this coordinator schedules with
-# wants to be a per-wave object rather than three parallel locals — #722.
+# wants to be a per-wave object rather than three parallel locals.
 
 ## The clock the wave cadence walks. Null (the default) means each cast makes
 ## its own real-clock [method BeatClock.for_tree]; a test sets
@@ -159,10 +118,10 @@ var _lantern_source: Entity = null
 
 var _caster_tint: Color = Color.WHITE
 ## Which way the cast currently playing turns, and the signed paths built for
-## it. Both are per-cast state resolved in [method play] — see #708.
+## it. Both are per-cast state resolved in [method play].
 var _turn_sign: float = 0.0
 var _handed_paths: Dictionary = {}  ## Verb -> ProjectilePath
-## Wind-up state (#1043): the caster whose body `feedback_tint` the draw ramps,
+## Wind-up state: the caster whose body `feedback_tint` the draw ramps,
 ## the tween driving it, and the spell's own layered FX instance — all torn
 ## down by [method _end_windup] when playback ends or this node leaves the tree.
 var _windup_caster: SkillNode = null
@@ -173,7 +132,7 @@ var _windup_fx: Node = null
 func play(payload: Variant) -> void:
 	await _play_cast(payload as AttackOutcome)
 	# The wind-up's layered FX lives exactly as long as the cast's playback
-	# (#1043 acceptance 3) — freed on EVERY exit, the empty-timeline one too.
+	# — freed on EVERY exit, the empty-timeline one too.
 	_end_windup()
 
 
@@ -202,7 +161,7 @@ func _play_cast(outcome: AttackOutcome) -> void:
 	_caster_tint = _resolve_caster_tint(outcome)
 	# Once per cast, not per bolt: handedness is constant for a whole cast, so
 	# the signed path resources below are built at most once per verb and no
-	# projectile ever duplicates one (#708).
+	# projectile ever duplicates one.
 	_turn_sign = _resolve_turn_sign(outcome)
 	_handed_paths.clear()
 	var entry_of := _entries_by_event(schedule)
@@ -222,7 +181,7 @@ func _play_cast(outcome: AttackOutcome) -> void:
 	# `play()` returning is what makes AttackVFX free this coordinator, taking
 	# every later beat's projectiles with it: the spell would silently stop
 	# rendering partway down its own timeline (damage/heal are already
-	# applied by BattleSystem before play() ever runs — see #474 — so what's
+	# applied by BattleSystem before play() ever runs — so what's
 	# at stake here is purely the visual, not a dropped mutation).
 	await _play_three_clocks(schedule, entry_of, waves, beats, pending)
 	while pending[0] > 0:
@@ -236,7 +195,7 @@ func _ensure_schedule(outcome: AttackOutcome) -> void:
 		outcome.schedule = OutcomeSchedule.compile(outcome, tempo)
 
 
-## The hitscan streak (#1498): spawned at play() time, i.e. wave 0's launch,
+## The hitscan streak: spawned at play() time, i.e. wave 0's launch,
 ## and drawn to full length over [param lead_in] — the same seconds wave 0's
 ## bolts fly — so it is done at beat 0 and never moves a landing. Counted in
 ## [param pending] so the coordinator outlives its fade.
@@ -283,16 +242,16 @@ func _play_three_clocks(schedule: OutcomeSchedule, entry_of: Dictionary,
 			_play_event(ev_v, entry_of, flight, pending)
 		await beat_clock.advance_to(launch_at + flight)
 
-		# #504: no `_show_presentation` pass. The wave's hits land on the
+		# no `_show_presentation` pass. The wave's hits land on the
 		# applier's own beat clock, so HP bar, node tint and damage number move
 		# off the model as the bolt arrives; `wave_started` is the animation's
 		# own cadence signal. Impact here is `lead_in + k * beat_interval` read
 		# off the schedule, and the applier waits that same schedule's
-		# `arrive_at` (#543) — one number, walked by two single-consumer clocks.
+		# `arrive_at` — one number, walked by two single-consumer clocks.
 		wave_started.emit(beat, wave.size())
 
 
-## The camera's per-wave beat (#1044): opens the [SwarmFocus] segment on the
+## The camera's per-wave beat: opens the [SwarmFocus] segment on the
 ## wave's launch-centroid → landing-centroid line and emits
 ## [signal VFXCoordinator.wave_landing] with the wave's target positions.
 ## Called at LAUNCH — the moment the wave's bolts spawn, one lead-in before
@@ -341,7 +300,7 @@ func _focus_weight(ev: PropagationEvent) -> float:
 	return weight if weight > 0.0 else SwarmFocus.STATUS_FLOOR
 
 
-## Presentation-clock reveal (#479/#481), fired AT the beat — magic's fixed
+## Presentation-clock reveal, fired AT the beat — magic's fixed
 ## propagation clock already IS the arrival schedule (impact is pinned to
 ## the beat per the three-clocks model above), so no extra timer is needed
 ## here unlike ranged's per-shot [member HitInstance.arrival_time]. Pure
@@ -371,12 +330,12 @@ func _play_projectile(ev: PropagationEvent, entry_of: Dictionary, flight: float,
 	for i in _arc_indices_for(ev):
 		var origin: SkillNode = ev.predecessors[i] if i >= 0 else ev.origin
 		_spawn_projectile(ev, origin, _share_at(ev, i), entry, flight, pending)
-	# After the per-arc loop, and OUTSIDE it: one ring per closing landing (#710).
+	# After the per-arc loop, and OUTSIDE it: one ring per closing landing.
 	_play_ring(ev, entry, flight, pending)
 
 
 ## The closed-ring flash, if this landing closed one and a scene is authored for
-## it (#710).
+## it.
 ##
 ## [b]A zero-length [Projectile], not a bare `add_child` + timer.[/b] It rides
 ## the same clock as the closing bolt (spawned one lead-in early, arriving on the
@@ -427,14 +386,14 @@ func _entries_by_event(schedule: OutcomeSchedule) -> Dictionary:
 	return by_event
 
 
-## One inbound bolt per converging predecessor (#542) — a fork-then-reconverge
-## lands one impact ([code]docs/domain/attack-timeline.md[/code] / D2 on #542)
+## One inbound bolt per converging predecessor — a fork-then-reconverge
+## lands one impact ([code]docs/domain/attack-timeline.md[/code])
 ## but should draw every branch that fed it, not just [member
 ## PropagationEvent.origin].
 ##
 ## Returns INDICES into [member PropagationEvent.predecessors] rather than the
 ## nodes themselves, because the index is what keeps each bolt paired with its
-## own [member PropagationEvent.incident_shares] entry (#708) — resolving to
+## own [member PropagationEvent.incident_shares] entry — resolving to
 ## nodes first and looking the weight up afterwards is exactly how the two
 ## arrays would drift.
 ##
@@ -470,7 +429,7 @@ func _share_at(ev: PropagationEvent, index: int) -> float:
 	return 1.0
 
 
-## The cast's handedness, read off the first landing that reports one (#708).
+## The cast's handedness, read off the first landing that reports one.
 ## 0.0 = no handedness, which is every spell but Cyclone and also Cyclone's own
 ## seed, since a JUMP is not a turn.
 func _resolve_turn_sign(outcome: AttackOutcome) -> float:
@@ -507,7 +466,7 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 	proj.face_velocity = face_velocity
 	proj.facing_smoothing_seconds = facing_smoothing_seconds
 	proj.crit_tier = ev.max_crit_tier()
-	# The whole render context, not just the crit integer (#543 D6). Set
+	# The whole render context, not just the crit integer. Set
 	# BEFORE `launch`, which is what instantiates the visual and forwards it.
 	proj.context = entry
 	proj.focus_weight = _focus_weight(ev)
@@ -521,7 +480,7 @@ func _spawn_projectile(ev: PropagationEvent, origin: SkillNode, share: float,
 	_attach_lantern(proj, origin)
 
 
-## Tint hook, mirroring ArrowVolleyCoordinator exactly (#663 D4): `launch`
+## Tint hook, mirroring ArrowVolleyCoordinator exactly: `launch`
 ## instantiates the visual synchronously as the projectile's first child, so
 ## stamping right after is what lets the body read the caster's colour on its
 ## FIRST draw rather than popping a frame later. Visuals with no `tint` field
@@ -570,10 +529,8 @@ func _attach_lantern(carrier: Node, origin: SkillNode) -> Lantern:
 ## [method play]. White means "no attacker named a colour" — the documented
 ## no-identity fallback, never a hand-picked default.
 ##
-## This existed for ranged since #507 and was simply absent on the magic path
-## until #671/#672 authored the first spell bodies that read it, so every
-## spell rendered neutral-white. `docs/domain/spell-vfx-kit.md` already
-## described the stamp as if it were here; now it is.
+## The magic path stamps it exactly as the ranged path does, so a spell body
+## that reads it renders in the caster's colour, never neutral-white.
 func _resolve_caster_tint(outcome: AttackOutcome) -> Color:
 	for hit in outcome.hits:
 		if hit.attacker != null:
@@ -628,9 +585,9 @@ func _default_path() -> ProjectilePath:
 	return BezierArcPath.new()
 
 
-# -- Wind-up (#1043) ----------------------------------------------------------
+# -- Wind-up ----------------------------------------------------------
 
-## The presenter contract's wind-up for a committed spell (ADR 0027, #1041):
+## The presenter contract's wind-up for a committed spell (ADR 0027):
 ## [b]caster hold → territory-neighbour streaks → flare[/b]. Returns
 ## [method PresentationTempo.magic_windup_seconds], which [BattleSystem] waits
 ## out on its own beat clock before [method play] — nothing here gates the
@@ -682,8 +639,8 @@ func begin_windup(plan: AttackPlan, tempo: PresentationTempo) -> float:
 
 
 ## The [Node2D] the director follows: the `%FocusMarker` child (a
-## [SwarmFocus], parked at the caster for the whole wind-up — #1044 makes it
-## travel with the waves). Null until [method begin_windup] has parked it: the
+## [SwarmFocus], parked at the caster for the whole wind-up, then travelling
+## with the waves). Null until [method begin_windup] has parked it: the
 ## director asks inside `attack_committed`, before the wind-up runs, and an
 ## unparked marker sits at the coordinator's mount origin — a pan there is a
 ## yank to the map corner. The park hands it over via
@@ -742,7 +699,7 @@ func _spawn_draw_streaks(attacker: Entity, caster: SkillNode,
 ## The caster's glow ramp + flare, on the body composite's
 ## [member NodeVisualsComposite.feedback_tint] — the hit-flash channel, which
 ## composes with the status tint and leaves `visuals.modulate` (and the hover
-## ring under it, #304) alone. Colour VALUE only, alpha untouched
+## ring under it) alone. Colour VALUE only, alpha untouched
 ## (`.claude/rules/hdr-color.md`): WHITE → the draw tier across the span as the
 ## streaks arrive, an overshoot to [constant Emissive.PEAK] for the first 35%
 ## of the flare beat, back to WHITE over the rest. Absolute delays on one

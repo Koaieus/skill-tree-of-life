@@ -8,7 +8,6 @@ extends GutTest
 ## `force_allocate` (which hardcodes a 1) or `force_fill` over the row.
 ## `mp:e2e` cannot see this (default chance 0), hence the unit test.
 
-const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 
 
 func _side(count: int) -> Dictionary:

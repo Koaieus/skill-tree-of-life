@@ -263,3 +263,46 @@ viewer_id)`; nothing reads it with a viewer yet.
 - An `Expression` parses an unknown identifier fine, so `StatusDef.parse_error`
   also dry-runs it on neutral inputs; the setters warn with it and
   `test_status_grouping.gd` sweeps every authored `.tres`.
+
+## StatusInstance.land_on: which slice, which host
+
+`StatusInstance.land_on(node, world)` (`attack/outcome/status_instance.gd`):
+
+- `node` is a `NodeCombat`: a shadow slice mid-resolve, or the live slice on a
+  real landing or a peer's replay (`HitInstance.target` stays the real
+  identity, `node` is the state this landing mutates). `StatusHost.apply_status`
+  is already a no-op on a null def, a non-positive power and an unallocated
+  host under a `CLEAR` policy, so land_on does not re-gate any of that.
+- **Fall-through.** The status lands on the entity iff `node` is its owner's
+  core and that core is cracked (`hp.current == 0`) at this moment; damage
+  landed earlier in the same `outcome.hits` is visible, so an arrow that cracks
+  the core sends its own poison through. Decided once on the authority into
+  `host_kind`; a rebuilt hit lands on the shipped host without re-reading node
+  HP. A row already on the core node does not stay there once the core cracks:
+  the crack transition in `NodeCombat.take_damage` moves every node row onto
+  the entity (ADR 0066).
+- **Scaling** is `StatusDef.stacks_per_hit_at(read slice, power)`: one fold of
+  the stacks stat through `HitInstance.read_node`'s slice in `world` (entity
+  bins, that node's local bins, the authored power as `base_add`), so a shadow
+  resolve reads the shadow and a node-local modifier scales only that node's
+  hits. No read node (a hand-built hit) falls back to
+  `StatusDef.stacks_per_hit(attacker board, power)`; a null attacker, blank id
+  or unknown stat leaves the authored power.
+- **Resistance is not folded here** (ADR 0031). The one thing decided at land
+  is the 100% gate: the receiving host (the landing slice, or the entity on
+  fall-through) `blocks_status` it and the hit resolves to 0, which
+  `apply_status`'s non-positive gate makes a no-op. Resolved once: a rebuilt
+  hit arrives with `power_resolved` and lands the recorded number as-is.
+- **`stack_terms`** each add `>= 0` stacks to the fold, read against `world`
+  (the read node's slice and the receiving `node`), before crit, so crit, scale
+  and Greed multiply the whole sum. Skipped with no read node and on an entity
+  host.
+- **Crit** is the hit's crit, copied from the paired lead by `CritRoll.decide`
+  (a rider never draws); the folded stacks land times `abs(crit_multiplier)`,
+  a non-crit times 1. A rebuilt hit arrives resolved, so a peer never
+  multiplies twice.
+- **Greed** (defender-side): a landed, positive, `debuff`-tagged power doubles
+  iff the receiving host `StatusHost.greed_arm`s the hit, after the fold and the
+  block gate, so a blocked rider never spends. A rebuilt hit's recorded power is
+  already doubled but still arms, so the live host spends the stack the shadow
+  spent. Entity Greed is read only on a fall-through, node Greed otherwise.

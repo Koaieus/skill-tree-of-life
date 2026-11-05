@@ -2,35 +2,11 @@
 class_name HealAuraEffect
 extends AuraEffect
 
-## The D-10 healing channel, ported onto [AuraEffect] (#720, replacing the
-## standalone [code]CoreAura[/code]/[code]HealAura[/code] pair): heals through
-## combat (ignores the D-9 damage gate, [method SkillNode.apply_turn_regen])
-## and grants no ramp — a flat top-up applied alongside, never through, that
-## method's [code]node_healing[/code] / [code]regen_stacks[/code] term.
-##
-## [b]A payload-channel subclass, per the [AuraEffect] docstring's
-## [method _has_payload] / [method _grant_to] split[/b], on a per-turn
-## channel — the heal is not a membership grant, so it lands from an
-## overridden [method _on_turn_start] instead. Everything else (the three
-## knobs, the origin rule, batching, the #626 incremental
-## [method AuraEffect._topology_changed] paths) is inherited unchanged, and
-## stays harmless for this channel because [method _grant_to] never grants
-## anything — an alloc/dealloc between turns walks and no-ops, it does not
-## double-heal.
-##
-## [b]Clamped at 0 regardless of [member AuraEffect.discard].[/b] A negative
-## heal at turn start would be damage with no [AttackRecord] behind it (see
-## `.claude/rules/attack-timeline.md`), so the floor is an explicit `maxf`
-## here, never `discard`'s job — `discard` only ever decided whether a
-## MODIFIER-channel value was worth granting.
-##
-## [b]Whole HP, rounded once by the heal door (ADR 0033).[/b] This effect hands
-## the clamped raw amount to [method SkillNode.heal_damage]; the door applies
-## `healing_received` and rounds up to whole HP. A computed `6.667` heals `7`.
-##
-## [b]Readout.[/b] [method readout_payloads] answers the tooltip's "+N HP/turn"
-## through the same [method _heal_frame] / [method amount_at] pair
-## [method _on_turn_start] uses, so the scaled, clamped math is never mirrored.
+## The D-10 healing channel on `AuraEffect`: heals through combat, grants no ramp.
+## A payload-channel subclass that lands from `_on_turn_start`; clamped at 0
+## regardless of `discard`; whole HP, rounded once by the heal door;
+## `readout_payloads` shares the same math as the heal.
+## See docs/domain/effect-system.md
 
 ## Magnitude at distance 0 — the leaf value [member AuraEffect.distance_scale]
 ## shapes. Lives on the resource, not the board (D-10 /

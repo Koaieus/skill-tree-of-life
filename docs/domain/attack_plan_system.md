@@ -231,3 +231,37 @@ replayable.
 owned subgraph (a superset-tolerant digest is ill-defined): O(members) over
 `Graph`'s cached adjacency index. `test_reform_still_works_after_territory_grows`
 is the superset case.
+
+## BattleSystem.apply_launch_command: one launch path
+
+`apply_launch_command(command)` is the `CommandApplier`'s entry point and the one
+place an attack mutates the world. Every machine runs the same two halves:
+
+```
+prepare (validate) -> COMPUTE: resolve on a shadow, capture the record
+apply   (mutate)   -> REPLAY:  rebuild that record, land it on the BeatClock
+```
+
+"The host becomes a peer of itself; it is the only one that computes, not the
+only one that replays" (owner, #498). Which half a machine ran is a payload
+question, never a peer role: `LaunchAttackCommand.computed_here` (set last, and
+only on the success path of `prepare_launch_command`) says whether `local_plan`
+is the plan this machine resolved.
+
+- **An unprepared command is refused**, not quietly computed: whoever applies
+  must have run `prepare_launch_command` first, because the confirm sits between
+  the two halves.
+- **One refusal is not pre-empted by validate.** On the replay branch a
+  malformed `LaunchAttackCommand.plan` fails `AttackPlanCodec.from_dict` here,
+  after the confirm, so "a confirmed command will apply" is that much weaker.
+  Vetting it in prepare would rebuild the plan twice per replay to catch a
+  payload that is already corrupt, and it costs nothing on the wire
+  (`CommandChannel._on_command_confirmed` broadcasts only under
+  `NetworkConfig.Role.HOST`, which a replaying peer is not).
+- **The capture -> rebuild round trip is the point.** Reusing the computed
+  `AttackOutcome` for the live pass would land the same hits twice, and every
+  land-time write on them is one-shot: `CritRoll.apply` multiplies `amount` in
+  place, `hp_before` / `hp_after` would be overwritten with post-cascade numbers,
+  and a `HitInstance.deallocations` left from the shadow would make
+  `_on_node_depleted` take its recorded branch and re-apply a stale cascade set.
+  Rebuilding mints fresh hits. Do not optimise it away.

@@ -2,41 +2,13 @@
 class_name ArrowVolleyCoordinator
 extends VFXCoordinator
 
-## Ranged-attack volley: one [Projectile] per entry of
-## [member AttackOutcome.hits] — literally every one, per scheduled shot —
-## all converging on the same target. Each shot's
-## launch is staggered by RangedAttackPlan's authored ramp — recovered here
-## from the shot's own [ScheduleEntry] window, not a
-## per-index constant — so a wide volley reads as a flurry of arrival
-## impacts rather than one monolithic THWACK. (The ramp is metric, so leaves
-## at the SAME distance genuinely do fire together; a perfectly symmetric
-## firing ring collapses back to one THWACK by construction.)
-##
-## Pure observer (#474/#504) — this coordinator never calls take_damage; it
-## only renders. Note it now runs CONCURRENTLY with the mutation loop rather
-## than after it: [BattleSystem] starts [method play] un-awaited and
-## [OutcomeApplier] lands each hit at that hit's own `arrival_time`, so the
-## arrow is genuinely in flight while its damage is still pending. That is the
-## whole point — the HP bar, shatter, fog and damage number all move as the
-## arrow strikes, because they are all reading the model. Observer status is
-## unchanged: the applier waits on its own timer, never on this animation, so
-## dropping every frame here leaves the applied world identical.
-##
-## Uses the [LightArrow] visual by default — oriented glowing arrow that
-## sticks into the target node and fades. A typed shot flies its own
-## [member AmmoType.visual_scene] instead (#1351), picked PER SHOT off
-## [member HitInstance.ammo_type_id] through [member ammo_roster] — so a
-## rebuilt record draws what the host drew — and is stamped the type's status
-## colour as `status_tint` beside the attacker `tint`. Arrows are tinted by the
-## attacker's [member Entity.color], read off [member HitInstance.attacker]
-## (promoted to the base class in #507; the record round-trip drops
-## [member HitInstance.source], so tint must never read it).
-##
-## [b]Every scheduled shot flies and arrives, whatever it did[/b] — there is no
-## filter on outcome here, by owner call (see [method play]). A shot the
-## land-time gate vetoes (#503, target overkilled mid-volley) lands INERT, and
-## a shot that mitigated to zero or flipped to a heal still draws its arrow:
-## see [method _on_arrow_arrived].
+## Ranged-attack volley: one [Projectile] per entry of [member AttackOutcome.hits],
+## all converging on the same target, each launch staggered by RangedAttackPlan's
+## ramp read off the shot's own [ScheduleEntry]. A pure observer — never calls
+## take_damage; it runs CONCURRENTLY with the mutation loop and the applier never
+## waits on it. Every scheduled shot flies and arrives whatever it did
+## ([method _on_arrow_arrived]); typed shots fly their [member AmmoType.visual_scene]
+## via [member ammo_roster]. See docs/domain/vfx-units.md
 
 const _DEFAULT_VISUAL: PackedScene = preload("res://ui/vfx/projectile/visual/light_arrow.tscn")
 const _ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
@@ -512,39 +484,11 @@ func _on_last_release(landing_points: PackedVector2Array, target: SkillNode) -> 
 		_hand_over(target)
 
 
-## #503 — the dud beat. [param hit] is the SAME [HitInstance] instance
-## [OutcomeApplier] just landed (or vetoed): [member HitInstance.gated] is
-## the model telling this arrow how it actually resolved, read at the arrow's
-## own arrival rather than predicted at launch (the gate can only be known
-## once the model re-checks it live, per docs/domain/attack-timeline.md).
-##
-## A live hit needs nothing here — [member _resolve_tint]'s launch-time stamp
-## already stands. A gated one desaturates: no damage number follows (the
-## applier never called `take_damage`, so `Events.skill_node_damaged` never
-## fires for it), so the arrow itself has to carry "this overkilled" alone.
-## Named-tier only, per `.claude/rules/hdr-color.md` — never a hand-picked
-## float. [constant Emissive.INERT] is exactly the "visible, never blooms"
-## reading the issue calls for.
-##
-## `_on_dud()` is part of the duck-typed visual contract, alongside
-## `_on_launch()` / `_on_progress(t)` / `_on_arrival()` — the visual owns what
-## a dud looks like, because only it knows which tiers its own `_draw` already
-## applies. [LightArrow] desaturates and drops to [constant Emissive.INERT].
-## A visual that doesn't implement the hook simply renders no dud; the
-## coordinator does NOT reach in and retint it, which would couple this file
-## to that visual's internal emissive choices.
-##
-## The same read picks the ABSORB beat, `_on_absorbed(gained)`, for a landing
-## that went through mitigation and changed nothing hostile: `gained = true`
-## when it flipped to [constant HitInstance.Kind.HEAL] (the shot fed the
-## defender), `false` when it mitigated to exactly zero (the armour held).
-## The gate is checked first: a gated hit never reached mitigation, and its
-## `effective_amount` is 0.0 by construction, so it must never read as "held".
-## Only the impact beat differs — the flight never anticipates the outcome.
-##
-## Every landing that was not a dud then gets `_on_impact(ctx)` with its
-## [method impact_context_for] — after the absorb beat, so the visual decides
-## with the whole verdict in hand ([StatusArrow] plays its impact parts).
+## The dud / absorb / impact beats at an arrow's arrival. [param hit] is the SAME
+## [HitInstance] [OutcomeApplier] just landed: [member HitInstance.gated] -> `_on_dud()`
+## (the visual owns what a dud looks like; the coordinator never retints it); a
+## mitigated landing -> `_on_absorbed(gained)`; every non-dud then gets
+## `_on_impact(ctx)`. The gate is checked first. See docs/domain/vfx-units.md
 func _on_arrow_arrived(proj: Projectile, hits: Array[HitInstance], i: int) -> void:
 	if proj.get_child_count() == 0:
 		return

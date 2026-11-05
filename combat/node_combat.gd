@@ -246,37 +246,12 @@ func is_local_volatile(stat_id: StringName) -> bool:
 	return o != null and o.board() != null and o.board().is_stat_volatile(stat_id)
 
 
-## Reads an accessor token (`<stat_id>__<accessor>`) off whichever board owns
-## the state — the #333 grammar, taught to this method rather than reimplemented
-## anywhere (#702). Adds no grammar: [StatFormula]'s statics split the token and
-## [method Stat.read_accessor] dispatches through the per-subclass
-## [method Stat.accessors] map, so a new accessor on a new [Stat] subclass
-## reaches every caller of this method for free.
-##
-## [b]Deliberately does NOT merge.[/b] The bin merge above is meaningful for a
-## modifier-computed cap, where the entity's and the node's modifiers genuinely
-## stack. It is meaningless for `.current` / `wounded` / `surplus`, which are
-## ephemeral state living on exactly ONE [Stat] instance — merging two boards'
-## bins onto one of them would compute a number nothing stores.
-##
-## So this resolves rather than merges, node board first: a node's own
-## `node_health` [PoolStat] holds its damage, and only the owner's board holds
-## an entity-scope pool like `skill_points`. That ordering is why
-## `skill_points__wounded` works here with no further code — it simply misses
-## the node board and finds the owner's [SkillPointStat].
-##
-## A base id absent from both boards falls through to the def default on the
-## BASE id, matching the bare-id tail above. An accessor the found stat does not
-## answer to is [method Stat.read_accessor]'s call, not this method's: it warns
-## once and degrades to [method Stat.get_value]. Not overridden per-caller —
-## one contract, one policy — and degrading is the right answer for a ranker
-## anyway, since a `0.0` would silently invert the ranking. Typos are caught at
-## load time by the authored-content test, not per-read here.
-##
-## `node_health` resolves through [method _hp_pool], never a raw board read: a
-## shadow slice's pool has its cap provider cleared on snapshot, and reading
-## `current` before it is reinstalled derives it off the stored base instead
-## of the owner's baseline.
+## Reads an accessor token (`<stat_id>__<accessor>`) off whichever board owns the
+## state. Resolves, never merges: `.current` / `wounded` / `surplus` live on
+## exactly one [Stat], looked up node board first, then the owner's. A missing
+## base id falls through to the def default; `node_health` goes through
+## [method _hp_pool], never a raw board read.
+## See docs/domain/stat-formulas.md "NodeCombat._read_accessor".
 func _read_accessor(token: StringName) -> Variant:
 	var base := StatFormula.base_of(token)
 	var s: Stat

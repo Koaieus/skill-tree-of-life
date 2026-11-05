@@ -4,7 +4,7 @@ extends Control
 ## skill tree -> a leaf's panel -> START. The only [method SceneDirector.goto] in this flow is
 ## the lobby's START, into the actual game level.
 ##
-## [b]This file is the ROUTING and nothing else.[/b] Since #579 the presentation
+## [b]This file is the ROUTING and nothing else.[/b] The presentation
 ## belongs to [FrontmatterRoot] — one persistent menu graph and a camera — and
 ## what survives here is exactly the set of decisions that were never about
 ## presentation: which [NetworkConfig] a route leaves on [GameSession], which
@@ -14,12 +14,12 @@ extends Control
 ## [b]The breadcrumb is gone.[/b] There is no [Control] stack of screens any
 ## more; "where am I" is [member FrontmatterRoot.focus_id] and going back is
 ## [method FrontmatterRoot.back], which under a moving camera is the same call
-## as going forward (#567). Nothing here tracks a history.
+## as going forward. Nothing here tracks a history.
 
-## Fallback destination (#641 acceptance 4/5) for a route whose composed
+## Fallback destination for a route whose composed
 ## [RunConfig] carries no [Scenario] at all — today, every route:
 ## [LobbyScreen.build_run_config] does not yet author one, so this constant is
-## still what every lobby-launched run reaches. The BARE level (#584) — no
+## still what every lobby-launched run reaches. The BARE level — no
 ## [RunBootstrap], so it has no way to start a run of its own and generates
 ## only from the session the lobby already opened.
 ## `scenes/first_level_sandbox.tscn` is the same scene plus an authored run,
@@ -29,14 +29,14 @@ const FIRST_LEVEL_SANDBOX := preload("res://scenes/level.tscn")
 @onready var _frontmatter: FrontmatterRoot = %Frontmatter
 
 
-## The frontmatter is visible from the first frame — since #574 the splash is
+## The frontmatter is visible from the first frame — the splash is
 ## the same picture zoomed in on the root node, not a curtain in front of it, so
 ## there is nothing here to show or hide. [SplashScreen] parks the camera and
 ## takes itself off screen when it advances; this file only routes.
 func _ready() -> void:
 	_bind_panels()
 	_frontmatter.focus_started.connect(_on_focus_started)
-	# #715 acceptance 6: a CLIENT learns its own id the instant the socket
+	# A CLIENT learns its own id the instant the socket
 	# connects — which is now in the LOBBY, long before a level exists. This is
 	# the same routing decision the rest of this file makes ("which peer is this
 	# machine"), so it stays here. [LobbyScreen] asks its own transport the same
@@ -61,7 +61,7 @@ func _bind_panels() -> void:
 	var lobby := _lobby_panel()
 	if lobby != null:
 		lobby.start_pressed.connect(_on_start_pressed)
-		# #715: the same destination, reached from the wire. A joiner has no
+		# The same destination, reached from the wire. A joiner has no
 		# button to press — the host's START is what routes it.
 		lobby.remote_start.connect(_on_remote_start)
 	var join := _join_panel()
@@ -70,7 +70,7 @@ func _bind_panels() -> void:
 	var host := _host_panel()
 	if host != null:
 		host.host_requested.connect(_on_host_requested)
-	# #716 item 2: the lobby's back button. Its sibling route out — a focus
+	# The lobby's back button. Its sibling route out — a focus
 	# change to some other leaf — is caught in [method _on_focus_started].
 	var panels := _panels()
 	if panels != null:
@@ -93,10 +93,9 @@ func _bind_panels() -> void:
 ## Only the leaves whose panel IS the lobby route from here — today the two
 ## offline ones. HOST and JOIN each open a config panel first and reach the
 ## lobby through [method _on_host_requested] / [method _on_join_requested] once
-## a port (and, for JOIN, an address) has been typed. That asymmetry is #531's,
-## widened by #582 — it is the reason [MenuGraph.Item] splits "which panel
+## a port (and, for JOIN, an address) has been typed. That asymmetry is inherent to the wire — it is the reason [MenuGraph.Item] splits "which panel
 ## opens" from "what run shape does this eventually author".
-## [b]Leaving is routed here too (#716 item 2).[/b] Every navigation in the
+## [b]Leaving is routed here too.[/b] Every navigation in the
 ## frontmatter goes through [method FrontmatterRoot.focus], which emits this — so
 ## a focus that is not a lobby leaf IS the back-out, whether the player pressed
 ## the panel's back button or walked into a different leaf entirely. Stating it
@@ -122,8 +121,7 @@ func _on_panel_dismissed(id: StringName) -> void:
 		_leave_lobby()
 
 
-## Backing out of a lobby is a leave, and a leave stops the socket (#716
-## acceptance 3). Before this, a host that opened a listener and walked away kept
+## Backing out of a lobby is a leave, and a leave stops the socket. Before this, a host that opened a listener and walked away kept
 ## it — nothing released [LobbyScreen]'s bound link but START — and the next Host
 ## click bound a port this machine already held.
 ##
@@ -137,7 +135,7 @@ static func _leave_lobby() -> void:
 ## The [NetworkConfig] constructor a route's role names. Every role is spelled
 ## out, including OFFLINE — see [method _push_lobby] for why that matters.
 ##
-## Only the OFFLINE branch is reached today: since #582 both networked roles
+## Only the OFFLINE branch is reached today: both networked roles
 ## arrive through a panel that already typed their digits, and a role reaching a
 ## lobby WITHOUT them would be exactly the "hosts on the default port forever"
 ## bug that issue was filed about. The match stays total all the same, so a
@@ -154,7 +152,7 @@ static func _network_for(route: MenuGraph.Route) -> NetworkConfig:
 
 
 ## The mode passed here is the shape this ROUTE asks for, not the mode the run
-## gets: #554 D3 derives that from the roster when START is pressed
+## gets: the lobby derives that from the roster when START is pressed
 ## ([method LobbyRoster.resolve_mode]), because "more than one non-AI camp" is
 ## not knowable at the moment a route is taken. Host and Join both end up
 ## VERSUS by way of the remote seat their lobby authors; hot-seat stays coop
@@ -169,7 +167,7 @@ func _on_join_requested(address: String, port: int) -> void:
 			_policy_of(MenuGraph.ID_JOIN))
 
 
-## The [LobbyPolicy] a leaf authored (#615 D2). HOST and JOIN reach the lobby
+## The [LobbyPolicy] a leaf authored. HOST and JOIN reach the lobby
 ## through their config panel rather than through their own focus change, so
 ## they cannot read `item.route` off it — they ask for it by id here.
 ## Read from the tree rather than restated as a constant so there stays exactly
@@ -200,13 +198,13 @@ func _push_lobby(
 		panels.show_panel(MenuGraph.PANEL_LOBBY)
 
 
-## Bring the wire up for the route being taken, or take it down (#714).
+## Bring the wire up for the route being taken, or take it down.
 ##
 ## [b]This file, because the decision is the same one it already makes.[/b] The
 ## role a route leaves on [GameSession] and whether that role means a socket are
 ## one fact stated twice; splitting them across two files is how a player who
 ## hosted, backed out and started a solo game ends up still listening on 9099.
-## Since #713 the socket lives on [Wire] and outlives every scene, so "take it
+## the socket lives on [Wire] and outlives every scene, so "take it
 ## down when the route goes offline" is a thing that has to be said out loud.
 ##
 ## [b]Opening it HERE, and not in the lobby, is what keeps the lobby honest.[/b]
@@ -214,7 +212,7 @@ func _push_lobby(
 ## every offline lobby — and every existing lobby test — is on exactly the path
 ## it was on before.
 ##
-## [b]It always (re)opens on the endpoint that was typed (#716).[/b] There used
+## [b]It always (re)opens on the endpoint that was typed.[/b] There used
 ## to be a "same role, leave it alone" shortcut here, and it compared ROLES —
 ## so re-hosting on a different port was a silent no-op and the player kept
 ## listening on the old one. Since every route into [method _push_lobby] now
@@ -231,11 +229,11 @@ static func _open_wire_for(net: NetworkConfig) -> void:
 		Wire.start_client(net.address, net.port)
 
 
-## START opens the run before the level loads (#457): `GameSession.start`
+## START opens the run before the level loads: `GameSession.start`
 ## resolves the lobby's seed sentinel once, here, and the level reads the
 ## concrete value back out. [method _destination_for] decides where.
 ##
-## [b]That one call is also the broadcast (#715).[/b] `GameSession.start` emits
+## [b]That one call is also the broadcast.[/b] `GameSession.start` emits
 ## [signal GameSession.run_started], and a lobby holding a live link answers it
 ## by shipping the now-resolved [RunConfig] + [ParticipantRoster] down the wire
 ## and handing its link back ([method LobbyScreen._on_run_started]). Which is
@@ -249,7 +247,7 @@ func _on_start_pressed(run_config: RunConfig) -> void:
 	SceneDirector.goto(_destination_for(run_config))
 
 
-## The joiner's half of the same moment (#715). The run is ALREADY open here —
+## The joiner's half of the same moment. The run is ALREADY open here —
 ## [method GameSession.apply_received] adopted the host's config when the
 ## broadcast landed on the lobby's link — so this deliberately does not call
 ## [method GameSession.start]: re-opening the run would re-resolve the seed and
@@ -263,7 +261,7 @@ func _on_wire_peer_joined(_peer_id: int) -> void:
 	_stamp_local_peer()
 
 
-## The destination a run's [Scenario] names (#641 acceptance 4) — a run whose
+## The destination a run's [Scenario] names — a run whose
 ## `scenario` carries a [member Scenario.level_scene] routes there; one with no
 ## `scenario` at all (every route today — [LobbyScreen.build_run_config] does
 ## not yet author one, since picking a Scenario from the lobby is future work)
@@ -272,7 +270,7 @@ func _on_wire_peer_joined(_peer_id: int) -> void:
 ##
 ## `static`, same reason [method _stamp_local_peer] already is: a test can call
 ## it directly rather than driving the whole frontmatter tree to prove the
-## reader moved with the field (#584 D5).
+## reader moved with the field.
 static func _destination_for(run_config: RunConfig) -> PackedScene:
 	var scenario: Scenario = run_config.scenario
 	if scenario != null and scenario.level_scene != null:
@@ -280,11 +278,11 @@ static func _destination_for(run_config: RunConfig) -> PackedScene:
 	return FIRST_LEVEL_SANDBOX
 
 
-## Which peer THIS machine is — asked of the socket, which since #713 exists
-## before any level does and since #714 is opened by this very file on the way
+## Which peer THIS machine is — asked of the socket, which exists
+## before any level does and is opened by this very file on the way
 ## into the lobby.
 ##
-## [b]The `0` this used to hard-code for a client is gone (#715 acceptance 6),
+## [b]The `0` this used to hard-code for a client is gone,
 ## and so is the comment that justified it.[/b] "Before any socket opens" stopped
 ## being true the moment the lobby got a live link: a joiner learns its own
 ## server-minted id at `connected_to_server`, while the menu is still up, and
@@ -309,7 +307,7 @@ static func _stamp_local_peer() -> void:
 ## `frontmatter_root.tscn`, and a `%` name resolves against the scene that owns
 ## it — so it is reachable from [FrontmatterRoot] and not from here, one scene
 ## up. Searching by class keeps this file out of the frontmatter's internals,
-## which #573/#579 split deliberately: C6 owns the panels, C3 owns the shell.
+## which split deliberately: C6 owns the panels, C3 owns the shell.
 func _panels() -> FrontmatterPanels:
 	var found := _frontmatter.find_children("*", "FrontmatterPanels", true, false)
 	return null if found.is_empty() else found[0] as FrontmatterPanels
@@ -330,7 +328,7 @@ func _host_panel() -> HostPanel:
 	return null if panels == null else panels.get_panel(MenuGraph.PANEL_HOST) as HostPanel
 
 
-# --- Rung 3: the lobby, driven from the command line (#715) --------------------
+# --- Rung 3: the lobby, driven from the command line --------------------
 #
 #   godot --headless --path . -- --lobby=host --port=9300
 #   godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9300
@@ -401,14 +399,13 @@ func _drive_lobby_from_cmdline() -> void:
 
 ## Wait for the SEAT, not for the join, before pressing START.
 ##
-## [b]This used to be one deferred hop, and #716 made that too short.[/b] The hop
-## was enough while the host stamped the waiting seat on the bare join; since
-## #716 it stamps on [signal NetworkLink.peer_cleared], once the build-gate hello
-## has round-tripped, which is a network hop rather than a frame. START fired in
-## between: the broadcast roster still carried [constant LobbyScreen._PENDING_PEER_ID],
-## the joiner found no row with its own id, and its level came up with no seated
-## hero and never took a turn — #715 acceptance 1 and 4, failing only live, where
-## a real socket makes the round trip take longer than a frame.
+## [b]One deferred hop is too short.[/b] The host stamps the waiting seat on
+## [signal NetworkLink.peer_cleared], once the build-gate hello has round-tripped,
+## which is a network hop rather than a frame. START fired in between would
+## broadcast a roster still carrying [constant LobbyScreen._PENDING_PEER_ID]; the
+## joiner would find no row with its own id and its level would come up with no
+## seated hero, never taking a turn. This fails only live, where a real socket
+## makes the round trip take longer than a frame.
 ##
 ## Bounded rather than unbounded: a peer that never clears the gate is a REFUSED
 ## peer, and rung 3 should say so and stop instead of hanging until the harness's
@@ -430,7 +427,7 @@ func _press_start_when_seated(_peer_id: int) -> void:
 	screen._on_start_button_pressed()
 
 
-## Rung 4's small preset (#754 item 4), pressed on the same rows a human would
+## Rung 4's small preset, pressed on the same rows a human would
 ## and only under `--autoplay`.
 ##
 ## [b]Not a hidden procgen path.[/b] The whole claim rung 4 makes is that the
@@ -438,7 +435,7 @@ func _press_start_when_seated(_peer_id: int) -> void:
 ## be a run a host could have set up by hand — a back door that wrote a
 ## [RunConfig] directly would prove the back door works. It is also the first
 ## thing on this route that crosses a lobby OVERRIDE to the joiner: rung 3
-## touches no row, and #643 acceptance 5 means an untouched row writes nothing,
+## touches no row, and an untouched row writes nothing,
 ## so until now no [ScenarioOverride] had ever been over a real socket.
 ##
 ## [b]Applied the instant the lobby opens, never at START.[/b] Changing the AI

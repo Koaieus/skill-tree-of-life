@@ -25,7 +25,6 @@ const BOARD := preload("res://entity/default_entity_board.tres")
 const SKILL_POINTS_DEF := preload("res://stats_system/defs/skill_points.tres")
 const DEALLOC_DEF := preload("res://stats_system/defs/deallocation_points.tres")
 const STRENGTH_DEF := preload("res://stats_system/defs/strength.tres")
-const HEALTH_DEF := preload("res://stats_system/defs/health.tres")
 
 var _board: EntityStatBoard = null
 

@@ -1,74 +1,12 @@
 @tool
 class_name ShatterField
 extends MultiMeshInstance2D
-## The pooled, scrub-driven shard field a dying object fragments into (#835).
-## Blade pops (#787) and node deaths (#257) both spawn into one of these
-## instead of each rolling their own particle sphere.
-##
-## **The operation:** take an object that is dying, replace it with pieces that
-## inherit its momentum, and let them coast and fizzle. The owner's rule for
-## how far a piece travels is the whole motion model — *"how far they travel
-## depends on their momentum at disconnection + simulation time left, that's
-## all really"* — so a shard's position is its seed velocity integrated over
-## elapsed window time. No drag, no authored travel distance.
-##
-## **What lives here vs. in the consumer.** This node owns the shard *field*:
-## the one shared quad every shard everywhere is drawn as, the per-instance
-## packing, the pool, and the motion/fade curve in
-## `ui/vfx/shatter/shatter_motion.gdshaderinc`. The consumer owns what a shard
-## *looks like* — a `ShaderMaterial` whose shader `#include`s that file (see
-## `shatter_shard.gdshader`, the flat-tint reference look) and decides the
-## fragment's colour inside the cell the include hands it. GLSL has no
-## inheritance; the include IS the reuse.
-##
-## **One draw call, by construction.** A single `MultiMeshInstance2D` over ONE
-## unit `QuadMesh`, oversized [constant OVERSIZE]x the source radius so a shard
-## can spin about its own pivot (and #257 can leak rays) without leaving the
-## quad. Every shard is that same quad; its *shape* is decided in the fragment
-## shader (analytic Voronoi: a fragment belongs to cell K iff seed K is its
-## nearest, `discard` otherwise). Per-shard variation rides `COLOR` +
-## `INSTANCE_CUSTOM` and the instance transform, never `instance uniform`s (a
-## MultiMesh's instances share one CanvasItem, so those cannot vary per shard)
-## and never per-shard uniforms. Same idiom as `graph/edge.gd` +
-## `graph/edge_mesh.gdshader`.
-##
-## **Progress is supplied, never self-timed** (`.claude/rules/presentation-clock.md`).
-## The field starts no `Tween`, reads no wall clock and has no `_process`. The
-## consumer sets [member elapsed] on *its* clock (trajectory time for #787,
-## the cascade clock for #257) and the shader derives every shard's progress
-## from that one uniform against the shard's own spawn time. Seeking backwards
-## just sets a smaller number: nothing on the CPU accumulates, so
-## `elapsed = t1; elapsed = t0; elapsed = t1` leaves every pushed value
-## byte-identical. The one caveat is the pool — see [method spawn_shatter].
-##
-## **Packing** (must match `shatter_motion.gdshaderinc`'s `shatter_unpack`):
-##   `COLOR`           = tint lifted by [member spawn_tier] via `Emissive.at()`
-##   `INSTANCE_CUSTOM` = (velocity.x, velocity.y, spawn_time - [member time_base],
-##                        [method pack_shard])
-##   `shatter_carve_tex` = per slot, the source's [CarveParams] as
-##                       `CarveParams.TEXELS` RGBAF texels at `INSTANCE_ID`
-##                       (32-bit, NOT half — a texture, not the instance buffer)
-##   transform         = origin at the source, uniform scale `2 * radius * OVERSIZE`,
-##                       never rotated — [method radial_kick]'s angle for cell K
-##                       and the shader's seed placement for cell K agree only
-##                       while local axes equal world axes. The shader also
-##                       hashes the fracture pattern's seed from this origin,
-##                       so the field must sit under a parent that does not move.
-##
-## **Everything packed is exact in a HALF float.** The compatibility renderer
-## stores a 2D MultiMesh's colour and custom data as 16-bit halves (probed
-## 2026-09-10: `custom.w = 2049` reads back as 2048 under opengl3), which is
-## why cells are capped at [constant MAX_CELLS] (`cell + count * 32 < 2048`),
-## the fracture seed is not a channel at all, and spawn times are stored
-## relative to [member time_base] — a run-long clock would otherwise lose the
-## whole window to half-float spacing after a few thousand seconds.
-##
-## Headless Godot cannot read a MultiMesh's buffer back
-## (`docs/domain/rendering-performance.md`), so every push is mirrored in the
-## `_origins`/`_sides`/`_colors`/`_customs` arrays — the pool needs the spawn
-## time per slot anyway, the rest is what makes the field testable and what
-## repopulates the buffer after a capacity growth (which discards it, see
-## `Graph._grow_edge_mesh_capacity`).
+## The pooled, scrub-driven shard field a dying object fragments into: a single
+## `MultiMeshInstance2D` over ONE oversized unit quad (one draw call); a shard's
+## position is its seed velocity integrated over elapsed window time. The consumer
+## supplies [member elapsed] on ITS clock (no Tween, no `_process`) and the look
+## via a [ShaderMaterial] that `#include`s `shatter_motion.gdshaderinc`. Everything
+## packed must be exact in a HALF float. See docs/domain/vfx-units.md
 
 ## Quad side over source diameter. Must match `SHATTER_OVERSIZE` in
 ## `shatter_motion.gdshaderinc`. 2x covers a cell spinning about a pivot near

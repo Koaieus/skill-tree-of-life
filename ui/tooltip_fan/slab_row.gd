@@ -2,36 +2,12 @@
 class_name SlabRow
 extends Control
 
-## One line of text rendered as its own mini slab — a single Label on a
-## [SlabPanel] background tinted by whatever colour the caller hands it (#343
-## visual spec: dark fill, bright tint border reading as glowing, text in the
-## same tint mixable toward pure white — the PoE prefix/suffix-row reading
-## surface).
-##
-## [b]This is the generic half of [ModSlabRow][/b], extracted in #588 so the
-## frontmatter's hover tooltip can be a stack of these without dragging the
-## stat system in behind it. Everything here is content-agnostic: give it a
-## string and a [Color]. [ModSlabRow] is an INHERITED SCENE of
-## `slab_row.tscn` that adds exactly one thing — resolving those two from a
-## [StatModifier].
-##
-## The row sizes to its label (#343 part 1): [method _get_minimum_size] is the
-## label's height plus the scene's vertical insets.
-##
-## [b]The label does NOT autowrap[/b], and that is deliberate (#588). A
-## single-line row's minimum height is known without reference to any width, so
-## there is no width→height→width path at all — the strongest form of the
-## "no cycle exists" property this extraction was done to get. A stack of these
-## widens to its longest row instead of wrapping within a fixed one. Inherited
-## behaviour, not a change: [ModSlabRow] never autowrapped either (the wording
-## this doc replaced claimed it did, and was wrong on both).
-##
-## Reveal is driven externally via [method set_progress] against the shared
-## fixed-clock / progress(0..1) contract (see fan_panel.gd / docs/domain/
-## tooltip-fan.md) — this row owns no Tween, matching the other #293 rows
-## (PanelHeader, StatValueRow, AddonItem). It must render correctly the moment
-## [method bind_text] is called, with no assumption about whether/when
-## [method set_progress] is ever invoked.
+## One line of text rendered as its own mini slab — a single Label on a [SlabPanel]
+## tinted by the colour the caller hands it. The content-agnostic half of
+## [ModSlabRow] (an inherited scene that only resolves text and tint from a
+## [StatModifier]). Sizes to its label, which does NOT autowrap (no width->height
+## cycle). Reveal via [method set_progress]; owns no Tween and renders correctly
+## the moment [method bind_text] is called. See docs/domain/tooltip-fan-units.md
 
 ## The slab's material (#1051). [constant PLAIN] is the clean neon slab;
 ## [constant HARMFUL] keeps the tint on the text but turns the slab itself

@@ -101,8 +101,8 @@ branch in `sources_for`. `AiRecon` still gathers its own owned nodes.
 
 **Why a class and not a static `is_within_circles(pos, positions, radii)`:** every
 caller asks about *many* points against the *same* circles, so owning the set lets it
-carry a **uniform grid**, cell size = largest radius, so a 3×3 neighbourhood scan is
-*exact* (a circle can only contain `p` if its centre is within `max_radius` of `p`)
+carry a **uniform grid** whose cells are pre-classified full/empty/partial, so a
+query is one *exact* cell lookup (see "VisionCircles" below)
 and points outside the union's bounding box cost four float comparisons — recompute
 cost stops tracking owned count. Pinned by `test/unit/systems/test_vision_circles.gd`
 (indexed answer vs. brute force) and `test_vision_recompute_scaling.gd` (the cost
@@ -360,3 +360,52 @@ owner. Owner identity is above the topology gate.
   A node's non-shader children — the core look, HoverRing, the health bars, addons —
   do not dim at all; they are core-gated, under the cursor, or on a node the player
   is already looking at.
+
+## VisionCircles: why a class, and why its grid stays separate
+
+`VisionCircles` (`systems/vision_circles.gd`) is a set of vision circles plus
+the one rule that reads them, "is this point inside the union?". Both fog
+consumers build one, `VisionSystem` (the shared, player-scoped instance) and
+`AiRecon` (a fresh per-entity set each AI turn), so the vision rule never forks.
+
+- **A class, not a static predicate over packed arrays**, because every caller
+  asks the same question about many points against the same circles. A
+  per-point linear scan is O(points x circles); at the target scale (~2000
+  nodes, ~200 owned) that was 400k GDScript iterations per recompute, measured
+  at 13.3 ms of a 19.4 ms `VisionSystem._recompute()`. Owning the set lets it
+  carry a spatial index.
+- **The index** is a uniform grid over the union's bounding box whose cell is
+  a FRACTION of the largest radius (`_CELL_DIVISOR`), every cell classified at
+  build time: **full** (the whole cell square lies inside one circle — true, no
+  distance test; in a dense territory nearly every covered cell), **empty** (no
+  circle reaches it — false, no scan) or **partial** (holds only the circles
+  whose rim crosses it, scanned with the exact `distance <= radius` rule). A
+  query is one cell lookup, and its cost no longer tracks how many circles
+  overlap the point — which the previous grid (cell = largest radius, 3x3
+  neighbourhood scan) could not deliver: at 86px spacing a 550px radius put
+  ~100 circles in every scanned neighbourhood. Points outside the bounding box
+  are rejected by four float comparisons.
+- **Exactness rests on one asymmetry:** every classification error the build
+  can make demotes a cell toward the scan, never away from it. A cell is full
+  only if it fits inside the circle shrunk by `_EPS_FRAC` of a cell, and a
+  circle joins a cell's list if it reaches the cell grown by the same amount,
+  so float32 rounding can only cost a scan, never an answer.
+- **Build cost is O(circles) and lazy:** `add` only invalidates the index, so a
+  caller may add freely and pay for the grid on the first query. A set queried
+  once still beats the linear scan at any realistic node count.
+- **Do not merge this grid with `OverlayFieldTileIndex`** (the fog overlay's
+  tile index, via `VisionSourceIndex`). They look like the same grid over the
+  same circles and are not (investigated and rejected 2026-08-17):
+  - Cell size: `max_radius` here vs `(1 + union_smoothness) * max_radius`
+    there, widened for the smin fold's reach.
+  - Margins: 1x max_radius here; 2x cell_size plus a hand-tuned
+    `1e-4 * cell_size` epsilon there, which fixes a measured CPU/shader
+    darkness mismatch from `floor()` boundary ties with only 0.0013 headroom
+    under the visible threshold.
+  - Storage: a dense flat Array here; a sparse Dictionary there, because it
+    must also serialize into GPU data textures in deterministic row-major
+    order.
+  - Semantics: a hard boolean union here; a soft field fold there whose CPU
+    walk must match the fragment shader's tile-gather order exactly.
+  A shared substrate would need parameters for each of those and risk the
+  epsilon, for ~15-20 lines of superficial shape.

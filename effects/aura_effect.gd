@@ -2,40 +2,11 @@
 class_name AuraEffect
 extends Effect
 
-## A buff (or debuff) radiating from a source node to nodes around it,
-## re-evaluated whenever the world moves under it. The source is the carrier
-## node for a node-granted aura (keystone/addon), falling back to the entity's
-## core for an entity-wide one (core class) — see [method recompute]'s origin rule.
-##
-## Three orthogonal knobs:
-##
-## - [member reach] — [i]which[/i] nodes are touched. `null` floods the whole scope.
-## - [member metric] — [i]how far[/i] each is, feeding the scale. `null` reuses the
-##   distances [member reach] already produced.
-## - [member distance_scale] — the VALUE each modifier leaf gets at that
-##   distance, from the leaf's authored `value` (#900). `null` is flat.
-## - [member discard] — which computed values aren't worth granting.
-##
-## Sign lives on the modifier: negative values make a debuff aura. So the Ninja's
-## "−1 armor per hop from core, going negative" is
-## `reach: null, metric: HopMetric, distance_scale: ProportionalScale,
-## modifiers: [armor ADD_BONUS -1]`. The Serpent is two of these side by side, one
-## per metric — which is why `Array[Effect]` needs no `CompositeEffect`.
-##
-## [b]Stateless.[/b] This resource may be shared by every entity of a class, so it
-## keeps no buffed-set dict. The applied handles live in the per-grant
-## [EffectInstance] ledger, and a recompute reads them back from there. A `_buffed`
-## member here would have every Ninja silently clobbering every other Ninja's aura.
-##
-## [b]The PAYLOAD is the swappable state, not the walk.[/b] Everything above —
-## the three knobs, the origin rule, [method recompute]'s batching, and #626's
-## incremental [method _topology_changed] paths — is channel-agnostic. What a
-## subclass swaps is the pair [method _has_payload] / [method _grant_to]:
-## "is anything configured" and "put one grant on this node at this distance".
-## #720 ports [HealAuraEffect]'s per-turn healing onto the same seam (its payload lands from
-## `_on_turn_start` rather than on membership, so it will override the hook and
-## reuse [method _distances] — the seam is deliberately per-node-per-scale, not
-## per-modifier, so a non-modifier payload fits without a second walk).
+## A buff/debuff radiating from a source node, re-evaluated as the world moves.
+## Four orthogonal knobs: `reach`, `metric`, `distance_scale`, `discard`; sign
+## lives on the modifier. Stateless: applied handles live in the per-grant
+## `EffectInstance` ledger. The swappable part is `_has_payload` / `_grant_to`.
+## See docs/domain/effect-system.md
 
 enum Scope {
 	OWNED,   ## Measure over the entity's own subgraph (EntityNavigator).

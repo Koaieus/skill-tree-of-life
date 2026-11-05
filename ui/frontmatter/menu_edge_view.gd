@@ -3,42 +3,12 @@ class_name MenuEdgeView
 extends MultiMeshInstance2D
 
 ## One edge of the frontmatter menu tree, drawn through the REAL edge shader
-## (#569).
-##
-## [b]It reuses `graph/edge_mesh.gdshader` + `edge_mesh_material.tres`, NOT
-## `graph/edge.tscn`[/b] (owner correction, 2026-08-24). Two independent
-## reasons the scene cannot be used: [Edge]'s endpoints are typed [SkillNode]
-## and really dereferenced on the render path, and [Edge] does not render
-## itself at all — `_push_transform()` / `_push_colors()` both hand off to a
-## [Graph]-level batched renderer, so the scene needs a [Graph] host as well as
-## real endpoints and draws nothing standalone. This hub forbids both classes.
-##
-## So this is a thin menu-owned renderer over the same shader, and the transform
-## convention is copied from `Edge._push_transform()` exactly — the shader
-## expands a unit [QuadMesh] whose local X spans the segment and whose Y carries
-## a screen-constant width, so getting the convention wrong draws a hairline in
-## the wrong place rather than nothing at all.
-##
-## [b]One instance per edge, not one batch for all of them.[/b] In game that
-## would be wrong — `.claude/rules/rendering-performance.md` is explicit that a
-## board of a few hundred nodes lives or dies by the draw call, which is why
-## [Graph] batches every edge into one shared [MultiMesh]. The frontmatter has
-## nine edges; a view per edge buys #570 an ordinary [Node2D] it can tween,
-## show and hide, and costs nine draw calls in a menu that draws nothing else.
-##
-## [b]What is deliberately NOT carried over[/b] from [Edge]: `render_vis_state`
-## (fog / sensed / hidden — the menu has no [VisionSystem], so every edge is fed
-## a constant [constant Edge.VIS_VISIBLE], which `vision_field_dim` passes
-## through untouched while `vision_field_enabled` is false) and `_clamp_code`
-## (the Clamp addon, a gameplay thing).
-##
-## [b]The shape is a sigmoid, not a straight segment[/b] (#592, C3): a cubic
-## Bezier whose two control points are pulled purely horizontally off their own
-## endpoint, so the curve leaves the parent heading right and arrives at the
-## child heading right, with all the vertical travel folded into the middle.
-## Drawn as [member curve_segments] straight [QuadMesh] instances chained along
-## that curve — still one [MultiMesh], just more than one instance in it; see
-## [method curve_point].
+## (`graph/edge_mesh.gdshader` + `edge_mesh_material.tres`), not `edge.tscn`: a
+## thin menu-owned renderer whose transform convention is [method Edge._push_transform]'s.
+## One instance per edge (a tweenable [Node2D]); the shape is a sigmoid cubic
+## Bezier chained from [member curve_segments] quads ([method curve_point]).
+## Every edge is fed a constant [constant Edge.VIS_VISIBLE]; no clamp addon.
+## See docs/domain/frontmatter-shell.md
 
 ## The shader's width is authored in SCREEN pixels and divided by the
 ## `edge_camera_zoom` global uniform at draw time. Only [GraphCamera] writes

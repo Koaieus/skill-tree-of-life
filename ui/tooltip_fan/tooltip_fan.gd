@@ -2,46 +2,13 @@
 class_name TooltipFan
 extends Node2D
 
-## Tooltip V2 (#226) — the coordinator: owns N fan-tier members ([FanUnit]s,
-## plus [GrantedModifiersRoot] which duck-types the same `play_in()`/
-## `play_out() -> Tween` contract), anchors to the hovered node's on-screen
-## position, and fires the members with a per-index start delay. Nothing else.
-## See `.claude/rules/tooltip-fan.md` and docs/domain/tooltip-fan.md.
-##
-## Owns NO Tween and no fan-wide progress variable — the per-index delay is a
-## `SceneTreeTimer` wait, not a tween. Members animate themselves (or, for
-## FanUnit, sequence two components that animate themselves); this class only
-## decides WHEN each one starts.
-##
-## ONE FAN SCENE, PER-UNIT GATING (#314). There used to be three
-## occupancy-class variants (`unowned` / `owned` / `owned_core`) picked by a
-## `_pick_variant` branch on `is_allocated()` / `is_core()`. That made
-## allocating the node you were *currently hovering* invalidate the whole
-## mounted scene, so the fan could only have responded by re-fanning from
-## scratch. Now `fan.tscn` carries every unit and each one gates itself through
-## [method FanPanel.has_content]: allocation makes Owner (and Core) eligible,
-## they fan out on their own, and the panels already up are left alone.
-##
-## Screen-space anchoring: `global_position` tracks the hovered [SkillNode]'s
-## `get_global_transform_with_canvas().origin` every frame — Control-space,
-## camera-zoom-independent, exactly like `floater_toaster.gd`'s HUD-anchor
-## case (no `affine_inverse()` needed there: this node has no camera transform
-## of its own, it lives directly in the HUD's canvas).
-##
-## TWO-TIER GATE (#415): hover alone shows only the ROOTS — [GrantedModifiersRoot]'s
-## mod-slab stack, the hover's primary readout. The [FanUnit] members (traces +
-## panels) are bonus info and stay HIDDEN until the `ui_more_info` action
-## (Shift) is held. The action state is polled every frame while hovering, so
-## pressing or releasing Shift mid-hover fans the units in or out through the
-## same [method _reconcile] path live updates use. `participating` still means
-## "has content" (the driver's clock spread depends on it); the gate is applied
-## HERE, at the play decisions, via [method _should_up]. The visual affordance
-## for the gate is tracked in #416.
-##
-## Members are found by GROUP (`fan_unit`), never by NodePath — the mount
-## contract's "bindings resolve by type/group, not authored NodePaths".
-## Whether a fan shows 2 members or 6 changes nothing here but how many delays
-## get computed.
+## The coordinator: owns N fan-tier members ([FanUnit]s plus [GrantedModifiersRoot],
+## which duck-types `play_in()`/`play_out() -> Tween`), anchors to the hovered
+## node's on-screen position, and fires the members with a per-index start delay
+## (a `SceneTreeTimer`, no Tween). One `fan.tscn`; each unit gates itself through
+## [method FanPanel.has_content]. Hover shows only the ROOTS; the units wait for
+## `ui_more_info` (Shift), applied in [method _should_up]. Members found by group
+## `fan_unit`. See `.claude/rules/tooltip-fan.md`, docs/domain/tooltip-fan-units.md.
 
 @export var fan_scene: PackedScene = preload("res://ui/tooltip_fan/fan.tscn")
 

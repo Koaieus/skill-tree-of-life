@@ -1,42 +1,11 @@
 class_name CritRoll
 
-## The one crit implementation, shared by all three attack modes (#507).
-##
-## Before this, `crit_chance` / `crit_multiplier` were advertised as UNIVERSAL
-## entity stats but only [SpellResolver] ever read them — a player investing in
-## crit got nothing from two thirds of their offense, silently. The fix is not
-## "add a roll to melee and one to ranged": that is three implementations of
-## one rule, and they drift. It is this file, called from one place per clock.
-##
-## [b]Both halves at landing.[/b] The owner call of 2026-08-21 settled that a
-## crit is decided per HIT; the owner call of 2026-10-07 (#1473) moved the
-## decision from resolve to the landing itself:
-##
-## [codeblock]
-## Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
-##                                           crit_multiplier, crit_tier
-##        CritRoll.apply(hit)                amount *= crit_multiplier
-## [/codeblock]
-##
-## [method OutcomeApplier.land_one] draws right before the hit lands, in
-## landing order, off the outcome's [member AttackOutcome.crit_stream], reading
-## the landing world (the shadow during resolve) — so a status landed earlier
-## in the same attack (a mark rider) reaches the chance of the hits behind it.
-##
-## [b]A hit crits first; its payload copies it.[/b] A lead's draw happens the
-## moment its first rider lands (riders land BEFORE their hit, ADR 0067), so
-## the one draw per lead precedes the whole payload and every rider
-## [method HitInstance.copy_crit_from] it — a status rider lands its stacks ×
-## `abs(crit_multiplier)`, a paired damage share its share × the multiplier.
-## A mark rider therefore lifts the hits BEHIND its own, never its own.
-## A replay never draws: a rebuilt [AttackRecord] carries no stream and lands
-## the recorded crit. Every crit reader that runs before a landing (the VFX
-## stamping [member Projectile.crit_tier], the floaters) reads a REBUILT
-## record on the live replay, i.e. after the shadow resolve settled it.
-##
-## The multiply stays at the tail of [method HitInstance.land_on], after
-## ranged's offense read and melee's spike-pop gate, so whatever number those
-## settled on is the number that gets multiplied.
+## The one crit implementation, shared by all three attack modes. A crit is
+## decided per HIT at landing ([method decide], drawn off the outcome's
+## [member AttackOutcome.crit_stream] in landing order) and its payload copies
+## it; [method apply] multiplies `amount` at the tail of [method
+## HitInstance.land_on]. A replay never draws. See docs/domain/attack-timeline.md
+## "CritRoll".
 
 ## Salt mixed into [member AttackPlan.resolve_seed] to derive the crit stream.
 ## Crits must NOT consume the propagation stream (#213) — magic's random hop

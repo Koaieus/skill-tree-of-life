@@ -2,36 +2,12 @@
 class_name GrantedModifiersRoot
 extends Node2D
 
-## Tooltip V2 (#226/#227) — the ROOTS: the modifier stack BELOW the node
-## (Decision 1 of the swarmable spec v2). Deliberately NOT a [FanPanel]: it
-## has "no containing panel" by design — a stack of small slabs, unbounded
-## height, growing downward into uncontested space. So it does not go through
-## [FanAnchor]'s box-edge derivation at all (Decision 4 only applies to
-## panel-shaped things); its own trace (if any) is a plain vertical trunk.
-##
-## Still a fan-tier "component": self-animating, `play_in()`/`play_out() ->
-## Tween`, a readable `progress`, driven by the coordinator ([TooltipFan])
-## exactly like a [FanUnit] — [method play_in]/[method play_out] are the
-## duck-typed contract the coordinator fires uniformly across everything in
-## the `fan_unit` group, not just literal FanUnit instances.
-##
-## [method bind] renders real content: one [ModSlabRow] per flattened
-## modifier leaf (#305/#221), plus a "Grants <spell>" line per granted
-## [SpellGrant] (a bare [SlabRow] tinted keystone gold, sorted ABOVE the
-## modifier slabs — a granted spell is the bigger fact about the node, and
-## a slab is the same reading surface #588 gave every other content row).
-## This is a BOONS list, not a "modifiers" list — one grammar, no header, no
-## legend, no frame (see the issue's chrome decisions). No separate
-## addon-modifier traversal: addon `entity_modifiers` already land in
-## [member SkillNode.modifiers] via [method SkillNode._on_addon_added], so
-## flattening that one array is enough.
-##
-## Deliberately EXEMPT from the fan's [method FanPanel.has_content]
-## suppression contract — see [method _add_empty_row]. A node with nothing to
-## show renders one muted "no modifiers" row instead of vanishing: this root
-## is the common hover's primary readout, unbounded and un-boxed, and an
-## absence here would read as a broken tooltip rather than a clean omission.
-## Do not add `has_content()` to this file.
+## The ROOTS: the modifier stack BELOW the node. Deliberately NOT a [FanPanel] — no
+## containing panel, unbounded height, a plain vertical trunk, no [FanAnchor]
+## derivation — but still driven by [TooltipFan] through the duck-typed
+## `play_in()`/`play_out()` contract. [method bind] renders one [ModSlabRow] per
+## flattened modifier leaf plus a "Grants <spell>" slab above them. EXEMPT from
+## `has_content()` suppression: do not add it here. See docs/domain/tooltip-fan-units.md
 
 @export_range(0.5, 1.0, 0.01) var start_scale: float = 0.9
 

@@ -206,3 +206,47 @@ godot --headless --path . -- --lobby=client --address=127.0.0.1 --port=9412 --au
 ## The other harness
 
 Replaying a recorded attack with no network, to separate replay bugs from messaging bugs: `docs/domain/outcome-fixtures.md`.
+
+## mp_dev_sandbox (`scenes/dev/mp_dev_sandbox.gd`)
+
+`dev_sandbox` with a network role — the world half of the multiplayer
+harness (see `docs/domain/multiplayer-harness.md` and the sandbox host's
+**Multiplayer** tab, which launches two of these).
+
+**Why an inherited scene and not a copy.** The harness wants the SAME
+hand-authored 71-node graph on both peers, with no seed on the wire. A
+duplicated `.tscn` gives you that exactly until somebody edits the original;
+inheriting means the two can never drift.
+
+**Why two OS processes and not two viewports.** `Events` is a
+process-global bus carrying live `SkillNode` / `Entity` references, and every
+listener (`LootSystem`, `VictorySystem`, `AllocationSystem`, `BattleSystem`,
+`HudRoot`) connects unconditionally. Two worlds in one process means world
+B's `VictorySystem` latches on world A's death. Separate processes give
+separate autoloads for free.
+
+**Role comes from the command line**, after the `--` separator:
+```
+godot --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9099
+godot --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
+```
+No role, or `--role=solo`, runs the scene as an ordinary offline sandbox.
+Plain like that — from the tab or the command line — Red is an ordinary
+level-1 board; `--autopilot` is the only thing that fattens it, and it must be
+given to BOTH peers (see `_boost_autopilot_budget`).
+
+**Blue stays the AI opponent.** `AIController` emits commands through
+`CommandApplier` like everything else, so keeping it makes this a
+player-against-an-opponent harness rather than two hot-seated humans.
+
+Restoring it exposes a real trap: `GameRoot._ensure_controllers`
+attaches an `AIController` to Blue on BOTH peers, and that controller
+resolves `GameRoot.command_applier` — its OWN peer's applier — so a
+CLIENT peer's copy would decide and submit independently of the host's AI
+the moment its local `TurnManager` hands Blue the turn (which a mirrored
+`EndTurnCommand` does). Closed by gating `AIController.take_turn` on
+`CommandApplier.is_authority` (`NetworkLink.role`'s
+setter, through `CommandChannel`, is the only writer), extending the same "a non-authority peer does
+not originate mutations" invariant `SkillDustAddon`'s claim flow already
+relies on. The host hot-seats between Red and Blue; the client watches,
+bound to Blue.

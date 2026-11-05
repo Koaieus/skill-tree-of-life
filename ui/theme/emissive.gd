@@ -170,36 +170,13 @@ static func tint(base: Color, stops: float) -> Color:
 	return out.linear_to_srgb()
 
 
-## ADOPTED 2026-08-21 by the #412 armed-mode viewport glow — the first case
-## that made the difference visible rather than theoretical. **Reach for this
-## over [method tint] whenever the emissive covers a LARGE AREA and especially
-## when it blends additively**; keep [method tint] for thin strokes and single
-## widgets, where the off-hue lift below is invisible.
-##
-## The deciding numbers, STR-red at [constant ALERT]:
-##   [method tint]      → linear `(15.13, 1.01, 0.84)`
-##   [method tint_peak] → linear `(4.00, 0.27, 0.22)`
-## Red's luminance is only 0.233, so `tint` scales every channel by ~17x and
-## the off-hue channels land at ~1.0 — full display white *on their own*,
-## before compositing. Over a wide area that reads as a white frame with a
-## coloured bloom halo, not as a coloured glow. Owner verdict on the shipped
-## `tint` version: "WAY TOO MUCH WHITE".
-##
-## Caveat: this is only as good as the base hue is saturated. DEX-green and
-## INT-blue carry more off-hue channel to begin with, so they still reach
-## ~1.2 off-hue at ALERT where red reaches 0.27.
-##
-## [method tint] equalizes the weighted-luminance value bloom's bright-pass
-## GATES on, but the blur/composite that follows runs on raw per-channel
-## values, not on a re-collapsed luminance scalar — so two hues at equal
-## `tint()`-luminance can still carry very different raw channel magnitudes
-## into the blur. A saturated blue's channel has to swell ~14x to reach a
-## given luminance (blue's Rec.709 weight is only 0.0722); a saturated
-## green's only needs ~1.4x (weight 0.7152) — same nominal "stops", very
-## different raw energy feeding bloom. `tint_peak()` normalizes by the base's
-## PEAK channel instead, so every hue's dominant channel lands at the same
-## absolute value — closer to what the blur actually sums, at the cost of no
-## longer landing on the named stop's nominal luminance.
+## Reach for this over [method tint] whenever the emissive covers a LARGE AREA,
+## especially when it blends additively; keep [method tint] for thin strokes and
+## single widgets. [method tint] scales every channel to hit the named stop's
+## luminance, which lands a low-luminance hue's off-hue channels at ~full white;
+## this normalizes by the base's PEAK channel so every hue's dominant channel lands
+## at the same absolute value, at the cost of the stop's nominal luminance.
+## See docs/domain/hdr-color.md
 static func tint_peak(base: Color, stops: float) -> Color:
 	var lin := base.srgb_to_linear()
 	var peak: float = maxf(lin.r, maxf(lin.g, lin.b))

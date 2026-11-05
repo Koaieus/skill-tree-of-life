@@ -3,61 +3,11 @@ class_name SkillNodeAddon
 extends Node2D
 
 ## [b]An addon is a scene, not a script.[/b] Read [code]<name>_addon.tscn[/code]
-## first: its root names the script it runs (often this base one —
-## [code]toxin_addon.tscn[/code] runs [code]skill_node_addon.gd[/code]) and holds the
-## authored modifiers, icon and visuals. A new addon is a scene on this class
-## or a shared one; subclass only for behaviour a scene can't author.
-##
-## Component-as-node attached to a SkillNode as a plain direct child. Carries
-## stat modifiers (entity- or node-scoped), a visual, and behavior hooks
-## that other systems dispatch into (e.g. SkillBlade.apply_to_blade for
-## phantom-blade modifications).
-##
-## [b]Attaching is just [code]skill_node.add_child(addon)[/code][/b] (#334).
-## There is no anchor node to file into and no [code]attach_addon()[/code] to
-## call — procgen, loot, editor authoring and (eventually)
-## the player all use the one path. Ordering is free: an addon parented before
-## the carrier enters the tree is adopted by the carrier's `_ready` sweep.
-##
-## [b]Positioning contract:[/b] an addon's own transform stays identity. It
-## renders concentric with the carrier, centred on the carrier's origin, and
-## inherits the carrier's transform for free. An addon that wants an offset or
-## rotated element bakes that into its own [i]child[/i] visuals — never into
-## its root transform, which the carrier assumes is neutral.
-##
-## [b]Visuals are children, not overrides.[/b] An addon's drawing lives in a
-## direct child [AddonVisual] (its own named [code].gd[/code] under
-## [code]visuals/[/code], holding the draw code and the look knobs). The carrier
-## radius reaches it through this base: [method _ready] seeds every direct
-## [AddonVisual] child from [code]carrier.radius[/code], and
-## [method configure_visual] forwards each later change to all of them. A
-## subclass that only draws itself has no reason to exist — its scene runs this
-## script with a visual child.
-##
-## Only DIRECT children are adopted. Nesting an addon under `Visuals` or under
-## another addon resolves [member carrier] (the lookup walks up) but never
-## attaches — an explicit non-contract, not a half-supported arrangement.
-##
-## Lifecycle: on becoming a child of a SkillNode, the carrier transfers our
-## modifiers into its own arrays and (if allocated) the entity board.
-## Symmetric on removal. The carrier owns the "is-this-mod-attached" truth —
-## addons just hand off and reclaim.
-##
-## [b]In the editor the modifier transfer is skipped[/b] — an addon shows its
-## visuals but grants no stats, because [member SkillNode.modifiers] is an
-## `@export` and writing derived modifiers there would serialize them into the
-## `.tscn`. See #335.
-##
-## - `entity_modifiers`: appended to carrier.modifiers (the same
-##   `Array[StatModifier]` AllocationSystem already iterates) on add,
-##   erased on remove. While the carrier IS allocated we also push/pop
-##   live on the entity stat_board so the effect is immediate.
-## - `local_modifiers`: routed to carrier.node_board via [method SkillNode._ensure_local_stat]
-##   on add, removed on remove. Applies regardless of allocation; an
-##   unallocated node is inert in combat anyway.
-##
-## Future stacking cap (e.g. "1 + 1/<stat>" addon capacity) lives at
-## allocation/edit time and doesn't touch this class.
+## first; subclass only for behaviour a scene can't author. Attached by plain
+## [code]skill_node.add_child(addon)[/code] (direct children only), transform
+## stays identity, drawing lives in child [AddonVisual]s, and the carrier owns
+## modifier attach/detach (skipped in the editor).
+## See docs/domain/skillnode-visuals.md "SkillNodeAddon contract".
 
 @export var entity_modifiers: Array[StatModifier] = []
 @export var local_modifiers: Array[StatModifier] = []

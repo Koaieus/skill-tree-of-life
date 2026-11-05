@@ -14,7 +14,6 @@ extends GutTest
 ## every footprint node on the client would draw a health bar 5-per-hop too
 ## tall, and the client would disagree with the host about what a kill costs.
 
-const _NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _MEDIUM_BOARD := preload("res://entity/blocker/blocker_medium_board.tres")
 const _FALLOFF := preload("res://effects/blocker_footprint_falloff.tres")
 

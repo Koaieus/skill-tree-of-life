@@ -1,37 +1,12 @@
 class_name MenuGraph
 extends RefCounted
 
-## The frontmatter's menu tree, as menu-local data (#567 / #568).
-##
-## [b]This is deliberately NOT a [Graph].[/b] Owner call 2026-08-24: [i]"special
-## menu local model for sure, if we did our composibility right we could steal
-## just the *visuals* of the real elements involved iff not using the real ones
-## directly"[/i]. Nothing here touches [Graph], [SkillNode], [Entity],
-## [StatBoard], [AllocationSystem] or [TurnManager] — the menu borrows the
-## node VISUALS (`skill_node/visuals/node_visuals_composite.tscn`, #569) and
-## none of the machinery that normally drives them.
-##
-## [b]It carries topology and routing, and no look at all[/b] (#589 D5). Every
-## display string, tint and radius is authored on a [MenuSlot] in
-## `ui/frontmatter/layout/`, where it can be seen at full-screen scale; ask
-## [method FrontmatterLayout.look_of] for one. What stays here is the half that
-## is not visual and already has a net under it — `test_meta_routing_parity.gd`
-## pins [member Item.panel] and [member Item.route] against the live
-## `meta_root.gd`.
-##
-## [b]It is a tree, not a graph[/b], despite the name: every item has exactly
-## one parent, the root has none, and there are no cycles. The name says what it
-## LOOKS like on screen. [FrontmatterLayout] turns it into world positions once,
-## at build time; navigation moves the camera, never a node (#567 constraint 1,
-## "no detaching, ever").
-##
-## [b]The tree mirrors the routing `scenes/meta/meta_root.gd` ships today[/b],
-## including the config panels HOST and JOIN raise before a lobby (#582). The routing is not being
-## redesigned, only its presentation — [member Item.route] records, per leaf,
-## the [RunConfig.Mode] and [NetworkConfig.Role] that leaf has always
-## produced, and `test/unit/ui/test_meta_routing_parity.gd` pins that
-## correspondence against the live `meta_root.gd` so the deletion of the old
-## `MenuStack` breadcrumb (#579) could not quietly change it.
+## The frontmatter's menu tree, as menu-local data — deliberately NOT a [Graph]
+## and touching none of its machinery. A tree (one parent per item, no cycles)
+## carrying topology and routing only; display strings, tints and radii are
+## authored on [MenuSlot]s ([method FrontmatterLayout.look_of]). [member Item.route]
+## mirrors `scenes/meta/meta_root.gd`, pinned by `test_meta_routing_parity.gd`.
+## See docs/domain/frontmatter-shell.md
 
 
 ## What a leaf asks the panel layer for, once the player commits to it.

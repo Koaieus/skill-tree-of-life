@@ -1,54 +1,12 @@
 class_name CombatWorld
 extends RefCounted
 
-## The world an [AttackOutcome] lands in (#498 step 3 — see
-## docs/domain/attack-timeline.md). One indirection, and the whole of what
-## `resolve_against(slice)` turned out to mean for the landing half: every
-## [method HitInstance.land_on] takes a [NodeCombat], and this is what turns the
-## [SkillNode] a hit NAMES into the [NodeCombat] it MUTATES.
-##
-## [codeblock]
-## real launch / peer replay:  OutcomeApplier.apply(outcome, CombatWorld.live(), clock)
-## AI scoring / preview:       OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
-## [/codeblock]
-##
-## [b]Why [member HitInstance.target] stays a [SkillNode].[/b] A hit's target is
-## its IDENTITY — what [AttackRecord] serializes, what a fogged peer resolves by
-## `stable_id`, what every VFX observer reads. Retyping it would have made the
-## shadow visible to a dozen files that have no business knowing one exists.
-## State is the thing that must be swappable, so the swap lives here, in one
-## lookup, and identity is left alone.
-##
-## [b]Why one class rather than a per-entity slice.[/b] An attack — a propagating
-## spell above all — crosses territory belonging to several entities, and a
-## [method EntityCombat.snapshot] is per-entity by construction. This holds as
-## many of those as the attack turns out to touch, plus ownerless slices for the
-## unallocated nodes a spell only uses as conduits, under one
-## [SkillNode] -> [NodeCombat] index.
-##
-## [b]A shadow grows on demand, and that is safe.[/b] [method shadow] starts
-## empty. The first time a hit lands on a node whose owner is not snapshotted
-## yet, that owner's [EntityCombat] is snapshotted then — its entity board, its
-## owned-set mirror, its effect twins and its core's board — and from #695 on
-## each further owned NODE's board is cloned only when this world is first asked
-## about that node ([method EntityCombat.shadow_for]). Snapshotting late reads
-## the same state as snapshotting up front, because a shadow resolve never
-## writes to the real world, so the real world is frozen for its whole duration.
-## Lazily is also strictly cheaper: at ~0.7 ms per entity board (the bench on
-## #498) only the entities actually hit are paid for, and at ~0.1 ms per node
-## board only the nodes a walk actually visits (#681 measured 8-24 ms per hover
-## for the whole-subgraph clone this replaced).
-##
-## Per-node laziness ends the moment anything ENTITY-wide runs — a cascade, a
-## simulated death, a hook dispatch, an `owned()` read — at which point
-## [method EntityCombat._materialize_all] mints the rest, so #498's "do not
-## reach-bound the owned subgraph" still holds: a node fifty hops away is in the
-## cascade set exactly as before, because by the time a cascade set is asked for
-## the whole subgraph is present (owner call on #695, 2026-08-31).
-##
-## [b]Every shadow needs [method free_shadow][/b], for the reference cycles
-## [method EntityCombat.free_shadow] documents. A live world holds nothing and
-## frees nothing.
+## The world an [AttackOutcome] lands in: the one lookup that turns the
+## [SkillNode] a hit NAMES (its identity, unchanged) into the [NodeCombat] it
+## MUTATES. [method live] serves the real world; [method shadow] grows
+## per-entity and per-node slices on demand and must be released with
+## [method free_shadow]. See docs/domain/attack-timeline.md "Landing against
+## a world: CombatWorld".
 
 ## Live singleton — stateless, so one instance serves every caller and the
 ## default argument on [method OutcomeApplier.apply] costs no allocation.

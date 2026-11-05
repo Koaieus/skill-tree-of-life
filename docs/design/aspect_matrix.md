@@ -114,8 +114,8 @@ default:
 defensive option (against just melee) swinging a blade is always just
 swinging it across a mine field"*. An addon's default job is offensive or
 utility; an anti-blade face (pop, deflect, drag) is a deliberate exception.
-(Addons the shop sells carry four roles instead: `docs/design/temp_addon_shop.md`
-§ Role tags.)
+(Addons the shop sells carry four roles instead: `docs/domain/temp-addon-shop.md`
+§ Canonical order and roles.)
 
 **A status should not saturate at 1–2 stacks (owner, 2026-10-06).** *"I
 think generally if a status takes full effect at 1 or 2 stacks already it'd

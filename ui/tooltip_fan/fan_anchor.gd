@@ -1,43 +1,9 @@
-## Tooltip V2 (#226) — pure geometry helper implementing Decision 4 of the
-## swarmable spec: the derived trace terminus.
-##
-## `TraceRouter._pcb`'s closing leg is ALWAYS exactly cardinal (one axis lands
-## flush on `to`). That guarantee is what makes the panel edge a line arrives
-## at fully determined by the closing leg's direction, rather than something
-## an author has to place by hand:
-##
-##   arriving rightward (closing leg moves +x) -> LEFT edge
-##   arriving leftward  (closing leg moves -x) -> RIGHT edge
-##   arriving downward  (closing leg moves +y) -> TOP edge
-##   arriving upward    (closing leg moves -y) -> BOTTOM edge
-##
-## WHERE along that edge is derived too, off the trunk top (`from + trunk_dir *
-## trunk_px`, the shared origin every trace in a fan leaves from): a TOP/BOTTOM
-## edge takes the trunk top's x, so the route runs straight; a LEFT/RIGHT edge
-## takes a point [constant TraceRouter.DIAGONAL_SHARE] of the sideways
-## distance ahead of it (at least [constant TraceRouter.MIN_SEGMENT_PX]), so
-## the route bends through a real 45° diagonal rather than cutting 90° off the
-## trunk. Either is clamped to [0.1, 0.9] of the edge so the closing leg keeps
-## a real perpendicular run instead of grazing a corner. So panel POSITION is the
-## only authored quantity: [method derive_anchor] recomputes which edge + where
-## on that edge every time it's called, from `from`, the panel's rect, and the
-## router params already on the [FanTrace] ([member FanTrace.trunk_dir] /
-## [member FanTrace.bend_start]) plus the driver's fan-wide
-## [member FanAnchorDriver.trunk_length]. Move the panel in the editor, call
-## this again next frame (see `fan_anchor_driver.gd`), and the anchor — and the
-## edge it sits on — updates with zero re-authoring.
-##
-## SELF-CONSISTENCY, not a one-shot guess: the edge nearest the panel's
-## CENTRE is only a candidate. Moving `to` from the centre to that edge's
-## point changes `rem` (the remainder TraceRouter's own PCB math travels
-## after the diagonal), which can flip which axis is actually dominant once
-## you're AT the edge instead of at the centre — the "went too far and the
-## line still swaps orientation" bug this decision exists to kill. So
-## [method derive_anchor] asks [TraceRouter] itself (never a re-derived
-## approximation of its math) what the ACTUAL closing leg of the route TO
-## each candidate looks like, and iterates candidate -> actual -> candidate
-## until they agree. Verified against a real shipped unit (#226's NodeStats
-## panel) that a centre-only guess gets wrong.
+## Pure geometry helper: the derived trace terminus. [method derive_anchor] picks
+## which panel edge a [TraceRouter] route arrives at (set by the closing leg's
+## cardinal direction) and where along it (clamped to [[constant SLIDE_MIN],
+## [constant SLIDE_MAX]]), self-consistently by asking [TraceRouter] for the actual
+## closing leg until candidate and actual agree. Panel POSITION is the only
+## authored quantity. See docs/domain/tooltip-fan-units.md
 class_name FanAnchor
 extends RefCounted
 

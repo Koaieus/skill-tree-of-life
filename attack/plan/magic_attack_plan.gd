@@ -78,7 +78,7 @@ var _union: SpellTargetUnion = null
 var _union_dirty: bool = true
 
 ## The candidate the player is currently hovering, distinct from the
-## committed [member target] — pushed in by [method PlayerInputController]'s
+## committed [member target] — pushed in by [PlayerInputController]'s
 ## hover channel (#679). Drives the aim-time propagation preview below
 ## whenever no target is committed yet; once [member target] is set the
 ## preview locks onto it instead (see [method _preview_target]).

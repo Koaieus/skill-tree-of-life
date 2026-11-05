@@ -9,59 +9,65 @@ Continue the elements design pass (#1716 is the hub). Read, in order:
 
 1. `docs/design/elements.md` — every owner call to date, quoted and dated
    (2026-11-03/04/05); pass proposals are marked as such.
-2. `docs/adr/0072-*.md` (an aspect is one status, an element is a family) and
-   `docs/adr/0073-*.md` (a hit is damage + rider map + reach entry; an intake
-   row has a use) — then `docs/adr/0070-*.md`, which 0073 should have cited:
-   a row's use is a swappable `LoadUse` Resource (`attack/spell/load_use/`),
-   not an enum. "ride" = `PlantUse`, "reach" = a `ReachUse` replacing
-   `DetonateUse` + `FuelUse`, "shape" = whatever spell-only shaping remains;
-   `CleanseUse` is a payload modifier beside ride.
-3. The adversarial review findings recorded at the end of this file.
-4. #1733 (payload and reach rules R1–R5, owner verdicts in round 2), #1444
-   (Ice: Frost / Frostbite / Frozen, the toll, shatter), #1660 (Fire: Fuel +
-   Heat, Metropolis diffusion), #1741 (landed: a hit crits once, its payload
-   copies it).
+2. `docs/adr/0072-*.md`, `0073-*.md`, `0074-*.md`, then `0070-*.md` (a row's
+   use is a swappable `LoadUse` Resource, the open set the owner reached for
+   again on 2026-11-05 for the Ice use).
+3. The adversarial review findings at the end of this file (most are now
+   closed in the doc; the live ones are listed in the doc's § Open).
+4. #1733 (payload and reach rules, owner verdicts rounds 2–3), #1444 (Ice),
+   #1660 (Fire), #1741 (a hit crits once), #1765 (ranged Fuel access).
 
 Work case by case with `AskUserQuestion`, one or two forks per question, the
-recommended option first; after each verdict, write it into
-`docs/design/elements.md` with the quote and date, then a docs-only PR (the
-cloud auto-merge takes `docs/design/` and `docs/handoffs/`, NOT `docs/adr/`
-— an ADR needs a human merge, so batch ADRs separately). Run
-`mise run docs-hygiene` after touching a design doc and `mise run
-adr-hygiene` after an ADR. `gh issue view` is blocked (GraphQL); use
-`gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
+recommended option first; after each verdict write it into
+`docs/design/elements.md` with the quote and date. **Local session (the
+checkout is `/home/bramh/...`): commit on master and push, no PR** (owner,
+2026-11-05). Cloud session: a docs-only PR (auto-merge takes `docs/design/`
+and `docs/handoffs/`, never `docs/adr/`). `mise run docs-hygiene` after a
+design doc, `adr-hygiene` after an ADR. `gh issue view` is blocked
+(GraphQL); use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and
+`/comments`. **Pull before editing**: on 2026-11-05 local master was left
+behind origin on purpose (owner WIP in `ui/hud/minimap_panel/` blocks a
+fast-forward); the verdicts live on origin/master.
 
-Still open, in this order (2026-11-05 verdicts already in the doc: *member*;
-read / land / settle held → ADR 0074; dual reach concatenated, tentative;
-Frost renamed **Cold**; Cold absorbs reach 1:1 and is spent; **Frozen** = Cold
-≥ T, T = graph degree + 1, a glass ceiling (sub-T reach lost, no Cold spent;
-≥ T breaks then absorbs), pure threshold re-forms; media capped per node at
-k × T; Cold diffuses by Heat's Metropolis rule, the two as one signed
-temperature; Burning = Heat ≥ T pinned, effect parked; Frozen's costs = cold
-passage + brittle; shatter removes T with a +1 crit tier lean; arc mirror
-parked; reflect rejected):
+Settled 2026-11-05 (all in the doc): same-element sources are one go-off of
+size S + SI, one stack spent per landing; a go-off with no parent hit is a
+terrain hit credited to the sided party, synced by determinism; a medium
+rides a copy (pass proposal: except the medium its reach spent); copies land
+raw on the as-cast payload; Ice concentrate onto a keg is a combo; **Burning
+ignites** (Heat ≥ T), a Burning tick spends min(heat, fuel); the world clock
+is the world turn as built over a temperature index (rate knob
+`ceil(sqrt(N))`, tentative); an arc's third key is **fickle** (seeded random
+among ties); the Ice price is an authored mass per spell spent by a
+swappable use (hops / visits); ranged Fuel access reframed as Clamp parity →
+#1765.
 
-- **Judge the play-situation review** (`docs/handoffs/elements-play-situations.md`,
-  summarised as seven items in the doc's § Open). Items 1, 2 and 4 block the
-  first Fire issue; 3 blocks Ice pricing.
-- **Ice pricing knob** (reads `max_hops` and `max_visits`; the reviewers'
-  item 3 and the payload-per-hop objection in ice.md #2 bear on it).
-- **Fuel access for ranged**: availability (a reload grant from the `fire`
-  count?) and the per-element ammo stock cap (knob or stat?).
+Still open, in this order:
+
+- **What a chained go-off deals** (#1735 fork 1; doc § Open (d)): terrain
+  damage, diminished hit damage, or no cascade — the owner was torn. Blocks
+  the first Fire issue and #1735.
+- **Play-situation items 5 and 6** (pass leans in § Open, cheap to settle):
+  the planting exemption scoped to the medium the hit itself plants at its
+  own landing; a hit's copies take the hit's target mask, a terrain hit is
+  side-blind.
 - **Explosive artifacts**: every orphan in finding 15 needs a destination or
-  a supersession (ADR 0061/0062, `charge` tag → `fuel`) before any element
-  issue goes `Ready`.
+  a supersession before any element issue goes `Ready` — mostly spec-time
+  facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired
+  by Burning-ignites + the `ReachUse` seam, the barrel addon → the Fire::Fuel
+  addon cell, `docs/domain/explosive.md` rewritten at build).
 - **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
-  (manage-stats), a new `StatDef.Role`; a member keys its own facets
-  (`fuel_resistance`, `cold_stacks_per_hit`).
-- Remaining 2026-11-05 adversarial findings (a)–(i) in § Open: row keys
-  (#1660 B2), ADR 0073 vs 0070 supersession, chain cap per wave vs per
-  attack, rider coalescing, tick-settle record.
-- Greed (#1659); arc pick numbers and radius per load (#1733); inner-tree
-  shape; Shocked and the Burning effect parked.
+  (manage-stats), a new `StatDef.Role`; a member keys its own facets.
+- **ADR 0075** (needs a human merge): supersedes 0073 in part (the use is
+  0070's open set, `CleanseUse` beside ride, the Ice use as a resource) and
+  records the eight 2026-11-05 verdicts above; ADR 0074 is merged (#1747),
+  so today's landing verdicts go in 0075, not an amendment.
+- Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
+  ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
+  coalescing (#1741's open NOTE).
+- Greed (#1659); the arc leap radius per excess Charge (#1733); inner-tree
+  shape; Shocked and Burning's extra twist parked; #1765.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
-  1:1 guard test (code, first element issue); ADR 0074 PR needs a human
-  merge.
+  1:1 guard test (code, first element issue).
 
 When the list is empty: split #1716 into drone-sized children with `spec`
 (first: the element count + `ReachUse` seam; Fire = #1660's children; Ice =
@@ -73,8 +79,9 @@ When the list is empty: split #1716 into drone-sized children with `spec`
 
 Hostile read of elements.md + ADR 0072/0073 against the code and the issue
 verdicts. C = contradiction, G = gap, N = nit. Items 1, 2, 8, 9, 14 and 18 were
-corrected in elements.md the same day; the rest are in the doc's § Open and
-need an owner call.
+corrected in elements.md the same day; 7a, 7b, 10, 11, 12 and the per-attack
+half of 11 were settled 2026-11-05 (see the doc); the rest are in the doc's
+§ Open.
 
 1. C: "a blast copy crits iff its parent did" — false today: `PairedDamageEffect` shrapnel has no paired lead, `draws_own_crit()` is `paired == null`, only `BlastToken` (melee) and riding landings copy. *(doc fixed: open)*
 2. C: "land: no rider order matters" vs ADR 0067 (riders before their hit) and owner #1741 (*"elemental riders first … then other status(es), then damage(s)"*). *(doc fixed: order kept, reactions forbidden)*

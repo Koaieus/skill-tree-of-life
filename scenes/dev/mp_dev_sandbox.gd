@@ -1,48 +1,10 @@
 extends "res://scenes/dev_sandbox.gd"
 
-## `dev_sandbox` with a network role — the world half of the multiplayer
-## harness (see `docs/domain/multiplayer-harness.md` and the sandbox host's
-## **Multiplayer** tab, which launches two of these).
-##
-## [b]Why an inherited scene and not a copy.[/b] The harness wants the SAME
-## hand-authored 71-node graph on both peers, with no seed on the wire. A
-## duplicated `.tscn` gives you that exactly until somebody edits the original;
-## inheriting means the two can never drift.
-##
-## [b]Why two OS processes and not two viewports.[/b] [Events] is a
-## process-global bus carrying live [SkillNode] / [Entity] references, and every
-## listener ([LootSystem], [VictorySystem], [AllocationSystem], [BattleSystem],
-## [HudRoot]) connects unconditionally. Two worlds in one process means world
-## B's [VictorySystem] latches on world A's death. Separate processes give
-## separate autoloads for free.
-##
-## [b]Role comes from the command line[/b], after the `--` separator:
-## [codeblock]
-## godot --path . scenes/dev/mp_dev_sandbox.tscn -- --role=host --port=9099
-## godot --path . scenes/dev/mp_dev_sandbox.tscn -- --role=client --address=127.0.0.1 --port=9099
-## [/codeblock]
-## No role, or `--role=solo`, runs the scene as an ordinary offline sandbox.
-## Plain like that — from the tab or the command line — Red is an ordinary
-## level-1 board; `--autopilot` is the only thing that fattens it, and it must be
-## given to BOTH peers (see [method _boost_autopilot_budget]).
-##
-## [b]Blue stays the AI opponent (rung 1, #532).[/b] The old justification for
-## making it human — "the AI still calls [AllocationSystem] / [BattleSystem]
-## directly" — is stale: #512 landed, and [AIController] emits commands through
-## [CommandApplier] like everything else. Restoring the AI is what makes this a
-## player-against-an-opponent harness rather than two humans hot-seated.
-##
-## Restoring it exposes a real trap: [method GameRoot._ensure_controllers]
-## attaches an [AIController] to Blue on BOTH peers, and that controller
-## resolves [member GameRoot.command_applier] — its OWN peer's applier — so a
-## CLIENT peer's copy would decide and submit independently of the host's AI
-## the moment its local [TurnManager] hands Blue the turn (which a mirrored
-## [EndTurnCommand] does). Closed by gating [method AIController.take_turn] on
-## [member CommandApplier.is_authority] ([member NetworkLink.role]'s
-## setter, through [CommandChannel], is the only writer), extending the same "a non-authority peer does
-## not originate mutations" invariant [SkillDustAddon]'s claim flow already
-## relies on. The host hot-seats between Red and Blue; the client watches,
-## bound to Blue.
+## `dev_sandbox` with a network role: the world half of the multiplayer harness.
+## Inherits the hand-authored scene so peers cannot drift; two OS processes
+## because `Events` is a process-global bus. Role comes from the command line
+## (`--role=host|client|solo`). Blue stays AI, gated on `CommandApplier.is_authority`.
+## See docs/domain/multiplayer-harness.md
 
 const DEFAULT_PORT := 9099
 const DEFAULT_ADDRESS := "127.0.0.1"
@@ -213,8 +175,8 @@ func _setup_level() -> void:
 ## [b]`--autopilot` is what gates this, and that is why the flag is sent to BOTH
 ## peers[/b] (`addons/mp_sandbox/mp_sandbox_panel.gd`), breaking that launcher's
 ## otherwise-strict "each flag goes to the one role that can act on it" rule.
-## [method CommandApplier._apply_mass_allocate] RE-derives affordability from the
-## RECEIVING peer's own board (#458: a stale sender must not dictate spend), so
+## [MassAllocateCommandHandler] RE-derives affordability from the RECEIVING
+## peer's own board (a stale sender must not dictate spend), so
 ## boosting only the host's copy would make that recompute disagree with what the
 ## host actually applied, the instant a budget-gated verb crossed. The client
 ## boosts and then never sweeps — [method _start_sweep_if_due] gates origination

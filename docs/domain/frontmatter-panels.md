@@ -76,3 +76,32 @@ and drives the slide off the SAME `t` as the camera travel it overlaps
 (`FrontmatterRoot.panel_lead`). The method docs in the script carry the two
 gotchas (why entry and exit are separate curves; why it writes `position`
 rather than an inner offset).
+
+## ParticipantRow (`ui/frontmatter/panels/participant_row.gd`)
+
+One lobby row: faction emblem, swatch, hero-colour picker, core-class picker with
+its sigil preview, camp dropdown, AI tier, name, seat description ("you", "AI",
+"peer N"). Configured with a `Participant` in `configure`.
+
+**Two marks, two questions.** The emblem is the CAMP's, tinted with the camp's
+colour: "which side is this slot on". The sigil is the slot's own `CoreClass`
+glyph, tinted with the hero colour: "what does it play as". Separate fields on
+separate resources, deliberately not collapsed into one picture.
+
+**The row asks; it never writes.** The pickers and the name field emit a signal
+and leave the `Participant` alone — `LobbyScreen` owns the roster, and a row that
+wrote into it would make "who decided this seat's colour" a two-answer question.
+
+**Widget order is a shared contract.** Left to right:
+
+```
+Emblem? | Swatch | ColorPick | Sigil | CorePick | CoreReset? | Camp? | CampReset?
+  | Tier? | TierReset? | Name | Seat
+```
+
+Only widgets whose feature has landed exist as nodes; the rest are named so the
+next author inserts rather than reshuffles. Two layout rules keep that additive:
+the row carries **no fixed width** (it sizes from its content), and `Name` is the
+sole `SIZE_EXPAND_FILL` child, so every added widget takes its space from the name
+field rather than its neighbours. The name field commits on Enter or focus loss
+(`name_committed`) and greys with the seat like the pickers do.

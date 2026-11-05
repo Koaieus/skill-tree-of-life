@@ -71,7 +71,7 @@ const DEFAULT_MULTIPLY_FUSE_FLOOR := 0.1
 @export_subgroup("Placement & balancing")
 ## Pre-roll constraints. Each runs against a [PlacementContext] and may stamp
 ## role tags (consumed by [BudgetPolicy.role_bonus]) or reserve nodes for
-## special content. See docs/domain/procgen-v2.md "GuaranteedPlacement".
+## special content. See docs/domain/procgen.md "GuaranteedPlacement".
 ## Typed Array[Resource] for the same reason weight_profiles is — concrete
 ## placement subclasses can't coexist in a typed abstract-base array.
 @export var guaranteed_placements: Array[Resource] = []
