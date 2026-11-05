@@ -673,6 +673,7 @@ cmd_blocking() { _deps_show "$1" blocking; }
 # it policed a hub's status as hand-set INTENT, and a derived status carries
 # none — a Backlog sibling next to an In progress sibling contradicts nothing
 # (stalled_hub only fires when EVERY open child is parked).
+
 # Activity epochs for in_progress_stale beyond updatedAt, as {"<n>": epoch}.
 # $1 = the hygiene item stream; only open In progress leaves are probed.
 #  - commits: the newest commit on any ref whose message cites `#<n>`.
