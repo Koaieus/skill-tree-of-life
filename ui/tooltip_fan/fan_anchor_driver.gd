@@ -2,43 +2,12 @@
 class_name FanAnchorDriver
 extends Node2D
 
-## Tooltip V2 (#226) — keeps every [FanUnit]'s trace terminus derived live
-## from its panel's CURRENT position (Decision 4). Attached as the root
-## script of `fan.tscn` so a human dragging a panel in the editor sees the
-## trace re-route immediately, without opening [TooltipFan] at all — that is
-## the whole point of the split (see the #226 issue body).
-##
-## Deliberately NOT part of [TooltipFan]: the coordinator only exists at
-## runtime (mounted under the HUD), but "drag a panel, watch the line follow"
-## has to work with just the fan scene open. Splitting the concern this
-## way means panel position is the only authored quantity in EITHER context.
-##
-## Finds its FanUnits by group (`fan_unit`), never by NodePath — the mount
-## contract's "bindings resolve by type/group, not authored NodePaths".
-## Every FanUnit instance in the fan scene must carry that group (authored
-## in the .tscn's `groups=` on the node, not in code).
-##
-## Since #314 the clock face is shared out among the PARTICIPATING units only
-## (see [member FanUnit.participating]) and each unit's angle is EASED toward
-## its slot rather than snapped — so a panel igniting mid-hover makes its
-## neighbours slide over instead of teleporting. Standalone in the editor every
-## unit participates, so an author still sees the full spread.
-##
-## Since #307 it derives BOTH trace endpoints. The origin end is the clock
-## spread described below; the terminus end is Decision 4's derived anchor —
-## edge AND slide, the point on the edge nearest the trunk top. So a unit's
-## `position` — where its panel RESTS; [FanLayout] solves where it sits — is
-## the only thing an author places.
-##
-## SERIALIZATION INVARIANT: this driver may READ a unit's own authored
-## properties (`position`) but must never WRITE them. `godot-workflow.md`
-## forbids a @tool script writing a derived value into an `@export`, and the
-## only reason the per-frame `from_point` / `to_point` / `trunk_length` writes
-## don't dirty `fan.tscn` is that `Trace` is a NON-EDITABLE descendant of an
-## instanced scene, so Godot never serializes them. A unit's own properties are
-## direct, editable child properties of the fan scene and have no such
-## protection — which is also why the derived results live on the trace and
-## the solved layout on `%Panel` (the same cover), never on the unit.
+## Keeps every [FanUnit]'s trace derived live from its panel's CURRENT position:
+## the origin end is the (eased) clock spread over PARTICIPATING units, the
+## terminus end is [FanAnchor]'s derived anchor. Root script of `fan.tscn`, not part
+## of [TooltipFan], so dragging a panel in the editor re-routes the trace with no
+## coordinator. Finds units by group `fan_unit`. It may READ a unit's authored
+## properties but never WRITE them. See docs/domain/tooltip-fan-units.md
 
 const _GROUP := &"fan_unit"
 

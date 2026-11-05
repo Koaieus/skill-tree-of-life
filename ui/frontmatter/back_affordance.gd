@@ -2,41 +2,12 @@
 class_name BackAffordance
 extends Control
 
-## The hero's incoming edge, made pressable — the frontmatter's back button
-## (#567 / #572 / #601).
-##
-## [b]There is no edge to add.[/b] Owner call, 2026-08-24, verbatim: [i]"the
-## 'hero' node also still has its edge connected to the left of it going
-## off-screen, it's lit and all given the hero is active ('allocated')"[/i].
-## Under #567's camera architecture that edge is already real — it joins the
-## focused node to its actual parent, which happens to be off-screen left, and
-## [method FrontmatterRoot._sync_allocation] already lights it because both ends
-## are on the focus path. Nothing here draws an edge, and nothing here should
-## ever start to: an affordance that minted its own stub would be a second thing
-## claiming to be that edge.
-##
-## So this unit is the LABEL and the HIT AREA, sat on a line something else
-## renders. Pressing it emits [signal back_requested]; the shell answers with
-## [method FrontmatterRoot.back]. It does not call `back()` itself — this scene
-## has no business holding the navigator it steers, and a signal is what lets
-## #578's live tab mount it with nothing behind it.
-##
-## [b]At the root there is no parent, so there is no affordance.[/b] Not a
-## disabled button: absent. `back()` at the root is already a no-op, and a
-## visible control that does nothing is the worse of the two lies.
-##
-## [b]It is a [Control] in screen space, not a [Node2D] under the camera
-## (#601).[/b] Owner call, 2026-08-26: [i]"Back button is a UI element, should
-## be a Control root."[/i] This does not contradict sitting on the hero's
-## incoming edge — it still sits there visually, because
-## [method FrontmatterLayout.camera_for] docks the hero at
-## [method FrontmatterLayout.hero_slot] in VIEWPORT PIXELS at every depth and
-## every fan zoom. The visible run of that edge is therefore a fixed rectangle
-## of the screen, not a segment of world space, and [method anchor_for]
-## collapses to a screen-space point rather than a graph-space one. A
-## screen-space [Control] also renders at 1.00x by definition, so the
-## supersampling [MenuNodeView]'s caption needs for graph-space text
-## (`_CAPTION_SUPERSAMPLE`) does not apply here and is deliberately not ported.
+## The hero's incoming edge, made pressable — the frontmatter's back button. It
+## is the LABEL and HIT AREA only: the edge itself is already drawn by the menu
+## graph, and this never mints one. A screen-space [Control] (the hero docks at
+## [method FrontmatterLayout.hero_slot] in viewport pixels); absent at the root.
+## Emits [signal back_requested]; the shell answers with [method FrontmatterRoot.back].
+## See docs/domain/frontmatter-shell.md
 
 ## Emitted when the player asks to go up one level. The shell decides what that
 ## means; see [method FrontmatterRoot.back].

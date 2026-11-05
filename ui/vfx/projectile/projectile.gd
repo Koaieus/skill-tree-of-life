@@ -2,37 +2,12 @@
 class_name Projectile
 extends Node2D
 
-## A single projectile-shaped VFX element. Pure kinematics + visual delegation;
-## carries no game-state references. Spawned and configured by a
-## [VFXCoordinator]; the coordinator wires [signal arrived] to whatever
-## game-state mutation (damage, hit-flash trigger, etc.) the action requires.
-##
-## Composition, two axes:
-##   * [member path]: how it moves — a [ProjectilePath] resource (Bezier arc,
-##     authored Curve2D, future homing / parabola / etc.).
-##   * [member visual_scene]: what it looks like — any [PackedScene]; instantiated
-##     as a child so its transform rides along.
-##
-## Visual scene hook contract (duck-typed; future commits may formalise as a
-## typed `ProjectileVisual` base class):
-##   inbound  (Projectile → Visual)
-##     * `_on_launch()`        — once when flight begins (post-delay).
-##     * `_on_progress(t)`     — each frame, t ∈ [0, 1].
-##     * `_on_arrival()`       — once on impact, before the linger / free.
-##     * `_on_crit(tier)`       — called immediately after `_on_launch` when
-##       [member crit_tier] > 0, so the visual can scale/tint/shake.
-##     * `_on_context(entry)`  — once, at visual instantiation and therefore
-##       BEFORE `_on_launch`, with this projectile's [ScheduleEntry] (#543 D6).
-##       Everything a per-spell treatment needs to know about WHERE in the cast
-##       it sits — beat fraction, normalized magnitude, convergence count,
-##       visit index, terminal flag, and its own launch/arrive window. Skipped
-##       when no coordinator supplied one.
-##   outbound (Visual → Projectile)
-##     * `finished` signal     — visual says "I'm fully done draining" so
-##       the projectile (and the BattleSystem await chain it feeds) waits
-##       on the actual fade-out instead of a fixed linger.
-## Any subset is fine; missing inbound methods are skipped, and a missing
-## `finished` signal falls back to [member linger_seconds].
+## A single projectile-shaped VFX element: pure kinematics + visual delegation, no
+## game-state references. Spawned by a [VFXCoordinator], which wires [signal arrived].
+## Two axes: [member path] (a [ProjectilePath]) and [member visual_scene]. Visual
+## hooks are duck-typed (`_on_launch`, `_on_progress(t)`, `_on_arrival`, `_on_crit(tier)`,
+## `_on_context(entry)`; outbound `finished`); any subset is fine.
+## See docs/domain/spell-vfx-kit.md
 
 signal arrived
 ## Flight began — the first frame of motion after [method launch]'s delay

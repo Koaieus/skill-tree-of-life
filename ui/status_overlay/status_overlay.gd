@@ -2,37 +2,12 @@
 class_name StatusOverlay
 extends Control
 
-## Every status readout on a bar: the projected-damage segment and the icon
-## row, for ONE host's rows. Composed as a full-rect child of the bar it
-## annotates; the bar owns the wiring.
-##
-## [b]Host.[/b] [method bind] takes a [NodeCombat] or an [EntityCombat] (both
-## answer `get_statuses()` and `projected_status_damage()`) plus the signal that
-## announces a row change ([signal SkillNode.statuses_changed] /
-## [signal Entity.statuses_changed]). A node bar binds its node, a core bar the
-## entity — two overlays, never merged.
-##
-## [b]Fill.[/b] The bar pushes the fill it is DRAWING through [method set_fill]
-## (its animated `value`, not the pool), so the band stays glued to the fill tip
-## while a damage tween runs.
-##
-## [b]Model, then draw.[/b] [method refresh] rebuilds [member segments] and
-## [member icons] from the live rows; `_draw` only paints them. A consumer (or a
-## later readout) adds segments to the model, never draws status on a bar
-## outside this scene. Zero rows → hidden, so a clean node costs no `_draw`.
-## Colour is the row identity's `tint`, unlifted; icons share their textures
-## and tint through `modulate`, so the row batches.
-##
-## [b]Corruption layer[/b] (node hosts only: an entity row has no threshold).
-## A [SandpileSpread] row of a [CorruptionStatus] at `N` stacks against the
-## node's live `T` ([method SandpileSpread.threshold_of]) draws N blips above
-## the icon row and N pending chunks back from the tip, worth exactly what a
-## degree-loss pop deals ([method CorruptionStatus.burst_amount] at `N`).
-## While critical (`N == T − 1`) a ghost chunk follows, worth the extra a
-## landing stack's pop deals at `T`. `N` is drawn as read: a transient
-## `N ≥ T` mid-settle is legal. `T` moves with no row change (a neighbour's
-## owner, an incident edge or gate flip), so while a pile stands the overlay
-## also listens to those. The pulse reads one global clock in `_draw`.
+## Every status readout on a bar: the projected-damage segment and the icon row,
+## for ONE host's rows; a full-rect child of the bar it annotates. [method bind]
+## takes a [NodeCombat] or [EntityCombat] plus its statuses-changed signal; the bar
+## pushes its DRAWN fill via [method set_fill]. [method refresh] rebuilds the model
+## and `_draw` only paints it. Node hosts add a corruption layer.
+## See docs/domain/hud-widgets.md
 
 ## One band of the projected-damage segment: one damaging row, stacked back
 ## from the fill tip in row order.

@@ -2,35 +2,11 @@ class_name VisionSourceIndex
 extends RefCounted
 
 ## Uniform-grid index over [method VisionSystem.get_vision_sources], built once
-## per [code]FogOverlay._refresh[/code] and queried once per rendered element.
-## Wraps [OverlayFieldTileIndex] — the same grid the fragment shader reads via
-## data textures (see #177) — so the CPU dimming pass and the GPU fold walk
-## the exact same candidate set in the exact same order.
-##
-## [b]Why this exists.[/b] [code]FogOverlay[/code] used to sample the fog
-## darkness at every node and every edge midpoint on the CPU, each sample
-## folding over [i]every[/i] vision source — O(elements × sources), per frame
-## while any vision circle animated. Measured before this index: 16.8 ms per
-## refresh at 150 sources / 300 elements, 140 ms at 512 / 800. See #133.
-##
-## [b]That caller is gone (#414).[/b] Every element self-shades per-fragment
-## now, so nothing in the render path calls [method distances_near] — the
-## per-element half of the cost was deleted rather than indexed, which #133's
-## fix could not do (it only removed the × sources factor; the walk stayed and
-## came back as a 78 ms/frame collapse at 2000 nodes). What survives here, and
-## is now the ONLY reason this class is on the frame path, is the tile grid the
-## GPU reads. [method distances_near] itself is retained as the CPU reference
-## the shader is pinned against (test_vision_source_index.gd) — keep it in
-## lockstep; don't delete it as dead code.
-##
-## [b]Order is tile-gather order, NOT ascending source index.[/b] Until #177
-## this returned distances sorted back into global array order, to match a
-## shader that looped every circle front-to-back. The tiled shader instead
-## visits its own 3×3 tile neighbourhood — tiles in (dx, dy) scan order, each
-## tile's circles in build (global-insertion) order — so this class now
-## mirrors THAT traversal instead. See [OverlayFieldTileIndex]'s docstring for
-## the measured drift this reorder introduces relative to the old pure-global
-## order (0.0026, under the 1/255 = 0.0039 visible threshold).
+## per [code]FogOverlay._refresh[/code]. Wraps [OverlayFieldTileIndex] — the grid
+## the fragment shader reads via data textures. [method distances_near] is the
+## CPU reference the shader is pinned against and returns TILE-GATHER order (not
+## ascending source index): keep it in lockstep, it is not dead code.
+## See docs/domain/overlay-field-rendering.md
 
 var _tile_index := OverlayFieldTileIndex.new()
 var _sources: Array = []

@@ -2,40 +2,13 @@
 class_name FanTrace
 extends Node2D
 
-## Tooltip V2 (#159) — one circuit-board trace connector: a [Line2D] that
-## draws itself in from an anchor toward a panel, led by a glowing traveling
-## tip, then holds a steady settled state. Geometry is delegated to the pure
-## [TraceRouter] helper (#217); this scene owns the *drawing* — the reveal
-## animation, the tip, and the in → settled → out lifecycle.
-##
-## Rescoped by #215: the trace is a single PCB / 45°-only family
-## ([TraceRouter.Style.PCB]) — a cardinal trunk, an exact 45° diagonal, then a
-## cardinal run into the panel. The make-or-break aesthetic knob is
-## [member bend_start]: the fraction of the trunk axis covered before the 45°
-## break. It spans the whole family on its own — 0 is a pure 45° diagonal from
-## the anchor, φ ≈ 0.382 is trunk+45°+leg (the sprout), 1 is a squared 90°
-## corner. Seeded at φ and meant to be tuned live, co-varying with the panel
-## anchor and sibling traces.
-##
-## Reveal is by point-count / arc-length truncation of the Line2D (the approach
-## [TraceRouter] documents), NOT a dimming brightness ramp: the line keeps a
-## CONSTANT color and width across in → settled → out — only how much of it is
-## drawn, and the tip position, change. That satisfies the "never dim the
-## settled/loop state" rule structurally. Idle life (when an idle animation is
-## assigned to [member idle_anim]) pulses the *tip* alone, never the line.
-##
-## The trace does not simply "start": it IGNITES. The first
-## [member ignite_fraction] of `progress` is a lead-in during which the line is
-## still zero-length and only the origin pad blooms — a solder-pad dot at the
-## clock pin that pops bright, then relaxes to a small steady marker while the
-## line shoots out of it. With N traces staggered around the node's rim, that
-## reads as the chip's pins energizing before the callouts fly out.
-##
-## The pad is folded into `progress` rather than prepended as its own tween leg,
-## and that is the load-bearing choice: everything stays a pure function of
-## `progress`, so scrubbing (the sandbox), reversing from a half-open state, and
-## [method FanUnit.enter_hidden]'s hard `progress = 0` all keep working with no
-## extra bookkeeping and no duration arithmetic in [FanUnit].
+## One circuit-board trace connector: a [Line2D] that draws itself in from an anchor
+## toward a panel, led by a glowing tip, then holds a settled state. Geometry is the
+## pure [TraceRouter]'s (PCB / 45-degree-only: trunk, diagonal, cardinal run;
+## [member bend_start] spans the family); this scene owns the reveal. Reveal is
+## point-count truncation at CONSTANT colour and width, and a pure function of
+## `progress` (the first [member ignite_fraction] only blooms the origin pad).
+## See docs/domain/tooltip-fan-units.md
 
 ## φ ≈ 0.382 — the seeded default for [member bend_start]. Asymmetric; usually
 ## reads better than a flat ⅓. A good starting point for live tuning, not a

@@ -17,6 +17,10 @@ The layer/dependency rules are in `docs/architecture.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` — **update it when the stat system changes.**
 `VictorySystem` (`systems/victory_system.gd`) — sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once*, the swappable `VictoryCondition` owns the *what*. See `docs/domain/victory-system.md`.
 `GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology), `docs/domain/procgen-v4.md` (content).
+Frontmatter shell (`ui/frontmatter/`) — the menu as a moving-camera skill tree: layout, back button, keyboard input, splash, edges, tooltip. See `docs/domain/frontmatter-shell.md` (panels: `docs/domain/frontmatter-panels.md`).
+Tooltip fan units (`ui/tooltip_fan/`) — anchor, layout, trace router, coordinator, panels. See `docs/domain/tooltip-fan-units.md` (system: `docs/domain/tooltip-fan.md`).
+HUD widgets (`ui/hud/`, `ui/spell_picker_bar/`, `ui/status_overlay/`, `ui/gained_modifier_toast/`) — per-unit contracts. See `docs/domain/hud-widgets.md`.
+VFX units (`ui/vfx/coordinator/`, `ui/vfx/shatter/`) — arrow/magic coordinators and the shard field. See `docs/domain/vfx-units.md` (kit: `docs/domain/spell-vfx-kit.md`).
 
 Spawning runtime entities: in `_setup_level()`, call `spawn_entity(name, color, core_location, core_class)`. See `scenes/procgen_play_sandbox.gd`.
 

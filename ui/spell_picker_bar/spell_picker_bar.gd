@@ -1,45 +1,12 @@
 class_name SpellPickerBar
 extends HFlowContainer
 
-## Renders the player [SpellBook] as a row of [SpellPickerButton]s. Selecting
-## one routes through [signal spell_selected] which UIRoot forwards to
-## [member MagicMemory.selected_spell]. The bar self-syncs three independent
-## gates on each button (#728): the bar-wide act gate (not your turn / no
-## AP — grey AND unclickable), and whether ANY owned node clears the spell's
-## min_degree. The latter goes grey but STAYS clickable so the press can float
-## its own denial — see [SpellPickerButton]'s top docstring.
-##
-## [b]min_degree is a territory question now, not a source question (#728).[/b]
-## Before the targeting inversion the bar was fed a pre-picked cast-from node
-## and greyed a spell that node could not satisfy. There is no such node any
-## more, so the gate asks [method SpellBook.eligible_sources] instead — the same
-## predicate [SpellTargetUnion] builds its source set from, so the picker and
-## the highlights can never disagree about whether a spell is castable.
-##
-## [b]Why [HFlowContainer] and not [HBoxContainer] (#753).[/b] A [Control]'s rect
-## is clamped UP to [method Control.get_combined_minimum_size], so anchors lose
-## to content min size. An HBox of N fixed 96px buttons has a min width of
-## [code]N * 96 + (N - 1) * sep[/code], and the spellbook grows through loot
-## without bound — at 8 spells that is already 824px, which shoved the whole
-## Command Tray out from under its slot. A flow container's min width is ONE
-## button, so the bar can never widen the tray again no matter how big the book
-## gets; overflow becomes rows, and the owning body caps those rows at two and
-## scrolls past them.
-##
-## [b]No layout feedback loop.[/b] [method _relayout] picks the button size from
-## the bar's *available* width ([member Control.size].x, handed down by the
-## tray) versus what the book would need at full size — never from the bar's own
-## minimum size. The .tscn pins [member Control.custom_minimum_size].x at
-## [constant FULL_BUTTON_PX] so the min width is a constant that the chosen
-## button size cannot move, which is what makes the decision a pure function of
-## (available width, spell count) rather than a fixed-point search.
-##
-## [b]Number keys (#718 follow-up).[/b] Tile N carries the keycap for
-## `ui_select_spell_N`, derived from its POSITION via
-## [method PlayerInputController.spell_keycap] — the book is loot-driven and
-## reorders, so nothing here is authored per spell. Spells past the ninth get
-## no chip and stay mouse-only; the key handling itself lives in
-## [PlayerInputController], gated on MAGIC being the live mode.
+## Renders the player [SpellBook] as a row of [SpellPickerButton]s; a pick routes
+## through [signal spell_selected]. Self-syncs two gates per button: the bar-wide
+## act gate and whether ANY owned node clears the spell's min_degree
+## ([method SpellBook.eligible_sources]). An [HFlowContainer] so the bar's minimum
+## width is ONE button; [method _relayout] sizes from the available width only.
+## See docs/domain/hud-widgets.md
 
 signal spell_selected(spell: SpellDef)
 

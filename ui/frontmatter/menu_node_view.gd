@@ -54,36 +54,11 @@ const _LABEL_GAP := 10.0
 ## scaled back down. Matches the box `menu_node_view.tscn` authors.
 const _CAPTION_BOX := Vector2(220.0, 24.0)
 
-## The caption is rasterized this many times larger than it is drawn.
-##
-## [b]Because this menu draws text at every scale there is.[/b] A [Label] rasters
-## its glyphs at `font_size` and the canvas then stretches that bitmap: the
-## collapsed peek nodes sit at [constant FrontmatterLayout.PREVIEW_SCALE] (0.42),
-## every fan is navigated at [constant FrontmatterLayout.TREE_ZOOM] (1.0 since
-## #603 collapsed the per-fan zoom; the root menu's own 1.35 is gone), and #574's
-## splash parks at [constant FrontmatterLayout.SPLASH_ZOOM]. Every one of those
-## is a resample of a 16px raster, and it read as the aliased, mushy caption the
-## owner called out on 2026-08-26.
-##
-## Rastering at 3x and drawing at 1/3 puts the raster ABOVE every scale the menu
-## uses, so magnifying is a downsample and never an upsample. Minifying is then
-## covered by the font's mipmaps, which is why the scene authors
-## `texture_filter = 4` (LINEAR_WITH_MIPMAPS) on the caption — Godot's default
-## canvas filter has no mipmap stage, so the mipmaps the import generates would
-## otherwise never be sampled and the peek captions would break into fragments.
-##
-## [b]Scoped to this Label rather than done in the font import.[/b] `oversampling`
-## in `Cinzel-VariableFont_wght.ttf.import` is the same trick globally, and it
-## measurably THINS the HUD's own `CinzelHeader` labels, which are screen-space at
-## zoom 1 and want a native raster. `generate_mipmaps` is safe to set globally
-## precisely because it is inert until a CanvasItem asks for a mipmap filter.
-##
-## [b]Applied on the node, in `menu_node_view.tscn` (#612), not here.[/b] `%Title`
-## authors `scale = (0.333333, 0.333333)`, a `font_size` override of 48 and
-## `size = (660, 72)` directly — all three are static, none vary per node, so
-## the scene is where they belong. This constant documents WHY those three
-## numbers are what they are (`16 * 3 = 48`, `_CAPTION_BOX * 3 = (660, 72)`,
-## `1 / 3`); nothing at runtime reads it any more.
+## The caption is rasterized this many times larger than it is drawn, so the
+## menu's every zoom (peek, tree, splash) is a downsample, never an upsample.
+## `menu_node_view.tscn` authors the three numbers (`font_size` 48, box (660, 72),
+## `scale` 1/3, `texture_filter = 4`); nothing at runtime reads this constant.
+## See docs/domain/frontmatter-shell.md
 const _CAPTION_SUPERSAMPLE := 3.0
 
 ## The label the composite is captioned with.

@@ -2,46 +2,12 @@
 class_name FrontmatterInput
 extends Node
 
-## Keyboard and gamepad navigation for the frontmatter (#576).
-##
-## [b]The menu is a graph, so the input is directional.[/b] The focused node is
-## the hero; its children are the fan to its right. `ui_up`/`ui_down` move a
-## CURSOR through that fan, `ui_accept`/`ui_right` commits to the cursor, and
-## `ui_cancel`/`ui_left` goes back. Every one of those ends in a call
-## [FrontmatterRoot] already exposes — this file adds no navigation of its own,
-## because a second thing that moves the camera is a second thing that can
-## disagree with [method FrontmatterRoot.navigation_state].
-##
-## [b]The cursor is not the focus.[/b] Focus is where the camera IS; the cursor
-## is which sibling a commit would take. They are different questions — at
-## `single_player` the camera sits on Single Player while the cursor picks
-## between New Game and Load Game — and conflating them would make merely
-## looking at an option navigate to it.
-##
-## [b]MOVING the cursor counts as hover; SEATING it does not.[/b] [method step]
-## calls [method FrontmatterRoot.set_hovered], so a keyboard player raises the
-## same peek and tooltip the mouse would — #576's note forbids inventing a
-## seventh ring colour and asks for an existing focus treatment to be reused
-## instead, and this is that reuse.
-##
-## [method _seat_cursor] deliberately does NOT, and the reason is a
-## contradiction it used to cause: [method FrontmatterRoot.focus] clears the
-## hover and three lines later emits [signal FrontmatterRoot.focus_started],
-## which lands here and re-raised it on the new fan's first option. So merely
-## ARRIVING somewhere peeked ahead — clicking the root hub popped Single
-## Player's children open with nobody having asked for them (reported
-## 2026-08-26). A commit still works from an unmoved cursor, because the seat
-## itself is unchanged; only the broadcast is withheld.
-##
-## Since #583 landed, [MenuNodeView] has a real [MenuNodePickRegion] and the
-## mouse raises the same hover through the same seam, which is what made that
-## unasked-for peek visible in the first place.
-##
-## [b]Mounting.[/b] Add as a child of [FrontmatterRoot] with
-## [member frontmatter_path] pointing at it, or call [method bind] from a
-## composer. It reads input through `_unhandled_input`, so anything a focused
-## [Control] in the panel layer consumes first — typing into the seed field, a
-## button press — never reaches here.
+## Keyboard and gamepad navigation for the frontmatter: `ui_up`/`ui_down` move a
+## CURSOR through the focused node's fan, `ui_accept`/`ui_right` commit,
+## `ui_cancel`/`ui_left` go back — all via calls [FrontmatterRoot] already exposes.
+## The cursor is not the focus; moving it counts as hover, seating it does not.
+## Reads `_unhandled_input`, so a focused panel [Control] consumes keys first.
+## See docs/domain/frontmatter-shell.md
 
 ## The dev reload key. Owner, 2026-09-03: [i]"make F5 reload the game (in
 ## frontmatter; helps testing repeatedly)"[/i] — the splash's charge-up is a

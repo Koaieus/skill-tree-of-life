@@ -2,42 +2,12 @@
 class_name CycloneRingFlash
 extends Node2D
 
-## Cyclone's closing gesture (#710): the ring the storm just closed, lit AS a
-## ring. One front runs the whole loop in the walk's own rotation over a fixed
-## [member lap_seconds], and each edge lingers and fades from its own completion.
-##
-## [b]A composition of kit primitives, not a new primitive.[/b] N [EdgeEnergize]
-## children laid on the N ring edges, all on [constant
-## EdgeEnergize.SHARED_MATERIAL] — so this is one batch, and paint-on-top /
-## width-tracks-zoom / fog-oblivious are inherited rather than re-decided. There
-## is no new shader and no per-instance uniform anywhere in this file.
-## [ResonatorEdgeVisual] is the precedent for a spell-specific composition that
-## is deliberately NOT catalogued (`docs/domain/spell-vfx-kit.md`): the API here
-## is a plain polyline of node positions with nothing Cyclone-specific in it, so
-## promoting it when a second spell has a ring to light is a rename plus a
-## gallery entry.
-##
-## [b]One lap, whatever the ring's length[/b] (owner, 2026-09-03). A 3-ring and a
-## 20-ring both take [member lap_seconds]; per-edge speed would give a 20-ring a
-## ~7-beat gesture that stacks with the next closure. Simultaneous flash of all N
-## was rejected — it loses the "it circulates" read, and #663 D3's Cyclone
-## identity is motion.
-##
-## [b]Stateless, once per event.[/b] Uncapped revisits (b98a2ca) mean a triangle
-## can close every beat; each closing landing simply re-runs the lap, which reads
-## as a continuously spinning ring. Nothing here remembers a ring across events —
-## that would be the parallel view store `.claude/rules/presentation-clock.md`
-## forbids, and escalation-on-repeat would have to be resolver-stamped instead.
-## Simultaneous closures stack on purpose: several rings closing in one beat each
-## get their own lap, and a shared edge simply adds up.
-##
-## [b]The concurrency bound is linger[/b], the [EdgeEnergize] precedent:
-## `ring_size * EdgeEnergize.max_live_overlays(lap_seconds + linger, beat)`.
-##
-## Visual contract (see [Projectile]):
-##   inbound  — `_on_context(entry)`, `_on_launch()`, `_on_progress(t)`,
-##              `_on_crit(tier)`, `_on_arrival()`
-##   outbound — [signal finished]
+## Cyclone's closing gesture: the ring the storm just closed, lit AS a ring. One
+## front runs the whole loop over a fixed [member lap_seconds], whatever the ring's
+## length; each edge lingers and fades from its own completion. N [EdgeEnergize]
+## children on [constant EdgeEnergize.SHARED_MATERIAL] (one batch). Stateless, once
+## per event; simultaneous closures stack. Concurrency is bounded by linger.
+## See docs/domain/spell-vfx-kit.md
 
 signal finished
 

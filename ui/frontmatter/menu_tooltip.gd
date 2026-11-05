@@ -2,53 +2,12 @@
 class_name MenuTooltip
 extends VBoxContainer
 
-## The slab stack a menu node shows when you point at it (#567 / #575 / #588) —
-## a centred column of [SlabRow]s sitting directly under the node: its title (or
-## `GRANTED ON SELECT`), a one-line description for most of them, and for SINGLE
-## PLAYER / MULTIPLAYER the `PLAYERS +1` / `PLAYERS +8` joke, rendered exactly
-## like a real granted modifier.
-##
-## [b]It is a stack of rows, not a panel with a body.[/b] #588 replaced the
-## previous `Slab` + `Margin` + `Body` + autowrap `Description` structure, which
-## carried a genuine layout cycle — the tooltip's minimum read `%Body`'s combined
-## minimum, `%Body` was anchored to the tooltip, and an autowrap [Label] inside
-## it derived its height from that width. It settled at ~470px for two lines of
-## text. The stack deletes the cycle rather than converging it: every row is a
-## child of a real [Container] (so it DOES shrink when its minimum drops), the
-## stack authors its own [member Control.custom_minimum_size].x, and no row
-## derives a width from the stack's size. This is [AddonItem]'s shape verbatim,
-## which has never shown the bug.
-##
-## [b]It reuses the tooltip-fan's own row[/b] rather than authoring a lookalike,
-## per #575 — [SlabRow] is the base #588 extracted out of [ModSlabRow] for
-## exactly this: the same slab, taking any text and any tint, with no
-## [StatModifier] and no [StatRegistry] behind it. The joke therefore needs no
-## transient [StatDef] any more (the old `_menu_stat()` existed only to feed
-## [StatValueRow] two fields); `PLAYERS` is a string in the menu's own data and
-## reaches nothing, exactly as #575 asks.
-##
-## [b]What is shown is decided by the content, not by the topology.[/b] #575's
-## acceptance asks for three things at once — a slab on SINGLE PLAYER, a
-## description on each leaf, and nothing on a node with children — and the first
-## and third contradict each other, since SINGLE PLAYER has two children. The
-## reading that satisfies all three literal cases is the content one: a node
-## gets a tooltip iff it carries a slab or a description, so SINGLE PLAYER and
-## MULTIPLAYER get their joke and the ROOT (children, no content) gets nothing.
-##
-## [b]The slab's text comes from the authored slot[/b] ([member
-## MenuSlot.subtitle], authored as `"+1 PLAYERS"` in `root_menu.tscn`), split
-## here rather than restated — there must be one source for the joke, and it is
-## the one the node itself is captioned from. #591 moved it off [MenuGraph],
-## which now carries topology and routing only.
-##
-## [b]It fades, it never hides.[/b] Nothing here ever writes `visible = false`:
-## a hidden [Control] skips layout, which is what breaks size convergence in the
-## first place. "Nothing to say" rests at `modulate.a = 0` via
-## [method set_progress], the same contract [SlabRow] itself follows.
-##
-## Reveal is driven externally via [method set_progress] against the shared
-## fixed-clock / progress(0..1) contract; this node owns no [Tween], like every
-## other row it composes.
+## The slab stack a menu node shows when you point at it — a centred column of
+## [SlabRow]s under the node (title or `GRANTED ON SELECT`, a description, and
+## for SINGLE PLAYER / MULTIPLAYER the `PLAYERS +N` joke). Shown iff the node
+## carries content, from the authored [MenuSlot]. It fades, never hides
+## (`visible = false` breaks size convergence); reveal via [method set_progress],
+## and it owns no [Tween]. See docs/domain/frontmatter-shell.md
 
 ## The one-line descriptions, verbatim from #575. Menu-local copy, keyed by
 ## [MenuGraph]'s own ids — there is no description field on the model and this
