@@ -1,77 +1,10 @@
 class_name BlockerVisual
 extends Node2D
-## Null-field blob overlay for a Dormant Core's blocked node (#300 / #478 /
-## #1526). While the node reads as blocked, draws one quad under the shared
-## `blocker_blob_material.tres`; the shader draws everything — tar-black
-## metaball lobes whose edge deforms slowly on `TIME`, drifting luminance-mask
-## texture layers, glitch, and the damage read. Tier reads as fused LOBE COUNT
-## ([member tier_lobes]), never node size: [member SkillNode.radius] already
-## grows with stake. Three crack stages sync to the node's combat-HP fraction
-## (intact > 66%, cracked ≤ 66%, shattered ≤ 33%); as the stage rises the lobes
-## drift apart, the edge fractures and the glitch light bleeds. Each node's
-## variant (texture offset, lobe phase, glitch timing) is
-## [method seed_for] its [member SkillNode.stable_id], so every peer draws the
-## same blob. The design: `docs/domain/dormant-core.md` "The look".
-##
-## [b]One shared material, bound only while visible[/b] (the InnerDisk
-## pattern, `docs/domain/skillnode-visuals.md`): lobe count, seed and damage
-## travel as `instance uniform`s, and binding the material is what claims an
-## instance-uniform slot, so a cleared or sensed blob binds none.
-##
-## [b]Crack stage is combat PAINT, and under design B (#504) the model IS the
-## presentation clock.[/b] A hit mutates the world at its own `arrival_time`
-## (see [BeatClock]), so [method _on_damaged] — bound to the node's own
-## `damaged` / `healed` — already fires exactly when the blob should
-## visibly crack, with no view store in between. Crack stage ALSO lags one idle
-## frame behind a FRESH allocation (see `_ready`'s docstring for why); that only
-## delays picking up new ownership, never a mid-life damage tick.
-##
-## [b]Blocked is a LATCH, not a live predicate.[/b] The first entity to own
-## this node (a blocker force-allocates its blocked node as its own core at
-## spawn) is latched as `_latched_owner_id`; the node reads blocked for as long
-## as [member SkillNode.owned_by] stays that entity. The instant ownership
-## differs — including going back to null on the blocker's death — clearing is
-## PERMANENT: a real entity re-allocating the node afterward must never
-## re-show the blob, even though `owned_by` briefly equals a non-blocker
-## entity that could otherwise look plausible. `owned_by.core_class == null`
-## was considered and rejected as the predicate: it can't distinguish "still
-## the original blocker" from "some other null-core actor", and it re-derives
-## every read instead of remembering the one fact that actually matters (who
-## owned this first).
-##
-## [b]The latch holds an instance ID, never an [Entity] reference.[/b] It used
-## to hold the entity, and that was a real bug (#478 follow-up): GameRoot frees
-## the corpse on `entity_death_shown`, and in Godot a freed Object compares
-## EQUAL to null — so once the free beat the deferred `owner_changed` flush,
-## `_latched_owner == null` read true and `_update_latch` took its
-## "nothing latched yet" branch instead of its "ownership diverged" one.
-## Clearing never happened, and the next entity to allocate the node (the one
-## claiming the SkillDust relic the dead blocker dropped) RE-latched — the
-## blob reappeared from under the loot the moment the loot was picked up.
-## `get_instance_id()` is a never-reused int, so `cur_id != _latched_owner_id`
-## stays a truthful comparison for the rest of the node's life. Note this is
-## deliberately NOT [member Entity.entity_id]: that one is minted only on entry
-## to a Graph's `entities_container` and reads 0 otherwise, so two unparented
-## entities would compare equal.
-##
-## The core's look is not this script's business: a blocker entity's class is
-## `blocker_core.tres`, whose `core_look` is the gear (`core_gear.tscn`), so a
-## blocked node wears the gear and a cleared node re-owned by a player wears
-## that player's class look — both through [method SkillNode._refresh_core_presence].
-##
-## Fog mirrors every other owner-detail on the node (the disk, the addons):
-## hidden while [member SkillNode.sensed]. Resynced off the node's
-## [signal SkillNode.sensed_changed] (plus one initial sync in `_ready`) —
-## deliberately not a `_process` poll; `sensed` gained a signal specifically so
-## fog-reactive visuals don't need one (#478).
-##
-## [b]Not [code]@tool[/code][/b] — unlike [CoreHealthBar] (which opts in for
-## the editor-hosted Spell Playground), there's no editor-preview use case
-## here worth the scene-baking hazard (`.claude/rules/godot-workflow.md`): an
-## `@tool` `_ready` writing `visible` while `blocker_node.tscn` is open in the
-## editor would get serialized back into the scene on save. Staying non-tool
-## sidesteps that outright — the blob simply doesn't run until the scene is
-## live in a real game/test tree.
+## Null-field blob overlay for a Dormant Core's blocked node: one quad under
+## the shared `blocker_blob_material.tres`, drawn only while the node reads as
+## blocked. Blocked is a latch on the first owner's instance ID, and crack
+## stage follows the node's combat-HP fraction on the presentation clock.
+## Not `@tool`. See docs/domain/dormant-core.md "BlockerVisual internals".
 
 ## Crack stages are the contract (the blob art is tunable).
 enum CrackStage { INTACT, CRACKED, SHATTERED }

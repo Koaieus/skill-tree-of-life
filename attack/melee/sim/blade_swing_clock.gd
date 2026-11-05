@@ -1,59 +1,12 @@
 class_name BladeSwingClock
 extends RefCounted
 
-## The swing's own clock, and the channel swing drag acts on (#780).
-##
-## [b]Drag slows the CLOCK, never a particle.[/b] Subtracting velocity from a
-## particle on a rigid blade does nothing: the distance constraints fight it,
-## and then [method BladeSim._step] re-applies the drivers AFTER the Verlet
-## integration, so [method BladeArcDriver.apply] — a pure function of its
-## argument — overwrites the damped position outright. Particle-level damping
-## therefore has no effect on exactly the rigid blade it is meant to slow.
-## (That is also why [member BladeSim.simulate]'s `linear_damping` is the wrong
-## channel: it is the free-flight knob for an UNPINNED fragment, where there is
-## no driver to overwrite anything.) What drag can move is the argument itself —
-## the angular progress `f` the arc driver evaluates its ease curve at.
-##
-## [b]Where this sits under ADR 0005.[/b] A spike destroys matter, a bunker
-## destroys structure, and a wall destroys neither — it spends the swing's
-## budget instead. Drag removes no blade part, so it is a THIRD defensive
-## effect that cannot violate the ADR's vertex/edge disjointness rather than an
-## exception to it. Sensing on capsules as well as discs (below) is a question
-## of what the swing TOUCHES, not of which blade part is doing the defending, so
-## it does not disturb that either.
-##
-## [b]Monotonic by construction.[/b] [member _f] only ever has a non-negative
-## quantity added and is clamped at 1: the warp factor [method warp] is
-## `1 / (1 + drag)` with `drag >= 0`, hence strictly positive and at most 1. No
-## configuration of fortified nodes can reverse a swing, and none can freeze one
-## either — nothing in the solver stalls a swing outright. What a wall does instead
-## is spend the arc: five nodes at drag 1 leave the swing running at a sixth of
-## its nominal rate, so within the fixed swing duration it covers roughly a
-## sixth of its sweep and everything further round the arc is simply never
-## reached. That is how a wall protects what is behind it without deleting,
-## severing or cascading anything.
-##
-## [b]Causal, not global.[/b] A zone's drag is added only once its own contact
-## has happened, so it slows the REST of the arc and never the approach to
-## itself. A global warp would be paradoxical: a fortified node at the end of
-## the sweep would retroactively prevent the swing from ever reaching it.
-##
-## [b]One sensing model, since #811.[/b] This class no longer senses anything.
-## It is handed a contact — [method bank_drag] — by [BladeObstacleField], which
-## carries the single merged defender field and tests the blade against it with
-## the same geometry its bunker pushout uses. What this class owns is the
-## ACCUMULATOR and the physics above it: which zones have been banked, how much
-## drag they add up to, and how that warps the arc.
-##
-## Before #811 there were three hand-rolled implementations of "blade vertex
-## disc / rim-trimmed edge capsule vs. node disc" — [BladeHitScan]'s physics
-## query, this class's analytic `sense()`, and the obstacle field's pushout —
-## kept in step only by a shared const and a comment. The seam they were
-## separated by ("the solver must never touch the space state, because
-## [AiBladeRollout] simulates off-thread") turned out to be narrower than it
-## looked: the FIELD is built on the main thread by one physics query and then
-## consumed as plain arrays, so the off-thread solver queries nothing. See
-## docs/adr/0014-one-physics-built-defender-field.md.
+## The swing's own clock, and the channel swing drag acts on. Drag slows the
+## CLOCK (the angular progress the arc driver evaluates its ease at), never a
+## particle; the factor `1 / (1 + drag)` is positive and at most 1, and a zone's
+## drag is banked only after its own contact. Contacts arrive via [method
+## bank_drag] from [BladeObstacleField]. See docs/domain/melee-blade-sim.md
+## "Swing drag".
 
 ## Nominal swing duration — the same value the drivers were built with.
 var duration: float = 1.2

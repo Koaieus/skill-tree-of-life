@@ -2,52 +2,14 @@
 class_name LootSystem
 extends Node
 
-## Authority for killing-blow rewards (#68 XP, #888 tempo, #69/#173 SkillDust
-## loot, #204 spellbook draft). Reacts to `Events.entity_dying(victim)` — the
-## PRE-cleanup phase, while the corpse still owns its nodes (so the XP payout
-## can count the territory held at death, and the spell draft can still
-## read core-sourced spells before the strip). The phase split guarantees this
-## runs before AllocationSystem's `entity_died` strip; no tree-order /
-## connection-order dependency. On the bus:
-##   * XP reward — the killer gains XP for every node this attack took off the
-##     victim, the core included, fed through the normal `xp` pool so it converts
-##     to SP / levels via the existing replenished cascade
-##     (Entity._on_xp_replenished). Don't bypass the pool — a raw `set_current`
-##     would skip the level-up. The complementary per-node trickle rides
-##     BattleSystem's `cascade_started` instead of this phase.
-##   * Tempo award (#888) — a HOSTILE killing blow spends 1 `tempo` to refund
-##     1 `action_points` on the killer, gated the same way as the XP reward
-##     (HOSTILE attitude, killer alive). The pool's own cap IS the
-##     once-per-turn latch: once `tempo.available() < 1` no further kill this
-##     turn pays out, so a multi-kill chain still nets exactly one refund
-##     unless a modifier raised the cap. `tempo` REFILLs at turn start like
-##     `action_points`/`deallocation_points`/`movement_points` — no bespoke
-##     upkeep wiring.
-##   * SkillDust drop (#323 re-cut) — a weighted draw over THREE provenance
-##     buckets (node grants on the victim's owned subgraph, class/register
-##     grants, board innates) is attached to the victim's former core node as a
-##     [SkillDustAddon]. The underlying node modifiers still return to the
-##     graph on the death strip — only a duplicated COPY enters the loot pool.
-##     Offered as N rounds of pick-1-of-3, `would_cycle`-filtered per round
-##     against the collector's live board at claim time (not draw time — the
-##     claimant isn't known until someone allocates the relic). See
-##     docs/domain/loot-system.md.
-##   * Spell draft (#204, re-cut #4xx) — every spell the victim currently knows
-##     (core, innate, AND territory-sourced) is snapshotted onto the SAME
-##     [SkillDustAddon] relic as a terminal BONUS round, offered AFTER every
-##     stat round has resolved. The offer is filtered against whoever actually
-##     CLAIMS the relic (allocates the node) — not the killer — minus spells
-##     that claimant already knows permanently; the chosen spell lands on the
-##     claimant's core via a [SpellGrant]. See the "#204: Spellbook loot draft"
-##     section below.
-##
-## KILLER ATTRIBUTION lives here, not on the entity or the bus: death fires
-## SYNCHRONOUSLY inside the attacker's turn (core-HP overflow + cascade chip
-## damage both run in the attacker's `launch_attack` call stack), so
-## `turn_manager.current_entity` at death IS the killer. Resolving it in the
-## rewards authority keeps Entity dumb and keeps reward logic out of BattleSystem
-## (which owns attacks, not rewards). Thorns / counter-damage would kill on the
-## defender's turn — when those land this needs real source-threading.
+## Authority for killing-blow rewards: XP, tempo, SkillDust loot and the
+## spellbook draft. Reacts to `Events.entity_dying(victim)`, the PRE-cleanup
+## phase while the corpse still owns its nodes, so it runs before
+## AllocationSystem's `entity_died` strip with no tree- or connection-order
+## dependency. Killer attribution lives here: death fires synchronously inside
+## the attacker's turn, so `turn_manager.current_entity` at death IS the killer.
+## XP goes through the `xp` pool, never a raw `set_current`.
+## See docs/domain/loot-system.md.
 
 ## Injected so this system can attribute the killing blow. DI per the
 ## scene-composition rule (NodePath @export, wired in game_root.tscn) — the same
@@ -86,44 +48,13 @@ extends Node
 @export var drop_skill_dust_on_death: bool = true
 @export var award_spell_loot_on_death: bool = true
 
-## ── XP reward (#68, #173, #774 — strictly additive) ───────────────────────────
-## XP is paid for TERRITORY REMOVED, plus a flat bonus when the core itself
-## died. One rate, no multiplier, no rate-switching:
-##
-##   XP = xp_per_node_killed × |nodes this attack removed, core included|
-##        + (victim.stat_board.core_kill_xp.value, only if the core died)
-##
-## — each node's share then scaled by its local `bounty` read (node + entity
-## modifiers, [method _node_payout]) and the core bonus by the entity board's
-## `bounty` alone ([method _entity_payout]); at zero `bounty` modifiers it is
-## exactly the line above. Greed's Avarice face plants those modifiers.
-##
-## #774 (owner, 2026-09-07): "no more killing entity that has many nodes makes
-## those nodes count for more XP, it just muddies the calculations" — a node is
-## worth the same whether it fell mid-cascade, in the islanding sweep, or in the
-## same blow that took the core. The old `entity_kill_bonus` multiplier and
-## `tier_xp_base × entity_tier²` tier term are BOTH gone; the core bonus is now
-## a per-board stat (`core_kill_xp`) so it is owner-tunable per blocker size and
-## reachable by a modifier, same as any other stat — see docs/domain/loot-system.md.
-##
-## The core node is simply one of the counted nodes (#774 decision 1) — there is
-## no "+1 for the core" folded into the arithmetic anywhere; a caller passes the
-## count it actually removed, core included when the core died.
-##
-## NO NETTING. `_award_kill_xp` still has to avoid double-paying a node the
-## trickle already covered (`_on_cascade_started`, off `award_xp_on_node_kill`)
-## — it does that by building the CORRECT SET before calling `_kill_xp_total`
-## once (every node in `{core} ∪ held ∪ ledger` NOT already paid by the ledger),
-## never by computing the whole-board total and subtracting what was paid
-## earlier. `preview_kill_xp` takes the count directly and never nets anything,
-## by construction — the whole point is a number that doesn't move depending on
-## when in the cascade it's asked, per #538.
-##
-## Why XP and not looted stats: territory modifiers are only LENT by the graph
-## (granted on allocation, released back to neutral on death), so copying them
-## into loot would duplicate mods still on the battlefield and re-claimable. XP
-## is the honest reward for the scale of the kill; the stat loot draws strictly
-## from the core (see `_draw_payload`). See #173 discussion.
+## ── XP reward (strictly additive) ────────────────────────────────────────────
+## XP is paid for TERRITORY REMOVED (each node scaled by its local `bounty`
+## read, [method _node_payout]) plus a flat per-board `core_kill_xp` bonus when
+## the core died ([method _entity_payout]). The core is one of the counted
+## nodes, and there is NO NETTING: the payout prices the set of nodes not yet
+## paid by the trickle, never a whole-board total minus earlier payments.
+## See docs/domain/loot-system.md "The XP reward".
 
 ## XP for removing one node — the whittling trickle (#182), and (#774) the
 ## per-node rate for a killing blow too; there is only one rate now. Paid per

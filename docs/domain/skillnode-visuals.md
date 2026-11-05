@@ -323,3 +323,41 @@ decoupled from the consumer's rebuild.
 `node_highlight_overlay.gd`'s range ring draws AT `range_radius` (centerline), not
 through the convention: it is a gameplay reach in world space, not a decoration
 band.
+
+## SkillNodeAddon contract
+
+`SkillNodeAddon` (`skill_node/addons/skill_node_addon.gd`) is a scene, not a
+script: read `<name>_addon.tscn` first. Its root names the script it runs
+(often the base one; `toxin_addon.tscn` runs `skill_node_addon.gd`) and holds
+the authored modifiers, icon and visuals. Subclass only for behaviour a scene
+cannot author. An addon is a component-as-node: a plain direct child of a
+`SkillNode` carrying stat modifiers (entity- or node-scoped), a visual, and
+behaviour hooks other systems dispatch into (e.g. `SkillBlade.apply_to_blade`).
+
+- **Attaching is `skill_node.add_child(addon)`.** No anchor node, no
+  `attach_addon()`; procgen, loot and editor authoring use the one path. Order
+  is free: an addon parented before the carrier enters the tree is adopted by
+  the carrier's `_ready` sweep. Only direct children are adopted; nesting an
+  addon under `Visuals` or another addon resolves `carrier` (the lookup walks
+  up) but never attaches.
+- **Positioning:** an addon's own transform stays identity. It renders
+  concentric with the carrier and inherits its transform; an offset or rotated
+  element lives in the addon's child visuals, never its root transform.
+- **Visuals are children.** Drawing lives in a direct child `AddonVisual` (its
+  own `.gd` under `visuals/`, holding draw code and look knobs). `_ready` seeds
+  every direct `AddonVisual` child from `carrier.radius` and
+  `configure_visual` forwards each later change. A subclass that only draws
+  itself has no reason to exist.
+- **Lifecycle:** on becoming a child, the carrier transfers the addon's
+  modifiers into its own arrays and, if allocated, the entity board; symmetric
+  on removal. The carrier owns the "is this mod attached" truth.
+  `entity_modifiers` are appended to `carrier.modifiers` (what
+  `AllocationSystem` iterates) and, while the carrier is allocated, pushed or
+  popped live on the entity stat board. `local_modifiers` route to
+  `carrier.node_board` via `SkillNode._ensure_local_stat`, applying regardless
+  of allocation (an unallocated node is inert in combat anyway).
+- **In the editor the modifier transfer is skipped.** An addon shows its
+  visuals but grants no stats, because `SkillNode.modifiers` is an `@export`
+  and writing derived modifiers there would serialize them into the `.tscn`.
+- A stacking cap (e.g. "1 + 1/<stat>" addon capacity) belongs at
+  allocation/edit time and does not touch this class.

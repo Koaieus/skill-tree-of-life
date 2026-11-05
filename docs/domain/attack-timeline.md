@@ -335,6 +335,16 @@ per-node grain ends the moment anything entity-wide runs (`cascade_set` /
 `_materialize_all` mints the rest first, so a cascade set is computed over the
 whole subgraph — a node fifty hops away is still in it.
 
+One class rather than a per-entity slice: an attack, a propagating spell above
+all, crosses territory of several entities and `EntityCombat.snapshot` is
+per-entity, so the world holds as many entity slices as the attack touches plus
+ownerless slices for unallocated conduit nodes, under one `SkillNode` ->
+`NodeCombat` index. Laziness is what makes shadows cheap (the cost is paid per
+entity actually hit and per node actually visited, rather than for the whole
+owned subgraph per hover). Every shadow needs `free_shadow` for the reference
+cycles `EntityCombat.free_shadow` documents; a live world holds and frees
+nothing.
+
 **No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
 topology never changes mid-attack, so islanding and propagation walk the *real*
 graph while only ownership and stats route through the shadow. It is pinned by
