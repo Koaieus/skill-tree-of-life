@@ -1,6 +1,42 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/frontmatter/panels/lobby_screen.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/common/labelled_row.tscn" id="2_row"]
 
 [node name="LobbyScreen" type="VBoxContainer"]
+size_flags_horizontal = 3
+size_flags_vertical = 3
+theme_override_constants/separation = 8
 script = ExtResource("1_script")
+
+[node name="RowsContainer" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="RosterSpacer" type="Control" parent="."]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="SeedRow" parent="." instance=ExtResource("2_row")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RunSection" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 4
+
+[node name="LinkLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="StatusLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="StartButton" type="Button" parent="."]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Start Game"

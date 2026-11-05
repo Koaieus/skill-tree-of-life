@@ -13,17 +13,11 @@ extends FrontmatterPanel
 ## roster column and nothing else. Nothing here duplicates a decision that
 ## lives in it.
 ##
-## [b]Why the screen is built in code rather than sitting in this scene.[/b]
-## [method LobbyScreen.configure] documents its own ordering: it must be called
-## before the screen enters the tree, because `_ready` branches on the
-## [NetworkConfig] to decide whether the lobby even offers an AI-opponent row.
-## A screen parked in the `.tscn` is already `_ready` by the time a caller could
-## configure it, so it would silently build the wrong shape. Hence
-## [method configure] mints it — the same `LobbyScreen.new()` + `configure()`
-## order `meta_root.gd`'s `_push_lobby` uses today, and the reason
-## `.claude/rules/scene-composition.md`'s "prefer a `.tscn`" does not apply:
-## [LobbyScreen] has no scene to instance, and building one would be the rewrite
-## this unit must not do.
+## [b]Order.[/b] [method configure] instances `lobby_screen.tscn`, hands it the
+## route ([method LobbyScreen.configure], pure data), adds it under [member body]
+## and only then calls [method LobbyScreen.refresh] — the one place the screen
+## reads its roster. The screen is `_ready` long before that, so `_ready` builds
+## nothing that depends on the route.
 ##
 ## The panel supplies the title and the back button; the screen supplies the
 ## rows. Before #579 it was the other way round — the screen carried inherited
@@ -37,6 +31,8 @@ signal start_pressed(run_config: RunConfig)
 ## joined. Same relay, same shell decision, one fact different — the run is
 ## already open, so the shell routes without opening it.
 signal remote_start(run_config: RunConfig)
+
+const _LOBBY_SCREEN := preload("res://ui/frontmatter/panels/lobby_screen.tscn")
 
 ## The hosted screen, or null until [method configure] has run.
 var screen: LobbyScreen = null
@@ -65,13 +61,12 @@ func configure(
 		screen.queue_free()
 		screen = null
 
-	var lobby := LobbyScreen.new()
+	var lobby: LobbyScreen = _LOBBY_SCREEN.instantiate()
 	lobby.configure(mode, network, policy)
-	lobby.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lobby.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lobby.start_pressed.connect(_on_start_pressed)
 	lobby.remote_start.connect(_on_remote_start)
 	body.add_child(lobby)
+	lobby.refresh()
 	screen = lobby
 
 

@@ -46,9 +46,7 @@ const MAX_AI_OPPONENTS := LobbyRoster.MAX_AI_OPPONENTS
 ## The rows this screen stacks, kept under the name the shipped code and its
 ## tests already use. It is this node: the screen IS its own column now that
 ## [FrontmatterPanel] supplies the frame, the title and the back button around
-## it (#579). Before the cutover this was a child [VBoxContainer] built by
-## the deleted `MenuScreen._ready`, which also drew a background and a title bar
-## — chrome that would be drawn twice inside a panel.
+## it (#579).
 var content: VBoxContainer:
 	get:
 		return self
@@ -78,29 +76,15 @@ const KNOB_VICTORY := &"victory"
 ## Center vs. edge (#742) — which [StarterPlacement] the run generates from.
 const KNOB_SPAWN_ORDER := &"spawn_order"
 
-## Adds a Button to [member content]. Caller connects `.pressed` itself.
-##
-## The last code-composed button in the panel layer: the other screen that had
-## one of these (#531's host/join screen) is gone, and both its successors
-## author their button in their own `.tscn`. This screen keeps it because it
-## builds its whole column in code — see [LobbyPanel] for why that has to stay
-## true until `configure`'s before-`_ready` contract is retired.
-func add_option(text: String, disabled: bool = false) -> Button:
-	var button := Button.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
-	button.text = text
-	button.disabled = disabled
-	content.add_child(button)
-	return button
-
 ## The domain half (#1002): participants, pick memory, seat vetoes and the
 ## START gate. Minted by [method configure]; an unconfigured instance gets the
-## single-player shape in [method _ready].
+## single-player shape in [method refresh].
 var _roster: LobbyRoster = null
 var _seed_edit: LineEdit
-var _start_button: Button
+@onready var _start_button: Button = %StartButton
 var _ai_count_row: AiCountRow
 var _ai_preset_row: AiPresetRow
-var _rows_container: VBoxContainer
+@onready var _rows_container: VBoxContainer = %RowsContainer
 
 ## --- #714: the roster replicates while the menu is up --------------------------
 ##
@@ -122,8 +106,10 @@ const _LOBBY_LINK := preload("res://network/lobby_link.tscn")
 ## is ever empty. [member _link_label] is the standing caption ("Others join at
 ## …"); [member _status_label] is the incident line — a refusal, a lost link, a
 ## dial that never connected — and it stays blank while nothing has gone wrong.
-var _link_label: Label = null
-var _status_label: Label = null
+## Both authored; [method refresh] removes them from an offline lobby, so null
+## there means "no wire to talk about".
+@onready var _link_label: Label = %LinkLabel
+@onready var _status_label: Label = %StatusLabel
 ## Latched when this machine's own link went away ([signal
 ## NetworkTransport.link_lost]). START is refused while it is set: the route out
 ## is the panel's [BackAffordance], not a button that would open a run nobody
@@ -145,7 +131,9 @@ var _started: bool = false
 ## through [method add_run_row] because it is a SHARED surface: #558 appends a
 ## starter-arrangement control here and #638 a victory-condition one, in a later
 ## wave. Nothing about it is map-size-shaped.
-var _run_section: VBoxContainer
+## Authored; [method refresh] removes it when the route unlocks no run knob, so
+## null means "no section", never an empty one.
+@onready var _run_section: VBoxContainer = %RunSection
 var _map_size_row: OptionChoiceRow
 var _blocker_row: OptionChoiceRow
 var _arrangement_row: OptionChoiceRow
@@ -165,12 +153,11 @@ var _budget_row: BudgetRangeRow
 var _run_picks: Dictionary = {}
 
 
-## Configures this lobby before it enters the tree (call right after
-## [method LobbyScreen.new], before it enters the tree). [param mode] is
-## the shape the menu route ASKED for, not the mode the run ends up with —
-## [method LobbyRoster.resolve_mode] derives that from the roster at START (#554 D3).
-## Defaults to the single-player shape so an unconfigured instance still behaves
-## as it always has.
+## Sets which lobby this is. Pure data: it mints the [LobbyRoster] and nothing
+## else, so it may run before or after the screen enters the tree —
+## [method refresh] is what renders it. [param mode] is the shape the menu route
+## ASKED for, not the mode the run ends up with — [method LobbyRoster.resolve_mode]
+## derives that from the roster at START (#554 D3).
 ## [param policy] is what this lobby's ROUTE lets its slots choose (#615 D2) —
 ## it hangs on the route rather than being looked up from [param mode] precisely
 ## because [param mode] is not authoritative. Null reproduces the pre-#615
@@ -181,13 +168,31 @@ func configure(
 	_roster = LobbyRoster.new(mode, network, policy)
 	_roster.changed.connect(_on_roster_changed)
 
-func refresh() -> void:
-	pass
 
+## Roster-independent setup only: the scene is `_ready` before any caller can
+## [method configure] it, so nothing here may read [member _roster].
 func _ready() -> void:
+	var seed_row: LabelledRow = %SeedRow
+	seed_row.set_label("Seed:")
+	_seed_edit = LineEdit.new()
+	_seed_edit.placeholder_text = "random, e.g. 20260901"
+	_seed_edit.text_changed.connect(_on_seed_text_changed)
+	seed_row.set_widget(_seed_edit)
+	_start_button.pressed.connect(_on_start_button_pressed)
+
+
+## Render the configured roster: the one place this screen reads it. Call once,
+## after [method configure] and after the screen is in the tree (the AI rows'
+## controls are `@onready`). An unconfigured screen gets the single-player
+## shape. One-shot — a lobby for a different route is a fresh screen
+## ([method LobbyPanel.configure] replaces it), so a second call is a no-op
+## rather than a second column.
+func refresh() -> void:
+	if _refreshed:
+		return
+	_refreshed = true
 	if _roster == null:
 		configure(RunConfig.Mode.SINGLE)
-	add_theme_constant_override("separation", 8)
 	# Before the roster is built: a client's own peer id decides which row reads
 	# "you" and which pickers it may touch, and a host must be listening for the
 	# join that stamps its waiting seat before it can possibly arrive.
@@ -195,11 +200,10 @@ func _ready() -> void:
 
 	if _offers_ai_opponents():
 		_ai_count_row = _AI_COUNT_ROW.instantiate()
-		content.add_child(_ai_count_row)
-		# Seed AFTER `add_child` (the row's controls are `@onready`, so they are
-		# null before it enters the tree) and BEFORE connecting `value_changed`:
-		# seeding moves the slider, which would otherwise fire a rebuild against
-		# a roster that does not exist yet.
+		_insert_above_roster(_ai_count_row)
+		# Seed AFTER entering the tree (the row's controls are `@onready`) and
+		# BEFORE connecting `value_changed`: seeding moves the slider, which would
+		# otherwise fire a rebuild mid-setup.
 		_ai_count_row.set_range(0, MAX_AI_OPPONENTS)
 		_ai_count_row.set_value(DEFAULT_AI_OPPONENTS)
 		# The joiner sees the new shape too: a rebuild used to reach it only inside
@@ -211,7 +215,7 @@ func _ready() -> void:
 		# AI slots at all ([method _offers_ai_opponents]), so it has nothing to
 		# template.
 		_ai_preset_row = _AI_PRESET_ROW.instantiate()
-		content.add_child(_ai_preset_row)
+		_insert_above_roster(_ai_preset_row)
 		_ai_preset_row.set_core_choices(CoreClass.pickable_for(CoreClass.PICKABLE_AI))
 		_ai_preset_row.core_changed.connect(_on_preset_core_changed)
 		# #884: camp joins the preset only where an AI seat may pick one.
@@ -221,42 +225,35 @@ func _ready() -> void:
 		# #1086: every AI seat has a tier, so the tier preset is never gated.
 		_ai_preset_row.tier_changed.connect(_on_preset_tier_changed)
 
-	_rows_container = VBoxContainer.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
-	_rows_container.add_theme_constant_override("separation", 4)
-	content.add_child(_rows_container)
-
-	# Pushes everything below the roster — seed, run section, Start — toward
-	# the bottom of the panel instead of crowding it directly under the last
-	# slot row.
-	var roster_spacer := Control.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
-	roster_spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(roster_spacer)
-
-	var seed_row: LabelledRow = _ROW_SCENE.instantiate()
-	seed_row.set_label("Seed:")
-	content.add_child(seed_row)
-
-	_seed_edit = LineEdit.new()
-	_seed_edit.placeholder_text = "random, e.g. 20260901"
-	_seed_edit.text_changed.connect(_on_seed_text_changed)
-	seed_row.set_widget(_seed_edit)
-
 	_build_run_section()
 
 	if _roster.network != null and _roster.network.is_online():
-		_link_label = Label.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
 		_link_label.text = _link_caption()
-		content.add_child(_link_label)
-		_status_label = Label.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
-		_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		content.add_child(_status_label)
 		_report_mount_state()
+	else:
+		_prune(_link_label)
+		_link_label = null
+		_prune(_status_label)
+		_status_label = null
 
 	_refresh_rows()
-
-	_start_button = add_option("Start Game")
-	_start_button.pressed.connect(_on_start_button_pressed)
 	_refresh_start_enabled()
+
+
+## Set by [method refresh]; see there for why it is one-shot.
+var _refreshed: bool = false
+
+
+func _insert_above_roster(row: Control) -> void:
+	add_child(row)
+	move_child(row, _rows_container.get_index())
+
+
+## Take an authored node this route does not use out of the tree NOW —
+## `queue_free` alone would leave it findable until the frame ends.
+func _prune(node: Node) -> void:
+	remove_child(node)
+	node.queue_free()
 
 
 ## What the lobby says about the wire.
@@ -522,9 +519,9 @@ func bind_link(transport: NetworkTransport) -> void:
 	_link_lost = false
 	_refusal_shown = false
 	_set_status("")
-	# A no-op on the production path (the rows do not exist yet — `_ready` mounts
-	# the link first, precisely so they can be built knowing the answer), and what
-	# makes a link bound afterwards repaint the seats it just re-decided.
+	# On the production path [method refresh] mounts the link before it builds
+	# anything else, precisely so the rows are built knowing the answer; this is
+	# what makes a link bound afterwards repaint the seats it just re-decided.
 	_refresh_rows()
 
 
@@ -617,11 +614,9 @@ func _submit_pick(participant: Participant, changes: Dictionary) -> void:
 ## rule but the same "null means today's behaviour" the camp half already keeps.
 func _build_run_section() -> void:
 	if _roster.policy == null or not _roster.policy.offers_run_section():
+		_prune(_run_section)
+		_run_section = null
 		return
-	_run_section = VBoxContainer.new() # lint: control-composed — configure() must run before _ready (LobbyPanel), so the column is built in code
-	_run_section.name = "RunSection"
-	_run_section.add_theme_constant_override("separation", 4)
-	content.add_child(_run_section)
 
 	_map_size_row = _add_ladder_row("Map size:", _roster.policy.map_size_options, KNOB_MAP_SIZE)
 	_blocker_row = _add_ladder_row("Blockers:", _roster.policy.blocker_options, KNOB_BLOCKERS)
@@ -641,8 +636,7 @@ func _build_run_section() -> void:
 
 ## Appends [param row] to the run section — the seam #558 (starter arrangement)
 ## and #638 (victory condition) add their own controls through, so neither has
-## to know how this screen builds its column. Safe before `_ready` only in the
-## sense that the section must exist; a route that unlocks nothing has no
+## to know how this screen builds its column. Only after [method refresh]; a route that unlocks nothing has no
 ## section and silently accepts nothing, which is the correct answer for a knob
 ## its policy did not unlock either.
 func add_run_row(row: Control) -> void:
