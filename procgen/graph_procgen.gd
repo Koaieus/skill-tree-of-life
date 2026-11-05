@@ -144,6 +144,21 @@ static func generate(
 		starters = config.starting.starter_placement.plan(
 				config.camp_sizes, resolved_radius, min_dist, rng,
 				config.shape.shape_mask, config.starting.random_starter_max_tries)
+		# Consumers zip starters onto participants by index, so a short plan
+		# (a placement skips a contender it cannot seat) would hand a later
+		# participant a neighbour's spawn. Refuse rather than mis-zip.
+		var wanted := 0
+		for size in config.camp_sizes:
+			wanted += size
+		if starters.size() != wanted:
+			push_error("GraphProcgen: roster cannot seat — placement returned %d starters for %d participants"
+					% [starters.size(), wanted])
+			return {
+					"nodes": [] as Array[SkillNode],
+					"starting_nodes": [] as Array[SkillNode],
+					"starters": starters,
+					"config": config,
+			}
 	else:
 		for sp in config.starting.starting_points:
 			if sp != null:
