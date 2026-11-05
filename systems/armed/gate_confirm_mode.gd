@@ -17,3 +17,8 @@ func _init(p_ctl: PlayerInputController, p_key: Array[Vector2i],
 	ctl = p_ctl
 	key = p_key
 	stranded = p_stranded
+
+
+func on_popped() -> void:
+	if ctl != null:
+		ctl.on_gate_confirm_popped()

@@ -96,8 +96,6 @@ signal gate_locks_changed
 ## Survives [method clear_transient_state] like [ArmedStack]'s [SeatMemory]: a
 ## lock is a standing preference, not half-finished intent.
 var _gate_locks := GateLockSet.new()
-var _gate_pending_key: Array[Vector2i] = []
-var _gate_pending_strand: Array[SkillNode] = []
 
 
 ## Colour for the viewport armed-mode glow (#412), carried so the overlay is a
@@ -1563,7 +1561,10 @@ func toggleable_gates() -> Array[Gate]:
 
 ## The owned nodes the armed gate flip would strand; empty when nothing is armed.
 func pending_gate_strand() -> Array[SkillNode]:
-	return _gate_pending_strand
+	var level := _gate_confirm()
+	if level != null:
+		return level.stranded
+	return [] as Array[SkillNode]
 
 
 func cancel_gate_confirm() -> void:
@@ -1575,7 +1576,8 @@ func _request_gate_flip(gates: Array[Gate]) -> void:
 		_disarm_gate_confirm()
 		return
 	var key := _gate_request_key(gates)
-	if not _gate_pending_strand.is_empty() and key == _gate_pending_key:
+	var armed := _gate_confirm()
+	if armed != null and key == armed.key:
 		_disarm_gate_confirm()
 		_submit_gate_flip(gates)
 		return
@@ -1585,9 +1587,8 @@ func _request_gate_flip(gates: Array[Gate]) -> void:
 	if stranded.is_empty():
 		_submit_gate_flip(gates)
 		return
-	_gate_pending_key = key
-	_gate_pending_strand = stranded
-	gate_confirm_changed.emit(_gate_pending_strand)
+	if armed_stack != null and armed_stack.push(GateConfirmMode.new(self, key, stranded)):
+		gate_confirm_changed.emit(stranded)
 
 
 func _submit_gate_flip(gates: Array[Gate]) -> void:
@@ -1606,12 +1607,25 @@ func _gate_request_key(gates: Array[Gate]) -> Array[Vector2i]:
 	return out
 
 
+## The armed gate confirm, or null. It is a level ([GateConfirmMode]) so the
+## shared Esc / right-click pop disarms it like any other arm.
+func _gate_confirm() -> GateConfirmMode:
+	if armed_stack == null:
+		return null
+	return armed_stack.find(GateConfirmMode) as GateConfirmMode
+
+
+## Pops the confirm level (and anything pushed above it); the level's
+## [method GateConfirmMode.on_popped] announces the disarm.
 func _disarm_gate_confirm() -> void:
-	_gate_pending_key = []
-	if _gate_pending_strand.is_empty():
-		return
-	_gate_pending_strand = []
-	gate_confirm_changed.emit(_gate_pending_strand)
+	var level := _gate_confirm()
+	if level != null:
+		armed_stack.pop(level)
+
+
+## Called by [GateConfirmMode] once it has left the stack, whatever popped it.
+func on_gate_confirm_popped() -> void:
+	gate_confirm_changed.emit([] as Array[SkillNode])
 
 
 func _on_gate_locks_changed() -> void:
