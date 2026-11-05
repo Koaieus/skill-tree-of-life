@@ -57,6 +57,7 @@ func record(handle: StatModifier, target: Variant) -> void:
 	_grants.append({&"handle": handle, &"target": target})
 
 
+## Drop and return [param handle]'s ledger row, or `{}` when it is not ledgered.
 func forget(handle: Variant) -> Dictionary:
 	for i in _grants.size():
 		if _grants[i][&"handle"] == handle:
