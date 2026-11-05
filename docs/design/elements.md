@@ -315,8 +315,22 @@ the Ice row's int:int affinity converts count to hops per spell (Venom Burst
 2:1, Pestilence 4:1 — the ADR 0060 mechanism, which also absorbs counts of
 20–50), and each hop removed multiplies the seed payload by a per-spell knob
 near the measured ratio of the hop it removes. Surplus Ice beyond the spell's
-hops is wasted; a 0-hop spell has nothing to trade. Open: the knob's shape
-(one number per spell vs the measured ladder).
+hops is wasted; a 0-hop spell has nothing to trade.
+
+**The price is an authored mass per spell, spent by a swappable use** (owner,
+2026-11-05: *"option 1 but possibly even in this authoring one could set up
+*how* it triggers exactly. some resource? like most spells -> just reduce
+hops. some others -> maybe reduce max visits. something that takes the
+ice-suppression value and uses it to alter the cast spell?"*). Each spell
+authors what its walk is worth beyond each hop (an int per hop, or a total
+with a decay), guided by the measured ladder and tuned by hand; nothing is
+computed from the graph at cast. **How** the Ice load alters the cast is a
+`LoadUse`-shaped resource on the Ice row (ADR 0070's open set): the common
+one rewrites `max_hops` down and pays the mass beyond the new limit onto the
+seed, another rewrites `max_visits`, and a spell that authors neither
+(infinite hops, unbounded visits) refuses Ice until priced by hand. Rejected:
+one global hops-to-multiplier curve (overpays decaying walks, underpays dense
+ones), a flat per-hop addition (the first hops are worth the most).
 
 **A concentrated seed on a keg is a combo**, not an exploit to rule out. The
 seed lands with its concentrated payload and the node's Fuel or Charge copies
@@ -581,7 +595,13 @@ here.
   and **a stock cap per element ammo type** (owner: *"storing 1000 heat arrows
   sounds like bad juju"*) — the `Quiver` already caps per type
   (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
-  own lower cap; whether that cap is a knob or a stat is open.
+  own lower cap; nothing targets it, so it is a knob. Owner, 2026-11-05,
+  reframing the whole question as **parity with Clamp**: *"Melee's ease of
+  use of applying a temp Clamp addon (their bread & butter) is matched by
+  Ranged getting some <fuel arrows> one way or another, in a similarly
+  easily obtainable fashion … can we somehow arrange something like this for
+  ranged?"* — tracked as #1765 (the access shape, one budget per element
+  across its ammo types vs each type minting the count, the stock cap).
 - **Play-situation review, 2026-11-05** (four Sonnet lenses, rated by each
   other; full text in `docs/handoffs/elements-play-situations.md`). Items
   1–4 and 6's fold half are settled above. Still wanting a call: (5) "a
@@ -619,7 +639,6 @@ here.
   Frozen node bouncing back onto its emitter instead of grounding. Decide at
   Lightning's spec once the pick rule exists (a Frozen + Charged node is
   already the top pick, so this would make it a trap).
-- **Ice pricing knob**: one number per spell vs the measured ladder, above.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
   for the XP, the enemy retakes, kill again at the same count). Greed is an
