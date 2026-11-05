@@ -13,11 +13,11 @@ const _CLAMP_SCENE: PackedScene = preload("res://skill_node/addons/defs/clamp_ad
 ## Pivots kept after the free reach-bound rejection, nearest-to-an-enemy
 ## first — bounds proposal generation regardless of territory size.
 const _MAX_PIVOTS := 6
-## D6 (#824): 64, not 16 — 50+-member blades are mid-game, not endgame
-## (owner, #813 relay); the old 16 meant the AI swung roughly a third of its
-## weapon at mid-game budgets and spent nothing on the upgrade half. Still a
+## 64, not 16 — 50+-member blades are mid-game, not endgame: a 16 cap would
+## have the AI swing roughly a third of its weapon at mid-game budgets and spend
+## nothing on the upgrade half. Still a
 ## guard, not a real ceiling — a pathological board making the chain-growth
-## loop unbounded — and only affordable because #823's generator is bounded
+## loop unbounded — and only affordable because the generator is bounded
 ## (≤4 proposals/pivot) independent of `blade_size`. NOT tier-gated: this is
 ## a bug fix and applies at `ai_tier = 0` too.
 const _MAX_BLADE_SIZE_SAFETY := 64
@@ -55,7 +55,7 @@ static func gather_melee_candidates(
 	if pivot_infos.is_empty():
 		return out
 
-	# #824: hop distance from the entity's own core, for the reach phase's
+	# Hop distance from the entity's own core, for the reach phase's
 	# "prefer spiked nodes far from core" preference — computed once per
 	# entity, not per candidate. Empty (never rejects a candidate; distance
 	# just reads 0 for everyone, so only the spike preference survives) when
@@ -88,7 +88,7 @@ static func gather_melee_candidates(
 ## by [param entity] — the walkable graph for blade pivot/member selection.
 ## The territory mirror already IS that filter: [EntityNavigator] only holds
 ## edges between owned nodes, so [method GraphMirror.neighbours_of] is the
-## owned neighbourhood with no `owned_by` re-check (#940). Sorted by
+## owned neighbourhood with no `owned_by` re-check. Sorted by
 ## stable_id inside the mirror, so the rollout's walk is peer-reproducible.
 static func _owned_adjacency(entity: Entity) -> Dictionary:
 	var out: Dictionary = {}
@@ -168,7 +168,7 @@ static func _reach_bound(pivot: SkillNode, adjacency: Dictionary, max_hops: int)
 ## deterministic, never [method RandomNumberGenerator.randomize]. Production
 ## always passes [member AIController.rng]; this exists so a 3-arg
 ## [method gather_melee_candidates] call (most of this file's own test suite,
-## and #822's swing-direction fixture) keeps compiling and reproducible
+## and the swing-direction fixture) keeps compiling and reproducible
 ## without threading a seed through every call site.
 static func _default_rng() -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
@@ -194,7 +194,7 @@ static func _propose_blade_selections(
 			continue
 		# D4: target handle length = randi_range(tier, tier + 1), tier clamped
 		# to the AIController.Tier ladder (BRAWLER -> 0-1 ... WARLORD -> 3-4). All rigidity-seeking lives in this
-		# tier ladder and nowhere else (#771 hub, owner 2026-09-10: "0-1
+		# tier ladder and nowhere else (hub, owner 2026-09-10: "0-1
 		# means sometimes no clamping attempt at all, just flop. or
 		# accidental truss, all good. t0 AI accidentally making a functional
 		# blade is cool, they just dont pursue it as effectively.").
@@ -220,9 +220,9 @@ static func _propose_blade_selections(
 	return out
 
 
-## The two-step archetype (#771 hub D1) for one pivot: rigidify a handle
+## The two-step archetype (D1) for one pivot: rigidify a handle
 ## consecutive from the pivot outward, THEN spend whatever budget remains on a
-## reach extension that prefers spiked, far-from-core nodes (#824). Single
+## reach extension that prefers spiked, far-from-core nodes. Single
 ## pass, budget-correct by construction — `spent` never exceeds `max_size`,
 ## the ONE budget shared between members and clamps
 ## (`.claude/rules/blade-budget-and-clamps.md`); the n-th clamp pays the
@@ -231,21 +231,21 @@ static func _propose_blade_selections(
 ##
 ## [b]HANDLE member selection is unconditionally geometric — [method
 ## _grow_path] decides `path` before this function ever runs.[/b] Requirement
-## 3 (#823) is a BUDGET rule, not a selection bias: free rigidity (an
+## 3 is a BUDGET rule, not a selection bias: free rigidity (an
 ## already-triangulated joint, or one already carrying a procgen
 ## [ClampAddon]) is taken when the walk happens to pass through it, never
 ## hunted for. A tier-0 blade that comes out rigid over already-triangulated
 ## territory does so by accident, exactly as the owner specified.
 ##
-## REACH member selection (#824) is a SEPARATE walk from the handle's tip
+## REACH member selection is a SEPARATE walk from the handle's tip
 ## (see [method _reach_score]/[method _extend_reach] below) — it does NOT
 ## consume the rest of `path`. `path` is grown toward the enemy centroid,
 ## which is what makes it right for the handle (D2's rigidity mechanic is
 ## about consecutive-from-pivot joints, not about where the enemy is); reach
 ## has already cleared the free reach-bound rejection by the time this runs,
-## so what's left to optimize is #824's own preference, not centroid
-## direction. This is also why #823's hazard 2 (triangle look-ahead reading
-## `[pivot] + path` rather than just the paid members) is untouched by #824:
+## so what's left to optimize is the reach preference, not centroid
+## direction. This is also why the triangle look-ahead (reading
+## `[pivot] + path` rather than just the paid members) is unaffected:
 ## the triangulation check below only ever queries `edges` for handle-range
 ## `path` indices, and reach members never reach that check at all.
 static func _build_archetype(
@@ -282,15 +282,15 @@ static func _build_archetype(
 			clamps.append(node)
 			rigidified += 1
 		else:
-			# #771 D2: a gap here (no budget, or the slot's already full) means
+			# A gap here (no budget, or the slot's already full) means
 			# nothing further out ever compounds — stop rigidifying. `node`
 			# stays a plain member; it was already paid for above.
 			handle_open = false
 		i += 1
-	# Reach extension (#824) — its OWN outward walk from the handle's tip
+	# Reach extension — its OWN outward walk from the handle's tip
 	# (pivot, if the handle is empty), scored by _reach_score rather than
 	# continuing along `path`. See this function's doc comment for why that's
-	# safe w.r.t. #823's hazard 2.
+	# safe w.r.t. the triangle look-ahead.
 	if spent < max_size:
 		var selected: Dictionary = {pivot: true}
 		for m in members:
@@ -311,7 +311,7 @@ static func _next_clamp_cost(already: int) -> int:
 ## A single consecutive walk outward from [param pivot] toward [param
 ## target_pos] (closest-unselected-neighbour-of-the-TIP-first) — a genuine
 ## PATH, unlike the retired `_greedy_chain` which grew from the whole selected
-## set and so could branch into a star/tree. The "handle" mechanic (#771 D2)
+## set and so could branch into a star/tree. The "handle" mechanic
 ## is specifically about CONSECUTIVE-from-pivot joints, which only means
 ## something over a real path.
 static func _grow_path(pivot: SkillNode, adjacency: Dictionary, target_pos: Vector2, max_len: int) -> Array[SkillNode]:
@@ -336,23 +336,23 @@ static func _grow_path(pivot: SkillNode, adjacency: Dictionary, target_pos: Vect
 	return path
 
 
-## #824 — dwarfs [method _reach_score]'s distance term so a spiked node
+## Dwarfs [method _reach_score]'s distance term so a spiked node
 ## always outranks a plain one regardless of how far the plain one is; the
 ## owner's phrasing ("mostly preferring spiked nodes ... far from core") is
 ## spike-first, distance as the tiebreak/amplifier among spikes.
 const _SPIKE_REACH_BONUS := 1000.0
 
 
-## #824's reach-phase preference: how attractive [param node] is as the next
+## the reach-phase preference: how attractive [param node] is as the next
 ## pick, once the handle is settled and centroid direction has already done
 ## its job (this pivot cleared [method _reach_bound]; the actual swing
 ## direction and contact are judged downstream by the coarse rank + finalist
 ## resolve, never estimated here — see the class doc's point 3). Spiked
 ## nodes dominate — [SpikeRingAddon]'s own `blade_damage` modifiers
 ## (+3, x1.5 — node-local, NOT scaled by allocation level; what scales with
-## `stake_level` is `addon_slots` and the defensive pop budget, per the #771
+## `stake_level` is `addon_slots` and the defensive pop budget, per the 
 ## hub correction) — tie-broken/amplified by hop distance from [param
-## entity]'s core ([param distances], #824's `GraphMirror.hop_distances_from`
+## entity]'s core ([param distances], the `GraphMirror.hop_distances_from`
 ## helper — 0 for anything it didn't reach, which never outranks a real
 ## candidate since every candidate here is drawn from owned-territory
 ## `adjacency` already).
@@ -363,12 +363,12 @@ static func _reach_score(node: SkillNode, distances: Dictionary) -> float:
 	return score
 
 
-## #824's reach-phase walk: from [param tip], greedily pick the
+## the reach-phase walk: from [param tip], greedily pick the
 ## highest-[method _reach_score] unselected neighbour, move the tip there,
 ## repeat up to [param budget] times or until the tip runs out of unselected
 ## neighbours (a dead end reads as a "flail" tip — the walk simply stops
 ## there rather than backtracking to find more). A single consecutive walk,
-## like [method _grow_path], but steered by #824's preference instead of
+## like [method _grow_path], but steered by the preference instead of
 ## centroid direction: at a fork, a neighbour carrying a spike ("pocket
 ## picking" a nearby prize) can outrank one that's merely further along —
 ## the minor variation the owner rates as not worth a named archetype (D1),
@@ -446,7 +446,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 	#
 	# PASS A — geometry only. `build_blade_state` is handed an EMPTY defender
 	# set, so it skips the field entirely; what we want from it here is the
-	# blade's whip bound, which needs the built state (#811).
+	# blade's whip bound, which needs the built state.
 	var built := []
 	var bounds: Dictionary = {}
 	for proposal in proposals:
@@ -460,7 +460,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		# so setting it afterwards would rank a trajectory the finalist
 		# resolve then never reproduces.
 		probe.swing_cw = proposal[2]
-		# #823 requirement 4: the coarse tier must see the same phantom clamps
+		#: the coarse tier must see the same phantom clamps
 		# the finalist resolve will — a rigidified handle swings measurably
 		# differently (faster tip, different closest approach), so ranking an
 		# unclamped geometry here would rank the wrong candidate.
@@ -472,7 +472,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 		bounds[pivot] = maxf(
 				float(bounds.get(pivot, 0.0)), MeleeAttackPlan.whip_bound(state))
 		built.append([proposal, state, drivers, probe])
-	# PASS B — ONE physics query per PIVOT, not one per proposal (#811). Up to
+	# PASS B — ONE physics query per PIVOT, not one per proposal. Up to
 	# 192 proposals share at most 6 pivots, and a pivot's zone set is immutable
 	# ([BladeDefenderZones]), so every proposal at that pivot can hold the same
 	# instance while each gets its own mutable [BladeObstacleField] wrapper and
@@ -491,9 +491,8 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 			zones_by_pivot[pivot] = probe.query_defender_zones(
 					pivot.global_position, float(bounds.get(pivot, 0.0)))
 		MeleeAttackPlan.attach_defender_field(state, zones_by_pivot[pivot])
-		# The coarse tier GAINS swing drag here: before #811 it never
-		# built a clock at all, so a wall that would bog the real swing down
-		# ranked as if it were empty ground.
+		# The coarse tier models swing drag here: without a clock, a wall that
+		# would bog the real swing down would rank as if it were empty ground.
 		var clock: BladeSwingClock = BladeSwingClock.new(MeleeAttackPlan.SWING_DURATION) \
 				if state.obstacles != null else null
 		var slot := [proposal, INF]
@@ -513,7 +512,7 @@ static func _coarse_rank_and_select(proposals: Array, entity: Entity, enemy_posi
 	return out
 
 
-## Generic top-K promotion (#537 D3). Ranks [param items] by [param is_better]
+## Generic top-K promotion. Ranks [param items] by [param is_better]
 ## (the [method Array.sort_custom] contract: true iff its first argument
 ## should sort ahead of its second) and returns the best [param k] as INDICES
 ## into [param items], in RANK order (best first) — never re-sorted into
@@ -540,7 +539,7 @@ static func top_k_indices(items: Array, is_better: Callable, k: int) -> Array[in
 
 ## [param traj] may be NULL — [method BladeSim.simulate] answers null (after its
 ## own `push_error` naming the cause) when the native solver is missing, stale,
-## or declines the inputs, and since #847 there is no GDScript fallback to catch
+## or declines the inputs, and there is no GDScript fallback to catch
 ## that. This runs inside a [WorkerThreadPool] task, so dereferencing it would
 ## bury that diagnosis under a nil-access crash on a worker thread. A swing that
 ## could not be simulated scores INF — ranked last, never chosen.
@@ -567,7 +566,7 @@ static func _resolve_and_score(
 	plan.source = pivot
 	plan.blade_nodes = blade_nodes
 	plan.swing_cw = swing_cw
-	# #823 requirement 4: reach the FINALIST resolve too, not just the coarse
+	#: reach the FINALIST resolve too, not just the coarse
 	# tier's own build_blade_state call — `resolve()` builds its own state
 	# internally, so this has to be a field `build_blade_state` reads, never a
 	# parameter that would stop at the coarse tier.
@@ -598,9 +597,9 @@ static func _resolve_and_score(
 ## candidate that missed on full-fidelity resolve, or one every vertex of which
 ## popped).
 ##
-## [b]Ranks on [member HitInstance.effective_amount], never `amount`[/b] (#692),
+## [b]Ranks on [member HitInstance.effective_amount], never `amount`[/b],
 ## for the same reason [method AiCombatScorer.expected_damage] sums it: `amount`
-## is the PRE-gate number, and melee pre-filters nothing at resolve (#502). On a
+## is the PRE-gate number, and melee pre-filters nothing at resolve. On a
 ## mixed swing — one arm popped on a spiked node, another landed on a plain one
 ## — an `amount` ranking names the node that took NOTHING, and
 ## [method AiCombatScorer.score] then measures the whole swing's EV against that

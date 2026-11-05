@@ -1,6 +1,6 @@
 class_name NetworkSession
 extends Node
-## The network ROLE of one level, lifted out of [GameRoot] (#1004): which side
+## The network ROLE of one level, lifted out of [GameRoot]: which side
 ## of the wire this machine is on, bringing the socket up, a joining client's
 ## wait for the authority's world, and the peer events a live level hears.
 ##
@@ -16,7 +16,7 @@ extends Node
 ## and set the exports by hand.
 
 ## The authority's world has landed — on the join path once, and again on
-## every mid-run repair (#521/#560/#561). The root re-derives what depends on
+## every mid-run repair. The root re-derives what depends on
 ## the world (controllers, seat vision) on each.
 signal world_ready(reason: String)
 ## Host-side only: a peer on the socket went away mid-run. The root decides
@@ -95,13 +95,13 @@ func is_authority() -> bool:
 	return network_link == null or network_link.role != NetworkConfig.Role.CLIENT
 
 
-## #463: does this machine ADOPT its run, or DECIDE it?
+## Does this machine ADOPT its run, or DECIDE it?
 ##
 ## The one question the join path turns on, asked in one place. A client's
 ## lobby settings are a wish, not a run: `GameSession.apply_received` replaces
 ## its [RunConfig] and its whole [ParticipantRoster] with the host's, so
 ## everything this machine builds must wait for that message. Offline play and
-## the host both answer false and take the untouched pre-#463 path.
+## the host both answer false and take the untouched pre- path.
 ##
 ## [b]Read from [member GameSession.network], never from the link's mode[/b] —
 ## the two are different sources on purpose. `scenes/dev/mp_procgen_sandbox.gd`
@@ -134,7 +134,7 @@ static func online_role_name() -> String:
 
 # --- Lifecycle -------------------------------------------------------------
 
-## Half one of bringing the wire up (#531): tell the link which side of it we
+## Half one of bringing the wire up: tell the link which side of it we
 ## are on. [member NetworkLink.role] is the single writer of
 ## [member CommandApplier.is_authority], so this one assignment is also what
 ## decides whether this machine DECIDES or is TOLD.
@@ -173,12 +173,12 @@ func open_link() -> void:
 	var net: NetworkConfig = GameSession.network
 	if net == null or not net.is_online():
 		return
-	# #554: both roles want the joining peer's id — the host to stamp its roster,
+	# Both roles want the joining peer's id — the host to stamp its roster,
 	# the client to learn its own. Connected before the socket opens so no
 	# connection can beat the listener.
 	transport.peer_joined.connect(_on_peer_joined)
 	# And the two ways a link ENDS, which until now only the lobby listened to
-	# (#716 surfaced them there; the level never picked them up).
+	# (surfaced them there; the level never picked them up).
 	transport.peer_left.connect(_on_peer_left)
 	transport.link_lost.connect(_on_link_lost)
 	match net.role:
@@ -248,25 +248,25 @@ func _greet_if_linked(_status: String) -> void:
 		world_sync.send_hello()
 
 
-## #554: a peer arrived. On the lobby path everything about that has ALREADY
-## happened — the socket was opened by the menu (#714), the joiner's seat was
+## A peer arrived. On the lobby path everything about that has ALREADY
+## happened — the socket was opened by the menu, the joiner's seat was
 ## stamped there, and its id reached [GameSession] there too. What survives here
 ## is the belt-and-braces restatement of both facts for a peer that arrives while
 ## a level is up, and the replayed join [method EnetTransport._adopt_live_link]
 ## fires for a peer that was already on the socket when this level adopted it.
 ##
-## [b]It no longer sends the run's shape, and that is #715's core subtraction.[/b]
-## This was `run_setup`'s only sender, and it fired off a
+## [b]It does not send the run's shape.[/b]
+## A `run_setup` sender here would fire off a
 ## [signal NetworkTransport.peer_joined] that a PRE-ESTABLISHED link never fires
 ## again — so a level that adopted the lobby's socket would sit waiting for a
 ## message nobody would ever send. START broadcasts it from the lobby instead,
 ## once, over the live link ([method LobbyScreen._on_run_started]).
 ##
-## [b]#733: the other half is refusing a peer that was never in the lobby at
+## [b]The other half is refusing a peer that was never in the lobby at
 ## all.[/b] Everything above describes a peer [LobbyScreen] already seated —
 ## the replay, or the belt-and-braces restatement. A fresh dial mid-run has no
 ## seat in [member GameSession.roster], because "joining only happens to the
-## lobby before the host presses START" (owner call, #733) — there is no
+## lobby before the host presses START" (owner call) — there is no
 ## drop-in mid-game. That peer is refused, with a reason a human reads on its
 ## screen, before [method LobbyRoster.stamp_pending_remote] or the world push
 ## below ever run.
@@ -276,7 +276,7 @@ func _on_peer_joined(peer_id: int) -> void:
 		return
 	if net.role == NetworkConfig.Role.CLIENT:
 		GameSession.local_peer_id = transport.local_peer_id()
-		# The root restates BOTH of its registry copies on this (#668): its
+		# The root restates BOTH of its registry copies on this: its
 		# `_ready` pushed a snapshot of `GameSession.roster` and
 		# `.local_peer_id`, and this branch exists precisely for the case where
 		# those were not yet known then.
@@ -294,7 +294,7 @@ func _on_peer_joined(peer_id: int) -> void:
 					"the run has already started — there is no drop-in mid-game")
 		return
 	LobbyRoster.stamp_pending_remote(GameSession.roster, peer_id)
-	# And ship this peer the world (#715). Host-side this line runs at the tail of
+	# And ship this peer the world. Host-side this line runs at the tail of
 	# the root's `_ready`, so the world is COMPLETE — [method open_link] is the
 	# last thing before it, and [method EnetTransport._adopt_live_link] replays
 	# the join for a peer that was already on the socket, which on the lobby
@@ -314,18 +314,17 @@ func _on_peer_joined(peer_id: int) -> void:
 	# whole world it already holds. `_awaiting_resync` stops it asking twice.
 	# `WorldSyncChannel._on_resync`'s guard is where that is argued, including why it
 	# keys off the flag rather than off a fingerprint compare — a mid-run repair
-	# (#521/#560/#561) must still apply even when the fold agrees.
+	# must still apply even when the fold agrees.
 	#
-	# The old warning against pushing from here does not survive #715: it said a
-	# graph snapshot would "decode into a graph that is about to be generated
-	# over", and the joining peer no longer generates anything.
+	# Pushing a graph snapshot from here is safe: the joining peer generates
+	# nothing, so there is no graph about to be generated over.
 	if world_sync != null:
 		world_sync.send_resync(
 				"join: the peer is on the link and has no world", true)
 
 
 ## This machine's link is gone — the host quit, the socket dropped — and it is
-## not coming back: there is no drop-in mid-game (#733, owner call), so there
+## not coming back: there is no drop-in mid-game (owner call), so there
 ## is no rejoin either. Two things have to happen, and before this neither did:
 ##
 ## 1. The intent parked in [CommandApplier] waiting for a confirm that will
@@ -366,7 +365,7 @@ func _on_refused_by_host(reason: String) -> void:
 ## A client never acts on THIS signal: its host leaving is
 ## [method _on_link_lost], and a sibling client leaving is the host's to detect.
 ## It does hear about the outcome — the host broadcasts the handover and every
-## mirror applies its shared half directly (#1179: [SeatHandover] receives its
+## mirror applies its shared half directly (: [SeatHandover] receives its
 ## own kind now; there is no relay through this class any more).
 func _on_peer_left(peer_id: int) -> void:
 	var net: NetworkConfig = GameSession.network
@@ -375,7 +374,7 @@ func _on_peer_left(peer_id: int) -> void:
 	peer_left.emit(peer_id)
 
 
-## The authority's world has landed (#715): the join wait may end, and the
+## The authority's world has landed: the join wait may end, and the
 ## root re-derives what hangs off the world.
 func _on_resync_applied(reason: String) -> void:
 	_join_world_arrived = true

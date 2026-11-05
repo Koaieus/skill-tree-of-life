@@ -5,7 +5,7 @@ extends GameRoot
 ## [method GameRoot._setup_level] so generation runs *after* the systems
 ## are in the tree but *before* HudRoot composes (it reads player stats).
 ##
-## Enemy territory is grown by [member territory_seeder] (#275, D-19/D-24) —
+## Enemy territory is grown by [member territory_seeder] —
 ## a shared, injectable [TerritorySeeder] / [AllocationPolicy] pair, not a
 ## private random walk. It skips [AllocationSystem.allocate] because that's
 ## gated on SP/AP -- fine in-game, hostile to one-shot setup -- and uses
@@ -15,7 +15,7 @@ extends GameRoot
 ## The player is seeded with the core node ONLY (D-16's pinned "starting
 ## nodes: 1") -- it is never handed to [member territory_seeder].
 ##
-## [b]This level consumes a run; it never invents one (#584).[/b] Both
+## [b]This level consumes a run; it never invents one.[/b] Both
 ## [member GameSession.config] and [member GameSession.roster] must already be
 ## populated when [method _setup_level] runs, and the level refuses to generate
 ## rather than inventing a substitute. Two composers fill them, and the level
@@ -31,11 +31,11 @@ const _DEFAULT_CORE_CLASS := preload("res://entity/core/balanced_core.tres")
 const _DEFAULT_ENEMY_CORE_CLASS := preload("res://entity/core/basic_enemy_core.tres")
 const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_seeder.tres")
 
-## The FALLBACK preset (#641 D6). A run carrying a [Scenario]
+## The FALLBACK preset. A run carrying a [Scenario]
 ## ([member GameSession.config].scenario) wins — this export is what a run
 ## opened with none lands on. Precedent already shipped in this same file:
-## [method resolve_spawn_color] (#563 D1) and [method resolve_spawn_core]
-## (#618 D3) both read "the run wins; the scene export is what a run carrying
+## [method resolve_spawn_color] and [method resolve_spawn_core]
+## both read "the run wins; the scene export is what a run carrying
 ## none lands on". The arm stays live rather than dead code because a sandbox
 ## launched without a lobby (`RunBootstrap` holding an authored `RunConfig`
 ## with no `scenario`) must still generate a map.
@@ -52,7 +52,7 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 ## sizes. 0 = inherit from preset.
 @export var node_count_override: int = 120
 
-## Shared allocation-pick strategy (#275, D-24) — greedy BFS ball by default.
+## Shared allocation-pick strategy — greedy BFS ball by default.
 ## Injectable so a different level scene can swap in another AllocationPolicy
 ## without touching this script.
 @export var territory_seeder: TerritorySeeder = _DEFAULT_TERRITORY_SEEDER
@@ -64,7 +64,7 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 @export var enemy_territory_size: int = 20
 
 
-## Two shapes, and only one of them generates (#715).
+## Two shapes, and only one of them generates.
 ##
 ## [b]A joining CLIENT runs no procgen at all.[/b] It used to generate from the
 ## host's seed and then pull the authority's world on top, which cost it 5-10
@@ -74,12 +74,12 @@ const _DEFAULT_TERRITORY_SEEDER := preload("res://procgen/placement/territory_se
 ## the host's numbers, and lets [method GameRoot.pull_host_world] fill in the
 ## world. Everything the host derives from the seed — nodes, edges, archetypes,
 ## keystones — arrives serialized instead of being re-derived, so no
-## transcendental in the seeded draw (#547, #689, #706) can desync anything.
+## transcendental in the seeded draw can desync anything.
 ##
 ## The `is_active` / roster guards below are shared, and deliberately: a client
 ## with no run open is exactly as broken as a host with none.
 func _setup_level() -> void:
-	# #457: one resolved seed for the whole run. A run started from the lobby
+	# One resolved seed for the whole run. A run started from the lobby
 	# already has one; a level launched directly (dev sandbox, headless test)
 	# opens a session here seeded from the preset's authored value — so either
 	# way `cfg.seed` below is concrete and recorded, never a live sentinel.
@@ -94,14 +94,13 @@ func _setup_level() -> void:
 	if GameSession.world_source == GameSession.WorldSource.ARRIVES:
 		await _setup_level_awaiting_world()
 		return
-	# #641 D6: the run's Scenario names the preset; `preset` (the scene export
+	#: the run's Scenario names the preset; `preset` (the scene export
 	# above) is the fallback for a run that opened with none.
 	#
-	# #643: through `resolved_preset()` rather than `scenario.preset` directly,
-	# which is what makes #642's whole merge path reachable — before this, that
-	# path had ZERO production callers and every lobby override was silently
-	# dropped. This is a STRICT SUPERSET of the previous behaviour, not a
-	# behaviour change: `resolved_preset()` returns `scenario.preset` merged onto
+	# Through `resolved_preset()` rather than `scenario.preset` directly,
+	# which is what makes the whole scenario-override merge path reachable (a
+	# bare `scenario.preset` read would silently drop every lobby override).
+	# `resolved_preset()` returns `scenario.preset` merged onto
 	# a duplicate, and merging an EMPTY override list is a plain duplicate. A run
 	# carrying no overrides therefore generates exactly the map it always did.
 	var source_preset: GraphProcgenConfig = GameSession.config.resolved_preset()
@@ -115,20 +114,20 @@ func _setup_level() -> void:
 	# `.tres` files a plain duplicate shares, and the stamps below must never
 	# land on the cached preset every later run in this process loads.
 	var cfg: GraphProcgenConfig = source_preset.private_copy()
-	# #457: one resolved seed for the whole run, resolved by `GameSession.start`
+	# One resolved seed for the whole run, resolved by `GameSession.start`
 	# before anything reached this scene. The preset's authored seed is an
 	# authoring default that the run has already superseded.
 	cfg.seed = GameSession.config.seed
 	if node_count_override > 0:
 		cfg.topology.node_count = node_count_override
 
-	# #553: the roster is decided BEFORE generation and the level only READS it.
+	# The roster is decided BEFORE generation and the level only READS it.
 	# Two things follow from that order, and both are the point of this unit:
 	# the roster tells procgen how many contenders to make room for (rather than
-	# procgen deciding how many opponents exist), and #551's `starter_placement`
+	# procgen deciding how many opponents exist), and the `starter_placement`
 	# presets can place starters relative to the camp shape.
 	#
-	# Roster-driven camp + control-kind assignment (#475) — the player and every
+	# Roster-driven camp + control-kind assignment — the player and every
 	# enemy get their faction from an authored [Participant], not from GameRoot
 	# deciding "this entity is named Player".
 	var roster: ParticipantRoster = GameSession.roster
@@ -139,14 +138,14 @@ func _setup_level() -> void:
 		return
 	var grouped_participants := _camp_grouped_participants(roster)
 	cfg.camp_sizes = _camp_sizes(roster, grouped_participants)
-	# The roster decides how many starting points to produce (#551, #742) —
+	# The roster decides how many starting points to produce —
 	# `cfg.camp_sizes` above is the ONLY input either generation path reads for
 	# that count. With a `starter_placement` set (every shipped preset, since
-	# #742 lifted `first_level.tres`'s legacy manual-anchor-plus-random-fill
+	# lifted `first_level.tres`'s legacy manual-anchor-plus-random-fill
 	# path into a real [CenterCoreStarters]), `plan()` derives the headcount
 	# from `camp_sizes` directly. Without one, the starter list is exactly the
 	# preset's authored `starting_points` — no random fill, no second knob
-	# reading like an opponent count independent of who is playing (#584).
+	# reading like an opponent count independent of who is playing.
 
 	# Show the loading bar over a black fade so the procgen wall-clock has a
 	# visible heartbeat. SceneTransition is the global fade/progress autoload.
@@ -173,7 +172,7 @@ func _setup_level() -> void:
 		(n as Node).add_to_group(_STARTER_GROUP)
 
 	# Spawn onto the returned nodes in participant order — camp 0 member 0,
-	# camp 0 member 1, camp 1 member 0, ... (#551's `starter_placement`
+	# camp 0 member 1, camp 1 member 0,... (the `starter_placement`
 	# contract, held even when no `starter_placement` ran: `cfg.camp_sizes`
 	# is inert there). Trim to whichever list came back shorter: a preset with
 	# no `starter_placement` sizes `starting_nodes` off its own authored
@@ -188,11 +187,11 @@ func _setup_level() -> void:
 	var seated := _seat_the_roster(
 			roster, grouped_participants, starting_nodes, spawn_count, enemies)
 
-	# Removable blockers (#477): one blocker entity per procgen placement. Still
+	# Removable blockers: one blocker entity per procgen placement. Still
 	# before territory seeding, so enemy seeding skips already-blocked nodes
 	# (AllocationSystem treats them as owned by the blocker entity).
 	#
-	# [b]AFTER the roster's spawns, not before (#715).[/b] [Graph] mints
+	# [b]AFTER the roster's spawns, not before.[/b] [Graph] mints
 	# `entity_id` by add-order, and a joining client seats the roster and spawns
 	# no blockers at all — so with blockers first, every participant's id on the
 	# host sat above ~120 ids the client does not have, and [EntitySnapshot]
@@ -216,7 +215,7 @@ func _setup_level() -> void:
 	# seeding stream independent of the procgen content stream (so adding or
 	# removing modifier rolls upstream doesn't shift seeding). The salt is part
 	# of reproducing the MAP, so it stays; what's gone is the second sentinel
-	# resolution that used to live on this line (#457).
+	# resolution that used to live on this line.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = cfg.seed ^ 0x57AB02D
 	for e in enemies:
@@ -234,7 +233,7 @@ func _setup_level() -> void:
 ## concern: on a joiner it is [method GameRoot.pull_host_world].
 ##
 ## [b]It still SPAWNS, and that is the one thing it may not skip.[/b]
-## [EntitySnapshot] decorates by `entity_id` and never spawns (#560 D7), so the
+## [EntitySnapshot] decorates by `entity_id` and never spawns, so the
 ## entities have to be here before the world's state arrives or every row is
 ## skipped with a warning. They are spawned in [method _camp_grouped_participants]
 ## order — the identical order the generating branch uses — because [Graph] mints
@@ -263,7 +262,7 @@ func _setup_level_awaiting_world() -> void:
 
 ## Spawn one [Entity] per camp-grouped participant, apply the roster to them and
 ## derive this machine's [SeatPolicy]. Shared by both branches of
-## [method _setup_level] (#715) precisely because it must not drift: the ORDER
+## [method _setup_level] precisely because it must not drift: the ORDER
 ## and the COUNT of these spawns are what make `entity_id` mean the same thing on
 ## every peer, and two copies of this loop would be two chances to disagree.
 ##
@@ -274,7 +273,7 @@ func _setup_level_awaiting_world() -> void:
 ##
 ## Humans: core only. D-16 pins starting nodes at 1 — no seeding call here.
 ##
-## #554: the AI/human split is by KIND, which every peer reads identically off
+## The AI/human split is by KIND, which every peer reads identically off
 ## the same roster, and only `player` — the per-machine half — is decided by
 ## peer id. Keying the spawn shape off "is this mine" instead would seed each
 ## peer's rival with `enemy_territory_size` nodes and its own hero with one,
@@ -291,13 +290,13 @@ func _seat_the_roster(
 		var participant: Participant = grouped_participants[i]
 		var ent: Entity
 		var where: SkillNode = starting_nodes[i] if i < starting_nodes.size() else null
-		# #563 D1: the ROSTER decides the colour, for every entity alike. The
+		#: the ROSTER decides the colour, for every entity alike. The
 		# `player_color` / `enemy_colors` exports are reached only through
 		# `resolve_spawn_color`'s fallback arm, and only for a participant that
 		# carries no colour at all.
 		var color := resolve_spawn_color(
 				participant, player_color, enemy_colors, enemies.size())
-		# #618 D3: and the roster decides the CLASS the same way. The
+		#: and the roster decides the CLASS the same way. The
 		# `core_class` / `enemy_core_class` exports are the fallback for a
 		# participant that carries none, not the answer.
 		var core := resolve_spawn_core(participant, core_class, enemy_core_class)
@@ -312,7 +311,7 @@ func _seat_the_roster(
 		entities_by_participant_id[participant.id] = ent
 
 	GameRoot.apply_roster(entities_by_participant_id, roster)
-	# No `GameSession.roster = roster` here any more (#553). The session owns
+	# No `GameSession.roster = roster` here any more. The session owns
 	# the live run and therefore owns the roster; a level that wrote its own
 	# back would clobber what the lobby agreed — and on a client, what the HOST
 	# sent. Only the fallback branch in `_setup_level` seeds one, because there
@@ -337,7 +336,7 @@ func _seat_the_roster(
 	return true
 
 
-## What colour does this participant's entity render in (#563)?
+## What colour does this participant's entity render in?
 ##
 ## [b]The roster is authoritative.[/b] Owner call, 2026-08-26, verbatim:
 ##
@@ -345,17 +344,17 @@ func _seat_the_roster(
 ## run shape, it crosses the wire, and every peer draws every hero in the colour
 ## its lobby slot chose."[/i]
 ##
-## That REVERSES #563's own opening Note, which called colour a per-machine
-## presentation choice belonging to [SeatPolicy]. It does not: it is run shape,
-## it replicates, and it is what makes the lobby's per-slot colour picker (#616)
+## Colour is not a per-machine presentation choice belonging to [SeatPolicy]:
+## it is run shape,
+## it replicates, and it is what makes the lobby's per-slot colour picker
 ## mean anything. See `docs/domain/seat-policy.md` § "One axis".
 ##
 ## Human and AI take the same path — there is no "is this mine" branch here, and
-## adding one would be the #563 bug in its original form (two humans both
+## adding one would be the bug in its original form (two humans both
 ## drawing in `player_color`, territory indistinguishable).
 ##
 ## [param player_fallback] / [param enemy_fallback] are the scene exports, and
-## are reached ONLY when the participant carries no colour (#563 D2 — the
+## are reached ONLY when the participant carries no colour (the
 ## authored-sandbox path, which has no lobby to have picked one). They are not
 ## dead: a sandbox launched without a roster must still render distinguishable
 ## heroes. The "no colour" test is [constant Color.WHITE], because that is
@@ -364,7 +363,7 @@ func _seat_the_roster(
 ## (`ui/frontmatter/panels/lobby_screen.gd`), so the fallback never fires on the
 ## menu path.
 ##
-## Making distinct slots pick DISTINCT colours is the lobby's job (#616 D4), not
+## Making distinct slots pick DISTINCT colours is the lobby's job, not
 ## this function's — here we only honour what we are given.
 static func resolve_spawn_color(
 		participant: Participant,
@@ -380,7 +379,7 @@ static func resolve_spawn_color(
 	return player_fallback
 
 
-## The core class this participant spawns on (#618 D3). The roster wins; the
+## The core class this participant spawns on. The roster wins; the
 ## level's two exports are what a participant that carries no class at all —
 ## a hand-rolled fallback roster, a test fixture — lands on.
 ##
@@ -396,11 +395,11 @@ static func resolve_spawn_core(
 	return enemy_fallback if participant.kind == Participant.Kind.AI else player_fallback
 
 
-## Is this participant the human THIS MACHINE plays (#554)?
+## Is this participant the human THIS MACHINE plays?
 ##
 ## By [member Participant.peer_id], never by [enum Participant.Kind]: locality
 ## is a RELATION, not a fact about the participant, and the roster a client
-## receives is the HOST's. #562 removed the enum values that let this be asked
+## receives is the HOST's. removed the enum values that let this be asked
 ## the wrong way at all — the kind now says only HUMAN or AI, and locality
 ## comes from [method Participant.is_local]. Same shape as
 ## `.claude/rules/ownership-vocabulary.md`'s rule for `owned_by`: the identity
@@ -411,7 +410,7 @@ func _is_this_machines(participant: Participant) -> bool:
 
 
 ## Groups roster participants by camp, in `roster.camps()` order — the shape
-## #551's `starter_placement.plan()` expects and the order its returned
+## the `starter_placement.plan` expects and the order its returned
 ## `StartingPoint`s come back in (camp 0 member 0, camp 0 member 1, camp 1
 ## member 0, ...).
 func _camp_grouped_participants(roster: ParticipantRoster) -> Array[Participant]:
