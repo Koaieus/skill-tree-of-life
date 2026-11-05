@@ -27,6 +27,7 @@ const HEADLESS_FRAME_SLEEP_USEC := 1000
 func run() -> void:
 	if DisplayServer.get_name() == "headless":
 		OS.low_processor_usage_mode_sleep_usec = HEADLESS_FRAME_SLEEP_USEC
+	_strip_joypad_axis_bindings()
 	gut.start_script.connect(_on_start_script)
 	gut.end_script.connect(_on_end_script)
 	# The pause-guard tests drive run() with a stub that has no `end_test`.
@@ -40,6 +41,18 @@ func run() -> void:
 ## their nodes are freed by now; the next test starts on a fresh live world.
 func _on_end_test() -> void:
 	CombatWorld.reset_live()
+
+
+## A pad plugged into the host feeds its actions even headless (a resting
+## stick can read full deflection), and GraphCamera polls `ui_*` every frame as
+## manual input — cancelling reveals and panning under the test. Axis
+## bindings leave the InputMap for the run; button bindings stay, since tests
+## assert them (test_input_map) and match synthetic button events against them.
+func _strip_joypad_axis_bindings() -> void:
+	for action: StringName in InputMap.get_actions():
+		for event in InputMap.action_get_events(action):
+			if event is InputEventJoypadMotion:
+				InputMap.action_erase_event(action, event)
 
 
 func _on_start_script(coll_script) -> void:
