@@ -109,6 +109,8 @@ var last_owned_vision: float:
 
 ## The modifier offerings this node carries — pushed onto an allocating
 ## entity's stat board by AllocationSystem. Node-level data, no behaviour.
+@export var authored_modifiers: Array[StatModifier] = []
+
 @export var modifiers: Array[StatModifier] = []:
 	get:
 		return state.modifiers
