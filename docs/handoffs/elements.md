@@ -41,15 +41,25 @@ among ties); the Ice price is an authored mass per spell spent by a
 swappable use (hops / visits); ranged Fuel access reframed as Clamp parity →
 #1765.
 
+Settled later on 2026-11-05 (continuation 2, local): S + SI confirmed by the
+owner for Fire and Charge alike; a copy carries **every** rider, the medium
+its reach spent included (decay rates are the buildup knob; the pass's
+"except the spent medium" proposal is rejected); a hit's copies take the
+hit's target mask. **Owner lean, not yet firm**: a chained go-off's copies
+carry the root payload flat (*"LET IT RIDE"*), with the owner's own doubt
+about whether medium *planting* along a chain should decay per link.
+
 Still open, in this order:
 
-- **What a chained go-off deals** (#1735 fork 1; doc § Open (d)): terrain
-  damage, diminished hit damage, or no cascade — the owner was torn. Blocks
-  the first Fire issue and #1735.
-- **Play-situation items 5 and 6** (pass leans in § Open, cheap to settle):
-  the planting exemption scoped to the medium the hit itself plants at its
-  own landing; a hit's copies take the hit's target mask, a terrain hit is
-  side-blind.
+- **Firm the chain lean** (doc § The reach rule, § Open (d)): open with the
+  lean restated and ask only the residual — does a medium rider on a chained
+  copy decay per link while damage and other riders ride flat? Then #1735
+  fork 1 closes (flat = as built; the issue closes with a doc line) and the
+  first Fire issue is unblocked on this count.
+- **Play-situation item 5** (pass lean in § Open, cheap): the planting
+  exemption scoped to the medium the hit itself plants, at its own landing
+  only (the alternative: any medium the hit plants exempts every medium on
+  the node).
 - **Explosive artifacts**: every orphan in finding 15 needs a destination or
   a supersession before any element issue goes `Ready` — mostly spec-time
   facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired

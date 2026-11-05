@@ -230,8 +230,24 @@ side on purpose. Dual reach (§ Landing resolution) is only ever *across* elemen
 
 **Chain reactions** are bounded (#1733 R3): a copied hit landing on a node
 that holds a medium spends it and reaches again from there, once per node per
-*hit* — per arrow, per spell wave, as `HitLanding.detonated` is today — at its
-parent's share, a geometric cap however much Fuel is on the board. The owner's
+*hit* — per arrow, per spell wave, as `HitLanding.detonated` is today —
+**carrying the payload the copy arrived with, undiminished**: the copies of a
+chained go-off are `damage × s`, riders `ceil(r × s)` of the *root* hit at
+every link, never `s^k`. Owner lean, 2026-11-05 (#1735 fork 1): *"I am tempted
+to say: LET IT RIDE. The hit, all rider, no decay. Maybe raise you: for charge
+arcs hitting charged nodes also just keep arcing (and consuming a stack ofc)
+and concatenating hits."* — the raise is already the chain rule (an arc copy
+landing on a charged node goes off there). Why it is bounded without decay:
+every link was *planted* (a keg is Fuel somebody paid for), each node goes off
+once per hit and spends a stack, so a fuse's total is ≤ s × root × the nodes
+its kegs reach — linear in Fuel laid, #1733 R2's conserved pool, and the
+once-per-hit cap keeps a volley at size(F), size(F−1), …. The owner's own
+caveat, same message: *"Or a limited decay of terrain *planting* being
+limited after all hmm. Maybe that's wise"* — whether a *medium rider* on a
+copy (the re-laying of Fuel, Charge or Cold along a chain) decays per link
+while damage and other riders ride flat is the one residual, § Open (d). As
+built today every link blasts at `s × root` (#1735's finding), so under this
+lean #1735 is not a bug and closes with a doc line. The owner's
 own volley needs the per-hit scope: *"if you land F+1 hits on it it would
 explode for size(F), size(F-1), …, size(1)"*. **Ignition** (#1696, Heat
 meeting Fuel) is one trigger among several, no longer the only route to a
@@ -627,7 +643,12 @@ here.
   (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
   made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
   its three words — a short superseding ADR, since an ADR is never edited;
-  (d) **what a chained go-off deals** — the chain copy's share is #1735 fork 1, the owner torn between terrain damage, diminished hit damage and no cascade (the S + SI and one-stack-spent calls above cover the *size* and *spend*, not the damage); (e) **Ice raising seed payload** strains "the slot buys reach only";
+  (d) **does medium *planting* decay along a chain?** The owner's lean (§ The
+  reach rule) lets damage and riders ride a fuse flat and wonders whether
+  terrain planting through copies should decay per link after all; if so, the
+  decay is one factor on the medium-rider rows of a copy, nothing structural.
+  #1735 fork 1 (hit damage along a chain) is otherwise leaning *flat*, pending
+  the owner firming the lean; (e) **Ice raising seed payload** strains "the slot buys reach only";
   (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
   — the #1716 r2 retag to `fuel` is the plan and must be in the first Fire
   issue; (h) a rider map keyed by id merges a BEFORE
