@@ -18,10 +18,23 @@ Ready items got milestone `Cross-cutting / infra`; Ready requires a milestone, s
 - **#436 → blocked-by #1579, re-scoped.** Once the tag channel is gone, only ModifierGrant remains. Drop the dead kind-switch and build no Grant hierarchy until a second kind exists.
 - **Save versions:** owner doesn't care until a real release. Any spec bumping `FORMAT_VERSION` should say "next free version", never a literal.
 
-## Still to walk with the owner, one AskUserQuestion per item (owner's preferred pace)
-- **Mechanical candidates** (digest recs): #986, #1214, #442, #1145, #1242 (tweak: stop and report rather than add a Stat signal), #855 (tweak: acceptance = `test/unit/attack/` green instead of the nonexistent goldens file; name `mise run native:build`), #1579 (tweak: next free version).
-- **Needs a tweak or a call:** #471 (Opus; accept exact-but-partial), #721 (Opus), #440 (use `graph.get_neighbours`, or close), #1124 (keep or close), #335 (seed by duplicate; Opus; after #1145 and #1579), #347 (split: the tool button goes Ready, the readouts go to Needs design).
-- **Needs-design forks:** #428, #435, #1186, #859, #1026, #422 and #441. See digestC.md.
-- **"Your calls" section:** #1620's VFX judgments; the ~35 dated owner decisions with no ADR (listed in the #1761 PR description); stale In-progress / In-review claims (#1076, #1107, #1108 and others); hygiene's 16 flags (stale Designing #1429/#1590/#1659/#1708; hub drift #1313/#1397/#1591/#1608/#1646; all-parked hubs #199/#420/#1255/#1380/#1439/#1615/#1711).
+## Second pass (2026-11-05 evening): all Ready candidates and forks decided and applied
+- **To Ready:** #986, #1214, #442, #1145, #1242, #855, #1579 (owner: "don't care about save version", so no compat shims), #471 (Fable; exact-but-partial is OK), #721 (Opus), #440 (`graph.get_neighbours`), #1124 (filler), #335 (Fable; blocked-by #1145 and #1579; seed by duplicate), #428 (A: statics), #859 (option 3 guard), #1026 (C: ctx + arg; add MagicAttackPlan).
+- **#347** is a hub: #1767 (tool button, Ready, drift-stamped) and #1768 (readouts, Needs design).
+- **The `blocked` label means an open upstream design FORK**, not ordering. Ordering goes in the blocked-by relation. Removed the label from #335 and #436.
+- **Gates aren't in the first-level sandbox** because procgen places none. That's #1208 (Needs design, no priority). Owner noticed; bump it if wanted.
+- **New VFX idea:** panels lens the space beneath them (owner, P1, Needs design, VFX & juice). The feasibility notes are in its body.
 
-Apply further verdicts via a Haiku `clerk` work order that names a milestone for every Ready move (`--body-file`). Board lanes, priority and size are settable from a local session.
+## Still to do
+- **File children (spec skill, drift stamps, Ready):**
+  - **#1186's `--seed` child.** Then time about 10 mp:e2e runs. If runs end around 15 turns, F1 is A (`--timeout` 600).
+  - **#435's 4 children.** F1 is B: 3 instance uniforms; GlassPanel deleted at the end.
+  - **#422's 7 children,** strictly serial, Fable. The golden-hash test child goes first.
+  - **#441:** a fresh spec for the re-scope (FoldReducer base, the 4 folds become thin subclasses, no `.tres` churn).
+- **"Your calls" section (not started):**
+  - #1620's VFX judgments.
+  - About 35 dated owner decisions with no ADR (in the #1761 PR description).
+  - Stale In-progress and In-review claims (#1076, #1107, #1108 and others).
+  - Hygiene's 16 flags: stale Designing (#1429, #1590, #1659, #1708); hub drift (#1313, #1397, #1591, #1608, #1646); all-parked hubs (#199, #420, #1255, #1380, #1439, #1615, #1711).
+
+Apply verdicts through a Haiku `clerk` work order that names a milestone for every Ready move. A Ready move needs a drift stamp on the issue.
