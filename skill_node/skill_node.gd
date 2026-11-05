@@ -808,11 +808,6 @@ func _load_type_color_from_archetype() -> void:
 		push_warning('Stat not found: %s' % archetype.primary_stat)
 	
 
-func _current_node_hp() -> float:
-	var hp := node_board.get_stat(&"node_health") as PoolStat if _node_board_ready else null
-	return hp.current if hp != null else 0.0
-
-
 func _on_damaged_flash() -> void:
 	play_hit_flash()
 
