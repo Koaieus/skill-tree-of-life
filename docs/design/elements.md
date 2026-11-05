@@ -15,7 +15,7 @@ status: settling
 An entity has three kinds of growth: the six primary attributes, its aspects
 (*"how Poison are you"*: `poison_aspect`) and its **elements** (*"how fire
 are you"*). Owner, 2026-11-03: *"i see it like an entity has: primary attrs
-(6), a bunch of aspects (poison, curse, hex, etc etc it goes on), an elemental
+(6), a bunch of aspects (poison, curse, hex, etc it goes on), an elemental
 composition or affinity [new]"*; 2026-11-04: *"Separate axis sounds good"*.
 Elements are **not** a parent of aspects (owner, 2026-11-04: *"elements not
 being parents of aspects makes sense"*), and an aspect never belongs to an
@@ -95,7 +95,7 @@ face loaded.
 
 The counts are meant to grow well past the small ints aspects sit at today.
 Owner: *"attaining 20 of it, or maybe into 50 or possibly even 100 (tho 100,
-that's a stretch. 50 sounds *somewhat* reasonable for late late game …)
+that's a stretch. 50 sounds *somewhat* reasonable for late game …)
 everything starts small. the inner-core mini skill tree, i envision, would be
 one of the primary sources of adding +1..N modifiers to aspects, alongside
 map-found modifiers, or stolen mods from slain enemies"*. Every rate that
