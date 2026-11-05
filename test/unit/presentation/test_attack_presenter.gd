@@ -150,7 +150,7 @@ func _arm(ctx: Dictionary, mode: BattleSystem.AttackMode) -> void:
 			_armed = melee
 		BattleSystem.AttackMode.MAGIC:
 			var magic := bs.new_plan(mode, bs.turn_manager.current_entity) as MagicAttackPlan
-			magic.spell = SpellCatalog.SPARK
+			magic.spell = TestSpells.SPARK
 			magic.set_target(ctx.nodes.leaf)
 			magic.set_target(ctx.nodes.target)
 			_armed = magic

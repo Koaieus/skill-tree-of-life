@@ -100,7 +100,7 @@ func _raw_hauls(r: Dictionary) -> Dictionary:
 
 
 func test_lodestone_is_catalogued() -> void:
-	assert_has(SpellCatalog.ALL, LODESTONE)
+	assert_has(TestSpells.CATALOG.spells, LODESTONE)
 
 
 func test_haul_arithmetic_with_greed_doubling_every_ring() -> void:

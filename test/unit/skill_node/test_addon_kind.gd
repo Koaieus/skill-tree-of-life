@@ -91,6 +91,7 @@ func test_permanent_fixture_dot_gets_no_toxin_outline() -> void:
 	await get_tree().process_frame
 	var battle: BattleSystem = autofree(BattleSystem.new())
 	battle.temp_upgrade_catalog = _catalog
+	battle.spell_catalog = TestSpells.CATALOG
 	battle.graph = _graph
 	add_child(battle)
 	var body := _MELEE_BODY.instantiate() as MeleeBody

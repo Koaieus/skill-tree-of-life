@@ -93,7 +93,7 @@ func test_every_authored_node_is_filled_not_just_owned() -> void:
 ## silent no-op in the playground.
 func test_the_cast_from_node_clears_the_deepest_min_degree() -> void:
 	var deepest: int = 0
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		deepest = maxi(deepest, spell.min_degree)
 	assert_eq(_caster.navigator.get_degree(_node("C_hub")), deepest,
 			"owned neighbours only; the global degree (one higher, counting `d_entry`) is not the question")

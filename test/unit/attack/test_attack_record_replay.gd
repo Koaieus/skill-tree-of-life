@@ -216,7 +216,7 @@ func _arm_melee(ctx: Dictionary) -> void:
 func _arm_magic(ctx: Dictionary) -> void:
 	var bs: BattleSystem = ctx.bs
 	var plan := bs.new_plan(BattleSystem.AttackMode.MAGIC, bs.turn_manager.current_entity) as MagicAttackPlan
-	plan.spell = SpellCatalog.SPARK
+	plan.spell = TestSpells.SPARK
 	plan.set_target(ctx.nodes.leaf)
 	plan.set_target(ctx.nodes.target)
 	_armed = plan

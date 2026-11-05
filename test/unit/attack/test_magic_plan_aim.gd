@@ -12,7 +12,7 @@ const H := preload("res://test/unit/spell/spell_test_helper.gd")
 ## not track SCOUT_LINE's tuning.
 var _spark_targeting: Targeting
 ## Through a var: GDScript refuses a property write on a const's resource.
-var _spark: SpellDef = SpellCatalog.SPARK
+var _spark: SpellDef = TestSpells.SPARK
 
 
 func before_each() -> void:
@@ -77,13 +77,13 @@ func test_aimed_plan_round_trips_source_spell_and_angle() -> void:
 	var graph: Graph = fx[0]
 	var n := _nodes(graph)
 	_spark.targeting = _aimed()
-	var plan := _plan(fx[1], SpellCatalog.SPARK)
+	var plan := _plan(fx[1], TestSpells.SPARK)
 	assert_true(plan.set_aim(n[0], 0.25), "N0 is an eligible caster")
 	var d := plan.to_dict(graph)
 	assert_true(d.has("aim"), "an aimed plan carries its angle")
-	var back := MagicAttackPlan.from_dict(d, graph)
+	var back := MagicAttackPlan.from_dict(d, graph, TestSpells.CATALOG)
 	assert_eq(back.source, n[0])
-	assert_eq(back.spell, SpellCatalog.SPARK)
+	assert_eq(back.spell, TestSpells.SPARK)
 	assert_almost_eq(back.aim_angle, 0.25, 0.000001)
 	assert_null(back.target)
 
@@ -94,7 +94,7 @@ func test_node_targeted_plan_dict_has_no_aim_key() -> void:
 	var n := _nodes(graph)
 	var plan := MagicAttackPlan.new()
 	plan.attacker = fx[1]
-	plan.spell = SpellCatalog.SPARK
+	plan.spell = TestSpells.SPARK
 	plan.source = n[1]
 	plan.target = n[3]
 	assert_false(plan.to_dict(graph).has("aim"))
@@ -182,13 +182,13 @@ func _honest_dict() -> Array:
 	var graph: Graph = fx[0]
 	var n := _nodes(graph)
 	_spark.targeting = _aimed()
-	var plan := _plan(fx[1], SpellCatalog.SPARK)
+	var plan := _plan(fx[1], TestSpells.SPARK)
 	assert_true(plan.set_aim(n[0], 0.0), "fixture: N0 is an eligible caster")
 	return [graph, plan.to_dict(graph), n]
 
 
 func _decoded(d: Dictionary, graph: Graph) -> MagicAttackPlan:
-	return MagicAttackPlan.from_dict(d, graph)
+	return MagicAttackPlan.from_dict(d, graph, TestSpells.CATALOG)
 
 
 func test_an_aimed_plan_wires_its_seeds_as_stable_ids_in_hitscan_order() -> void:

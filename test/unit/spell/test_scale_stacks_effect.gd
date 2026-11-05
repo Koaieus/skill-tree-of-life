@@ -27,7 +27,7 @@ func _rolled(node: SkillNode, count: int) -> void:
 
 func _grant(node: SkillNode) -> void:
 	var g := SpellGrant.new()
-	g.spell_def = SpellCatalog.SPARK
+	g.spell_def = TestSpells.SPARK
 	var effects: Array[Effect] = [g]
 	node.effects = effects
 

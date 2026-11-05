@@ -3,7 +3,7 @@ extends GutTest
 ## The spell catalogue (#853) — every authored spell, long-form, read-only.
 ##
 ## Three claims, one per surface it touches: the modal body lists
-## [constant SpellCatalog.ALL] in order with each spell's tagline, description
+## [member SpellCatalog.spells] in order with each spell's tagline, description
 ## and the SAME four derived sections the tooltip renders ([SpellSections] is
 ## the one derivation — a caster-less build, so nothing is gold); the pause
 ## menu exposes the entry point; the frontmatter names a leaf for it and
@@ -35,10 +35,10 @@ func _populated_body() -> SpellCatalogueBody:
 
 func test_body_lists_every_authored_spell_in_catalogue_order() -> void:
 	var entries := _populated_body().entries()
-	assert_eq(entries.size(), SpellCatalog.ALL.size(), "one entry per authored spell")
-	for i in mini(entries.size(), SpellCatalog.ALL.size()):
-		assert_same(entries[i].spell, SpellCatalog.ALL[i],
-				"entry %d should be %s" % [i, SpellCatalog.ALL[i].id])
+	assert_eq(entries.size(), TestSpells.CATALOG.spells.size(), "one entry per authored spell")
+	for i in mini(entries.size(), TestSpells.CATALOG.spells.size()):
+		assert_same(entries[i].spell, TestSpells.CATALOG.spells[i],
+				"entry %d should be %s" % [i, TestSpells.CATALOG.spells[i].id])
 
 
 func test_each_entry_shows_its_spells_tagline_and_description_verbatim() -> void:
@@ -76,7 +76,7 @@ func test_body_needs_no_selection_and_closes_on_confirm() -> void:
 	var body := _populated_body()
 	assert_true(body.is_selection_valid(), "there is nothing to pick — CLOSE is always live")
 	assert_eq(body.resolve(), [], "nothing is chosen")
-	assert_string_contains(body.status_text(), str(SpellCatalog.ALL.size()))
+	assert_string_contains(body.status_text(), str(TestSpells.CATALOG.spells.size()))
 
 
 func test_modal_is_a_cancellable_modal_base_that_presents_the_body() -> void:
@@ -89,7 +89,7 @@ func test_modal_is_a_cancellable_modal_base_that_presents_the_body() -> void:
 	assert_true(modal.visible)
 	var body := modal.get_node("%BodySlot").get_child(0) as SpellCatalogueBody
 	assert_not_null(body, "the body slot holds the catalogue body")
-	assert_eq(body.entries().size(), SpellCatalog.ALL.size())
+	assert_eq(body.entries().size(), TestSpells.CATALOG.spells.size())
 	modal.get_node("%ConfirmButton").pressed.emit()
 	assert_false(modal.visible, "CLOSE takes it down")
 	assert_eq(closed[0], 1, "closed fires exactly once")
@@ -147,6 +147,6 @@ func test_frontmatter_panels_supply_the_catalogue_panel_with_every_spell() -> vo
 	assert_not_null(panel, "the registered panel is the catalogue panel")
 	if panel == null:
 		return
-	assert_eq(panel.entries().size(), SpellCatalog.ALL.size(),
+	assert_eq(panel.entries().size(), TestSpells.CATALOG.spells.size(),
 			"the meta menu shows the same list, populated on its own")
 	assert_string_contains(panel.title.to_upper(), "SPELL")

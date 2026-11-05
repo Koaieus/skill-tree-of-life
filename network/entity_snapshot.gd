@@ -61,7 +61,11 @@ static func encode(graph: Graph) -> PackedByteArray:
 ## [method _materialize]. Optional: left unset (every existing caller, every
 ## test) this class behaves exactly as it did before #715 and a missing entity is
 ## skipped with a warning.
-static func decode(bytes: PackedByteArray, graph: Graph, spawner := Callable()) -> void:
+## [param spell_catalog] resolves a by-value spellbook's ids
+## ([method _restore_pruned_spellbook]); the composing scene's, never a default.
+## Null leaves such a book untouched, with a warning.
+static func decode(bytes: PackedByteArray, graph: Graph, spawner := Callable(),
+		spell_catalog: SpellCatalog = null) -> void:
 	if graph == null or bytes.is_empty():
 		return
 	var payload := GraphSnapshot._unpack(bytes)
@@ -73,7 +77,7 @@ static func decode(bytes: PackedByteArray, graph: Graph, spawner := Callable()) 
 		var e := _resolve(graph, row as Array, res, spawner)
 		if e == null:
 			continue
-		_decode_identity(e, row as Array, res, spells)
+		_decode_identity(e, row as Array, res, spells, spell_catalog)
 		# Entity-wide grants only (source_stable_id 0) — a node-sourced effect
 		# has nothing to resolve against yet.
 		_grant_effects(e, graph, row as Array, res, false)
@@ -368,7 +372,8 @@ static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
 ## `CoreClass.apply()` pushes its identity modifiers onto the board, and those
 ## already ride in the board payload by value. Applying here would double them —
 ## the same trap the effect ordering avoids one method down.
-static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -> void:
+static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array,
+		spell_catalog: SpellCatalog = null) -> void:
 	var cc := _load_interned(res, int(row[_R_CORE_CLASS])) as CoreClass
 	if cc != null:
 		e.core_class = cc
@@ -379,7 +384,7 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 	if sb != null:
 		e.spellbook = sb
 	else:
-		_restore_pruned_spellbook(e, row, spells)
+		_restore_pruned_spellbook(e, row, spells, spell_catalog)
 	e.entity_tier = int(row[_R_TIER])
 	# #756. Accumulated, not derived: it gates the first-turn upkeep skip, and a
 	# peer whose world arrived as a snapshot never heard the `turn_started`s that
@@ -403,8 +408,13 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 ## already agrees (idempotent); otherwise always a FRESH `SpellBook`, compared by
 ## id and in order. Assumes no `SpellGrant` crosses (a tripwire test pins it).
 ## See docs/domain/snapshot-encoding.md
-static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array) -> void:
+static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array,
+		spell_catalog: SpellCatalog) -> void:
 	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
+		return
+	if spell_catalog == null:
+		push_warning("EntitySnapshot: entity %d's spellbook crossed by id but no SpellCatalog was passed — left as is"
+				% e.entity_id)
 		return
 	var spells: Array[SpellDef] = []
 	for idx in (row[_R_SPELL_IDS] as Array):
@@ -415,7 +425,7 @@ static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array) ->
 			)
 			continue
 		var id := StringName(interned[int(idx)])
-		var spell := SpellCatalog.by_id(id)
+		var spell := spell_catalog.by_id(id)
 		if spell == null:
 			push_warning(
 				"EntitySnapshot: entity %d's spellbook names spell '%s', which SpellCatalog does not know — dropping it"

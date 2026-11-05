@@ -22,7 +22,7 @@ class FogStub extends VisionSystem:
 
 
 ## SPARK is borrowed and its targeting swapped (and restored) to drive the aim input over a known def.
-var _spark: SpellDef = SpellCatalog.SPARK
+var _spark: SpellDef = TestSpells.SPARK
 var _spark_targeting: Targeting
 var _spark_min_degree: int
 

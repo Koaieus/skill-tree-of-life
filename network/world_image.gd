@@ -38,11 +38,13 @@ func is_empty() -> bool:
 ## the owner's now-whole board decides), then the turn cursor (its
 ## [signal TurnManager.turn_started] reaches the HUD, so it must not fire over a
 ## half-restored world). [param entity_spawner] materialises an entity the image
-## names but [param graph] lacks; [param turn_manager] may be null.
-func apply(graph: Graph, entity_spawner: Callable, turn_manager: TurnManager) -> void:
+## names but [param graph] lacks; [param turn_manager] may be null;
+## [param spell_catalog] resolves a by-value spellbook ([method EntitySnapshot.decode]).
+func apply(graph: Graph, entity_spawner: Callable, turn_manager: TurnManager,
+		spell_catalog: SpellCatalog = null) -> void:
 	if graph == null or is_empty():
 		return
-	EntitySnapshot.decode(entity_bytes, graph, entity_spawner)
+	EntitySnapshot.decode(entity_bytes, graph, entity_spawner, spell_catalog)
 	GraphSnapshot.decode(graph_bytes, graph)
 	EntitySnapshot.resolve_graph_refs(entity_bytes, graph, entity_spawner)
 	GraphSnapshot.restore_hp(graph_bytes, graph)

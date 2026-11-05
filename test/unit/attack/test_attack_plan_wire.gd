@@ -54,7 +54,7 @@ func before_each() -> void:
 func _round_trip(plan: AttackPlan) -> AttackPlan:
 	var d := plan.to_dict(_graph)
 	_assert_no_live_references(d)
-	return AttackPlanCodec.from_dict(d, _graph)
+	return AttackPlanCodec.from_dict(d, _graph, null, TestSpells.CATALOG)
 
 
 ## The rule from `.claude/rules/multiplayer-sync.md`, asserted rather than
@@ -104,13 +104,13 @@ func test_a_ranged_plan_round_trips_its_target() -> void:
 func test_a_magic_plan_round_trips_source_target_and_spell() -> void:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = _attacker
-	plan.spell = SpellCatalog.LIGHTNING_BOLT
+	plan.spell = TestSpells.LIGHTNING_BOLT
 	plan.source = _nodes.C
 	plan.target = _nodes.D
-	var back := MagicAttackPlan.from_dict(plan.to_dict(_graph), _graph)
+	var back := MagicAttackPlan.from_dict(plan.to_dict(_graph), _graph, TestSpells.CATALOG)
 	assert_eq(back.source, _nodes.C)
 	assert_eq(back.target, _nodes.D)
-	assert_eq(back.spell, SpellCatalog.LIGHTNING_BOLT,
+	assert_eq(back.spell, TestSpells.LIGHTNING_BOLT,
 			"the spell resolves back to the SAME authored resource, not a copy")
 
 

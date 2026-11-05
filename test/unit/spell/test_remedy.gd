@@ -82,7 +82,7 @@ func test_the_def_exists_and_is_the_catalogs() -> void:
 	assert_not_null(_def, "remedy.tres is authored")
 	if _def == null:
 		return
-	assert_eq(SpellCatalog.by_id(&"remedy"), _def, "registered in SpellCatalog")
+	assert_eq(TestSpells.CATALOG.by_id(&"remedy"), _def, "registered in SpellCatalog")
 	assert_not_null(_cure_effect(), "the dose is a CureEffect")
 
 

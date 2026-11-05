@@ -223,7 +223,7 @@ func _live() -> void:
 	board.intelligence.base_value = 10000.0
 	board.facet(&"poison", StatDef.Role.ASPECT).base_value = 5.0
 	board.facet(&"curse", StatDef.Role.ASPECT).base_value = 3.0
-	_ctl.armed_stack.select_spell(_ctl.player, SpellCatalog.SPARK)
+	_ctl.armed_stack.select_spell(_ctl.player, TestSpells.SPARK)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_not_null(_stack().find(MagicMode), "precondition: magic armed")
 

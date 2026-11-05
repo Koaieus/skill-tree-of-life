@@ -14,6 +14,9 @@ var turn_manager: TurnManager
 ## The outstanding-loot-pick book, for [PickLootCommand] (#522).
 var loot_pick_registry: LootPickRegistry
 var ring_system: RingSystem
+## The authored spell list, for the verbs that carry a spell by id
+## ([LootRoundCommand.granted_spell]). From [member CommandApplier.spell_catalog].
+var spell_catalog: SpellCatalog
 ## The pipeline itself, for the one handler that also DRIVES its verb from the
 ## host side ([LootRoundCommandHandler]'s resolve loop, which submits stamped
 ## rounds through [method CommandApplier.submit] — the ordinary queue, never a

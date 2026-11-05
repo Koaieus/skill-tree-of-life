@@ -58,7 +58,7 @@ func apply(command: Command, ctx: CommandContext) -> bool:
 	var dust := _dust_on(carrier)
 	if dust == null:
 		return false
-	_land(dust, round.granted_modifier(), round.granted_spell(), round.is_final(),
+	_land(dust, round.granted_modifier(), round.granted_spell(ctx.spell_catalog), round.is_final(),
 			ctx.resolve_actor(round.entity_id), ctx)
 	return true
 

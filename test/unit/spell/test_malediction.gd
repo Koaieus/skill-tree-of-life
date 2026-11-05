@@ -138,6 +138,6 @@ func test_a_node_both_won_and_lost_on_one_wave_still_carries_the_rumour() -> voi
 
 
 func test_no_spell_answers_to_the_old_hex_id() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		assert_ne(spell.id, &"hex", "the shipped hex is Malediction now")
 	assert_eq(MALEDICTION.id, &"malediction")

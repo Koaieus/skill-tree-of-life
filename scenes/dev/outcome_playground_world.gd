@@ -9,6 +9,7 @@ extends RefCounted
 const _SKILL_NODE_SCENE: PackedScene = preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE: PackedScene = preload("res://graph/graph.tscn")
 const _BOARD: Resource = preload("res://entity/default_entity_board.tres")
+const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const _PLAYER_FACTION: Resource = preload("res://entity/factions/player.tres")
 const _NPC_FACTION: Resource = preload("res://entity/factions/npc.tres")
 
@@ -127,7 +128,7 @@ func arm(alloc: AllocationSystem, turn_manager: TurnManager = null) -> void:
 ## game — [MagicAttackPlan] takes the cast-from node first, then the target.
 ## The plan is this world's own, never armed anywhere; hand it to
 ## [method BattleSystem.build_launch_command] / [method BattleSystem.launch_attack].
-func arm_magic(battle: BattleSystem, spell: SpellDef = SpellCatalog.SPARK) -> MagicAttackPlan:
+func arm_magic(battle: BattleSystem, spell: SpellDef = _SPARK) -> MagicAttackPlan:
 	var plan := battle.new_plan(BattleSystem.AttackMode.MAGIC, attacker) as MagicAttackPlan
 	if plan == null:
 		return null

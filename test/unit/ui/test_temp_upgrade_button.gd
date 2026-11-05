@@ -62,6 +62,7 @@ func before_each() -> void:
 	# No MeleePreview / AttackVFX: nothing here launches, so none is needed.
 	_bs = autofree(BattleSystem.new())
 	_bs.temp_upgrade_catalog = _catalog
+	_bs.spell_catalog = TestSpells.CATALOG
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph

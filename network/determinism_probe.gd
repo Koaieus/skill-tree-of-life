@@ -116,6 +116,8 @@ signal logged(line: String)
 ## Resolves a received melee plan's temp-upgrade ids — without it the
 ## re-derivation drops them and reports a false divergence. Wired by the scene.
 @export var temp_upgrade_catalog: TempUpgradeCatalog
+## Resolves a received magic plan's spell id the same way. Wired by the scene.
+@export var spell_catalog: SpellCatalog
 
 ## tag -> {"agreed": int, "diverged": int, "skipped": int, "exempt": int}
 var _world: Dictionary = {}
@@ -390,7 +392,7 @@ func _rederive(command: LaunchAttackCommand) -> Dictionary:
 	# Not reset afterwards: the temp-upgrade addons this decode attaches (or
 	# adopts) are the ones the apply's own decode adopts next, and that plan's
 	# post-swing reset frees them — freeing here would strip the replay's.
-	var plan := AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
+	var plan := AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog, spell_catalog)
 	if plan == null:
 		return {}
 	# Stamped BEFORE resolving, mirroring `BattleSystem._compute_record` —

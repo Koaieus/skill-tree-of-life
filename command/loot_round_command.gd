@@ -63,9 +63,12 @@ func granted_modifier() -> StatModifier:
 
 ## The granted spell this round recorded, or null. Resolves through the
 ## authored catalog rather than reconstructing a [SpellDef] — a spell has a real
-## identity, unlike a runtime-minted [StatModifier].
-func granted_spell() -> SpellDef:
-	return SpellCatalog.by_id(StringName(resolved.get("spell_id", "")))
+## identity, unlike a runtime-minted [StatModifier]. [param catalog] is the
+## applier's ([member CommandContext.spell_catalog]); null resolves nothing.
+func granted_spell(catalog: SpellCatalog) -> SpellDef:
+	if catalog == null:
+		return null
+	return catalog.by_id(StringName(resolved.get("spell_id", "")))
 
 
 ## Whether this round frees the relic.

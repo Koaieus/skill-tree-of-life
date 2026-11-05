@@ -214,7 +214,7 @@ func test_the_picker_badge_is_the_magic_levels() -> void:
 
 
 func test_after_a_launch_the_rearmed_plan_stands_with_no_picker() -> void:
-	_arm_with_picker(SpellCatalog.SPARK)
+	_arm_with_picker(TestSpells.SPARK)
 	_ctl.route_left_click(_enemy)
 	assert_true(_magic().is_valid(), "precondition: %s" % str(_magic().validate()))
 	await _bs.launch_attack(_magic())
@@ -225,7 +225,7 @@ func test_after_a_launch_the_rearmed_plan_stands_with_no_picker() -> void:
 
 
 func test_a_launch_with_the_picker_open_pops_it() -> void:
-	_ctl.armed_stack.select_spell(_ctl.player, SpellCatalog.SPARK)
+	_ctl.armed_stack.select_spell(_ctl.player, TestSpells.SPARK)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	# Aimed without the click, so no TargetMode stands between: a TargetMode
 	# would pop on the launch and take the picker with it.

@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://ui/spell_catalogue/spell_catalogue_list.gd" id="1_script"]
+[ext_resource type="Resource" uid="uid://spellcatalog0001" path="res://attack/spell/spell_catalog.tres" id="2_catalog"]
 
 [node name="SpellCatalogueList" type="ScrollContainer"]
 layout_mode = 2
@@ -8,6 +9,7 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 script = ExtResource("1_script")
+catalog = ExtResource("2_catalog")
 
 [node name="Entries" type="VBoxContainer" parent="."]
 unique_name_in_owner = true

@@ -34,6 +34,9 @@ extends Node
 ## Null (headless fixture, editor) means no remote picks either way. See
 ## [LootPickRegistry].
 @export var pick_registry: LootPickRegistry
+## The authored spell list (`attack/spell/spell_catalog.tres`) a mirror's spell
+## offer resolves its ids through. Wired by the composing scene.
+@export var spell_catalog: SpellCatalog
 
 ## Per-side-effect kill-switches. A sandbox tab (a GameRoot-inherited scene) flips
 ## these in the inspector to neuter a reward path while keeping 1:1 wiring with
@@ -694,7 +697,7 @@ func _on_loot_offer_received(offer: LootPickOffer) -> void:
 	if offer.kind == LootPickOffer.KIND_SPELL:
 		var spell_candidates: Array[SpellDef] = []
 		for id: StringName in offer.spell_ids:
-			var s := SpellCatalog.by_id(id)
+			var s := spell_catalog.by_id(id) if spell_catalog != null else null
 			if s != null:
 				spell_candidates.append(s)
 		request = SpellLootRequest.new(collector, spell_candidates,

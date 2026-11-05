@@ -99,6 +99,9 @@ const CORE_HOP_SLIDE_DELAY := MoveCoreCommandHandler.CORE_HOP_SLIDE_DELAY
 
 ## The inner ring's rules, for [SpendRingCellCommand].
 @export var ring_system: RingSystem
+## The authored spell list (`attack/spell/spell_catalog.tres`), handed to every
+## handler as [member CommandContext.spell_catalog]. Wired by the composing scene.
+@export var spell_catalog: SpellCatalog
 
 ## How long [method _pre_roll] holds the drain for a non-local actor's
 ## command, so [CameraDirector] has time to pan there before the mutation
@@ -586,6 +589,7 @@ func _context() -> CommandContext:
 	ctx.turn_manager = turn_manager
 	ctx.loot_pick_registry = loot_pick_registry
 	ctx.ring_system = ring_system
+	ctx.spell_catalog = spell_catalog
 	ctx.command_applier = self
 	ctx.tree = get_tree()
 	return ctx

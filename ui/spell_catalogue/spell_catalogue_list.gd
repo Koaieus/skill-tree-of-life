@@ -10,18 +10,24 @@ extends ScrollContainer
 ## `custom_minimum_size`, a frontmatter panel lets it fill the column); this
 ## scene decides only what is in it.
 ##
-## Lists [constant SpellCatalog.ALL] — every authored spell, in catalogue order
+## Lists [member catalog]'s spells — every authored spell, in catalogue order
 ## — not any entity's [SpellBook]: the spellbook is "what I know", the
 ## catalogue is "what exists" (owner, 2026-09-10).
 
 const _ENTRY := preload("res://ui/spell_catalogue/spell_catalogue_entry.tscn")
 
+## The authored spell list (`attack/spell/spell_catalog.tres`), set on this
+## scene so both doors share it.
+@export var catalog: SpellCatalog
+
 @onready var _entries: VBoxContainer = %Entries
 
 
-## Rebuild the list for [param defs] (the whole catalogue by default). One
-## [SpellCatalogueEntry] instance per def, in the order given.
-func populate(defs: Array[SpellDef] = SpellCatalog.ALL) -> void:
+## Rebuild the list for [param defs] ([member catalog]'s spells when empty).
+## One [SpellCatalogueEntry] instance per def, in the order given.
+func populate(defs: Array[SpellDef] = []) -> void:
+	if defs.is_empty() and catalog != null:
+		defs = catalog.spells
 	for child in _entries.get_children():
 		_entries.remove_child(child)
 		child.queue_free()

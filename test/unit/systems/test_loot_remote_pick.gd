@@ -101,6 +101,7 @@ func _link(applier: CommandApplier, graph: Graph, transport: NetworkTransport,
 func _mirror_adapter(applier: CommandApplier, registry: LootPickRegistry) -> LootSystem:
 	var system := LootSystem.new()
 	system.skill_dust_scene = _DUST_SCENE
+	system.spell_catalog = TestSpells.CATALOG
 	system.command_applier = applier
 	system.pick_registry = registry
 	add_child_autofree(system)
@@ -274,6 +275,7 @@ func test_a_spell_offer_rebuilds_through_spellcatalog() -> void:
 	var client := await _build_world("client", [])
 	var system := LootSystem.new()
 	system.skill_dust_scene = _DUST_SCENE
+	system.spell_catalog = TestSpells.CATALOG
 	system.command_applier = client["applier"]
 	add_child_autofree(system)
 
@@ -281,7 +283,7 @@ func test_a_spell_offer_rebuilds_through_spellcatalog() -> void:
 	offer.kind = LootPickOffer.KIND_SPELL
 	offer.request_id = 7
 	offer.collector_id = (client["collector"] as Entity).entity_id
-	offer.spell_ids = [SpellCatalog.SPARK.id]
+	offer.spell_ids = [TestSpells.SPARK.id]
 
 	var requests: Array[SpellLootRequest] = []
 	var on_request := func(r: SpellLootRequest) -> void: requests.append(r)
@@ -292,5 +294,5 @@ func test_a_spell_offer_rebuilds_through_spellcatalog() -> void:
 	assert_eq(requests.size(), 1)
 	assert_eq(requests[0].collector, client["collector"])
 	assert_eq(requests[0].candidates.size(), 1)
-	assert_eq(requests[0].candidates[0], SpellCatalog.SPARK,
+	assert_eq(requests[0].candidates[0], TestSpells.SPARK,
 			"spell candidates rebuild through SpellCatalog, the same way LootRoundCommand.granted_spell does")

@@ -76,7 +76,7 @@ func _damage_by_node(outcome: AttackOutcome) -> Dictionary:
 
 
 func test_hell_gnaw_is_catalogued_and_listed_on_sunder() -> void:
-	assert_eq(SpellCatalog.by_id(&"hell_gnaw"), HELL_GNAW)
+	assert_eq(TestSpells.CATALOG.by_id(&"hell_gnaw"), HELL_GNAW)
 	assert_true(SUNDER_ASPECT.spells.has(HELL_GNAW), "Sunder's spells list Hell Gnaw")
 
 

@@ -98,6 +98,7 @@ func _remote_launch(def: PackedScene = null) -> LaunchAttackCommand:
 	if def == null:
 		def = _clamp()
 	_bs.temp_upgrade_catalog = _CATALOG
+	_bs.spell_catalog = TestSpells.CATALOG
 	_attacker.stat_board.blade_size.base_value = 3.0
 	var plan := MeleeAttackPlan.new()
 	plan.attacker = _attacker

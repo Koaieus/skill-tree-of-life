@@ -143,7 +143,7 @@ func test_a_default_constructed_command_grants_nothing_and_is_not_final() -> voi
 	var command := LootRoundCommand.new(1, 2)
 
 	assert_null(command.granted_modifier())
-	assert_null(command.granted_spell())
+	assert_null(command.granted_spell(TestSpells.CATALOG))
 	assert_false(command.is_final())
 
 
@@ -156,15 +156,15 @@ func test_a_terminal_round_carries_no_grant_and_still_reads_as_final() -> void:
 
 	assert_true(back.is_final(), "and it is what frees the relic on every peer")
 	assert_null(back.granted_modifier())
-	assert_null(back.granted_spell())
+	assert_null(back.granted_spell(TestSpells.CATALOG))
 
 
 func test_a_spell_round_travels_by_id() -> void:
-	var command := LootRoundCommand.new(1, 2, null, SpellCatalog.SPARK.id, false)
+	var command := LootRoundCommand.new(1, 2, null, TestSpells.SPARK.id, false)
 
 	var back := CommandCodec.from_dict(command.to_dict()) as LootRoundCommand
 
-	assert_eq(back.granted_spell(), SpellCatalog.SPARK,
+	assert_eq(back.granted_spell(TestSpells.CATALOG), TestSpells.SPARK,
 			"resolves to the authored def itself — spells have real identity, unlike a "
 			+ "runtime-minted StatModifier")
 

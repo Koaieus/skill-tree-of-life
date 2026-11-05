@@ -40,6 +40,7 @@
 [ext_resource type="Script" uid="uid://dwnyeq8jqb23e" path="res://network/network_session.gd" id="25_session"]
 [ext_resource type="Script" uid="uid://cnpcplecs7qgb" path="res://network/world_sync_channel.gd" id="24_worldsync"]
 [ext_resource type="Resource" uid="uid://tucatalog00001" path="res://attack/melee/temp_upgrade_catalog.tres" id="26_temp_upgrades"]
+[ext_resource type="Resource" uid="uid://spellcatalog0001" path="res://attack/spell/spell_catalog.tres" id="27_spell_catalog"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/gimbal_3d/gimbal_world.tscn" id="30_gimbalworld"]
 [ext_resource type="Resource" path="res://ui/indicator/themes/melee.tres" id="31_theme_melee"]
 [ext_resource type="Resource" path="res://ui/indicator/themes/ranged.tres" id="31_theme_ranged"]
@@ -87,6 +88,7 @@ allocation_system = NodePath("../AllocationSystem")
 graph = NodePath("../../Graph")
 stage = NodePath("../AttackPresenter")
 temp_upgrade_catalog = ExtResource("26_temp_upgrades")
+spell_catalog = ExtResource("27_spell_catalog")
 
 [node name="AttackPresenter" parent="Systems" unique_id=1196000001 node_paths=PackedStringArray("attack_vfx", "melee_preview") instance=ExtResource("17_presenter")]
 unique_name_in_owner = true
@@ -117,6 +119,7 @@ battle_system = NodePath("../BattleSystem")
 command_applier = NodePath("../CommandApplier")
 pick_registry = NodePath("../LootPickRegistry")
 skill_dust_scene = ExtResource("12_dust")
+spell_catalog = ExtResource("27_spell_catalog")
 
 [node name="RingSystem" type="Node" parent="Systems" unique_id=1000001651]
 unique_name_in_owner = true
@@ -131,6 +134,7 @@ battle_system = NodePath("../BattleSystem")
 turn_manager = NodePath("../TurnManager")
 loot_pick_registry = NodePath("../LootPickRegistry")
 ring_system = NodePath("../RingSystem")
+spell_catalog = ExtResource("27_spell_catalog")
 
 [node name="SaveGate" type="Node" parent="Systems" node_paths=PackedStringArray("command_applier", "graph")]
 unique_name_in_owner = true
@@ -279,6 +283,7 @@ script = ExtResource("24_worldsync")
 graph = NodePath("../Graph")
 turn_manager = NodePath("../Systems/TurnManager")
 command_applier = NodePath("../Systems/CommandApplier")
+spell_catalog = ExtResource("27_spell_catalog")
 
 [node name="CommandChannel" type="Node" parent="." unique_id=1000000532 node_paths=PackedStringArray("command_applier")]
 unique_name_in_owner = true

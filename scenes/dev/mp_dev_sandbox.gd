@@ -6,6 +6,7 @@ extends "res://scenes/dev_sandbox.gd"
 ## (`--role=host|client|solo`). Blue stays AI, gated on `CommandApplier.is_authority`.
 ## See docs/domain/multiplayer-harness.md
 
+const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const DEFAULT_PORT := 9099
 const DEFAULT_ADDRESS := "127.0.0.1"
 
@@ -671,7 +672,7 @@ func _sweep_magic() -> void:
 	if source == null:
 		_write_log("autopilot: magic SKIPPED — no owned node in reach of a hostile one")
 		return
-	input_ctl.armed_stack.select_spell(input_ctl.player, SpellCatalog.SPARK)
+	input_ctl.armed_stack.select_spell(input_ctl.player, _SPARK)
 	input_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	var plan := input_ctl.armed_stack.attack_plan() as MagicAttackPlan
 	plan.set_target(source)

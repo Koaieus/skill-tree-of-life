@@ -52,7 +52,7 @@ func _then_lines(spell: SpellDef) -> PackedStringArray:
 
 
 func test_every_authored_tagline_is_within_the_cap() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		assert_lt(
 			spell.tagline.length(), _TAGLINE_CAP + 1,
 			"%s: tagline is %d chars, cap is %d" % [spell.id, spell.tagline.length(), _TAGLINE_CAP]
@@ -60,12 +60,12 @@ func test_every_authored_tagline_is_within_the_cap() -> void:
 
 
 func test_every_authored_spell_has_a_tagline() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		assert_false(spell.tagline.is_empty(), "%s: no tagline authored" % spell.id)
 
 
 func test_cast_section_is_never_empty_for_an_authored_spell() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		var lines := await _cast_lines(spell)
 		assert_gt(lines.size(), 0, "%s: Cast section had no derived content" % spell.id)
 
@@ -74,13 +74,13 @@ func test_cast_section_is_never_empty_for_an_authored_spell() -> void:
 ## Any` (heals either side on purpose — see `node_targeting.gd`'s top
 ## docstring) and used to fall through to the generic "Single node" line.
 func test_healing_beams_cast_section_names_any_node() -> void:
-	var lines := await _cast_lines(SpellCatalog.HEALING_BEAM)
+	var lines := await _cast_lines(TestSpells.HEALING_BEAM)
 	var joined := " ".join(lines)
 	assert_string_contains(joined.to_lower(), "any node")
 
 
 func test_no_section_text_contains_the_long_form_description() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		if spell.description.is_empty():
 			continue
 		var lines := await _cast_lines(spell)
@@ -95,7 +95,7 @@ func test_no_section_text_contains_the_long_form_description() -> void:
 ## [OnHitEffect], so the section must never render empty now that #851 landed
 ## `get_description()` on every subclass.
 func test_on_arrival_section_is_never_empty_for_an_authored_spell() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		var lines := await _on_arrival_lines(spell)
 		assert_gt(lines.size(), 0, "%s: On arrival section had no derived content" % spell.id)
 
@@ -103,7 +103,7 @@ func test_on_arrival_section_is_never_empty_for_an_authored_spell() -> void:
 ## Crits (#764 half 2a) — present iff the spell authors [member SpellDef.crit_conditions],
 ## never a stray empty section for a spell with none.
 func test_crits_section_present_iff_spell_authors_crit_conditions() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		var lines := await _crits_lines(spell)
 		if spell.crit_conditions.is_empty():
 			assert_eq(lines.size(), 0, "%s: Crits section should be empty" % spell.id)
@@ -115,7 +115,7 @@ func test_crits_section_present_iff_spell_authors_crit_conditions() -> void:
 ## [method HealEffect.get_description] — the same fix as
 ## [method test_healing_beams_cast_section_names_any_node], one section over.
 func test_healing_beams_arrival_line_starts_with_heals() -> void:
-	var lines := await _on_arrival_lines(SpellCatalog.HEALING_BEAM)
+	var lines := await _on_arrival_lines(TestSpells.HEALING_BEAM)
 	assert_gt(lines.size(), 0, "fixture: Healing Beam must have an on-arrival line")
 	assert_true(
 		lines[0].begins_with("Heals"),
@@ -128,7 +128,7 @@ func test_healing_beams_arrival_line_starts_with_heals() -> void:
 ## default `spell_damage` (1.0) × `power` (1.0) = 1), never the old
 ## number-free "Deals magic damage." fragment.
 func test_on_arrival_line_names_the_impact_damage_number() -> void:
-	var spell := SpellCatalog.SPARK
+	var spell := TestSpells.SPARK
 	var expected := SpellResolver.impact_damage(spell, null, null)
 	var lines := await _on_arrival_lines(spell)
 	assert_eq(lines.size(), 1, "fixture: Spark has exactly one on-hit effect, no reducer")
@@ -139,7 +139,7 @@ func test_on_arrival_line_names_the_impact_damage_number() -> void:
 ## (single-target by design, see `spark.tres`), so [method PropagationConfig
 ## .get_description]'s collapse must fire and nothing else may sneak in.
 func test_sparks_then_section_is_exactly_the_single_target_line() -> void:
-	var lines := await _then_lines(SpellCatalog.SPARK)
+	var lines := await _then_lines(TestSpells.SPARK)
 	assert_eq(lines, PackedStringArray(["Single target."]))
 
 
@@ -148,7 +148,7 @@ func test_sparks_then_section_is_exactly_the_single_target_line() -> void:
 ## proposed cap over every authored spell. Empty sections (e.g. Crits on a
 ## spell with no crit_conditions) trivially pass.
 func test_every_sections_composed_text_is_within_the_cap() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		for section_name in _SECTION_NAMES:
 			var lines := await _section_lines(spell, section_name)
 			var joined := " ".join(lines)

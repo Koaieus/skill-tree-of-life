@@ -52,6 +52,9 @@ signal resync_applied(reason: String)
 @export var command_applier: CommandApplier
 ## Receives [method DeterminismProbe.observe_world] for every compared stamp.
 @export var probe: DeterminismProbe
+## Resolves a by-value spellbook's ids on restore ([method EntitySnapshot.decode]).
+## The authored `attack/spell/spell_catalog.tres`, wired by the composing scene.
+@export var spell_catalog: SpellCatalog
 
 ## Materialises an entity a snapshot names but this peer lacks. Set by
 ## [GameRoot]; empty in tests that never materialise one.
@@ -231,7 +234,7 @@ func _on_resync(payload: Dictionary) -> void:
 		# present" — a mid-run repair carries no flag and must always apply.
 		_log("← join world already applied, dropped — %s" % reason)
 		return
-	image.apply(graph, entity_spawner, turn_manager)
+	image.apply(graph, entity_spawner, turn_manager, spell_catalog)
 	# The repair has landed: the next compare says whether it worked, and the
 	# world this peer was missing is now the host's, so the drop window is over.
 	_awaiting_resync = false
@@ -264,7 +267,7 @@ func _on_entity_snapshot(payload: Dictionary) -> void:
 	var bytes: PackedByteArray = payload.get(KEY_ENTITIES, PackedByteArray())
 	if graph == null or bytes.is_empty():
 		return
-	EntitySnapshot.decode(bytes, graph, entity_spawner)
+	EntitySnapshot.decode(bytes, graph, entity_spawner, spell_catalog)
 	_pending_entities = bytes
 	if not graph.get_skill_nodes().is_empty():
 		_drain_pending_entities()

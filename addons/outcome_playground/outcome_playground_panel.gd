@@ -45,6 +45,8 @@ const _SANDBOX_WORLD: Script = preload("res://scenes/dev/sandbox_world.gd")
 const _PLAYGROUND_WORLD: Script = preload("res://scenes/dev/outcome_playground_world.gd")
 
 ## Where Save writes, and where the headless test reads from.
+const _CATALOG: SpellCatalog = preload("res://attack/spell/spell_catalog.tres")
+const _SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
 const FIXTURE_DIR := "res://test/support/outcome/"
 
 ## Room left around the authored layout when it is fitted to the viewport.
@@ -149,14 +151,15 @@ func _wire_controls() -> void:
 
 func _populate_spells() -> void:
 	_spell_list.clear()
-	for spell in SpellCatalog.ALL:
+	for spell in _CATALOG.spells:
 		_spell_list.add_item(spell.name if spell.name != "" else str(spell.id))
 	_spell_list.selected = 0
 
 
 func _selected_spell() -> SpellDef:
 	var idx := _spell_list.selected
-	return SpellCatalog.ALL[idx] if idx >= 0 and idx < SpellCatalog.ALL.size() else SpellCatalog.SPARK
+	var spells := _CATALOG.spells
+	return spells[idx] if idx >= 0 and idx < spells.size() else _SPARK
 
 
 # ── World state ──────────────────────────────────────────────────────────────

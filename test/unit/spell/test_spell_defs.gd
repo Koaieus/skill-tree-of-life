@@ -84,7 +84,7 @@ func test_reverberator_preset_well_formed() -> void:
 	assert_eq(corruption.size(), 1, "the bell rings corruption: one innate corruption intake")
 	assert_eq(s.id, &"reverberator", "the id stays reverberator")
 	assert_eq(s.name, "Demon Bell", "displayed as Demon Bell")
-	var by_id := SpellCatalog.by_id(&"reverberator")
+	var by_id := TestSpells.CATALOG.by_id(&"reverberator")
 	assert_not_null(by_id, "the catalog still resolves &\"reverberator\"")
 	if by_id != null:
 		assert_eq(by_id.name, "Demon Bell", "the catalog's entry reads Demon Bell")
@@ -128,7 +128,7 @@ func test_lightning_cast_chains_with_halving_falloff() -> void:
 ## --- catalogue-wide lints ----------------------------------------------------
 ##
 ## Everything above pins five hand-picked presets. These two sweep
-## [constant SpellCatalog.ALL], so a spell added later is covered the day it
+## [member SpellCatalog.spells], so a spell added later is covered the day it
 ## lands rather than the day someone remembers to add a case.
 
 ## #851 moved the TrailBlazer's junction slam out of the step and into a
@@ -143,7 +143,7 @@ func test_lightning_cast_chains_with_halving_falloff() -> void:
 ## spell ever wants that ordering on purpose, add it to the exemption below with
 ## a reason.
 func test_no_shipped_spell_scales_damage_after_emitting_it() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		if spell == null:
 			continue
 		assert_eq(_late_scale_index(spell.on_hit_effects), -1,
@@ -188,7 +188,7 @@ func _late_scale_index(effects: Array[OnHitEffect]) -> int:
 ## collapse (see [method PropagationConfig.get_description]). Catches a preset
 ## that lost one half to an editor refresh.
 func test_every_shipped_spell_authors_hops_and_spread_together() -> void:
-	for spell in SpellCatalog.ALL:
+	for spell in TestSpells.CATALOG.spells:
 		if spell == null or spell.propagation == null:
 			continue
 		var p := spell.propagation

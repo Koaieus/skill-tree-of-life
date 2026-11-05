@@ -25,7 +25,7 @@ var _chain: Array[int] = []
 
 
 func _def() -> SpellDef:
-	return SpellCatalog.POCKET_SAND
+	return TestSpells.POCKET_SAND
 
 
 func before_each() -> void:

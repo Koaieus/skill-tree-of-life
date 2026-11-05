@@ -180,7 +180,7 @@ func test_wire_round_trips_points() -> void:
 	plan.set_infusion(&"poison", 3)
 	plan.set_infusion(&"curse", 1)
 	var graph := plan.attacker.get_parent() as Graph
-	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph)
+	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph, TestSpells.CATALOG)
 	assert_eq(back.infusion.points.get(&"poison", 0), 3)
 	assert_eq(back.infusion.points.get(&"curse", 0), 1)
 
@@ -189,6 +189,6 @@ func test_an_uninfused_plan_ships_no_infusion_key() -> void:
 	var plan := _plan(_SPARK, 10.0)
 	var graph := plan.attacker.get_parent() as Graph
 	assert_false(plan.to_dict(graph).has("infusion"))
-	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph)
+	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph, TestSpells.CATALOG)
 	assert_not_null(back.infusion)
 	assert_true(back.infusion.points.is_empty())

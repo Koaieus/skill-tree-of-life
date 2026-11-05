@@ -1,67 +1,36 @@
+@tool
 class_name SpellCatalog
-extends RefCounted
+extends Resource
 
-## [member SpellDef.id] -> the authored [SpellDef], for the wire (#511).
+## Every authored [SpellDef], and the [member SpellDef.id] -> def lookup the
+## wire resolves through (#511). Authored as `attack/spell/spell_catalog.tres`
+## and reaching consumers through an `@export` wired by the composing scene
+## ([member CommandApplier.spell_catalog] -> [member CommandContext.spell_catalog]
+## for the command path, [member LootSystem.spell_catalog], the snapshot's
+## restore argument, [member SpellCatalogueList.catalog]) — never a static door,
+## so the list is inspector-composable.
 ##
-## Deliberately a separate class rather than a static on [SpellDef], for the
-## same reason [CommandCodec] is separate from [Command]: a script that
-## `preload`s resources whose `script_class` is itself is a parse-time cycle.
-## If you see "Could not find type SpellDef" here, that is the cycle talking,
-## not a stale class cache.
+## Never `preload` the `.tres` from this script: a script that `preload`s a
+## resource whose `script_class` is itself is a parse-time cycle ("Could not
+## find type SpellCatalog" is the cycle talking, not a stale class cache).
 ##
-## Deliberately NOT an autoload registry either — a const list of authored
-## things with an id lookup over it. Adding a spell is one line here and one
-## `id` in its `.tres`. ([TempUpgradeCatalog] is an authored `.tres` reached
-## through an `@export` that scans a folder rather than listing by hand — the
-## inspector-composable shape this const list should grow into; #1026.)
+## Adding a spell: author its def under `attack/spell/defs/` with a unique
+## `id`, then append it to [member spells] in the `.tres`
+## (`test_spell_catalog.gd` fails until you do).
 
-const SPARK: SpellDef = preload("res://attack/spell/defs/spark.tres")
-const BRUISER: SpellDef = preload("res://attack/spell/defs/bruiser.tres")
-const RESONATOR: SpellDef = preload("res://attack/spell/defs/resonator.tres")
-const LEAFBLOWER: SpellDef = preload("res://attack/spell/defs/leafblower.tres")
-const REVERBERATOR: SpellDef = preload("res://attack/spell/defs/reverberator.tres")
-const HEALING_BEAM: SpellDef = preload("res://attack/spell/defs/healing_beam.tres")
-const TRAIL_BLAZER: SpellDef = preload("res://attack/spell/defs/trail_blazer.tres")
-const LIGHTNING_BOLT: SpellDef = preload("res://attack/spell/defs/lightning_bolt.tres")
-const CYCLONE: SpellDef = preload("res://attack/spell/defs/cyclone.tres")
-const DAZZLE: SpellDef = preload("res://attack/spell/defs/dazzle.tres")
-const REND: SpellDef = preload("res://attack/spell/defs/rend.tres")
-const VENOM_BURST: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
-const MALEDICTION: SpellDef = preload("res://attack/spell/defs/malediction.tres")
-const GLOOMFLUX: SpellDef = preload("res://attack/spell/defs/gloomflux.tres")
-const EAGLE_EYE: SpellDef = preload("res://attack/spell/defs/eagle_eye.tres")
-const GIRDLE: SpellDef = preload("res://attack/spell/defs/girdle.tres")
-const DEFILE: SpellDef = preload("res://attack/spell/defs/defile.tres")
-const MIASMA: SpellDef = preload("res://attack/spell/defs/miasma.tres")
-const PESTILENCE: SpellDef = preload("res://attack/spell/defs/pestilence.tres")
-const SCOUT_LINE: SpellDef = preload("res://attack/spell/defs/scout_line.tres")
-const REMEDY: SpellDef = preload("res://attack/spell/defs/remedy.tres")
-const PURIFICATION: SpellDef = preload("res://attack/spell/defs/purification.tres")
-const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres")
-const POCKET_SAND: SpellDef = preload("res://attack/spell/defs/pocket_sand.tres")
-const HELL_GNAW: SpellDef = preload("res://attack/spell/defs/hell_gnaw.tres")
-const FAULT_LINE: SpellDef = preload("res://attack/spell/defs/fault_line.tres")
-const LODESTONE: SpellDef = preload("res://attack/spell/defs/lodestone.tres")
-const ABSOLUTION: SpellDef = preload("res://attack/spell/defs/absolution.tres")
-
-## Every authored spell. Order is not a contract — [member SpellDef.id] is.
-const ALL: Array[SpellDef] = [
-	SPARK, BRUISER, RESONATOR, LEAFBLOWER,
-	REVERBERATOR, HEALING_BEAM, TRAIL_BLAZER, LIGHTNING_BOLT,
-	CYCLONE, DAZZLE, REND, VENOM_BURST, MALEDICTION, EAGLE_EYE,
-	GIRDLE, DEFILE, SCOUT_LINE, MIASMA, PESTILENCE, REMEDY, PURIFICATION,
-	FIRECRACKER, POCKET_SAND,
-	GLOOMFLUX, HELL_GNAW, FAULT_LINE, LODESTONE, ABSOLUTION,
-]
+## Every authored spell, in catalogue (UI) order. Order is not a wire
+## contract — [member SpellDef.id] is.
+@export var spells: Array[SpellDef] = []
 
 
 ## The authored def named by [param id], or null if there is none. Returns the
-## CONST resource itself, never a copy, so identity comparisons against
-## [constant ALL] entries (and against a plan's live `spell`) keep working.
-static func by_id(id: StringName) -> SpellDef:
+## shared resource itself, never a copy — the resource cache hands the same
+## instance to any `load()` of the def's path — so identity comparisons
+## against a plan's live `spell` keep working.
+func by_id(id: StringName) -> SpellDef:
 	if id == &"":
 		return null
-	for spell in ALL:
-		if spell.id == id:
+	for spell in spells:
+		if spell != null and spell.id == id:
 			return spell
 	return null

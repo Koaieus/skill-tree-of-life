@@ -81,7 +81,7 @@ func test_the_def_is_authored_and_catalogued() -> void:
 	assert_not_null(_def, "absolution.tres is authored")
 	if _def == null:
 		return
-	assert_eq(SpellCatalog.by_id(&"absolution"), _def, "registered in SpellCatalog")
+	assert_eq(TestSpells.CATALOG.by_id(&"absolution"), _def, "registered in SpellCatalog")
 	assert_true(_def.on_hit_effects.is_empty(), "no damage of its own")
 	assert_eq((_def.intakes[1].use as CleanseUse).effect, _template(), "both rows share one template")
 

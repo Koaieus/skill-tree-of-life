@@ -35,7 +35,7 @@ func before_each() -> void:
 		_graph.add_skill_node(node)
 		node.global_position = entry[1]
 		_nodes[entry[0]] = node
-	var band := (SpellCatalog.SCOUT_LINE.targeting as AimedTargeting).shape as LineShape
+	var band := (TestSpells.SCOUT_LINE.targeting as AimedTargeting).shape as LineShape
 	var outside := _nodes.outside as SkillNode
 	outside.global_position = Vector2(250, band.width + outside.radius + 1.0)
 	_graph.add_edge(_nodes.back, _nodes.core)
@@ -107,7 +107,7 @@ func _set_local(node: SkillNode, stat_id: StringName, value: float,
 
 func _launch(angle: float) -> void:
 	var plan := _bs.new_plan(BattleSystem.AttackMode.MAGIC, _attacker) as MagicAttackPlan
-	plan.set_spell(SpellCatalog.SCOUT_LINE)
+	plan.set_spell(TestSpells.SCOUT_LINE)
 	assert_true(plan.set_aim(_nodes.core, angle), "core is an eligible caster")
 	assert_eq(plan.validate(), [] as Array[String], "source + aim is a complete plan")
 	var command := _bs.build_launch_command(plan)
@@ -145,7 +145,7 @@ func test_vision_recompute_marks_the_crossed_nodes_scouted_fog_included() -> voi
 ## Ratio, not literal: doubling `cast_range_distance` on the source lengthens
 ## the crossed set along a long straight row.
 func test_doubled_cast_range_crosses_more_of_a_long_row() -> void:
-	var targeting := SpellCatalog.SCOUT_LINE.targeting as AimedTargeting
+	var targeting := TestSpells.SCOUT_LINE.targeting as AimedTargeting
 	var row: Array[SkillNode] = []
 	for i in range(1, 13):
 		var n := _SKILL_NODE_SCENE.instantiate() as SkillNode

@@ -159,7 +159,10 @@ func to_dict(graph: Graph) -> Dictionary:
 	return d
 
 
-static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
+## [param spell_catalog] resolves the spell id — the composing scene's, never a
+## loaded default; null rebuilds a plan with no spell.
+static func from_dict(d: Dictionary, graph: Graph,
+		spell_catalog: SpellCatalog = null) -> MagicAttackPlan:
 	var plan := MagicAttackPlan.new()
 	plan._read_base(d, graph)
 	# Assigned directly, not through set_spell(): that method clears a target
@@ -167,7 +170,8 @@ static func from_dict(d: Dictionary, graph: Graph) -> MagicAttackPlan:
 	# authority sent rather than re-adjudicate it. Order still matters — the
 	# spell lands before the target so no re-adjudication can run against a
 	# stale one.
-	plan.spell = SpellCatalog.by_id(StringName(d.get("spell", &"")))
+	plan.spell = spell_catalog.by_id(StringName(d.get("spell", &""))) \
+			if spell_catalog != null else null
 	# Read ungated (ADR 0035): the host's only check is affordability, via
 	# aspect_overrun at launch.
 	plan.infusion = Infusion.for_cast(plan.spell, d.get("infusion", {}) as Dictionary)

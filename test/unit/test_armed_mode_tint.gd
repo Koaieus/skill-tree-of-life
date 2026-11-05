@@ -52,6 +52,7 @@ func before_each() -> void:
 
 	_battle = autofree(BattleSystem.new())
 	_battle.temp_upgrade_catalog = _catalog
+	_battle.spell_catalog = TestSpells.CATALOG
 	_battle.graph = _graph
 	_battle.turn_manager = _tm
 	add_child(_battle)

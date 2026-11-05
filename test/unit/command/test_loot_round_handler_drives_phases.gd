@@ -53,7 +53,7 @@ func test_the_handler_lands_mod_then_spell_then_finish() -> void:
 	dust.candidates = [_mod(&"armor", 1.0), _mod(&"strength", 2.0)] as Array[StatModifier]
 	dust.weights = [1.0, 1.0] as Array[float]
 	dust.rounds = 1
-	dust.spell_candidates = [SpellCatalog.SPARK] as Array[SpellDef]
+	dust.spell_candidates = [TestSpells.SPARK] as Array[SpellDef]
 	relic.add_child(dust)
 
 	var registry := _AlwaysRemoteRegistry.new()
@@ -80,5 +80,5 @@ func test_the_handler_lands_mod_then_spell_then_finish() -> void:
 	assert_true(parked[1] is SpellLootRequest)
 	assert_true(registry.resolve_pick(parked[1].request_id, 0))
 
-	assert_eq(dust.calls, ["mod:%s" % picked_stat, "spell:%s" % SpellCatalog.SPARK.id, "finish"]
+	assert_eq(dust.calls, ["mod:%s" % picked_stat, "spell:%s" % TestSpells.SPARK.id, "finish"]
 			as Array[String], "mod -> spell -> finish, in order, through the addon's contract")

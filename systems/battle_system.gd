@@ -146,6 +146,10 @@ var is_launching := false
 ## offer. Optional: unwired, [method temp_upgrade_by_kind] answers null and
 ## [method temp_upgrade_kinds] is empty.
 @export var temp_upgrade_catalog: TempUpgradeCatalog
+## The authored spell list (`attack/spell/spell_catalog.tres`), wired by the
+## composing scene: the launch decode resolves a magic plan's spell id through
+## it. Unwired, a rebuilt magic plan has no spell.
+@export var spell_catalog: SpellCatalog
 
 
 ## The catalog scene whose kind (scene path) is [param kind] — the door for a
@@ -353,7 +357,7 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 		# Another seat's intent: plans are seat-local until launch (ADR 0035),
 		# so the plan — temp upgrades included — arrives only as the dict. Every
 		# refusal below frees what the decode attached to live nodes.
-		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
+		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog, spell_catalog)
 		if plan == null:
 			push_warning("BattleSystem: launch_attack initiate with an undecodable plan")
 			return false
@@ -401,7 +405,7 @@ func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	else:
 		# A replay decodes into the same local field and never touches the
 		# seat's armed plan: that is this seat's plan-in-progress, not the attacker's.
-		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog)
+		plan = AttackPlanCodec.from_dict(command.plan, graph, temp_upgrade_catalog, spell_catalog)
 		if plan == null:
 			return false
 		command.local_plan = plan

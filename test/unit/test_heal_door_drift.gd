@@ -4,7 +4,7 @@ extends GutTest
 ## heals must consult it [`healing_received`]" — so every write that RAISES
 ## the `health` or `node_health` pool goes through exactly one door per host:
 ## [method NodeCombat.heal_damage] and [method EntityCombat.heal]. The only
-## bypass is those doors' `raw` flag. Same shape as the `SpellCatalog.ALL`
+## bypass is those doors' `raw` flag. Same shape as the `TestSpells.CATALOG.spells`
 ## guard (#965) and the stat-def roster scan: a directory walk that names
 ## file:line, because a functional test cannot see the NEXT heal mechanic
 ## that slips past the stat.

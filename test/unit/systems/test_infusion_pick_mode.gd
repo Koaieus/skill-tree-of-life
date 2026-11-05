@@ -152,7 +152,7 @@ func test_a_graph_click_closes_the_chooser_and_falls_through() -> void:
 
 
 func test_a_launch_with_the_chooser_open_pops_it() -> void:
-	_ctl.armed_stack.select_spell(_ctl.player, SpellCatalog.SPARK)
+	_ctl.armed_stack.select_spell(_ctl.player, TestSpells.SPARK)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_true(_magic_level().set_target(_enemy), "precondition")
 	assert_true(_magic_level().toggle_socket(0), "precondition")

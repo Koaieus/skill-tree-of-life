@@ -42,14 +42,14 @@ func _pruned(ids: Array) -> SpellBook:
 	var book := SpellBook.new()
 	var spells: Array[SpellDef] = []
 	for id in ids:
-		spells.append(SpellCatalog.by_id(StringName(id)))
+		spells.append(TestSpells.CATALOG.by_id(StringName(id)))
 	book.spells = spells
 	return book
 
 
 ## Round-trip [param source]'s entity state onto [param target].
 func _cross(source: Graph, target: Graph) -> void:
-	EntitySnapshot.decode(EntitySnapshot.encode(source), target)
+	EntitySnapshot.decode(EntitySnapshot.encode(source), target, Callable(), TestSpells.CATALOG)
 
 
 func _ids_of(book: SpellBook) -> Array:
@@ -142,7 +142,7 @@ func test_the_rebuilt_book_holds_the_canonical_defs() -> void:
 
 	_cross(source, target)
 
-	assert_true(is_same(peer.spellbook.spells[0], SpellCatalog.LEAFBLOWER),
+	assert_true(is_same(peer.spellbook.spells[0], TestSpells.LEAFBLOWER),
 			"the very same object, because it came back through by_id")
 
 
@@ -157,7 +157,7 @@ func test_the_rebuilt_book_carries_no_sources() -> void:
 
 	_cross(source, target)
 
-	var spell := SpellCatalog.by_id(&"trail_blazer")
+	var spell := TestSpells.CATALOG.by_id(&"trail_blazer")
 	assert_eq(peer.spellbook.source_count(spell), 0, "no grant source behind a looted pool entry")
 	assert_eq(peer.spellbook.permanent_spells(null).size(), 1, "so it reads as innate")
 	assert_true(spell in peer.spellbook.permanent_spells(null), "and it is that spell")
@@ -177,7 +177,7 @@ func test_an_unknown_id_is_dropped_loudly() -> void:
 	row[EntitySnapshot._R_TIER] = 2
 	row[EntitySnapshot._R_SPELL_IDS] = [0, 1]
 
-	EntitySnapshot._decode_identity(peer, row, [] as Array, ["bruiser", "no_such_spell"] as Array)
+	EntitySnapshot._decode_identity(peer, row, [] as Array, ["bruiser", "no_such_spell"] as Array, TestSpells.CATALOG)
 
 	assert_eq(_ids_of(peer.spellbook), ["bruiser"], "the known id survived, the unknown one did not")
 
@@ -196,7 +196,7 @@ func test_an_out_of_range_intern_slot_is_dropped() -> void:
 	row[EntitySnapshot._R_TIER] = 2
 	row[EntitySnapshot._R_SPELL_IDS] = [0, 7]
 
-	EntitySnapshot._decode_identity(peer, row, [] as Array, ["cyclone"] as Array)
+	EntitySnapshot._decode_identity(peer, row, [] as Array, ["cyclone"] as Array, TestSpells.CATALOG)
 
 	assert_eq(_ids_of(peer.spellbook), ["cyclone"], "the in-range slot survived, the other did not")
 
@@ -218,14 +218,14 @@ func test_an_agreeing_membership_keeps_its_grant_sources() -> void:
 	# spell arrives WITH a source behind it — which is the whole subject here.
 	var peer := _entity_with(target, SpellBook.new(), host.entity_id)
 	var granting_node: SkillNode = autofree(SkillNode.new())
-	peer.spellbook.add_spell(SpellCatalog.RESONATOR, granting_node)
+	peer.spellbook.add_spell(TestSpells.RESONATOR, granting_node)
 	assert_eq(_ids_of(peer.spellbook), ["resonator"], "sanity: it already agrees with the row")
 	var before := peer.spellbook
 
 	_cross(source, target)
 
 	assert_true(is_same(peer.spellbook, before), "the very same book object")
-	assert_eq(peer.spellbook.source_count(SpellCatalog.RESONATOR), 1,
+	assert_eq(peer.spellbook.source_count(TestSpells.RESONATOR), 1,
 			"and the node behind that spell is still recorded")
 
 
@@ -239,9 +239,9 @@ func test_decoding_twice_rebuilds_once() -> void:
 	var peer := _entity_with(target, _AUTHORED, host.entity_id)
 
 	var bytes := EntitySnapshot.encode(source)
-	EntitySnapshot.decode(bytes, target)
+	EntitySnapshot.decode(bytes, target, Callable(), TestSpells.CATALOG)
 	var after_first := peer.spellbook
-	EntitySnapshot.decode(bytes, target)
+	EntitySnapshot.decode(bytes, target, Callable(), TestSpells.CATALOG)
 
 	assert_true(is_same(peer.spellbook, after_first), "the second pass rebuilt nothing")
 	assert_eq(_ids_of(peer.spellbook), ["bruiser", "cyclone"], "and the membership is the host's")

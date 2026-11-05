@@ -73,6 +73,7 @@ func before_each() -> void:
 
 	_bs = autofree(BattleSystem.new())
 	_bs.temp_upgrade_catalog = preload("res://attack/melee/temp_upgrade_catalog.tres")
+	_bs.spell_catalog = TestSpells.CATALOG
 	_bs.turn_manager = _tm
 	_bs.allocation_system = _alloc
 	_bs.graph = _graph
@@ -84,6 +85,7 @@ func before_each() -> void:
 	_applier.allocation_system = _alloc
 	_applier.battle_system = _bs
 	_applier.turn_manager = _tm
+	_applier.spell_catalog = TestSpells.CATALOG
 	add_child_autofree(_applier)
 
 	# The system under test on the loot side. Wired the way game_root.tscn's

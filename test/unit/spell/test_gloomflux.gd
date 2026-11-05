@@ -116,6 +116,6 @@ func test_the_live_replay_lands_the_shadow_rows() -> void:
 
 
 func test_gloomflux_is_catalogued_and_listed_on_curse() -> void:
-	assert_eq(SpellCatalog.by_id(&"gloomflux"), GLOOMFLUX)
+	assert_eq(TestSpells.CATALOG.by_id(&"gloomflux"), GLOOMFLUX)
 	var curse_aspect: Aspect = load("res://aspects/defs/curse.tres")
 	assert_true(curse_aspect.spells.has(GLOOMFLUX), "Curse's spells list Gloomflux")
