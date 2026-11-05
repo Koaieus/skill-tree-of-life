@@ -153,7 +153,7 @@ func _bind_radar_and_rows(entity: Entity) -> void:
 			continue
 		var row := _STAT_VALUE_ROW_SCENE.instantiate() as StatValueRow
 		_rows.add_child(row)
-		row.bind_scalar(def, values[i])
+		row.bind_scalar(def, values[i], board != null and board.is_stat_volatile(_ATTRIBUTE_IDS[i]))
 		_row_setters.append(row.set_progress)
 
 
