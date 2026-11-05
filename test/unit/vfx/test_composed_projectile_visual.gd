@@ -6,7 +6,6 @@ extends GutTest
 ## `visual_scene` slot only takes ONE scene per verb, so this is what makes
 ## "body + ring" composable at all.
 
-const COMPOSED := preload("res://ui/vfx/projectile/visual/composed_projectile_visual.gd")
 const STUB_CONTEXT_VISUAL := preload("res://test/unit/vfx/stub_context_visual.tscn")
 const BOLT_SMALL := preload("res://ui/vfx/projectile/visual/bolt_small.tscn")
 const IMPACT_RING := preload("res://ui/vfx/projectile/visual/impact_ring.tscn")

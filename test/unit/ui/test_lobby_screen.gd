@@ -11,7 +11,6 @@ extends GutTest
 ## than being the whole list.
 
 const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
-const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
 
 ## #741: every test in this file may touch [member GameSettings.player_name]
 ## through the roster it builds or a row it commits — isolated exactly like

@@ -8,7 +8,6 @@ extends GutTest
 ## consumption) live in test_stat_draw.gd alongside the rest of the draw.
 
 const _GP := preload("res://procgen/graph_procgen.gd")
-const _MPE := preload("res://procgen/pools/modifier_pool_entry.gd")
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:

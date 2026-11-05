@@ -168,7 +168,6 @@ func test_self_loop_slot_is_deliberately_unfilled() -> void:
 
 # -- #708: drawing the curl ------------------------------------------------
 
-const _CYCLONE_DEF_708 := preload("res://attack/spell/defs/cyclone.tres")
 
 
 func _event(preds: Array, shares: Array, turn: float = 1.0) -> PropagationEvent:

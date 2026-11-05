@@ -11,7 +11,6 @@ extends GutTest
 
 const _BODY := preload("res://ui/spell_catalogue/spell_catalogue_body.tscn")
 const _MODAL := preload("res://ui/spell_catalogue/spell_catalogue_modal.tscn")
-const _PANEL := preload("res://ui/spell_catalogue/spell_catalogue_panel.tscn")
 const _PAUSE_MENU := preload("res://ui/pause_menu.tscn")
 const _HUD_ROOT := preload("res://ui/hud/hud_root.tscn")
 const _FRONTMATTER_PANELS := preload("res://ui/frontmatter/panels/frontmatter_panels.tscn")
