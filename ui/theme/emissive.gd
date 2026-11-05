@@ -91,6 +91,40 @@ static func at(base: Color, stops: float) -> Color:
 	return lin.linear_to_srgb()
 
 
+## The HDR lift for RAW-UPLOAD paths — a `MultiMesh` instance colour, anything a
+## shader reads straight into `COLOR` — the non-`linear_to_srgb` sibling of
+## [method at]. Alpha is untouched. Used by `Edge` and `MenuEdgeView`.
+##
+## Two reasons, both load-bearing:
+##
+## 1. NOT [method at]. Its final `linear_to_srgb()` exists so a
+##    `source_color`-hinted shader uniform round-trips through Godot's
+##    auto-decode. `MultiMesh.set_instance_color` carries no such hint: the value
+##    is uploaded raw, so re-encoding compresses the intended overshoot (sRGB's
+##    curve is sub-linear even past 1.0) and `glow_hdr_threshold`'s 1.0 cutoff
+##    barely triggers (confirmed empirically: up to 6 stops produced no bloom).
+## 2. The boost is relative to the colour's OWN floor (`min(r, g, b)`), not a flat
+##    multiply. A flat factor keeps the channel ratio, so at high stops the weak
+##    channels clip alongside the dominant one and the line reads flat white.
+##    Boosting only each channel's rise above the floor by `2^chroma_stops` blows
+##    just the dominant channel(s) past 1.0 — saturated colour, white-hot only
+##    where the floor was already high. The floor itself takes the small FIXED
+##    lift `2^VALUE`, so an achromatic base (zero chroma) still reads "on".
+##
+## Provenance: #413's opengl3 `dev_bloom_sandbox` screenshots, where the flat
+## multiply and the `at()` version both failed (white edges / no bloom).
+static func raw_lift(c: Color, chroma_stops: float) -> Color:
+	var chroma_boost := pow(2.0, chroma_stops)
+	var floor_v: float = minf(c.r, minf(c.g, c.b))
+	var lifted_floor := floor_v * pow(2.0, VALUE)
+	return Color(
+		lifted_floor + (c.r - floor_v) * chroma_boost,
+		lifted_floor + (c.g - floor_v) * chroma_boost,
+		lifted_floor + (c.b - floor_v) * chroma_boost,
+		c.a,
+	)
+
+
 ## `at()` against the neutral off-white, for content with no identity colour.
 static func neutral(stops: float) -> Color:
 	return at(NEUTRAL, stops)

@@ -193,38 +193,10 @@ func endpoint_color(base: Color) -> Color:
 	return c
 
 
-## The HDR lift a lit edge carries, baked into rgb because a [MultiMesh]
-## instance has no `self_modulate` to carry it separately.
-##
-## Applied relative to the colour's OWN grey floor rather than to the raw
-## channels — the reasoning is `Edge._display_color_lifted`'s and is worth not
-## re-deriving: scaling all three channels by one factor keeps their ratio, so
-## at any real number of stops the weak channels cross the display's clip
-## threshold alongside the dominant one and the line reads as flat white with
-## the hue gone. Lifting only each channel's rise above the floor blows just the
-## dominant one past 1.0, so the edge reads as saturated colour with white-hot
-## highlights.
-##
-## The floor itself still takes a small fixed lift, because an achromatic base
-## has no chroma to boost and would otherwise render pixel-identical to its
-## unlit sibling.
-##
-## Deliberately NOT [method Emissive.at]: that helper's final `linear_to_srgb()`
-## exists so a `source_color`-hinted shader uniform round-trips through Godot's
-## auto-decode. `MultiMesh.set_instance_color` carries no such hint — the value
-## is uploaded raw and read straight into `COLOR` — so re-encoding here would
-## compress the intended overshoot before the glow pass ever saw it.
+## The HDR lift a lit edge carries, baked into rgb (a [MultiMesh] instance has no
+## `self_modulate`). The algorithm and its reasoning: [method Emissive.raw_lift].
 func _lifted(c: Color) -> Color:
-	var chroma_boost := pow(2.0, lit_glow_stops)
-	var floor_boost := pow(2.0, Emissive.VALUE)
-	var floor_v: float = minf(c.r, minf(c.g, c.b))
-	var lifted_floor: float = floor_v * floor_boost
-	return Color(
-		lifted_floor + (c.r - floor_v) * chroma_boost,
-		lifted_floor + (c.g - floor_v) * chroma_boost,
-		lifted_floor + (c.b - floor_v) * chroma_boost,
-		c.a,
-	)
+	return Emissive.raw_lift(c, lit_glow_stops)
 
 
 ## [member curve_segments] unit [QuadMesh] instances, (re)sized on demand so a
