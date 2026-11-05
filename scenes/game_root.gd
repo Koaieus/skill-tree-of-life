@@ -15,8 +15,6 @@ extends Node2D
 ## allocates a core if given. The hand-authored dev_sandbox `%Player` skips
 ## this path; that's fine, `%Player` lookup ignores parent.
 
-const _DEFAULT_BOARD := preload("res://entity/default_entity_board.tres")
-
 ## Where a finished run routes (#460). A path, not a preload: the meta-shell
 ## pulls in the whole menu tree, and SceneDirector loads threaded anyway.
 const META_ROOT := "res://scenes/meta/meta_root.tscn"

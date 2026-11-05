@@ -1,8 +1,6 @@
 class_name PlayerInputController
 extends Node
 
-const ZLayers = preload("res://ui/z_layers.gd")
-
 ## Routes player input (skill-node clicks + UI intent) on behalf of a single
 ## Player entity. There are no turn phases — intent is disambiguated by INPUT
 ## CHANNEL, and each channel is gated only by "is it this player's turn?" plus
