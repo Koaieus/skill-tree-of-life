@@ -39,23 +39,41 @@ at. Owner: *"that table looks very good, should be persisted"*.
 
 | Element | Count (entity) | Medium — terrain, side-less, gives reach | Mover — sided, hurts, spreads | State — derived, no count of its own |
 |---|---|---|---|---|
-| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | none in v1; *Burning* parked |
-| Ice | `ice` | **Frost** (what a pack sheds; #1444's resting stacks) | **Frostbite** (#1444's inward pack; the working name *Hypothermia* retires) | **Frozen** = Frost at or above a threshold; the "timer" is Frost decaying back under it |
+| Fire | `fire` | **Fuel** (a volatile node) | **Heat** (the Metropolis diffusion locked in #1660 round 2) | **Burning** = Heat ≥ T (derived, no count; T as Frozen's); its effect is parked |
+| Ice | `ice` | **Cold** (what a pack sheds; #1444's resting stacks; was *Frost* — owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*; Cold below the threshold still drags blades, #1444) | **Frostbite** (#1444's inward pack; the working name *Hypothermia* retires) | **Frozen** = Cold at or above a threshold; the "timer" is Cold decaying back under it |
 | Lightning | `lightning` | **Charge** | none in v1 | none in v1; *Shocked* parked |
 
 - **The count never ticks on anyone.** Only movers deal damage, and a mover is
   an ordinary sided status that clears with its owner like Poison does.
 - **The medium is terrain.** It rests on a node regardless of owner, survives
   kills, retakes and deallocs, and leaves by being *spent* (a blast spends
-  Fuel, an arc spends Charge, a thaw spends Frost), by its own decay (per-def,
-  ADR 0048; Frozen's "timer") or by a cleanse. A death *spends*: the #1660
+  Fuel, an arc spends Charge, a thaw spends Cold), by its own decay (per-def,
+  ADR 0048; Frozen's "timer") or by a cleanse. **Cold also flows**, by Heat's
+  own Metropolis rule (#1660 round 2: `floor((c_i − c_j) / (max(d_i, d_j) + 1))`
+  per edge, one snapshot, integer dead band). Owner, 2026-11-05, on a capped
+  wall beside bare neighbours: *"something doesn't quite feel right of a 100
+  Cold node with neighbors of 0 Cold … just sits there as if perfectly
+  isolated"*, then *"option 1!"*. 12 Cold on a degree-3 node beside three 0s
+  settles at 6 / 2 / 2 / 2 and stops: the wall stays Frozen (T 4) and a fringe
+  forms around it — #1444's channels for free. Unlike Heat, Cold that flows
+  onto an unallocated node rests there (cold ground) instead of being deleted;
+  Fuel and Charge stay put. A death *spends*: the #1660
   owner call that a death blasts first is a spend, not a clear. The
   readability test: *if nobody owned this node, would it still make sense for
   this to be here?* Fuel on an empty node, yes; Poison on an empty node, no.
   Build note: today's `on_dealloc` has CLEAR and LINGER and a death clears
   both; a medium needs a shape that survives death too — a seam for spec time.
 - **A state has no count.** It is a threshold on its medium; it does things
-  (Frozen blocks travel, #1444) but holds no stacks.
+  (Frozen blocks travel, #1444) but holds no stacks. It is derived at every
+  read, never saved: Frozen re-forms whenever Cold is back at or above T
+  (owner, 2026-11-05: *"Yes, pure threshold"*).
+- **A medium is capped per node at k × T**, T = graph degree + 1, k a knob
+  (pass number: 3, so a degree-3 node holds at most 12 Cold, Fuel or Charge;
+  surplus planted beyond the cap is wasted). Owner, 2026-11-05, asked whether
+  a 100-Cold wall should be nigh impossible to remove: *"option 1 sounds
+  good"* (the cap) over proportional decay alone. One rule bounds a Cold
+  wall's depth (a wall is at most k breaks deep), a Fuel blast's radius and a
+  Charge node's leaps — the medium-magnitude fork of #1733 round 3.
 - **Start with one state and no lightning mover** (owner, 2026-11-04: *"Fun
   but maybe start with just the 1"*). Parked: Shocked as Lightning's derived
   state, Burning as Fire's (owner: *"Shocked might be the derived status for
@@ -101,7 +119,7 @@ paired lead), only a melee blast and riding landings copy. #1741's owner line
 also fixes an order inside a hit — *"elemental riders first … then other
 status(es), then damage(s)"* — which § Landing resolution must keep.
 
-An element status (Fuel, Heat, Frost, Frostbite, Charge) rides exactly as
+An element status (Fuel, Heat, Cold, Frostbite, Charge) rides exactly as
 Poison rides; it differs only in which count caps it. Owner, on the hit's
 three entry kinds with one rider map: held, conditional on aspects being 1:1
 (*"depends on the status cardinality maybe"*), which the section above
@@ -109,7 +127,7 @@ settles. There is no fourth entry: anything new is a number that lands
 (payload) or a rule about where it lands (reach).
 
 **Which element statuses ride.** Every counted role — medium and mover — can
-be a rider row (a goo arrow plants Fuel, an ice spell plants Frost on the
+be a rider row (a goo arrow plants Fuel, an ice spell plants Cold on the
 chokepoint, a hot arrow plants Heat); a state never rides, it has no count.
 Owner, 2026-11-04: *"if fuel is to be a fire status.. and option 2 says
 `fire:heat` at exactly one then how could a fuel-planting arrow exist? it
@@ -161,11 +179,19 @@ Firecracker's fuel row already carries a `use` (`attack/spell/load_use/`).
 **A hit's reach is set by the element it carries plus the element resting on
 the node it lands on. Its payload is copied to every node reached at one
 share. A medium that gives reach is spent by the reach it gives; the hit's
-own load is not.** Frost gives no reach, so a hit spends none of it: Frost
-is spent only by its counters (a thaw, a shatter, the Frostbite toll of
-#1444). That asymmetry is the point — a frozen chokepoint holds against every
-arc and blast that lands on it — the freezer's own included, Frost is
-side-less — and costs its owner nothing else until Heat or a blade arrives.
+own load is not.** Cold gives no reach; it **absorbs** it. Owner,
+2026-11-05, on a +20 Fire & Charge hit onto a leaf holding 2 Cold: *"cancels
+sounds good but also possibly OP … if it just goes "poof" yeah idk if that's
+right"*, then held: **Cold absorbs arriving reach one for one and is spent
+doing so.** At read, each Cold stack on the landing node swallows one unit
+of reach (one radius step, one arc) from every source present — the hit's
+load, the node's own Fuel or Charge, an arriving arc — and melts. +20 onto 2
+Cold: 18 goes out and the node thaws; +20 onto 30 Cold: nothing goes out,
+10 Cold is left. A wall holds exactly as deep as it is, and late counts
+(20–50) make deep walls. The load pays in reach, so a thaw by load is no
+longer free; a go-off whose reach is swallowed still spends its one stack
+(it went off, into the ice). Cold is side-less, so the freezer's own reach
+is eaten too. What Frozen adds on top of absorption — the glass ceiling — is § Pair rules.
 
 The owner's atomics (2026-11-04), each a tiny unit of play the rule must
 produce:
@@ -184,7 +210,7 @@ produce:
 
 What falls out: the reach entry reads the same for an arrow, a blade vertex
 and a spell hit. **Planting** a medium (a goo arrow laying Fuel, an ice spell
-laying Frost on a chokepoint — the player control #1716 asks for) is a `ride`
+laying Cold on a chokepoint — the player control #1716 asks for) is a `ride`
 row like any rider. The shipped rule stays: a hit that plants a medium does
 not trip it.
 
@@ -245,9 +271,9 @@ near the measured ratio of the hop it removes. Surplus Ice beyond the spell's
 hops is wasted; a 0-hop spell has nothing to trade. Open: the knob's shape
 (one number per spell vs the measured ladder).
 
-## Landing resolution (pass proposal, 2026-11-04)
+## Landing resolution (owner, 2026-11-05; ADR 0074)
 
-Three phases per landing. Read and settle are pure functions of one
+Owner, 2026-11-05, on the three phases below: *"hold it"*. Three phases per landing. Read and settle are pure functions of one
 snapshot (#1733 R4); *inside* land the shipped order stands — riders before
 their hit (ADR 0067) and the owner's #1741 order, element riders, then other
 statuses, then damage — so a Curse arrow still lifts its own hit. What the
@@ -258,21 +284,27 @@ phases forbid is a rider *reacting* mid-land, not an order:
 2. **Land.** Damage and every rider are added, aspect and element statuses
    alike. Nothing reacts during land.
 3. **Settle.** One pure function of the node as it now stands: the Heat ×
-   Frost netting, the mediums the read phase charged are spent, and the copies go
+   Cold netting, the mediums the read phase charged are spent, and the copies go
    out to the reached nodes — each running its own read, land, settle under
    the once-per-node-per-attack cap.
 
-A hit carrying +1 Heat onto a 5-Frost node is read against 5, lands, and
+A hit carrying +1 Heat onto a 5-Cold node is read against 5, lands, and
 leaves 4: it thaws for the *next* hit, never for itself. The same settle runs
 after every world-turn tick, which is how #1660 already framed ignition.
 
 **Dual reach** resolves by the read phase alone. A node holding both Charge
 and Fuel, or a fire-loaded hit on a charged node: every reach source present
 at read time fires, each spends its own medium, the hit's load spends
-nothing; a node inside the disc that an arc also reaches takes one copy per
-reach (R3). An Ice-loaded cast landing on a charged node has no reach entry
-at landing (Ice was spent on the spell's hops at cast time), so Charge arcs
-as it always does.
+nothing. Each source gathers its own target list and the lists are
+**concatenated, not deduplicated**: a node inside the disc that an arc also
+reaches takes one copy per reach. Owner, 2026-11-05: *"the double counting
+might be a feature! tentative option 2, where union is kept as an easily
+switched to option if we change our minds. after all it's just a "do you
+dedupe the list or not" after gathering each reach medium's additional
+targets"*. Tentative: the dedupe is one switch at the gather step, so the
+build keeps it as a knob rather than a structure. An Ice-loaded cast landing
+on a charged node has no reach entry at landing (Ice was spent on the spell's
+hops at cast time), so Charge arcs as it always does.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -291,7 +323,7 @@ and each attack mode is born with one. An element lets any mode borrow it
 | Mode | School | Native reach | Element | What the element does to a hit |
 |---|---|---|---|---|
 | Melee | STR | **disc** — a blade sweeps a hurtbox | Fire | replicate into a disc |
-| Ranged | DEX | **point** — a target is 0-dimensional | Ice | concentrate: a cast trades hops for seed payload; on the board, a hit lands on a Frozen node and never leaves it (an arc grounds, a blast sinks, a hop walk ends). A blade is the one hit that answers back: contact shatters (#1444), so melee meets Ice in the counters, not in the reach |
+| Ranged | DEX | **point** — a target is 0-dimensional | Ice | concentrate: a cast trades hops for seed payload; on the board, Cold eats reach one for one and a Frozen node holds whole against any reach under its threshold (§ The reach rule, § Pair rules). A blade is the one hit that answers back: contact shatters (#1444), so melee meets Ice in the counters, not in the reach |
 | Magic | INT | **path** — projectiles are graph automata over edges | Lightning | conduct along edges |
 
 Ice reads as ranged's nature turned into terrain: the kiter's gift is
@@ -314,31 +346,77 @@ feature on it's own"*.
 Rows are what rests on the node, columns what arrives. A cell is one verb,
 and a blank cell means *nothing special*: the hit lands and the medium sits.
 
-| On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Frost rider | a Frostbite pack | a blade |
+| On the node ↓ / arriving → | a Fire-loaded hit | a Lightning-loaded hit | an arc landing | a Heat rider or diffusion | a Cold rider | a Frostbite pack | a blade |
 |---|---|---|---|---|---|---|---|
-| **Fuel** | blast, radius from Fuel plus load | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Frost copied into the disc | — | blast on contact (#1660 R2) |
-| **Charge** | arcs from Charge, then the blast | arcs from Charge plus load, Charge absorbed (#1733) | arcs | arcs if a rider, nothing if diffusion | arcs, Frost copied along | — | arcs |
-| **Frost under T** | lands, **no thaw** (a load is unspent, so a thaw by load would be free) | arcs from load | chain continues | nets: thaw | adds | pays the toll: Frost sheds first (#1444) | drags (#1444) |
-| **Frozen** | lands, load inert | lands, load inert | grounds: lands, chain ends, no Frost spent | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
+| **Fuel** | blast, radius from Fuel plus load | arcs from load, then blast | blast — an arc is a landing | ignition (#1696), spends min(heat, fuel) | blast, Cold copied into the disc | — | blast on contact (#1660 R2) |
+| **Charge** | arcs from Charge, then the blast | arcs from Charge plus load, Charge absorbed (#1733) | arcs | arcs if a rider, nothing if diffusion | arcs, Cold copied along | — | arcs |
+| **Cold under T** | absorbs: each Cold stack eats one radius step and melts; the rest goes out | absorbs: each stack eats one arc and melts | lands; the copy's onward reach is absorbed the same way | nets: thaw | adds | pays the toll: Cold sheds first (#1444) | drags (#1444) |
+| **Frozen** (Cold ≥ T, T = graph degree + 1) | reach < T: the glass holds, reach lost, no Cold spent; reach ≥ T: breaks, then absorbs 1:1 | same | same; an arc into a Frozen node grounds (mirror idea parked, § Open) | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
 
-What the table enforces: **a hit's element load sets reach and never counts
-as a counter**; the counters are movers and contacts (Heat thaws, a blade
-shatters, an arc sparks), so an Ice chokepoint is answered with content,
-never with a stat. A Frost arrow onto a charged or fuelled node spreads Frost
-along the arcs or into the disc — Lightning carrying Ice is a feature that
-needs no rule of its own.
+**Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
+and kept exactly these): *cold passage* — a Frostbite pack crossing it pays no
+shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
+*brittle* — a blade contact **shatters one pane**: it removes T Cold (owner,
+2026-11-05: *"melee shatter could be a similar "remove T" even?"*, picked over
+spending all) and turns the T removed into damage — owner: *"does something
+with the count removed to enhance damage, something that works for most
+situations (low or hi max hp? maybe %dmg like corruption stack triggers?) …
+shattering smth frozen with a melee attack is often a juicy crit (or make it
+crit?!? [add +1 crit level])"*; pass lean: the shattering contact gains +1
+crit tier (the double-crit curve, #197) and no separate damage number, so it
+scales with the blade and never one-shots a defensive freeze. The list is open to more small
+costs of that grain (owner: *"possibly we find more small things like what
+Cold passage to add later"*) and your own spells walk less far through it.
+Rejected: a Frozen node unable to launch attacks, and suspending its stat
+contributions. A planting
+hit onto a Frozen node is unaffected: a goo arrow carries no reach, its Fuel
+lands in full and rests under the ice as an inert keg; the keg's own go-off
+at a later landing is a reach, and the glass holds it like any other (owner's
+question, 2026-11-05: *"fuel arrows first in a volley: those don't count as
+reach or do they? (being inert still)"* — they do not).
 
-## Cancellation: one pair (owner, 2026-11-04)
+What the table enforces: **Cold is anti-reach, priced in reach.** A load
+never thaws for free — it pays one unit of reach per Cold stack it melts —
+and the other counters are movers and contacts (Heat thaws, a blade
+shatters), so an Ice chokepoint is answered with content or with a bigger
+hit, never with a stat. **Frozen is a glass ceiling** (owner, 2026-11-05:
+*"maybe the "frozen" state sets some kind of glass ceiling for what it
+absorbs, which needs to be broken, so it blocks insufficient counts? like
+degree-3 node freezes at 4 stacks … then needs a 3~4 reach to break?"*):
+T is `graph degree + 1`, so a leaf freezes at 2 and a hub is hard to freeze;
+an arriving reach under T is lost whole and melts nothing (owner: *"Glass
+holds"*), one at or above T breaks the glass and is then absorbed one for one
+(owner picked this over "breaks and passes whole"). Reflecting a sub-T reach
+back at the attacker was rejected (owner: *"reflect: too powerful, esp being
+as cheap as 2 Cold on a leaf node"*). A reach unit is one radius step, one
+arc or one remaining hop, so a spell walk reads the same: its remaining hops
+are the reach it brings. A Cold arrow onto a charged or fuelled node spreads
+Cold along the arcs or into the disc — Lightning carrying Ice is a feature
+that needs no rule of its own.
 
-Exactly one pair nets: **Heat against Frost**, both losing `min(heat,
-frost)` in every settle, order independent; Frozen ends when Frost drops
-under its threshold. Everything else coexists. A load never thaws (unspent,
-so it would be free). Fuel and Frost coexist: a frozen keg nobody can set
-off until it is thawed. Movers never fight movers — owner: *"Heat & Cold
-don't make sense together. frostBITE is an ailment"* — so Heat never touches
-a Frostbite pack. Charge has no opposite; Frozen grounds an arc without
-spending Frost. Rejected: Fuel damped by Frost (terrain fighting terrain with
-nobody acting).
+## Temperature: Heat and Cold are one flow (owner, 2026-11-04/05)
+
+Exactly one pair nets: **Heat against Cold**. Owner, 2026-11-05, on whether
+the two enter one formula literally: *"option 1, 100%. hell yeah"*. Each
+world turn every node has a signed temperature `t = heat − cold`; the
+Metropolis rule of #1660 round 2 runs on `t` from one snapshot, and the
+result is written back as Heat where positive and Cold where negative. A hot
+node beside a frozen one exchanges along the edge and cancels on both sides,
+so the netting is the diffusion itself; the per-landing `min(heat, cold)` at
+settle is the same rule applied to a rider. Sinks stay per member: positive
+flow onto unallocated ground is deleted (Heat dies out, #1660), negative
+rests (cold ground). Frozen ends when Cold drops under T; **Burning** is its
+mirror — Heat ≥ T, same T, derived, never saved — with its *effect parked*
+(owner, 2026-11-05: *"keeping door open to add a bespoke twist or tweaked T
+value later for Burn. or extinguish mechanics. and park effect for now"*).
+
+Everything else coexists. A load never thaws for free (it pays in reach,
+§ The reach rule). Fuel and Cold coexist: a frozen keg nobody can set off
+until it is thawed or cracked. Movers never fight movers — owner,
+2026-11-04: *"Heat & Cold don't make sense together. frostBITE is an
+ailment"* — so Heat never touches a Frostbite pack. Charge has no opposite;
+a reach into Cold is absorbed, not netted. Rejected: Fuel damped by Cold
+(terrain fighting terrain with nobody acting).
 
 ## Three things wear the word "explosive" (pass clarification, 2026-11-04)
 
@@ -364,7 +442,7 @@ are read at every landing. Ice reaches by *removing* copies, and the only
 copies that exist to remove are the cast's own walk, so it is read once,
 from the cast — at the seed landing's read phase (`hops_remaining`), so the
 three phases still hold. An arrow or a blade has no walk, so an Ice reach row
-on it does nothing; their Ice faces are Frost ride rows. Anti-reach, not an
+on it does nothing; their Ice faces are Cold ride rows. Anti-reach, not an
 exception.
 
 ## Vocabulary guard (owner, 2026-11-04: *"stay mindful of concepts drifting"*)
@@ -381,6 +459,7 @@ can carry, so the words are pinned here and in the matrix Glossary:
 | **Element on a hit** | The reach entry: sets reach, plants nothing | a rider |
 | **Use** | What an intake row's load buys: ride, reach or shape | a slot |
 | **Medium / Mover / State** | The three roles in an element's status family (table above) | "the fire status" |
+| **Member** | A status of an element, whatever its role: Fuel and Heat are members of Fire; an Element Matrix row is a member row; a member keys its own facets (`fuel_resistance`) (owner, 2026-11-05: *"member"*) | a facet (arrow / blade / spell) or a role |
 | **Fire / Heat / Burn** | The element (count and reach) / its mover status / at most the word for Heat ticking | three things a hit can carry |
 
 ## Acquisition (owner sketches, 2026-11-03/04; nothing picked)
@@ -409,13 +488,28 @@ here.
   and **a stock cap per element ammo type** (owner: *"storing 1000 heat arrows
   sounds like bad juju"*) — the `Quiver` already caps per type
   (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
-  own lower cap; whether that cap is a knob or a stat is open. **A name for
-  "a status of an element"** is wanted (owner): pass proposal *member* —
-  Fuel is a member of Fire, an Element Matrix row is a member row; *facet*
-  (arrow / blade / spell) and *role* (medium / mover / state) stay what they
-  are.
-- **Landing resolution** (read / land / settle, above) and dual reach are
-  pass proposals still awaiting the owner; they go to an ADR only once held.
+  own lower cap; whether that cap is a knob or a stat is open.
+- **Play-situation review, 2026-11-05** (four Sonnet lenses, rated by each
+  other; full text in `docs/handoffs/elements-play-situations.md`; the owner
+  has *not* judged them yet). The consensus top items, each wanting an owner
+  call: (1) a Fire-loaded hit landing on a Fuel node — one blast or two, and
+  the radius from the node's Fuel (#1660 r2: *"is the node's fuel"*) or Fuel
+  plus load; whether same-element sources merge before the dual-reach
+  concatenation; (2) a settle after a world-turn tick (ignition, thaw, death)
+  has no parent hit: what the copies carry (#1733 r2 named exception: Fuel
+  spent × `damage_per_charge`, no riders), who the attacker is, no crit, and
+  a host-minted record received by peers (ADR 0002), never reproduced; (3) a
+  concentrated Ice seed copied through a Fuel or Charge node makes Ice the
+  best amplifier — copies should carry the pre-concentration payload or a
+  concentrated landing gives no reach; (4) a medium ride row on a copy
+  replants what the go-off spent, a self-refilling wire — copies carry
+  damage and aspect riders, never medium riders (pass lean); (5) "a
+  planting hit never trips its medium" vs "read sees the pre-hit node": scope
+  the exemption to the medium the hit itself plants, at its own landing;
+  (6) copies' target mask (the shipped bolt filters to hostile) and
+  `stacks_per_hit` folding on copies (R2 forbids a reach multiplier: copies
+  land raw, pass lean); (7) the arc pick "ties included" makes Charge 1 hit
+  four tied neighbours — ties split or a visible third key.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
@@ -440,6 +534,11 @@ here.
   rider with an AFTER copy of the same id — coalescing is still #1741's open
   NOTE, not an owner call; (i) the chain cap is per wave in code and R3, the
   doc says per attack.
+- **Arc mirror** (owner idea, 2026-11-05, parked): *"maybe when a nb tries
+  to emit a lightning reach it reflects it? maybe not"* — an arc aimed at a
+  Frozen node bouncing back onto its emitter instead of grounding. Decide at
+  Lightning's spec once the pick rule exists (a Frozen + Charged node is
+  already the top pick, so this would make it a trap).
 - **Ice pricing knob**: one number per spell vs the measured ladder, above.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
