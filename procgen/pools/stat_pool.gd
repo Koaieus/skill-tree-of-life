@@ -246,36 +246,12 @@ func valence_tag() -> String:
 func _effective_floor() -> float:
 	return unit_value if is_inf(range_floor) else range_floor
 
-## One (lo, hi) magnitude pair per tier in `min_tier..max_tier` — the shared
-## computation behind [method to_entries], [method format_table], and
-## [method _get_configuration_warnings]. "Magnitude" = pre-"+1" excess for
-## MULTIPLY pools, raw value otherwise (the transform is applied by callers,
-## same split [method to_entries] always used for `unit_value`). Single
-## source of the low-bound recurrence so every reader sees the same chain
-## through (possibly overridden) highs — see [method TierLadder.low].
-##
-## Negative pools (`unit_value < 0`, D9) roll a real range too, as of #637 —
-## the old exemption ("low ends up right of high") was a **naming** problem,
-## not a math failure: [method TierLadder.low] is sign-agnostic, and for a
-## negative pool the recurrence yields the tier's *near*-zero end while the
-## ladder (`unit_value × V(t)`) yields its *far* end — the mirror image of a
-## positive pool, where the recurrence yields the near end and the ladder the
-## far end. This function orders the pair by that role (not by raw numeric
-## sort) before returning it, so both [method to_entries]'s `value_range` and
-## [method _get_configuration_warnings]'s inversion check can keep comparing
-## `lo` against `hi` with the exact same `>` — unchanged for either sign — and
-## get the right answer: `lo` is always "the end nearer zero should not have
-## overshot past hi" in the appropriate direction. Example, the repo's INT
-## pool (`unit_value = -3`, `range_floor = -1`): T1 near = -1, far = -3 →
-## ordered (lo, hi) = (-3, -1); T2 near = -4, far = -9 → (lo, hi) = (-9, -4).
-##
-## A tier with a [member value_overrides] entry is ALSO a fixed point at its
-## own tier — #629's decision text: "value_overrides still pins a tier to an
-## exact value, bypassing the roll entirely." Its (overridden) `H` still
-## feeds the NEXT tier's low bound via the chain — the guard [method
-## _get_configuration_warnings] enforces is specifically about THAT: a large
-## override can invert a LATER, non-overridden tier, not the overridden tier
-## itself (which can never invert — its own lo and hi are the same number).
+## One (lo, hi) magnitude pair per tier in `min_tier..max_tier`: the shared
+## computation behind `to_entries`, `format_table` and the config warnings. Pairs
+## are ordered by ROLE (near/far end) not numeric sort, so negative pools compare
+## the same way. A `value_overrides` tier is a fixed point that still feeds the
+## next tier's low bound.
+## See docs/domain/procgen-v4.md
 func _tier_magnitude_bounds() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var lo := clampi(min_tier, TierLadder.MIN_TIER, TierLadder.MAX_TIER)

@@ -8,6 +8,8 @@ The layer/dependency rules are in `docs/architecture.md`.
 `Graph` (`graph/graph.gd`) — owns `SkillNode`s + `Edge`s + `entities_container`; pure topology, structural signals.
 `Entity` (`entity/entity.gd`) — players and NPCs share the class; ownership is set by `AllocationSystem`. Composes a `CoreClass` (`entity/core/`) — identity modifiers + an `on_turn_started` hook.
 `SeatPolicy` (`session/seat_policy.gd`) — the per-machine half of a run's setup (who this machine plays, whose eyes it draws with); run shape is the roster's half. See `docs/domain/seat-policy.md`.
+`AIController` (`entity/controller/ai_controller.gd`) — budget-driven NPC turn; candidate enumeration and scoring in `docs/domain/ai-controller.md`, melee rollout in `docs/domain/ai-blade-rollout.md`.
+`LobbyRoster` / `RunBootstrap` (`session/`) — the pre-run seats, palette, overrides and editor-launch bootstrap. See `docs/domain/lobby.md`.
 `Navigator` (`graph/navigator.gd`) — full-graph `AStar2D` mirror; `EntityNavigator` is the per-entity mirror for cut-vertex / islanding queries.
 `TurnManager` (`systems/turn_manager.gd`) — initiative ticks to 100 → entity acts; `end_turn()` deducts 100. See `.claude/rules/turn-manager.md`.
 `AllocationSystem` (`systems/allocation_system.gd`) — `allocate` / `deallocate` (gated) + `force_allocate` / `force_deallocate` (primitives). See `docs/domain/allocation_system.md`.
