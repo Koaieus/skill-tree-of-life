@@ -1,6 +1,10 @@
 ---
-status: settling
+status: built
+domain: docs/domain/inner-ring-ui.md
 ---
+
+> **Archived 2026-11-05 — design record, never cite as truth.** What is: [docs/domain/inner-ring-ui.md](../../domain/inner-ring-ui.md).
+> Decisions: [ADR 0064](../../adr/0064-the-inner-ring-is-an-authored-graph-scene-and-its-edges-are-its-buy-rules.md)
 
 # Inner ring — feature brief (UI/UX)
 

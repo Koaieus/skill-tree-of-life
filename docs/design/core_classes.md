@@ -8,14 +8,9 @@ A **core class** defines an entity's fundamental identity — starting stat weig
 
 Core classes are not locked. A run may present opportunities to shift class identity through late-game loot or landmark (keystone) nodes. The starting class sets the trajectory.
 
-> **The roster is code.** A core class exists if and only if it is listed in [`entity/core/core_class_roster.tres`](../../entity/core/core_class_roster.tres); its `.tres` holds the numbers and the player-facing `description`, and a shipped class has no entry here. **Every class below is unbuilt** — Halo has an issue (#786), the rest are ideas with no issue — so never cite one as a mechanic.
+> **The roster is code.** A core class exists if and only if it is listed in [`entity/core/core_class_roster.tres`](../../entity/core/core_class_roster.tres); its `.tres` holds the numbers and the player-facing `description`. **Every class below is unbuilt** — never cite one as a mechanic.
 
-The shipped Balanced class is **not** the Allround below (Balanced is flat attributes plus a heal aura; Allround is an XP edge).
-
-> **Combat-redesign deltas affecting classes (see `combat_system.md`).**
-> - **Degree-defense is removed.** Node durability now comes from **CON (White)**, not from edge count. This leaves **Bulwark** and **Halo unaffected** — they always defended through armor / `min_damage_taken` (the floor) / thorns / shell topology, never through degree. Hubs are now glass cannons (great casters, normal HP), which only sharpens the "silence, then grind" counterplay.
-> - **Six-attribute roster:** R/STR, G/DEX, B/INT (attack) + **White/CON** (durability), **Gold/WIS** (XP/growth — the new economy color), **Purple/PER** (vision/sensing). Class economy prose below still says "White nodes" for the economy (Hive, Harvester, Halo interior) — read that as **Gold** under the new roster; a dedicated migration sweep is pending and the reassignment is not yet final.
-> - **Melee is the phantom blade** (swing a copy of your owned subgraph; size `1 + STR/40`, `default_entity_board.tres:307-318`; rigidity from triangulation). This hands the **Halo** a melee option — swing the thorny shell (thorns = swung spikes) — and gives any class that invests offense into its **core** a "core-swing" finisher (big payoff, real exposure).
+> Class economy prose below says "White nodes" for the economy (Hive, Harvester, Halo interior); read that as **Gold** under the six-attribute roster. A class that invests offense into its **core** gets a "core-swing" finisher (big payoff, real exposure), and the **Halo** can swing its thorny shell as a phantom blade.
 
 ---
 
@@ -44,7 +39,7 @@ Always available. Designed to be legible to new players.
 
 ### The Allround — *The Human*
 
-> **Status: idea only — not built, no issue.** The shipped default is Balanced (`balanced_core.tres`), a different design.
+> **Status: idea only — not built, no issue.**
 
 **Identity:** No specialization, no constraints, a small persistent edge in experience — the reliable generalist.
 
@@ -309,14 +304,11 @@ Mechanics sketch: White (W) nodes generate double or triple normal xp_per_turn. 
 
 ## Open Questions
 
-1. **Class discovery pacing:** Every shipped class is available today (no unlock system). Proposed: Allround, Predator, Bulwark always available; Ninja, Hive, Halo, Serpent could unlock through run progression or meta-progression.
+1. **Class discovery pacing:** Proposed: Allround, Predator, Bulwark always available; Ninja, Hive, Halo, Serpent could unlock through run progression or meta-progression.
 2. **Class evolution / mutation:** Can a class shift mid-run through landmark (keystone) nodes? The Bulwark's floor reduction is one example of in-class progression. Inter-class mutation (e.g. a Ninja that gains a Halo aura shell) needs scoping.
 3. **Hive core concealment:** Is there an explicit UI mechanic to conceal which pod holds the real core, or is it inherent to fog of war?
 4. **Shell Shift balance:** No hard cap on shell_distance by design. Monitor in playtesting: does the self-limiting resource cost (ring coverage requires nodes at the new distance) actually prevent degenerate strategies, or does it need a soft cap?
 5. **Serpent Winch cap** (only if the Winch addon is built): at what effective euclidean reduction per node would Winch trivialize the penalty? It would need a hard cap.
 6. **Frontier + Bleeding Edge:** Does the Frontier benefit from leaf nodes created by islands in the process of dissolving?
-7. ~~Halo anti-ranged / anti-magic reflect~~ — struck: Thorns fails the facet rule and Halo is not a design basis (owner, 2026-10-05, `aspect_matrix.md` § Schools round 3).
-8. **Halo UI for ring distortion:** Should the game show hop distance changes in real time as nodes are sniped? Accessibility concern — the topology insight may not be obvious without visual feedback.
-9. ~~`thorns_base` upgrade path~~ — struck with Thorns (owner, 2026-10-05).
-10. **Relay addon:** Referenced in earlier docs as established. It is not confirmed. TBD pending magic propagation design. See `skill_node_addons.md`.
-11. ~~Halo spike-ring collision model~~ — superseded: the anti-blade pop face's fate is #1369 (owner lean: Explosive); Halo will be reskinned or redesigned, not built on (owner, 2026-10-05).
+7. **Halo UI for ring distortion:** Should the game show hop distance changes in real time as nodes are sniped? Accessibility concern — the topology insight may not be obvious without visual feedback.
+8. **Relay addon:** Referenced in earlier docs as established. It is not confirmed. TBD pending magic propagation design. See `skill_node_addons.md`.

@@ -24,106 +24,15 @@ These are established mechanics referenced consistently in the design docs.
 
 ---
 
-### Armor Ring — shipped as **Bunker** (`skill_node/addons/bunker_addon.gd`)
-
-> The code and every other doc (`docs/domain/melee-blade-sim.md`, ADR 0005,
-> `docs/domain/attack-timeline.md`) call this addon **Bunker**; "Armor Ring" is
-> this doc's older name for the same `bunker_addon.tscn` — the icon mapping
-> (`assets/icons/addons/mapping.txt`: `addon_bunker → quoting/bunker-assault.svg`)
-> and the class docstring's "Casemate plating" flavor confirm it's one addon,
-> not two.
-
-**Effect:** Two authored modifiers (`bunker_addon.tscn`) — `+5 armor` and
-`-5 min_damage_taken` (owner, 2026-10-16, #1369: the default floor is 5, so a lone Bunker nets the floor to 0 and heals only when a pool roll pushes it lower; Curse counters it) — reduce `taken` for every attack type hitting this
-specific node, the node-level version of the `armor` entity stat. **Plus a
-third, characteristic effect shipped in #781: `+1 deflection`.** Above 0,
-`deflection` makes the node a solid obstacle a melee blade cannot pass
-through — every vertex disc and edge capsule that penetrates its plate is
-pushed back out inside the solver. Most blades (floppy ones) simply flop
-around it: no pop, no break, the mitigated hit still lands as normal. **A
-blade too rigid to yield — driven a fixed distance into the plate — breaks**,
-but per [ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md) a
-bunker **destroys structure, never matter**: the contacting vertex survives,
-and an edge breaks instead: the edge whose own span hit the plate, or, when
-a vertex hit it, that vertex's edge one step toward the pivot. A
-driven grip particle (one of the wielder's own pivot-adjacent nodes) is no
-exception — it is the most rigid case: jammed on the plate, its own edges
-break, and once its last edge to the pivot goes it coasts with the severed
-rest of the blade.
-
-**On a blade (owner, 2026-10-16, #1369).** Armor and floor do nothing *for* a blade; a bunker member gets its own faces:
-- **Blast shield** (shipped, #1631). A bunker member ignores defensive explosions, the way an Explosive-charged piece shrugs them, but **spends nothing**. Keyed on the `deflection` stat, not the addon, so anything that grants `deflection` shields (today only Bunker). See `docs/domain/explosive.md`.
-- **Mace head.** A bunker member is heavier than a plain member.
-- **Bunker × bunker.** A bunker member hitting a bunker plate collides elastically and recoils. If the hit is hard enough (mass × speed past a threshold), it destroys the defender's Bunker addon: *"go find yourself another bunker to hide in"*.
-
-**Which blades break.** Only a part rigid all the way back to the pivot breaks. That means clamped or triangulated: the pivot is the only driver, and any free pin joint between the contact and the pivot lets the blade twist around the plate. The solver measures this rather than checking topology: refused drive against one plate, summed past `SHATTER_DISTANCE`, arms the break. What snaps is the edge loading the plate: the hit edge itself, or the hitting vertex's edge closest to the pivot (owner, 2026-10-16, #1369: *"the edge closest to pivot snaps first"*).
-
-**Stacks with:** Entity-level `armor` stat, exactly as before. `deflection`
-does not stack usefully with itself on one node (presence, not magnitude, is
-what matters today) but a ring of Bunker nodes is a wall a rigid blade must
-break through edge by edge, each break costing the plate's own `node_health`.
-
-**Notes:** The simplest defensive addon, now with a second job: it doesn't
-just make individual nodes harder to dislodge, it makes a shape a blade
-cannot simply run over. Owner rulings that shaped the shipped behaviour:
-
-- **The physical stop, not just a damage reduction.** Owner, 2026-09-07:
-  *"maybe this sole exception should shatter/break the blade (or like, just
-  pop the offending node hitting the bunker; but still landing the hit
-  [bunker reduces it anyway]). immovable object hit by infinite force -> just
-  take out the offender. BUT can we reliably detect it like 'we can't sim the
-  next step because a rigid blade is trying to pass through a bunker that
-  deflects it'? because this is really an exception, most blades should be
-  able to mitigate this - flop *around* it or let part of floppy blade flip
-  direction just fine, i think"* — the "pop the offending node" framing was
-  later superseded (below), but the floppy-flops/rigid-breaks split is exactly
-  what shipped.
-- **A bunker destroys structure, never matter.** Owner, 2026-09-08, verbatim:
-  *"yes: bunkers destroy structure, never matter"* — matter is vertices,
-  structure is edges (ADR 0005). This is why the contacting vertex is never
-  the thing that breaks.
-- **The grip breaks too.** Owner, 2026-10-01 (#1295), superseding the
-  2026-09-07 grip hard-stall: *"earlier on i decided that these driven nodes
-  are exempt from breaking under this type strain, but actually, fuck that,
-  they should break too"* — its edges, not the vertex. The
-  handle-next-to-bunker exploit (*"picking handle directly next to enemy
-  bunker so driven handle guarantees to clip the bunker"*, #781) stays
-  self-punishing: the grip's edges fail, so the wielder dismembers their own
-  blade at the handle.
-- **No separate pop budget.** Owner, 2026-09-08: *"Plate integrity (or we
-  would call it `tegridy` of course) is a great idea but i think we could at
-  best hint at it in a comment while we pick option 2. Bunker nodes still
-  take damage! Although likely less than usual they are not immortal. Spikes
-  are offensively useful so we limit their defensive use."* A bunker's own
-  `node_health` is the budget — every break still lands a mitigated hit on
-  the plate itself, so a bunker that keeps stopping blades eventually dies to
-  them. Unlike Spikes' `spikes` pool (#778), which meters a *dual-use*
-  addon's defensive half, Bunker is purely defensive and pays no second cost.
-
-Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection".
-
----
-
-### Fortress (`fortification_addon`) — struck
-
-> **Deleted (owner, 2026-10-16, #1369):** *"leaning delete. drag becomes a free floating concept looking for an owner, and wont find one until it's a truly fitting one (could be an addon but who knows it might be attached to something entirely different)"*. Reinforcement had folded into it and goes with it. `swing_drag` stays as a stat and sim mechanic with no shipped granter; how it behaves is `docs/domain/melee-blade-sim.md`, "Fortification drag".
-
----
-
 ### Buffer
 
-> **Discontinued indefinitely (owner, 2026-10-05).**
->
-
-> **Rewritten.** The old inhale/exhale charge-holding model is gone (melee no longer runs on charged Buffer nodes — it is the phantom blade, sized `1 + STR/40`; see `combat_system.md`). Buffer is now a **utility** addon: the key that unlocks **temporary reach** for an attack.
->
-> **Speculative — not built.** The temp-allocation hook this describes does not exist in the live code; this is a parked design. When it's built, its lifetime is bounded by the attack it serves, not by a turn phase (phases were removed in #60).
+> **Discontinued indefinitely (owner, 2026-10-05); parked, not built.** Its reach is bounded by the attack it serves, not by a turn phase.
 
 **Effect:** When composing an attack, tapping a Buffer node **temporarily allocates existing field nodes** — reaching across the *real* graph to bring an attacking node/pivot to the front (melee), claim firing stubs (ranged), or pad a casting hub's degree (magic). It does **not** spawn new vertices; it plays with the real skill-node/edge graph. After a tap the Buffer goes on **cooldown** (cannot re-tap next turn — preserves cadence). All temporarily-allocated nodes **revert when the attack they enabled resolves**.
 
 **Universal across all colors.** Melee/ranged/magic all benefit — it is reach, not a melee-only tool.
 
-**Interaction with `pressure_capacity`:** The entity stat `pressure_capacity` is now the **reach/budget** — how many field nodes a single tap can temporarily allocate (no longer "max nodes chargeable for a melee burst").
+**Interaction with `pressure_capacity`:** The entity stat `pressure_capacity` would be the **reach/budget** — how many field nodes a single tap can temporarily allocate.
 
 **Notes:** Buffer is **utility-only — no attack of its own** (not a firing leaf, not a caster, not a blade source). Dedicating a node slot to one is a real tradeoff: without Buffers you commit your shape up front and fight with it; with them you extend mid-fight and snap back. This is a *capability* addon, not a passive bonus.
 
@@ -148,65 +57,16 @@ Implementation: `docs/domain/melee-blade-sim.md`, "Bunker deflection".
 
 ---
 
-### Clamp
+### Spikes *(defensive collision model OPEN)*
 
-> **Shipped** as `ClampAddon` (`skill_node/addons/clamp_addon.gd`, `clamp_addon.tscn`). Implementation: `docs/domain/melee-blade-sim.md` § `ClampAddon`.
+**Candidate worth exploring:** spikes **damage or sever the edges/faces of an incoming phantom blade** on collision, a **physics-layer melee defense** (it only matters vs. melee, not ranged/magic). Because a phantom blade's rigidity comes from triangulation, **popping an edge can de-rigidify a braced blade into a floppy whip mid-swing.** This is thorns reframed: instead of flat counter-damage to the attacker's node HP, spikes attack the attacker's *blade structure*.
 
-**Effect:** If a node carrying the Clamp addon is used in a **phantom blade** (see melee, `combat_system.md`), its corresponding **joint becomes a clamp (a weld) instead of a free pin.** That is the *whole* effect — it locks the angles at that one joint into the blade's swing frame.
+*Rejected/uncertain:* spikes damage *your own* nodes when struck. Leaning **no**.
 
-**Why it matters:** Melee rigidity is normally **emergent from triangulation** (the grip/pivot is the only default clamp; every other joint is a free pin). Clamp lets you **stiffen a chosen joint *without* a triangle**, opening crafting options triangulation can't:
+**Open collision questions (dedicated pass, do not implement until specified):** what exactly does contact do (damage an edge's HP? sever it outright? cost the blade rigidity?), how it is balanced, and what feels right.
 
-- **Rigidity without a cycle** — hold an L-bend or a path stiff at a hand-picked joint; e.g. clamp a leaf-launched haft's first internal joint to turn a floppy mace into a **rigid pole-cleaver**.
-- **Partial whips** — clamp the base of a chain but leave the tip free, so only the outer segment whips (a controlled flail).
-- It does **not** create a face. Clamp gives **rigidity only**; **triangulation gives rigidity *and* a face (area damage)** — so the two stay distinct build verbs with distinct niches, and Clamp is no substitute for bracing when you want a pan.
-
-**A weld dies with its edges:** it holds the angle between two of the joint's edges, so when either edge breaks (a bunker break, a fuse, a pop) the weld holding it goes too and the far side flies free; the joint keeps welding the edges it still has.
-
-**Only matters at articulating joints:** a Clamp on a blade-leaf tip or an already-braced (triangulated) node does nothing extra — it pays off on a node that sits as a degree-2 hinge in the blade.
-
-**Notes:** A cheap, legible crafting lever. Because it's an addon (loot / class / Tech Seed), spending a slot on Clamp is a real tradeoff against triangulating the same shape with extra nodes/edges — a different cost curve to the same rigidity, minus the face.
-
-**Visual:** No sprite on the carrier itself — a clamped node's incident edges render thicker near that node, tapering off toward the far endpoint. Self-loops are exempt (always normal width).
-
----
-
-### Spikes *(offensive direction and pop budget shipped #778; defensive collision model remains OPEN)*
-
-> **Resolved by #778 (2026-09-07 #772 session):** the "sharpness" unification never shipped. Owner: *"no 'sharpness' anymore, blade_pops only (and defensively). the offensive stats already live on the SpikeAddon-granted 'blade damage' modifiers."* `SpikeRingAddon` grants three independent things now: the offensive `blade_damage` modifiers below (unchanged), plus a node-local `spikes` pop-budget `PoolStat` (default 0, scales 1:2:3 with allocation level, #1629) and `spike_regen` (same scaling, `PerTurnMode.ADD`). `blunting` (default 1, 2 on a spiked attacking vertex) is the new per-vertex cost term on the OTHER side of a contact. `thorns`/`thorns_base` stayed exactly what they were — there is no `thorns` StatDef; Thorns is `armor.tres` / `min_damage_taken.tres`.
-
-**Offensive *(confirmed direction)*:** Spikes raise a node's **vertex-spike** contribution when that node is part of a phantom blade. The combat doc bundles face damage as `Σ edges + Σ vertex spikes + B`; a Spikes modifier/addon raises that **vertex term** — a swung spiked node drives its spikes through whatever it sweeps.
-
-**Defensive *(the pop-budget half shipped #778; the collision/structure-attack candidate below remains OPEN)*:**
-- *Rejected/uncertain candidate:* spikes damage *your own* nodes when struck. Leaning **no** / unclear.
-- *Candidate worth exploring, still OPEN:* spikes **damage or sever the edges/faces of an incoming phantom blade** on collision — a **physics-layer melee defense** (it only matters vs. melee, not ranged/magic). Because a phantom blade's rigidity comes from triangulation, **popping an edge can de-rigidify a braced blade into a floppy whip mid-swing.**
-- This is **thorns reframed**: instead of flat counter-damage to the attacker's node HP (current `thorns`), spikes attack the attacker's *blade structure*. Still unimplemented — see the open collision questions below.
-- **What DID ship (#778):** a per-node **pop budget**, replacing the old "every spiked node pops every vertex, for free, gated on the attacker's own offensive stat" behaviour. Contact rule: remaining `spikes` ≥ the attacking vertex's `blunting` → deplete by `blunting` and pop the vertex (it dies, deals no damage, and disconnects everything downstream of it from the pivot — unchanged severance mechanics, see `BladePopResolver`); remaining < `blunting` → drain the remainder and let the vertex through, dealing ordinary damage ("pop only if full amount is removed"). `spikes` regenerates by `spike_regen` at the *owner's* turn start only (`PerTurnMode.ADD`, a sparse spent-node sweep — never a level-wide walk), so a node under a blocker that never takes a turn absorbs a finite number of pops for the whole run, by design. Ownership change resets the pool to full.
-
-**Thorns vs. Spikes — distinct (#778); there is no "sharpness" stat.** `spikes` (the pop-budget pool), `spike_regen`, and `blunting` are their own StatDefs, unrelated to `thorns`/`thorns_base` (which never became a stat — Thorns is `armor.tres` / `min_damage_taken.tres`). The collision/structure-attack candidate two bullets up remains genuinely open; #778 did not touch it.
-
-**Open collision questions (dedicated pass — do not implement until specified):** what exactly does contact do — damage an edge's HP? sever it outright? cost the blade rigidity? — how it is balanced, and what feels right.
-
-**Halo integration *(confirmed it should still work)*:** the Halo shell aura grants spikes → the shell becomes a literal **spike-ring / wall against incoming melee blades.** Counterplay preserved: a well-placed **ranged** attack can knock out a shell node and **distort the wall** (open a gap) — ranged remains the answer to a spike ring. See `core_classes.md` (The Halo).
-- **Proposal *(OPEN)*:** the spikes aura targets **any** node at shell distance, *including enemy-owned ones* — if an enemy allocates a node onto your ring, your aura spikes *their* node (intruding on the shell is self-harm). Positional, not ownership-gated. Gate this behind the collision-model decision above.
-
----
-
-### Toxin — shipped as `toxin_addon.tscn` (base `SkillNodeAddon`, no subclass)
-
-**Effect:** One item, two faces. *Ranged:* `+1 poison_aspect` to the
-carrier's owner, authored as `entity_modifiers` on the scene (the first shipped
-user of that field). *Melee:* the blade vertex built from this node applies
-`poison` (1 stack, scaled at land by potency and resistance) on every contact it
-lands — **that vertex only**; vertex damage is untouched. A refused contact (a
-popped vertex) applies nothing and never re-pops through its status.
-
-**Acquisition:** procgen addon roll (non-unique, Watchtower's rarity), and a
-temp upgrade — `skill_node/addons/defs/toxin_addon.tscn` in the scanned folder, cost 2, third
-tray card (V). Loot: later.
-
-**Shape:** a scene on the base `SkillNodeAddon`, its poison authored in
-`on_hit_effects` — a field every addon carries, so a later status addon is a
-scene and a pool entry, no code (ADR 0023).
+**Halo integration:** the Halo shell aura grants spikes, so the shell becomes a literal **spike-ring / wall against incoming melee blades.** Counterplay: a well-placed **ranged** attack can knock out a shell node and **distort the wall**. See `core_classes.md` (The Halo).
+- **Proposal *(OPEN)*:** the spikes aura targets **any** node at shell distance, *including enemy-owned ones*; if an enemy allocates a node onto your ring, your aura spikes *their* node. Positional, not ownership-gated. Gate this behind the collision-model decision above.
 
 ---
 
@@ -362,11 +222,11 @@ Seeds are rare field items — not buyable, not craftable in v1. Finding a seed 
 
 ## Addon Design Principles
 
-1. **Addons change behavior; modifiers change stats.** A node with Armor Ring is defensively stronger because of behavior (damage reduction per hit). A node with a `+3 armor` modifier is stronger because of a stat. Both contribute to the same effective armor, but through different pipeline stages.
+1. **Addons change behavior; modifiers change stats.** A Bunker node is defensively stronger because of behavior (it blocks a blade). A node with a `+3 armor` modifier is stronger because of a stat. Both contribute to the same effective armor, but through different pipeline stages.
 
 2. **An addon should be legible from the node's visual.** Players should be able to look at a node and understand why it behaves differently. Addons need distinct visual indicators.
 
-3. **Addons don't define node type.** A Red node with Armor Ring is still a Red node — it provides STR, it attacks with melee, it just also reduces damage to itself. The color identity doesn't change.
+3. **Addons don't define node type.** A Red node with Bunker is still a Red node — it provides STR, it attacks with melee, it just also blocks blades. The color identity doesn't change.
 
 ---
 
@@ -374,7 +234,7 @@ Seeds are rare field items — not buyable, not craftable in v1. Finding a seed 
 
 1. **Addon/Specialization boundary:** Does the distinction hold up in practice, or does everything collapse into one system? Could revisit after first playtests. (Also tracked in [skill_node_specializations.md](skill_node_specializations.md).)
 2. **Addon transferability:** Can addons be moved from one node to another? Removed entirely? Or are they permanent once applied? If removable, they're more like equipment. If permanent, they're closer to specializations.
-3. **Addon stacking:** Can a node have multiple addons simultaneously? Are there compatibility rules? (E.g., Armor Ring + Reinforcement = yes. Lifeline + Lifelink = probably not, doesn't make sense.)
+3. **Addon stacking:** Can a node have multiple addons simultaneously? Are there compatibility rules? (E.g., Lifeline + Lifelink = probably not, doesn't make sense.)
 4. **Buffer addon vs Buffer specialization:** Resolve by playtesting whether the capability difference is meaningful enough to warrant two systems.
 5. **Addon lifecycle on node death (general):** Refund / addon-breakage policy when an endpoint (Gate) or carrier node dies — does the addon drop, refund, or break? Deferred general question raised by the Gate's 2-endpoint lifecycle.
 6. **Gate vs. Buffer identity:** Both are "temporary topology" utility — keep distinct (edges vs. nodes) or let one absorb part of the other's role? Revisit if play shows the identities blur.

@@ -101,12 +101,6 @@ per target node:
     if attacking_node.health <= 0 → attacking_node severed → island check (immediate)
 ```
 
-**Defense once per target — the spine's intent, not what shipped.** The design summed a combined strike (a volley's leaves, a blade's contacts) into one `outgoing` per target and subtracted `armor`/`resist` **once**. What shipped applies `armor` per hit instead — per arrow landing and per blade contact alike, each hit rolling its own crit (`../domain/defense-axes.md`).
-
-**`min_damage_taken`** floors a hit after reductions, and below `0` a hit heals — shipped (`attack/formulas/mitigation.gd`). The unbuilt Bulwark class would start above the board's lv1 floor of `5` with a class path to reduce it.
-
-**Thorns (unbuilt):** flat counter-damage returned on a melee hit to the attacking node, not reduced by armor. See Thorns below.
-
 ---
 
 ## Attributes, Colors & the Attack Triangle
@@ -153,9 +147,9 @@ The 4-color-theorem resonance (planar graphs are 4-colorable) is a **red herring
 
 ## Turn Structure
 
-One turn, no phases, intent read from the input channel — shipped; the per-turn budgets are ordinary stats (`action_points`, `skill_points`, `deallocation_points`, `movement_points`).
+One turn, no phases; intent is read from the input channel, and the per-turn budgets are ordinary stats (`action_points`, `skill_points`, `deallocation_points`, `movement_points`).
 
-> A polished AoE2-style contextual **Action Bar** (click a node → fan out its legal actions) is a **deferred follow-up** (ROADMAP #27), not the current model. Today attacks route through the AttackModeBar.
+> A polished AoE2-style contextual **Action Bar** (click a node → fan out its legal actions) is a possible follow-up to the AttackModeBar.
 
 NPC turns resolve by the same rules; the player sees them play out in full only inside their vision, otherwise fast-forwarded unless something happens in view.
 
@@ -163,8 +157,6 @@ NPC turns resolve by the same rules; the player sees them play out in full only 
 ---
 
 ## Ranged Attacks
-
-Leaf-only firing and the volley model are shipped — [ADRs 0019–0021](../adr/index.md) and the ranged plan code. What follows is the role design around them.
 
 ### Ranged identity — the cut-vertex sniper *(open: GitHub #11)*
 
@@ -230,7 +222,7 @@ Design principle: every spell should feel like it *is* something that happens in
 
 ## Melee, In Depth
 
-> The melee weapon *is your topology.* The shipped blade — phantom copy, handle, size, the XPBD tensegrity sim, swept capsules, speed-scaled damage — is `../domain/melee-blade-sim.md`; nodes deal damage and edges give rigidity ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md)). What follows is the design around it, mostly unbuilt.
+> The melee weapon *is your topology.* The blade as built — phantom copy, handle, size, the XPBD tensegrity sim, swept capsules, speed-scaled damage — is `../domain/melee-blade-sim.md`; nodes deal damage and edges give rigidity ([ADR 0005](../adr/0005-blade-parts-and-counters-are-orthogonal.md)). What follows is the design around it, mostly unbuilt.
 
 ### Faces (deferred post-MVP)
 
@@ -251,7 +243,7 @@ Design principle: every spell should feel like it *is* something that happens in
 
 **Rigidity scales damage delivery (the balloon principle).** Rigidity isn't only the *hit pattern* — it **scales how much of a face's potential damage actually lands.** A face is potential mass; you cash the full face-damage only if the structure is rigid enough to deliver it. A floppy cycle shears mid-swing and deflates — *an inflated balloon vs. a deflated one.*
 
-> **2026-09-07 (#772 melee design session):** rigidity-in-the-formula was considered here and declined — owner: *"no, at least not now. maybe ever."* **Speed** (#779) is the delivery term instead: `damage = blade_damage × f(speed)`, not rigidity. The balloon principle below stands as design intent, not as an implemented formula.
+> Rigidity is not in the damage formula (owner: *"no, at least not now. maybe ever."*). **Speed** is the delivery term instead: `damage = blade_damage × f(speed)`. The balloon principle below stands as design intent, not as an implemented formula.
 
 - A **braced** cycle (a wall of triangles) delivers **full** face damage → peak. A big braced 10-cycle is peak melee.
 - The **same** 10-cycle left as a floppy hoop deflates → reduced damage.
@@ -337,7 +329,7 @@ Exerts pull force on adjacent nodes, reducing effective euclidean distance. Math
 
 ## Degree → Offense
 
-Degree gates offense only; durability is CON, not degree (shipped — `node_health_scaling`). A hub is a **glass cannon** — powerful caster, normal HP, priority target. The tier gradient below is unbuilt.
+Degree gates offense only; durability is CON, not degree. A hub is a **glass cannon** — powerful caster, normal HP, priority target. The tier gradient below is unbuilt.
 
 ### The degree gradient (offense only)
 
@@ -357,8 +349,6 @@ Killing one neighbor of a degree-4 hub drops its degree (−1 casting tier if it
 ## Self-Loops
 
 A **self-loop** is an edge from a node to itself. A rare presence in the field; occasionally produced by specific events or conditions (origin: open — see below).
-
-Self-loops add **+2 degree** and never make a leaf — shipped (`SkillNode.self_loop_count`, `../domain/degree.md`).
 
 ### The glass cannon — triple magic damage
 
@@ -392,7 +382,7 @@ Self-loops are internal topology of the level. At Breakout, the entire field col
 
 ## Defense & Thorns
 
-Node HP, its regen and the core's overflow into the entity `health` pool are shipped: `../domain/node-hp.md`. Every drain of `health` (core overflow, the cascade chip, a fallen-through DoT) goes through `EntityCombat`; forced deallocation wounds SP (`SkillPointStat.wounded`, healed by `wound_heal_per_turn`).
+Node HP and `health` are `../domain/node-hp.md`. Every drain of `health` (core overflow, the cascade chip, a fallen-through DoT) goes through `EntityCombat`; forced deallocation wounds SP (`SkillPointStat.wounded`, healed by `wound_heal_per_turn`).
 
 Unbuilt defensive stats:
 
@@ -405,17 +395,17 @@ A melee hit on a thorny node would deal flat damage back to the attacking node, 
 
 ---
 
-## Uprooting *(class specialty — removed from universal kit)*
+## Uprooting *(class specialty)*
 
-Uprooting severs **all** edges of a target node. No longer a universal core power — too footgun-y for general use (risks self-islanding or orphaning the core).
+Uprooting severs **all** edges of a target node. Not a universal core power: too footgun-y for general use (risks self-islanding or orphaning the core).
 
-**Status:** demoted to Edgelord class specialty. Tech Seed is the build-tool portability path; Uprooting is a tactical weapon (destroy a cut vertex in an enemy's path).
+**Status:** Edgelord class specialty. Tech Seed is the build-tool portability path; Uprooting is a tactical weapon (destroy a cut vertex in an enemy's path).
 
 ---
 
 ## Island Rule
 
-Islanded nodes dissolve immediately (shipped). **Lifeline** (1-turn grace, #240 — `lifeline-grace.md`) and **Lifelink** (indefinite proxy core) are unbuilt; see `skill_node_addons.md`.
+**Lifeline** (1-turn grace — `lifeline-grace.md`) and **Lifelink** (indefinite proxy core) are unbuilt; see `skill_node_addons.md`.
 
 **Lifeline + Lifelink combo:** concerning but undesigned. Flag, don't balance against until seen in play.
 
@@ -423,7 +413,7 @@ Islanded nodes dissolve immediately (shipped). **Lifeline** (1-turn grace, #240 
 
 ## Killing Blow Resolution
 
-What shipped — XP on the killing blow, tempo, a relic on the victim's former core — is `../domain/loot-system.md`. The draft below is the fuller, unbuilt design. When the killing blow drops an entity's core HP to 0:
+The built killing-blow rewards are `../domain/loot-system.md`. The draft below is the fuller, unbuilt design. When the killing blow drops an entity's core HP to 0:
 
 ### 1. XP Reward (universal)
 XP proportional to the dead entity's level. Converts to SP through the normal leveling pipeline.
@@ -557,4 +547,3 @@ After Breakout the new starting node arrives with **zero edges** (every Tether w
 29. **Ranged identity & cut-vertex surgery** — perception gating (must you *see* the articulation point?), volley concentrate-vs-spread, reach calibration to deep cut vertices, Lifeline/grace interaction with the island cascade, and whether ranged earns its keep against 2-connected (cut-vertex-free) builds. (GitHub #11 — see Ranged identity.)
 30. **Swing model tuning** — the model is locked (two motion primitives swing/thrust; easing-curve profile per technique; mass/inertia → feel + achievable-arc, never base damage; rest→rest damage envelope as the anti-cheese spine). The **grid/blade playground (GitHub #12)** owns the numbers: robust default + specialist presets (or an auto-scaled default), the per-profile envelope shape, the `arc ≈ torque/inertia` curve, tip-velocity→whip-delivery coupling, the reliability floor across topologies, and whether `θ`/thrust-reach are fixed-per-weapon or stat-bounded player choices. (See *The swing — sector aim + profile*; Clamp addon in `skill_node_addons.md`.)
 31. **Initial blade orientation & the preview ghost** — the blade is your real, arbitrarily-embedded topology; a frontline pivot usually has its blade *behind* it (bending left/right/forward/anywhere), so rest orientation is arbitrary relative to the enemy. Aim-rotation + **aim-phase** orient the sweep analytically; the in-game answer is a **preview ghost** that telegraphs the true swept path before commit. Settle how aim is expressed to the player (drag-to-aim, sector handle, aim-phase exposure) and how the ghost reads. (Playground #12; see *The swing*.)
-32. ~~Spikes collision model~~ — superseded: which row holds the anti-blade pop face is #1369 (owner lean 2026-10-04: Explosive) and the barrel/friendly-fire design is #1399; Thorns is struck (owner, 2026-10-05, `aspect_matrix.md`). ADR 0005 would be superseded, not edited.
