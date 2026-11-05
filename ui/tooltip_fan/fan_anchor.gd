@@ -146,6 +146,10 @@ static func _trunk_top_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, 
 	return pts[1] if pts.size() >= 3 else from
 
 
+static func route_points(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
+	return _route(from, to, params.get("trunk_dir", Vector2(0.0, -1.0)), params.get("trunk", FanTrace.PHI_FRACTION), params.get("trunk_px", 0.0))
+
+
 static func _route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> PackedVector2Array:
 	return TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
 		"trunk": trunk_frac,

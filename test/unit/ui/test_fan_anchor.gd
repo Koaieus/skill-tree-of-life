@@ -297,3 +297,20 @@ func test_a_side_panel_level_with_the_trunk_top_routes_through_a_real_diagonal()
 					and (absf(seg.x) < 0.01 or absf(seg.y) < 0.01)
 				assert_false(both_cardinal, "%s: segments %d→%d are a 90° cardinal cut" % [label, i - 1, i])
 		assert_true(has_diagonal, "%s: a 45° segment of at least MIN_SEGMENT_PX (route %s)" % [label, pts])
+
+
+# --- The route reasoned over is the route drawn -------------------------------
+
+func test_route_points_carries_every_router_param_including_shoulder() -> void:
+	var params := {
+		"trunk": _TRUNK_FRAC, "trunk_dir": _TRUNK_DIR, "trunk_px": _TRUNK_PX, "shoulder": 12.0,
+	}
+	var from := Vector2(0.0, 0.0)
+	# Behind the pin (below it) with a wide perpendicular span: the gable
+	# family, whose intermediate points move with `shoulder`.
+	var to := Vector2(300.0, 40.0)
+	var expected := TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, params)
+	var got := FanAnchor.route_points(from, to, params)
+	assert_eq(got.size(), expected.size(), "same polyline length")
+	for i in range(mini(got.size(), expected.size())):
+		assert_eq(got[i], expected[i], "point %d matches the router's own route" % i)
