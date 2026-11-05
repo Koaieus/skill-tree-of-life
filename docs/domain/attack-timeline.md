@@ -95,7 +95,7 @@ The rule falls out of what an attack visibly *is*.
 
 *Melee.* A blade swings into an arm of enemy nodes, kills the one closest to
 the core, and the rest of the arm — now islanded — is force-deallocated. The
-blade sweeps on across nodes that are already dead. Their `SpikeAddon`s do
+blade sweeps on across nodes that are already dead. Their `SpikeRingAddon`s do
 nothing, because a severed arm does no work. You don't disarm someone and then
 get shot by the gun falling to the floor.
 

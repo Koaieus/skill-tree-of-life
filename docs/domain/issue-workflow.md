@@ -111,7 +111,7 @@ or P1 might work, i can intake them first"*. The scale is a tentative pick:
 `P4` exists on the board and is the owner's to set, never a filer's.
 
 There is deliberately no prose priority file (the milestone is the live
-priority; `docs/FOCUS.md` rotted twice, story in `adr.md`). A sentence
+priority; a prose priority file rotted twice, story in `adr.md`). A sentence
 about an issue goes **on** the issue.
 
 ## Roadmap + hygiene
