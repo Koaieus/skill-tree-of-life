@@ -62,16 +62,36 @@ extends GutTest
 ## node writes            700 ->   774 us   } ~2ms fixed floor,
 ## edge writes           1146 -> 1315 us   } independent of owned count
 ## [/codeblock]
-## [b]The finding:[/b] the [VisionCircles] grid did not make the visibility pass
-## owned-count-independent on a real level, only on the synthetic fixture. Its
-## cell is one max-radius wide, so a cell holds roughly `(radius / spacing)^2`
-## circles — at `first_level`'s 86px padding that is many, and it grows as
-## territory densifies. `test_vision_recompute_scaling.gd` measured 1.75x for
-## the same 25x owned increase because its grid is spaced 150px and its nodes
-## carry no modifiers; that fixture is the best case, this one is the game.
-## Shrinking the cell below max radius (multi-level grid, or bucket by radius)
-## is the follow-up — lane P, not this file's job.
-
+## [b]The finding (2026-08-17):[/b] the [VisionCircles] grid did not make the
+## visibility pass owned-count-independent on a real level, only on the
+## synthetic fixture. Its cell was one max-radius wide, so a cell held roughly
+## `(radius / spacing)^2` circles — at `first_level`'s 86px padding that is
+## many, and it grew as territory densified. `test_vision_recompute_scaling.gd`
+## measured 1.75x for the same 25x owned increase because its grid is spaced
+## 150px and its nodes carry no modifiers; that fixture is the best case, this
+## one is the game.
+##
+## [b]Visibility pass, re-measured 2026-11-05[/b] (Ryzen 7 7800X3D, headless;
+## same temporary instrumentation, 8 recomputes per checkpoint, medians, usec).
+## "circles" is what the pass builds; `max r` is the largest vision radius the
+## rolled stats produced; "before" is the max-radius cell + 3x3 scan, "after"
+## is the classified fine grid (`VisionCircles`, cell = max r / 2):
+## [codeblock]
+## owned | circles | max r | visible |  before query | after build + query = pass
+##    10 |      10 |   550 |      67 |       934 us  |     60 +   801 =   862 us
+##    50 |      50 |   550 |     156 |      1035 us  |    200 +   798 =  1006 us
+##   100 |     100 |   850 |     252 |      1553 us  |    262 +   905 =  1164 us
+##   200 |     200 |  1315 |     604 |      2751 us  |    570 +  1220 =  1826 us
+## [/codeblock]
+## (The old grid's build was ~100 us and is folded into its query column.)
+## 10 -> 200 owned: 2.9x before, 2.1x after; at 200 the pass is 1.5x cheaper.
+## What remains is not the circle count: at 10 owned the bounding box rejects
+## ~80% of the 2000 nodes with four comparisons, at 200 it covers the whole
+## level so every node pays the full cell lookup (~0.5 us each in GDScript,
+## ~1000 us of the 1220). Pushing below 2x means a batched query, not a finer
+## index. The whole-recompute medians moved 5982/9916/9757/15672 ->
+## 7776/8413/9734/12307 us across the same ramp, but that column is dominated by
+## `sources_for` (2-7 ms, noisy) — the "vision_range reads" sibling, not this.
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
 const _ENTITY_SCENE := preload("res://entity/entity.tscn")
 const _PRESET := preload("res://procgen/presets/first_level/first_level.tres")
@@ -114,8 +134,10 @@ func _ensure_fixture() -> void:
 	var cfg: GraphProcgenConfig = _PRESET.private_copy()
 	cfg.topology.node_count = _NODE_COUNT
 	cfg.seed = _SEED
+	# Starters are placed per camp; one camp of one is the single bench player.
 	# No AI starters: enemy territory would claim nodes out from under the
 	# ramp and make "200 owned" depend on where the seeder happened to grow.
+	cfg.camp_sizes = [1]
 
 	_graph = _GRAPH_SCENE.instantiate()
 	add_child(_graph)

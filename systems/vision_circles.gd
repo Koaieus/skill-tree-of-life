@@ -16,14 +16,31 @@ extends RefCounted
 ## 19.4ms [code]VisionSystem._recompute()[/code]. Owning the circle set lets it
 ## carry a spatial index that the scan could not.
 ##
-## [b]The index[/b] is a uniform grid over the union's bounding box, with cell
-## size = the largest radius. A circle centred at [code]c[/code] with radius
-## [code]r <= max_radius[/code] can only contain [code]p[/code] when
-## [code]|p - c| <= max_radius[/code], so [code]c[/code] must sit in
-## [code]p[/code]'s cell or one of its 8 neighbours — a 3x3 scan is exact, not
-## an approximation. Points outside the bounding box are rejected by four float
-## comparisons, which is the common case (most of a level is fogged) and is
-## where the win comes from.
+## [b]The index[/b] is a uniform grid over the union's bounding box whose cell
+## is a FRACTION of the largest radius ([constant _CELL_DIVISOR]), and every
+## cell is classified at build time:
+##   - [b]full[/b] — the whole cell square lies inside one circle. A query
+##     landing here is true with no distance test at all. In a dense territory
+##     (the real level: one radius on every owned node, nodes ~86px apart) this
+##     is nearly every cell the union covers.
+##   - [b]empty[/b] — no circle reaches the cell: false, no scan.
+##   - [b]partial[/b] — the cell holds only the circles whose rim crosses it.
+##     These are the cells along the union's boundary; a query here scans that
+##     short list with the exact `distance <= radius` rule.
+## A query is therefore one cell lookup, and its cost no longer tracks how many
+## circles overlap the point — which is what the previous grid (cell = largest
+## radius, 3x3 neighbourhood scan) could not deliver: at 86px spacing a 550px
+## radius put ~100 circles in every scanned neighbourhood, and the pass grew
+## 4-6x from 10 to 200 owned.
+##
+## [b]Exactness[/b] is non-negotiable and rests on one asymmetry: every
+## classification error the build can make demotes a cell toward the scan,
+## never away from it. A cell is marked full only if it fits inside the circle
+## shrunk by [constant _EPS_FRAC] of a cell, and a circle joins a cell's list if
+## it reaches the cell grown by the same amount, so float32 rounding in
+## `Vector2` (ulp ~1e-3px at 10k coordinates) can only cost a scan, never an
+## answer. Points outside the bounding box are rejected by four float
+## comparisons, exactly as before.
 ##
 ## [b]Do not merge this grid with [OverlayFieldTileIndex][/b] (the fog overlay's
 ## tile index, via [VisionSourceIndex]). They look like the same uniform grid
@@ -54,13 +71,27 @@ extends RefCounted
 ## quadratic in the map size; past this the cells simply get coarser, which
 ## costs query time but never correctness.
 const _MAX_CELLS_PER_AXIS := 128
+## Cells per largest radius. Build visits ~(2 * divisor + 2)^2 cells per circle
+## at most; partial-cell scans shrink as the divisor grows. Swept 2/3/4 on
+## `bench_allocation_cost.gd` at 200 owned (build + query): 2 won, because the
+## build is the larger term there and the query is dominated by its per-call
+## floor, not by scanning. Tentative.
+const _CELL_DIVISOR := 2
+## Slack, as a fraction of a cell, on both classification tests (see the
+## class comment): wide enough to swallow float32 rounding at any map size this
+## project targets, narrow enough that it never promotes a full cell to partial
+## in practice.
+const _EPS_FRAC := 1e-3
 
 var _positions := PackedVector2Array()
 var _radii := PackedFloat32Array()
 var _max_radius: float = 0.0
 
-# Lazily built index. `_cells[row * _cols + col]` is a PackedInt32Array of
-# indices into `_positions`. Empty `_cells` means "not built yet".
+# Lazily built index, row-major `row * _cols + col`. `_full[i] == 1` means the
+# cell is wholly inside the union; `_cells[i]` is null (no circle reaches the
+# cell) or a PackedInt32Array of indices into `_positions` whose circles cross
+# it. Empty `_cells` means "not built yet".
+var _full := PackedByteArray()
 var _cells: Array = []
 var _cols: int = 0
 var _rows: int = 0
@@ -102,14 +133,16 @@ func has_point(p: Vector2) -> bool:
 		return false
 	var col := clampi(int((p.x - _lo.x) / _cell_size), 0, _cols - 1)
 	var row := clampi(int((p.y - _lo.y) / _cell_size), 0, _rows - 1)
-	for dr in range(maxi(row - 1, 0), mini(row + 1, _rows - 1) + 1):
-		var base := dr * _cols
-		for dc in range(maxi(col - 1, 0), mini(col + 1, _cols - 1) + 1):
-			var bucket: PackedInt32Array = _cells[base + dc]
-			for i in bucket:
-				var r := _radii[i]
-				if p.distance_squared_to(_positions[i]) <= r * r:
-					return true
+	var idx := row * _cols + col
+	if _full[idx] != 0:
+		return true
+	var bucket = _cells[idx]
+	if bucket == null:
+		return false
+	for i in bucket:
+		var r := _radii[i]
+		if p.distance_squared_to(_positions[i]) <= r * r:
+			return true
 	return false
 
 
@@ -125,20 +158,75 @@ func _build_index() -> void:
 	_lo = lo - margin
 	_hi = hi + margin
 
-	# Cell size = max radius makes the 3x3 neighbourhood exact. Guard the
-	# degenerate all-zero-radius set, and coarsen rather than explode when the
-	# span/radius ratio is extreme.
-	_cell_size = maxf(_max_radius, 1.0)
+	# Guard the degenerate all-zero-radius set, and coarsen rather than
+	# explode when the span/radius ratio is extreme.
+	_cell_size = maxf(_max_radius / float(_CELL_DIVISOR), 1.0)
 	var span := _hi - _lo
 	_cell_size = maxf(_cell_size, maxf(span.x, span.y) / float(_MAX_CELLS_PER_AXIS))
 	_cols = maxi(int(span.x / _cell_size) + 1, 1)
 	_rows = maxi(int(span.y / _cell_size) + 1, 1)
 
+	var cs := _cell_size
+	var eps := cs * _EPS_FRAC
+	var lox := float(_lo.x)
+	var loy := float(_lo.y)
+	# resize() only — the cells are nulls until a circle crosses them, so a
+	# 128x128 grid never allocates 16k empty buckets up front.
+	_full.resize(_cols * _rows)
+	_full.fill(0)
 	_cells.resize(_cols * _rows)
-	for i in _cells.size():
-		_cells[i] = PackedInt32Array()
+	_cells.fill(null)
+
 	for i in _positions.size():
-		var pos := _positions[i]
-		var col := clampi(int((pos.x - _lo.x) / _cell_size), 0, _cols - 1)
-		var row := clampi(int((pos.y - _lo.y) / _cell_size), 0, _rows - 1)
-		_cells[row * _cols + col].append(i)
+		var cx := float(_positions[i].x)
+		var cy := float(_positions[i].y)
+		var r_out := float(_radii[i]) + eps  # a circle this big TOUCHES a cell
+		var r_in := float(_radii[i]) - eps  # a cell inside THIS is full
+		var r_out2 := r_out * r_out
+		var r_in2 := r_in * r_in
+		var row0 := maxi(floori((cy - r_out - loy) / cs), 0)
+		var row1 := mini(floori((cy + r_out - loy) / cs), _rows - 1)
+		for row in range(row0, row1 + 1):
+			var y0 := loy + row * cs
+			var y1 := y0 + cs
+			# Nearest and farthest the row's band gets to the centre, in y.
+			var dy_near := 0.0 if (y0 <= cy and cy <= y1) else minf(absf(cy - y0), absf(cy - y1))
+			if dy_near > r_out:
+				continue
+			var half_out := sqrt(r_out2 - dy_near * dy_near)
+			var c0 := maxi(floori((cx - half_out - lox) / cs), 0)
+			var c1 := mini(floori((cx + half_out - lox) / cs), _cols - 1)
+			if c0 > c1:
+				continue
+			# Columns whose whole square sits inside the shrunk circle: both
+			# x-edges within the chord at the row's FARTHEST y. Empty range
+			# (f1 < f0) when the row has none.
+			var f0 := c1 + 1
+			var f1 := c0 - 1
+			var dy_far := maxf(absf(cy - y0), absf(cy - y1))
+			if r_in > 0.0 and dy_far < r_in:
+				var half_in := sqrt(r_in2 - dy_far * dy_far)
+				f0 = maxi(ceili((cx - half_in - lox) / cs), c0)
+				f1 = mini(floori((cx + half_in - lox) / cs) - 1, c1)
+			var base := row * _cols
+			for c in range(f0, f1 + 1):
+				_full[base + c] = 1
+			# The rim columns either side of the full run. A cell some other
+			# circle already covers whole needs no entry: the query never
+			# reaches its list.
+			for c in range(c0, mini(f0, c1 + 1)):
+				var idx := base + c
+				if _full[idx] == 0:
+					var bucket = _cells[idx]
+					if bucket == null:
+						_cells[idx] = PackedInt32Array([i])
+					else:
+						bucket.append(i)
+			for c in range(maxi(f1 + 1, f0), c1 + 1):
+				var idx := base + c
+				if _full[idx] == 0:
+					var bucket = _cells[idx]
+					if bucket == null:
+						_cells[idx] = PackedInt32Array([i])
+					else:
+						bucket.append(i)
