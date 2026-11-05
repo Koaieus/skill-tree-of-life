@@ -2,40 +2,11 @@
 class_name CommandApplier
 extends Node
 
-## The one place a [Command] becomes a world mutation (#510,
-## `docs/domain/multiplayer-sync-model.md`). Every peer — host included — runs
-## its confirmed commands through exactly one of these, in submission order.
-##
-## [b]One serial queue.[/b] [method submit] enqueues and, if nothing is being
-## applied, drains. If a drain is already in flight it just enqueues and
-## returns: a command raised from inside another command's application is
-## QUEUED, never applied re-entrantly. That is not a hardening pass bolted on
-## later — the codebase already re-enters on the temp-upgrade path
-## (`ui/gauges/capacity_blips.gd`'s `pip_clicked -> ... -> _rebuild()` note),
-## so the guard ships on day one.
-##
-## [b]The queue is ASYNC.[/b] Two verbs are not synchronous:
-## [MoveCoreCommand] waits a beat between hops so the slides read as a cascade,
-## and [EndTurnCommand] runs [method TurnManager.end_turn], which ticks
-## initiative and can start an AI turn. A command may therefore take seconds,
-## and [member is_applying] must survive the whole await. This copies the shape
-## [member BattleSystem.is_launching] already proved works; it deliberately
-## does not reuse that flag, which keeps answering the narrower question "is an
-## attack in flight" (owner's clarification on #510).
-##
-## [b]Signal order is load-bearing.[/b] [signal command_applied] fires INSIDE
-## the guard, so a fallback handler that submits (the deallocate -> cascade
-## offer does exactly this) is queued rather than re-entering.
-## [signal applying_changed] fires after the flag clears — the same ordering
-## `battle_system.gd:282-289` documents for `is_launching`, and for the same
-## reason: the listener reads the flag the instant the signal arrives.
-##
-## The flip side of that ordering: a [signal command_applied] handler that
-## submits UNCONDITIONALLY never lets the drain end. The queue is FIFO and
-## terminates exactly when handlers stop feeding it — there is no re-entrancy
-## depth to run out of, so a runaway handler is an infinite loop, not a stack
-## overflow. Every fallback here latches (PIC's cascade offer fires only on a
-## failed deallocate, and the request it opens waits on the player).
+## The one place a `Command` becomes a world mutation; every peer, host included,
+## runs confirmed commands through one. One serial ASYNC queue: a command raised
+## during another's application is queued, never re-entered. `command_applied`
+## fires inside the guard, `applying_changed` after the flag clears.
+## See docs/domain/multiplayer-sync-model.md
 
 ## One command finished applying. [param success] is the gated system's own
 ## verdict — a command that fails its gate is a normal outcome, not an error,

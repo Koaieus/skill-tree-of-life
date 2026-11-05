@@ -136,3 +136,38 @@ Static modifiers stay shared and unsubscribed — they have no source to watch.
 A clone therefore does not track later `value` edits to the live statics it
 borrowed; see `Stat.localize_formula_modifiers` for why that asymmetry
 is the intended trade rather than an oversight.
+
+## CompositeStatModifier (`stats_system/composite_stat_modifier.gd`)
+
+A modifier pack, optionally atomic for loot (D-27, #279): a container that
+bundles several [StatModifier]s into ONE atom for the storage / authoring
+layer, while transparently expanding into its children wherever modifiers
+are actually APPLIED to a board or fully LISTED in the UI (#183).
+
+Two independent uses, both by reference — author once, drop the `.tres` into
+any `CoreClass.modifiers` array, edit the pack and every class
+composing it changes:
+
+- **Plain authoring reuse** (`loots_as_unit` `false`) — a shared
+  batch like `+10 STR/DEX/INT` with nothing all-or-nothing about it. The loot
+  draw offers each child as its own candidate.
+- **A loot bundle** (`loots_as_unit` `true`, the default) — a
+  class-identity buff/debuff pair that is only balanced as a unit, a strong
+  buff yoked to a real tax (`ninja_core`'s `mod_budget_pack`). The
+  pick-N-from-M loot draw counts it once, all-or-nothing, so a collector
+  can't cherry-pick the buff and shed the debuff.
+
+INERT BY DESIGN: it contributes no stat of its own. The inherited
+`stat_id` / `operation` / `value` / `formula` / `priority` fields are
+meaningless on a container and are hidden from the inspector (see
+`_validate_property`) — only the `children` bind and apply.
+Because `StatBoard.add_modifier` flattens before routing, a child's
+`emit_changed()` reaches its target Stat through the ordinary
+`_on_dependent_modifier_changed` wiring; the container never proxies signals.
+
+`duplicate(true)` deep-copies `children` (verified — Godot recurses
+into an exported Array of Resources), so the per-element dup discipline the
+stats rule requires for formula-bound modifiers holds for a bundle too — no
+`duplicate()` override needed.
+
+Nesting is legal (`flatten` recurses), though nothing needs it today.

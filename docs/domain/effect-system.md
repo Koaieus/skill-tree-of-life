@@ -442,3 +442,39 @@ the three knobs, the origin rule, `recompute`'s batching, and #626's
 incremental `_topology_changed` paths — is channel-agnostic. What a
 subclass swaps is the pair `_has_payload` / `_grant_to`:
 "is anything configured" and "put one grant on this node at this distance".
+
+## Effect base class (`effects/effect.gd`)
+
+Persistent, hook-driven behaviour carried by a `CoreClass`, a `SkillNode`
+(a landmark scene's `effects`), or a `SkillNodeAddon`, and dispatched by
+the `Entity` that owns it.
+
+**Stat math — a formula included — is a `StatModifier`, not an Effect.**
+Reach for an Effect only for behaviour that needs a lifecycle hook.
+
+**Not to be confused with `OnHitEffect`**, which is transient: it fires
+once as a spell lands on a node and keeps no state. An `Effect` is granted,
+lives, reacts to gameplay moments, and is revoked. Sibling concepts, not a
+hierarchy.
+
+**Composition, not a subclass zoo.** There is no `TurnStartEffect` /
+`BattleStartEffect` split — those would be uncomposable (an effect can't be
+both). Triggers are *methods*; the composite is an `Array[Effect]` on
+the carrier, which the Godot inspector edits natively. So no `CompositeEffect`
+is needed either.
+
+**Hooks are declared, not inherited.** This base defines none of the `_on_*`
+world/combat hooks, so `has_method()` is an exact test of "does this effect
+care" — and `Entity` buckets by hook once at grant time, making dispatch
+O(interested) rather than O(all effects). Implement only what you need:
+```
+func _on_core_moved(ctx: EffectContext, from: SkillNode, to: SkillNode) -> void:
+    ...
+```
+
+The two lifecycle hooks below are the exception — defined here and always
+called. Everything else is optional and listed in `HOOKS`.
+
+**Effects are shared resources.** One `.tres` may sit on many entities.
+Never store runtime state on the effect; use the `EffectInstance` ledger via
+`EffectContext`.

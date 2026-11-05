@@ -781,3 +781,40 @@ told: the core's `NetworkLink.role` reaches it through
 
 See `docs/domain/multiplayer-harness.md` and
 `docs/domain/determinism-probe.md`.
+
+## CommandApplier queue (`command/command_applier.gd`)
+
+The one place a `Command` becomes a world mutation (#510,
+`docs/domain/multiplayer-sync-model.md`). Every peer — host included — runs
+its confirmed commands through exactly one of these, in submission order.
+
+**One serial queue.** `submit` enqueues and, if nothing is being
+applied, drains. If a drain is already in flight it just enqueues and
+returns: a command raised from inside another command's application is
+QUEUED, never applied re-entrantly. That is not a hardening pass bolted on
+later — the codebase already re-enters on the temp-upgrade path
+(`ui/gauges/capacity_blips.gd`'s `pip_clicked -> ... -> _rebuild()` note),
+so the guard ships on day one.
+
+**The queue is ASYNC.** Two verbs are not synchronous:
+`MoveCoreCommand` waits a beat between hops so the slides read as a cascade,
+and `EndTurnCommand` runs `TurnManager.end_turn`, which ticks
+initiative and can start an AI turn. A command may therefore take seconds,
+and `is_applying` must survive the whole await. This copies the shape
+`BattleSystem.is_launching` already proved works; it deliberately
+does not reuse that flag, which keeps answering the narrower question "is an
+attack in flight" (owner's clarification on #510).
+
+**Signal order is load-bearing.** `command_applied` fires INSIDE
+the guard, so a fallback handler that submits (the deallocate -> cascade
+offer does exactly this) is queued rather than re-entering.
+`applying_changed` fires after the flag clears — the same ordering
+`battle_system.gd:282-289` documents for `is_launching`, and for the same
+reason: the listener reads the flag the instant the signal arrives.
+
+The flip side of that ordering: a `command_applied` handler that
+submits UNCONDITIONALLY never lets the drain end. The queue is FIFO and
+terminates exactly when handlers stop feeding it — there is no re-entrancy
+depth to run out of, so a runaway handler is an infinite loop, not a stack
+overflow. Every fallback here latches (PIC's cascade offer fires only on a
+failed deallocate, and the request it opens waits on the player).

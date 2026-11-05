@@ -2,38 +2,10 @@
 class_name CompositeStatModifier
 extends StatModifier
 
-## A modifier pack, optionally atomic for loot (D-27, #279): a container that
-## bundles several [StatModifier]s into ONE atom for the storage / authoring
-## layer, while transparently expanding into its children wherever modifiers
-## are actually APPLIED to a board or fully LISTED in the UI (#183).
-##
-## Two independent uses, both by reference — author once, drop the `.tres` into
-## any [member CoreClass.modifiers] array, edit the pack and every class
-## composing it changes:
-##
-## - [b]Plain authoring reuse[/b] ([member loots_as_unit] `false`) — a shared
-##   batch like `+10 STR/DEX/INT` with nothing all-or-nothing about it. The loot
-##   draw offers each child as its own candidate.
-## - [b]A loot bundle[/b] ([member loots_as_unit] `true`, the default) — a
-##   class-identity buff/debuff pair that is only balanced as a unit, a strong
-##   buff yoked to a real tax (`ninja_core`'s `mod_budget_pack`). The
-##   pick-N-from-M loot draw counts it once, all-or-nothing, so a collector
-##   can't cherry-pick the buff and shed the debuff.
-##
-## INERT BY DESIGN: it contributes no stat of its own. The inherited
-## `stat_id` / `operation` / `value` / `formula` / `priority` fields are
-## meaningless on a container and are hidden from the inspector (see
-## [method _validate_property]) — only the [member children] bind and apply.
-## Because [method StatBoard.add_modifier] flattens before routing, a child's
-## `emit_changed()` reaches its target Stat through the ordinary
-## `_on_dependent_modifier_changed` wiring; the container never proxies signals.
-##
-## `duplicate(true)` deep-copies [member children] (verified — Godot recurses
-## into an exported Array of Resources), so the per-element dup discipline the
-## stats rule requires for formula-bound modifiers holds for a bundle too — no
-## `duplicate()` override needed.
-##
-## Nesting is legal ([method flatten] recurses), though nothing needs it today.
+## A modifier pack: one atom for storage/authoring that expands into its children
+## wherever modifiers are applied or listed. `loots_as_unit` makes loot treat it
+## all-or-nothing. Inert by design: only `children` apply; `add_modifier` flattens.
+## See docs/domain/stat-board-classes.md
 
 ## The real modifiers this bundle grants. Authored order is preserved through
 ## [method flatten], so a UI listing the leaves keeps that order.

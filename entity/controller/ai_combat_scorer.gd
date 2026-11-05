@@ -216,40 +216,10 @@ static func score(mode: BattleSystem.AttackMode, outcome: AttackOutcome, target:
 
 
 
-## Cheap pre-filter estimate for the ranged/magic two-tier gate (#537 D1/D3/D4)
-## — every term here is a value already sitting on the board
-## ([member SkillNode.get_local_value], [method Entity.get_current_hp]), never
-## a second simulator. [param raw_damage] is the caller's own already-computed
-## un-mitigated seed hit — [code]ranged_damage[/code] for a ranged candidate,
-## [code]spell_damage(source) × power[/code] for magic (see
-## [code]attack/spell/spell_def.gd[/code]'s doc on that formula) — so this
-## function itself touches no plan, no resolve, no shadow world.
-##
-## Mirrors [method score]'s shape (EV, clamped to what the target can actually
-## absorb, plus a kill bonus and the same cut-vertex/weak-point bonuses) so the
-## cheap tier's ranking correlates with what the gate-accurate tier will
-## actually decide, rather than ranking on raw power alone — a naive
-## raw-damage-only heuristic is exactly what would drop a low-power near-kill
-## behind a high-power dud (see the D5 rank-stability test). NOT tier-gated
-## ([param ai_tier] plays no part): this is a volume cut, not a behavior
-## tuning knob, and it runs before [member AIController.ai_tier] would apply to
-## anything.
-## How many arrows of [param outcome], in landing order, it takes for the
-## running total of damage on [param target] to meet its CURRENT hp — the
-## number a kill-sized volley carries (#958, owner: computed *"from the plan's
-## resolve on the shadow world … never from a hand formula"*). Reads each hit
-## as [method expected_damage] does — post-mitigation `effective_amount`, the
-## number the shadow world actually subtracted — so armour, duds and the
-## seeded crit roll are all already in it. `-1` when the whole volley falls
-## short (no kill on the table), so a caller sizing N can tell "fire
-## everything" from "fire k".
-##
-## A CORE never depletes on node hp: past 0 every hit overflows into its
-## owner's `health` pool ([method NodeCombat.take_damage]), and the entity
-## dies when THAT runs out — so for a core the arrows-to-kill reach is node
-## hp + the owner's remaining health. (The scorer's [member ScoredCandidate
-## .is_kill] keeps its node-hp read — the #512 golden freezes that
-## prediction — this helper is what sizes the volley.)
+## How many arrows of `outcome`, in landing order, it takes for the running total
+## of post-mitigation damage on `target` to meet its CURRENT hp; `-1` if the volley
+## falls short. For a core, node hp plus the owner's remaining `health`.
+## See docs/domain/ai-controller.md
 static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: Entity = null) -> int:
 	if outcome == null or target == null:
 		return -1
@@ -282,6 +252,9 @@ static func arrows_to_kill(outcome: AttackOutcome, target: SkillNode, attacker: 
 	return -1
 
 
+## Cheap pre-filter estimate for the ranged/magic two-tier gate: built only from
+## values already on the board, never a second simulator; mirrors `score`'s shape
+## but is NOT tier-gated.
 ## [param pierce] is the attacker's armor pierce ([method Mitigation.pierce_terms]),
 ## resolved once per candidate attacking node by the caller; null is none.
 static func cheap_estimate(target: SkillNode, raw_damage: float, pierce: FoldTerms = null) -> float:
