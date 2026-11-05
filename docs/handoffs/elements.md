@@ -32,7 +32,7 @@ fast-forward); the verdicts live on origin/master.
 Settled 2026-11-05 (all in the doc): same-element sources are one go-off of
 size S + SI, one stack spent per landing; a go-off with no parent hit is a
 terrain hit credited to the sided party, synced by determinism; a medium
-rides a copy (pass proposal: except the medium its reach spent); copies land
+rides a copy; copies land
 raw on the as-cast payload; Ice concentrate onto a keg is a combo; **Burning
 ignites** (Heat ≥ T), a Burning tick spends min(heat, fuel); the world clock
 is the world turn as built over a temperature index (rate knob
@@ -51,9 +51,13 @@ about whether medium *planting* along a chain should decay per link.
 
 Still open, in this order:
 
-- **Firm the chain lean** (doc § The reach rule, § Open (d)): open with the
-  lean restated and ask only the residual — does a medium rider on a chained
-  copy decay per link while damage and other riders ride flat? Then #1735
+- **Firm the chain lean** (doc § The reach rule, § Open (d)). The doc and
+  the #1735 comment commit to one reading of *"The hit, all rider, no
+  decay"*: share `s` applied once, every link flat at `s × root`, every rider
+  riding (as built). The owner's words also admit "share 1 on chained
+  copies". Restate the reading in one line so the owner can correct it, then
+  ask the one residual — does a medium rider on a chained copy decay per
+  link while damage and other riders ride flat? Then #1735
   fork 1 closes (flat = as built; the issue closes with a doc line) and the
   first Fire issue is unblocked on this count.
 - **Play-situation item 5** (pass lean in § Open, cheap): the planting
