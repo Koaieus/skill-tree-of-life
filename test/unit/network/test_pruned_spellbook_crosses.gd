@@ -169,7 +169,7 @@ func test_an_unknown_id_is_dropped_loudly() -> void:
 	var target := await _new_graph()
 	var peer := _entity_with(target, _AUTHORED, 0)
 	var row: Array = []
-	row.resize(12)
+	row.resize(EntitySnapshot._R_SPELL_IDS + 1)
 	row[EntitySnapshot._R_ENTITY_ID] = peer.entity_id
 	row[EntitySnapshot._R_CORE_CLASS] = -1
 	row[EntitySnapshot._R_FACTION] = -1
@@ -188,7 +188,7 @@ func test_an_out_of_range_intern_slot_is_dropped() -> void:
 	var target := await _new_graph()
 	var peer := _entity_with(target, _AUTHORED, 0)
 	var row: Array = []
-	row.resize(12)
+	row.resize(EntitySnapshot._R_SPELL_IDS + 1)
 	row[EntitySnapshot._R_ENTITY_ID] = peer.entity_id
 	row[EntitySnapshot._R_CORE_CLASS] = -1
 	row[EntitySnapshot._R_FACTION] = -1
