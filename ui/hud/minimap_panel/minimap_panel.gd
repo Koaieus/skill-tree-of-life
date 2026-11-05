@@ -281,7 +281,7 @@ func _push_view_rect() -> void:
 ##
 ## Both branches consume the event HARD. `MOUSE_FILTER_STOP` plus
 ## `accept_event()` should already be enough — allocation runs off
-## `SkillNode._on_input_event`, i.e. Area2D physics picking, and Godot only
+## `SkillNode._on_pick_input_event`, i.e. Area2D physics picking, and Godot only
 ## queues an event for picking while it is still unhandled — but "should" is
 ## thin cover for silently allocating a node under the minimap, so the viewport
 ## is told explicitly as well. v0 releases NO armed click through the panel.
