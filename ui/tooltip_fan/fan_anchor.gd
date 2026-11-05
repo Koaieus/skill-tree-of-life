@@ -65,11 +65,12 @@ const _MAX_ITER := 4
 ## same answer minus the edge, kept as its own function because it is also the
 ## pure anchor-only question a dozen tests ask directly.
 ##
-## `params` is a [TraceRouter] param dict (see [method FanTrace.route_params]) —
-## `trunk_dir`, `trunk` and `trunk_px` are read, so the trace must already carry
-## the fan-wide trunk length when this is called. Nothing here is an output the
-## driver writes back into those params, which is what makes re-solving every
-## frame a fixed point.
+## `params` is a [TraceRouter] param dict (see [method FanTrace.route_params]),
+## handed to the router whole (`trunk_dir` normalised on a copy) — `shoulder` and
+## any future param ride along. `trunk_px` must already be on it, so the trace
+## must carry the fan-wide trunk length when this is called. Nothing here is an
+## output the driver writes back into those params, which is what makes
+## re-solving every frame a fixed point.
 static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary) -> Dictionary:
 	var p := params.duplicate()
 	var trunk_dir: Vector2 = p.get("trunk_dir", Vector2(0.0, -1.0))
