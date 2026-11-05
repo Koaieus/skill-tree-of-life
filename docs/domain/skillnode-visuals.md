@@ -61,6 +61,22 @@ own `tint_mix`; CoreHalos reads `entity_tint` and keeps only `halo_opacity`
 private. The contract guarantees both identities are reachable and in sync, so
 switching a component from one to the other is a one-line edit.
 
+The composite is also the only layer that knows both `InnerDisk` and `RimRing`
+exist: `geom_inner_r` is handed to both so the disk's edge and the ring's floor
+line up, and `RimRing` carries no disk knowledge. Never merge the two tints back
+into one.
+
+**Shelved encoders.** `RimBonuses` (rim gems plus the segmented stake dial) and
+`RuneRing` were authored as alternate looks, never simultaneous layers, and
+crowded each other out; both are cut from the production stack. Their scenes
+stay in the repo and previewable in the sandbox host's Node Visuals tab, which is
+the shelf. Nothing hidden-but-instanced is left behind on purpose: a level
+carries ~500-2500 of these, so an unused child is tree nodes, `_ready` work and
+potentially an instance-uniform slot on every one
+(`.claude/rules/skill-node-scale.md`). The dial's function was reclaimed as a
+shader term on `RimRing` itself: `_sync_stake` forwards
+`allocation_level` / `stake_level` into `%RimRing.fill_current` / `.fill_max`.
+
 `entity_tint` says "this is MINE" (the disk, the core look); `archetype_tint` says
 "this is what I AM" (every rim) and stays legible whether or not the node is
 owned. `allocation_level` (0 unowned, 1 baseline, 2+ staked, capped by
@@ -151,6 +167,31 @@ it hides the `ShaderStack` and shows `SensedOutline`, a non-shader
    `instantiate()` then `sensed = true` hides the stack before the children's
    `_ready` runs and they never bind a material. Guarded by
    `test_node_visuals_contract.gd`'s `*_sensed_*` tests.
+
+## RimRing: band, bevel, batching
+
+`RimRing` is the raised chrome / gem-holder band around a node's disk (not a
+"wall"), and knows nothing about the disk beneath it: it owns only
+`inner_radius` to `outer_radius` (base class) with `crest_r` as an interior
+control point where the flat floor ends and the bevel to the rim begins. The
+composite lines `inner_radius` up with the disk radius. "No bevel" is
+`crest_r == outer_radius` (a flat plateau); `crest_r == inner_radius` bevels the
+whole band. The composite instances it once for the basic rim, or N times for
+ring-stacking stake mode.
+
+- The crest-to-rim bevel is a real height(radius) bumpmap lit by
+  `rim_ring.gdshader` (fragment side, not a CPU-banded fake). level / terrace /
+  smooth / sharpen are four closed-form presets baked into the shader, so every
+  preset `rim_ring` shares ONE `ShaderMaterial` (one draw call) and varies per
+  node through `instance uniform`s.
+- A genuinely custom `Curve` in `rim_height_style` opts that instance out of the
+  shared material (samplers cannot be instance uniforms): it bakes a small LUT
+  texture on a dedicated per-instance material. That is a deliberate, opt-in
+  cost; the preset path stays batched.
+- The stake dial (below) is an additive shader term: `fill_current` /
+  `fill_max` of 0 draws nothing, N > 1 divides the band into N evenly-gapped
+  slots anchored at 12 o'clock and growing outward symmetrically, and M == N == 1
+  is the gapless single-ring case. No spin.
 
 ## RimRing stake dial
 

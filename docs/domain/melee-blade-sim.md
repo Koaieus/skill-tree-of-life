@@ -834,3 +834,32 @@ ownership / allocation gate happens at consumption time
 - The union is sorted by `SkillNode.stable_id` before minting RIDs, because
   `get_mirrored_nodes` order is dictionary iteration. Physics exclude lists are
   unordered by nature, so this is a determinism / legibility choice.
+
+## SwingResolve: one resumable chunked loop
+
+`SwingResolve` (`attack/melee/swing_resolve.gd`) is the loop
+`MeleeAttackPlan._resolve_swing` holds, hoisted into an object so it can be
+driven straight through (the authoritative path: one optimistic bake of the
+whole remaining swing per severance) or a slice at a time across frames (the
+aim-time preview).
+
+- **There is exactly ONE chunked loop.** Slicing is not a second code path:
+  `advance` takes a step budget, and an unbounded budget (`<= 0`) is the
+  whole-remainder bake. What the severance head-replay does to stitch a chunk
+  boundary is what a slice boundary rides on: one `BladeSwingClock` instance
+  carried across, one `BladeObstacleField` carried across, and
+  `BladeState.speed_history` accumulated out of each bake's chunk-local array.
+- **Those three histories are chunk-local by design:** `clock.history`,
+  `obstacles.history` and `state.speed_history` are rebuilt per bake, so a sliced
+  caller must stitch them. Getting it wrong is not a visible glitch: a fresh
+  clock mid-swing un-banks a dragging wall's drag and silently stops it
+  sheltering what is behind it (`test_blade_chunked_parity.gd`). That an
+  arbitrary boundary is bit-identical to none is pinned by
+  `test_a_dragged_swing_is_bit_identical_across_a_chunk_boundary`.
+- A slice boundary differs from a severance boundary in one way: there is nothing
+  to rewind to. The bake ran to the boundary and stopped, so state, clock and
+  field are already where the next bake continues; nothing is restored.
+- `result` is live: `outcome`, `pops`, `live_gate`, `clock` and `obstacles` are
+  set before the first step; `trajectory`, `events` and `hits` the moment the
+  guards pass, and they are the arrays the run appends to, so a partial run is
+  readable (`MeleeAttackPlan.prediction_partial`).

@@ -446,6 +446,8 @@ in `[0, 1]` (the `RAMP` branch's assumption). The last shot of wave *k* and the
 first of wave *k+1* share a key; the `(structural_key, original_index)` sort
 keeps them in wave order, they merely land on one beat. Turning a key into a
 
+The ramp is metric, not ordinal: two leaves 0.1px apart launch 0.1px apart in the span (not a full `1/(n-1)` slice), so a clustered firing line reads as one salvo and a lone outlier owns the tail. Allocation order cannot influence it: distance is pure geometry off `global_position`.
+
 The resolver records only structure about timing: `key_i` is stamped onto
 `HitInstance.structural_key` — the resolver emits structure, never seconds. One
 volley is ONE ramp: waves sit back-to-back inside it and `volley_draw_time` is

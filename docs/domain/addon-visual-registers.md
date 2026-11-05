@@ -150,3 +150,24 @@ the brightest object on its own node.
 A shell addon granting `node_health` (a resource that gets *consumed*) could
 chip as the node takes damage. Deferred: it needs a health-change hook on the
 addon and a redraw path.
+
+## WatchtowerVisual: construction notes
+
+`WatchtowerVisual` is the one addon drawn as a building, not a shell: a lattice
+tower in elevation on the carrier's rim, roof and railing above, legs planted on
+a contact shadow. It stands on the rim, not the middle, because the middle is the
+CARVE slot (`skillnode-emblem.md`) and a side-view building laid flat over a
+lit dome is a projection clash.
+
+- **Bearing is constrained** by the health bars and `FloatAnchor` (see
+  "Elevation: straight up is shared"): the default lower-right bearing keeps the
+  whole silhouette clear of both bands while the tower's feet touch the rim.
+- **Bold closed shapes first, lattice as detail on top.** At the zoom where a few
+  hundred nodes share the screen, thin many-part glyphs fragment into noise and
+  solid silhouettes hold (`.claude/rules/icon-assets.md` makes the same point
+  for baked icons). Legs, cabin and roof are filled polygons that survive
+  minification; the X-bracing is lines that fade out, losing detail, never shape.
+- **The lantern:** the cabin window holds a lit beacon in the addon's identity
+  hue (Scout's, never a school family colour), glowing on a named `Emissive`
+  tier with a slow breath and a soft halo. The hue derives from the parent
+  addon's `SkillNodeAddon.tint`, never authored on the visual.

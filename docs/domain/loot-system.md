@@ -438,6 +438,12 @@ picking, just not here": a remote human's request would read as unclaimed and be
 random-picked before the answer could arrive.
 
 
+**There is no pick count.** The loot shape is "pick 1 out of M, N times": N is
+`SkillDustAddon.rounds` and each round raises one `LootPickRequest`. A
+`pick_count` field was removed (owner: *"for the longest time i said 'pick 1 out
+of N, M times' and agents wrote up 'pick M from N'"*); multi-select per draw is
+not a thing, so do not reintroduce it.
+
 `resolve()` is **idempotent**. The addon lingers on the relic until every round
 has resolved (possibly across several real seconds if the player is picking),
 then `queue_free`s.
