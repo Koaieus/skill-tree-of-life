@@ -150,3 +150,40 @@ resting on an audit — "nothing under `Graph` or `HudRoot` reads
 that a future sibling could quietly break, with the symptom being a null
 config rather than an error. First-child makes it true by layout instead:
 nothing in the level can observe a session this node has not opened yet.
+
+## ScenarioOverride (`session/scenario_override.gd`)
+
+A leaf-addressed, by-value patch onto a duplicated `Scenario` (#642 D14 —
+"Decision — the override encoder", rooted one level up onto `Scenario`
+itself by #742). Not a module resource and not a stringly-typed
+`Dictionary`: a typed, inspector-authorable Resource carrying exactly one
+(path, value) pair.
+
+**Rooted at `Scenario`, not at `Scenario.preset`** (#742). A
+`Scenario` is itself just another Resource with ExtResource-typed fields —
+`preset` is one of them, `victory_condition` another — so there is no need
+for a second override list to reach the latter: a preset-targeting override
+just gains a `preset:` prefix (`"content:budget_policy:base_min"` ->
+`"preset:content:budget_policy:base_min"`), while `"victory_condition"`
+needs none. Same walk, same `_resolve_leaf_type` -> class-check ->
+`set_indexed` machinery, no routing branch to distrust.
+
+`target` is a property path into the DUPLICATED `Scenario`, in
+Godot's subname form: `"preset:content:budget_policy:base_min"`. Colons,
+not slashes. `value` is a primitive/scalar for a scalar leaf, or a
+resource PATH (a String) for a Resource-typed leaf (#742 — see
+`_coerce_resource`) — never an embedded object, which is what makes
+an in-memory "Custom" override survive `RunConfig.to_dict` with no
+`resource_path` involved anywhere (#642 acceptance 3, #597 D4's named
+failure mode made unreachable by construction).
+
+**D15 hardening** (comment "Hardening D14", 2026-08-27): `set_indexed`
+fails SILENTLY three ways — a typed-array target with an untyped payload,
+a wrong-type scalar, and a lossy float-into-int truncation. `merge_onto`
+closes all three by construction: a `target` must resolve to a
+SCALAR leaf (int/float/bool/String/StringName) or a Resource-typed leaf
+(arrays and dictionaries are still rejected outright), and the incoming
+`value` is type-checked against that leaf's OWN declared type (read
+via `get_property_list()`, never assumed) before anything is written. A
+rejection always `push_warning`s naming the target and leaves the scenario
+byte-for-byte unchanged — never a silent no-op.
