@@ -228,41 +228,11 @@ static func _encode_entity(
 	return row
 
 
-## The membership of a spellbook that has no `resource_path` to intern, by
-## value — and `null` for every book that HAS one (#726).
-##
-## [b]Which is, in practice, every book.[/b] [method Entity._ready] deep-copies
-## whatever `spellbook` it was handed, so no two entities share the authored
-## `.tres` object — and a `duplicate` carries no `resource_path`. So
-## [constant _R_SPELLBOOK]'s interned path, which predates this, has always been
-## -1 for a live entity and the spellbook has never actually crossed. The `null`
-## branch below is therefore only reachable from a hand-built fixture; it is kept
-## because the two channels answer different questions and the path is the
-## cheaper answer whenever it IS available.
-##
-## [b]What made it visible.[/b] A blocker's book is additionally a #586
-## [method SpellBook.duplicate_pruned] slice — a random subset of its tier's
-## authored book — and since #715 the client does not run the procgen that drew
-## it, so it cannot re-derive the slice either.
-## [method EntityFactory.spawn_snapshot_entity] hands the rebuilt blocker its tier's
-## WHOLE authored book instead, and a player inspecting one sees a longer spell
-## list on the client than the host has. The ids are how the slice crosses.
-##
-## [b]ids, not paths[/b] — [member SpellDef.id] is the only legal cross-process
-## reference to a spell (#511, owner call 2026-08-21), resolved back through
-## [method SpellCatalog.by_id]. A def with an empty id is dropped, the same rule
-## [method _encode_entity] applies to a path-less effect one method up: real
-## content is authored, an id-less def is a fixture.
-##
-## [b]`null` and `[]` are different answers[/b] and both are load-bearing: the
-## prune chain is documented to be able to run all the way to EMPTY, so a
-## path-less book with zero spells is a real outcome that must not read as
-## "this row says nothing about the spellbook".
-## [b]Interned, not spelled out per row.[/b] Nine authored spells share ~120
-## blocker rows on the shipped preset, so the ids are the most repetitive thing
-## in the payload; [param spell_table] collapses each to an int and sends every
-## distinct id once. Same trick `res` plays on resource paths, and for the same
-## reason interning is what stops a per-entity cost being per-entity.
+## The membership of a spellbook that has no `resource_path` to intern, by value;
+## `null` for every book that HAS one. `null` and `[]` are different answers. Ids
+## (`SpellDef.id`), never paths, are the cross-process reference, and are interned
+## through `spell_table`.
+## See docs/domain/entity-snapshot.md
 static func _encode_spell_ids(
 	book: SpellBook, spell_table: GraphSnapshot._InternTable
 ) -> Variant:
@@ -379,37 +349,11 @@ static func _resolve(graph: Graph, row: Array, res: Array, spawner: Callable) ->
 	return e
 
 
-## Ask [param spawner] for the [Entity] a row names when this peer does not have
-## it (#715). Null when there is no spawner, or when it declines.
-##
-## [b]This relaxes #560 D7, and the premise D7 rested on is what changed.[/b]
-## That decision — "it decorates, it never spawns" — was justified by "#528 and
-## #553 both shipped, so a joining client's entities exist by the time state
-## arrives": the roster spawns exactly the named set, so a spawning snapshot
-## would be a second minting path racing it. That held while BOTH peers ran
-## procgen. Since #715 the client runs none, and procgen spawns entities the
-## ROSTER NEVER NAMES — one [Entity] per removable blocker (#477), ~120 of them
-## on the shipped 800-node preset. They have no other way to arrive, and without
-## them the client decodes their nodes as UNOWNED, which moves
-## [method WorldFingerprint.compute]'s ownership fold on the very first compare.
-##
-## [b]It is not a second minting path.[/b] The id is the AUTHORITY's, taken from
-## the row and stamped before the entity enters `entities_container` —
-## [method Graph._mint_entity_id] assigns only to an entity whose `entity_id` is
-## still `0`. It is the exact mirror of [method _prune_entities], which already
-## deletes an entity the payload does not name: the payload is the authority's
-## entity SET, and both directions of that set now cross.
-##
-## [b]Why a CALLBACK and not an `instantiate()` here.[/b] The row's scene path is
-## carried ([constant _R_SCENE]) and this class could instantiate it — but a
-## blocker's [EntityStatBoard] is assigned in CODE per tier
-## (`EntityFactory.spawn_blocker`), not authored in `blocker_entity.tscn`, and
-## [method StatBoard.read_dict] cannot rebuild a board from nothing:
-## [EntityStatBoard] refuses to mint a stat it has no field for, by design. A
-## bare instantiate would therefore produce a blocker with no board and no
-## health, which the accumulated fold would then disagree about instead. So the
-## LEVEL builds it — it is the one that knows what a blocker is — and this class
-## keeps knowing only about rows. See [method EntityFactory.spawn_snapshot_entity].
+## Ask `spawner` for the `Entity` a row names when this peer lacks it; null when
+## there is no spawner or it declines. The id is the authority's, stamped before
+## the entity enters `entities_container`. A callback, not `instantiate()`: the
+## level knows how to build a board.
+## See docs/domain/entity-snapshot.md
 static func _materialize(row: Array, res: Array, spawner: Callable) -> Entity:
 	if not spawner.is_valid() or row.size() <= _R_SCENE:
 		return null
@@ -459,40 +403,10 @@ static func _decode_identity(e: Entity, row: Array, res: Array, spells: Array) -
 		e.ring_spent = spent
 
 
-## Rebuild the by-value book [method _encode_spell_ids] sent (#726).
-##
-## [b]A no-op when the membership already agrees, and that guard is what makes
-## this idempotent[/b] — the property every other step of this decode has, and
-## the one a mid-run repair depends on (#715: a resync applies even when the
-## fingerprints agree, because the fold covers neither tags nor effects). A
-## rebuilt book carries no [member SpellBook._sources], which is right for a
-## blocker — `duplicate_pruned` drops them too, the copy being a loot pool whose
-## every spell reads as innate — and WRONG for a hero on a second decode: pass 2
-## would not put them back, because [method _grant_effects] skips a
-## [SpellGrant] whose [EffectInstance] is already in the ledger. The spell would
-## stay in `spells` with nothing behind it, and the next
-## [method Entity.revoke_effects_from] would find no source to drop and keep a
-## spell the authority had already taken away.
-##
-## Comparison is by [member SpellDef.id] and in ORDER, which is safe only
-## because the peer's book is never written except by this method — so its order
-## is always the one that last crossed. [SpellGrant] is what could write it out
-## of band, and no SpellGrant crosses: every one in the repo is built with
-## `.new()` (`GraphProcgenSpellGrants.distribute`, [SkillDustAddon]), so it has
-## no `resource_path` and [method _encode_entity] drops it from the effect list
-## by the same rule it drops a path-less effect. **Author a SpellGrant `.tres`
-## and this reasoning expires** — `test_pruned_spellbook_crosses.gd` has a
-## tripwire on exactly that. Two things would then need looking at: an
-## unordered compare here, and the fact that `add_spell` on a book whose
-## `_sources` this method left empty APPENDS a second copy of a spell already in
-## `spells`.
-##
-## When it does rebuild it is always a FRESH [SpellBook], never the entity's own
-## book narrowed in place. What this peer holds is a level-side assumption
-## ([method EntityFactory.spawn_blocker]'s tier default), and reconciling INTO it
-## would make the result depend on that assumption; and a caller that handed
-## over an authored `.tres` directly — a fixture, a sandbox — does not get that
-## shared const narrowed under it.
+## Rebuild the by-value book `_encode_spell_ids` sent. A no-op when membership
+## already agrees (idempotent); otherwise always a FRESH `SpellBook`, compared by
+## id and in order. Assumes no `SpellGrant` crosses (a tripwire test pins it).
+## See docs/domain/entity-snapshot.md
 static func _restore_pruned_spellbook(e: Entity, row: Array, interned: Array) -> void:
 	if row.size() <= _R_SPELL_IDS or row[_R_SPELL_IDS] == null:
 		return
