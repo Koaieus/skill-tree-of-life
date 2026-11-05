@@ -48,6 +48,9 @@ const _ROW_LAYOUT_PINS := {
 	# for another status. No row moved, so the hash is 11's; older files are
 	# refused (MIN is 12).
 	12: "16d7861e9a130a0e4b6cffd1c835ccf58c0839a0132067d9c9079ec58a77bfdd",
+	# 13: EntitySnapshot lost `_R_TAGS` (slot 8); every later entity index
+	# moved down one.
+	13: "b30ee89faecde946a28d1a0e48b160d66107c7f6424687d6562e1ae0dc26d485",
 }
 
 

@@ -16,8 +16,6 @@ var owned_by: Entity = null
 var board: NodeStatBoard = null
 ## "Minted" as distinct from "authored" — see [member SkillNode.node_board].
 var board_ready: bool = false
-## Refcounted status markers — see docs/domain/effect-system.md § "Known limits".
-var tags: Dictionary[StringName, int] = {}
 ## Entity-scoped offerings this node grants its owner.
 var modifiers: Array[StatModifier] = []
 ## [Effect]s this node grants its owner.
@@ -63,7 +61,7 @@ func ensure_board(template: NodeStatBoard) -> NodeStatBoard:
 
 
 ## A detached copy at COMBAT depth: [member board] via
-## [method StatBoard.clone_live], [member tags] duplicated, everything else
+## [method StatBoard.clone_live], everything else
 ## copied by value or (modifiers, effects, local modifiers, the two
 ## [LocalScaleMutator] ledgers, owner identity) by reference.
 func clone() -> NodeState:
@@ -71,7 +69,6 @@ func clone() -> NodeState:
 	c.owned_by = owned_by
 	c.board = board.clone_live() as NodeStatBoard if board != null else null
 	c.board_ready = board_ready and c.board != null
-	c.tags = tags.duplicate()
 	c.modifiers = modifiers
 	c.effects = effects
 	c.local_modifiers = local_modifiers

@@ -30,7 +30,7 @@ var host: SkillNode
 ## legitimately go through it are static facts of the real world that no attack
 ## mutates: topology, and the addon roster ([method get_spike_power]).
 var _real: SkillNode
-## The node's state — owner identity, board, tags. Live: [member SkillNode.state]
+## The node's state — owner identity, board. Live: [member SkillNode.state]
 ## itself, shared, so there is one store per real node. Shadow: the
 ## [method NodeState.clone] made at [method snapshot], whose `owned_by` still
 ## names the REAL [Entity] until a strip nulls it. A bare `NodeCombat.new()`
@@ -481,26 +481,6 @@ func take_damage(amount: float, source: HitInstance) -> void:
 			var entries := o.cascade_from(self)
 			if source != null:
 				source.deallocations = entries
-
-
-## State half of [method SkillNode.add_tag].
-func add_tag(tag: StringName) -> void:
-	var store := _state.tags
-	store[tag] = store.get(tag, 0) + 1
-
-
-## State half of [method SkillNode.remove_tag].
-func remove_tag(tag: StringName) -> void:
-	var store := _state.tags
-	var count: int = store.get(tag, 0) - 1
-	if count <= 0:
-		store.erase(tag)
-	else:
-		store[tag] = count
-
-
-func has_tag(tag: StringName) -> bool:
-	return _state.tags.get(tag, 0) > 0
 
 
 ## State half of [method SkillNode.add_local_modifier] for the shadow's benefit

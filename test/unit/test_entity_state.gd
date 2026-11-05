@@ -14,7 +14,6 @@ func _lvl(board: EntityStatBoard) -> float:
 func test_clone_is_detached_at_combat_depth() -> void:
 	var s := EntityState.new()
 	s.stat_board = _BOARD.duplicate(true) as EntityStatBoard
-	s.tags = {&"marked": 1}
 	var core := autofree(_SKILL_NODE_SCENE.instantiate()) as SkillNode
 	s.core_location = core
 	var live_level := _lvl(s.stat_board)
@@ -31,9 +30,6 @@ func test_clone_is_detached_at_combat_depth() -> void:
 	assert_almost_eq(_lvl(c.stat_board), live_level + 5.0, 0.001, "the write lands on the clone")
 	assert_almost_eq(_lvl(s.stat_board), live_level, 0.001, "the live board is untouched")
 
-	assert_eq(c.tags, {&"marked": 1}, "tags are copied")
-	c.tags[&"fresh"] = 1
-	assert_false(s.tags.has(&"fresh"), "tags are separate")
 	assert_same(c.core_location, core, "core identity is shared")
 
 
@@ -52,8 +48,6 @@ func test_entity_forwards_into_its_state() -> void:
 	assert_same(e.stat_board, board, "same instance across a modifier add")
 	assert_same(e.state.stat_board, board, "state still holds that instance")
 
-	e.add_tag(&"marked")
-	assert_eq(e.state.tags.get(&"marked", 0), 1, "tags live in the state")
 	var core := autofree(_SKILL_NODE_SCENE.instantiate()) as SkillNode
 	e.core_location = core
 	assert_same(e.state.core_location, core, "core_location lives in the state")

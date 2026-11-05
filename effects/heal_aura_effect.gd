@@ -9,8 +9,7 @@ extends AuraEffect
 ## method's [code]node_healing[/code] / [code]regen_stacks[/code] term.
 ##
 ## [b]A payload-channel subclass, per the [AuraEffect] docstring's
-## [method _has_payload] / [method _grant_to] split.[/b] [TagAuraEffect] is
-## that split on the tag channel; this is the same split on a per-turn
+## [method _has_payload] / [method _grant_to] split[/b], on a per-turn
 ## channel — the heal is not a membership grant, so it lands from an
 ## overridden [method _on_turn_start] instead. Everything else (the three
 ## knobs, the origin rule, batching, the #626 incremental

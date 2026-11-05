@@ -17,7 +17,6 @@ func test_clone_is_detached_at_combat_depth() -> void:
 	s.owned_by = owner
 	s.ensure_board(SkillNode.DEFAULT_NODE_BOARD)
 	s.board.stake_level.base_value = 3.0
-	s.tags[&"poisoned"] = 1
 	s.modifiers.append(StatModifier.new())
 	s.regen_stacks = 2
 	s.damaged_since_upkeep = true
@@ -29,9 +28,6 @@ func test_clone_is_detached_at_combat_depth() -> void:
 	assert_eq(c.board.stake_level.value, 3.0, "and carries the live values")
 	c.board.stake_level.base_value = 1.0
 	assert_eq(s.board.stake_level.value, 3.0, "writing the clone's board leaves the original alone")
-	c.tags[&"lifeline"] = 1
-	assert_false(s.tags.has(&"lifeline"), "tags are a separate dictionary")
-	assert_eq(c.tags.get(&"poisoned"), 1, "carrying the original's entries")
 	assert_same(c.owned_by, owner, "owned_by is copied by identity")
 	assert_same(c.modifiers, s.modifiers, "modifiers is the same array (reference)")
 	assert_eq(c.regen_stacks, 2, "scalars by value")

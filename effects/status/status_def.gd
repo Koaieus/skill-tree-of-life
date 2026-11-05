@@ -68,7 +68,7 @@ var tint: Color:
 ## maps to a `LoadUse`.
 @export_enum("Detonate:1", "Plant:2") var default_face: int = 2
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
-## Metadata only — NOT granted to the node as [method NodeCombat.add_tag] tags.
+## Metadata only — nothing grants these to the node.
 @export var tags: Array[StringName] = []
 ## The defender-side resistance stat (e.g. `&"poison_resistance"`): a
 ## fraction read on the HOST at effect time, filtering how many stacks each

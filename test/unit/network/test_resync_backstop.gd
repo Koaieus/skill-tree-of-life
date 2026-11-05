@@ -292,24 +292,3 @@ func test_a_resync_removes_an_entity_the_authority_does_not_have() -> void:
 	assert_eq(EntitySnapshot.entities_of(_client["graph"]).size(),
 			EntitySnapshot.entities_of(_host["graph"]).size(),
 			"no duplicates, no orphans")
-
-
-# --- Gap 2: tag refcounts cross the wire --------------------------------------
-
-func test_a_stacked_tag_survives_the_repair_at_its_full_count() -> void:
-	var host_player: Entity = _host["player"]
-	host_player.add_tag(&"burning")
-	host_player.add_tag(&"burning")
-	host_player.add_tag(&"chilled")
-	var client_player: Entity = _client["player"]
-	# The client holds it once and holds a marker the host does not.
-	client_player.add_tag(&"burning")
-	client_player.add_tag(&"blessed")
-
-	_host_sync.send_resync("test")
-	await get_tree().process_frame
-
-	assert_eq(client_player.get_tag_count(&"burning"), 2,
-			"a tag applied twice and removed once is still active — the COUNT has to cross")
-	assert_eq(client_player.get_tag_count(&"chilled"), 1, "and a missing tag is restored")
-	assert_false(client_player.has_tag(&"blessed"), "a tag the authority does not hold comes off")

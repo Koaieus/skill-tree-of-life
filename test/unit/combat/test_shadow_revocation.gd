@@ -200,18 +200,3 @@ func test_a_shadow_aura_grants_land_on_the_shadow_s_nodes_not_the_real_ones() ->
 
 	assert_eq(_b._local_modifiers.size(), real_local_before,
 			"a shadow recompute must not add a single modifier to a real node board")
-
-
-func test_tags_granted_during_a_shadow_recompute_stay_on_the_shadow() -> void:
-	var aura := TagAuraEffect.new()
-	aura.tag = &"shadow_only"
-	_defender.grant_effect(aura)
-	# The live grant already tagged the real nodes; what must not happen is the
-	# shadow's own recompute touching them again, or its revoke clearing them.
-	var real_tagged: bool = _b.has_tag(&"shadow_only")
-
-	var w := _shadow()
-	_kill_a(w)
-
-	assert_eq(_b.has_tag(&"shadow_only"), real_tagged,
-			"the real node's tag refcount is the live world's alone")

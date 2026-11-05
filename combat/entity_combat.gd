@@ -14,7 +14,7 @@ extends RefCounted
 ## See docs/domain/entity-combat.md.
 var host: Entity
 
-## The entity's state — board, tags, core identity. Live: [member Entity.state]
+## The entity's state — board, core identity. Live: [member Entity.state]
 ## itself, shared. Shadow: the [method EntityState.clone] made at
 ## [method snapshot]. A bare `EntityCombat.new()` gets an empty one of its own.
 var _state := EntityState.new()
@@ -165,7 +165,6 @@ func free_shadow() -> void:
 	_shadow_by_real.clear()
 	_core = null
 	_origin = null
-	_state.tags.clear()
 	# The twins hold a context that backpoints here — a third cycle of the same
 	# shape as the owned nodes and the cloned boards.
 	for inst in _effects:
@@ -333,7 +332,7 @@ func snapshot(into: CombatWorld = null) -> EntityCombat:
 	if into != null:
 		shadow._world = into
 	shadow._origin = host
-	# Board via clone_live, tags duplicated, core by identity; the effect
+	# Board via clone_live, core by identity; the effect
 	# ledger is NOT cloned — its twins are minted below, bound to the shadow.
 	shadow._state = _state.clone()
 	shadow._mirror = GraphMirror.new()
@@ -461,24 +460,6 @@ func world() -> CombatWorld:
 ## shadow read the POST-cascade set (#520).
 func mirror() -> GraphMirror:
 	return host.navigator if host != null else _mirror
-
-
-func add_tag(tag: StringName) -> void:
-	var store := _state.tags
-	store[tag] = store.get(tag, 0) + 1
-
-
-func remove_tag(tag: StringName) -> void:
-	var store := _state.tags
-	var count: int = store.get(tag, 0) - 1
-	if count <= 0:
-		store.erase(tag)
-	else:
-		store[tag] = count
-
-
-func has_tag(tag: StringName) -> bool:
-	return _state.tags.get(tag, 0) > 0
 
 
 ## Every [EffectInstance] currently attached to this entity — the live ledger

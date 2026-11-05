@@ -32,8 +32,7 @@ extends Effect
 ## incremental [method _topology_changed] paths — is channel-agnostic. What a
 ## subclass swaps is the pair [method _has_payload] / [method _grant_to]:
 ## "is anything configured" and "put one grant on this node at this distance".
-## [TagAuraEffect] is that in ~15 lines on the tag channel; #720 ports
-## [HealAuraEffect]'s per-turn healing onto the same seam (its payload lands from
+## #720 ports [HealAuraEffect]'s per-turn healing onto the same seam (its payload lands from
 ## `_on_turn_start` rather than on membership, so it will override the hook and
 ## reuse [method _distances] — the seam is deliberately per-node-per-scale, not
 ## per-modifier, so a non-modifier payload fits without a second walk).
@@ -263,9 +262,7 @@ func _reach_could_include(node: SkillNode, source: SkillNode, _mirror: GraphMirr
 ## metric read, one grant or revoke — every other already-applied node's
 ## handle is left exactly as it was (acceptance 1).
 func _apply_membership_update(ctx: EffectContext, source: SkillNode, mirror: GraphMirror, changed_node: SkillNode) -> void:
-	# `revoke_all(node)`, not a `handles_for` loop: `handles_for` returns only
-	# MODIFIER rows, so a tag-channel payload ([TagAuraEffect]) would leave its
-	# grant standing here. `revoke_all` sweeps both kinds off the one target.
+	# `revoke_all(node)` sweeps every grant this aura holds on the one target.
 	ctx.revoke_all(changed_node)
 	if not is_instance_valid(changed_node):
 		return
@@ -321,7 +318,7 @@ func _apply_hop_diff(ctx: EffectContext, source: SkillNode, mirror: GraphMirror)
 		if was_granted and now_in and old_raw.has(node) and is_equal_approx(float(old_raw[node]), new_dists[node]):
 			continue  # unchanged: leave the existing handle alone
 		if was_granted:
-			ctx.revoke_all(node)  # both channels — see _apply_membership_update
+			ctx.revoke_all(node)
 		if not now_in:
 			continue
 		_grant_to(ctx, node, new_dists[node], bound)
@@ -403,7 +400,7 @@ func _grant_to(ctx: EffectContext, node: SkillNode, distance: float, bound: floa
 ## by [method _open_frame] right before a `_grant_to` loop and cleared by
 ## [method _close_frame] right after, inside the same synchronous call; never
 ## per-entity state on this shared resource. [method _grant_to]'s signature is
-## the subclass seam ([TagAuraEffect], [HealAuraEffect]) and stays 4-arg,
+## the subclass seam ([HealAuraEffect]) and stays 4-arg,
 ## which is why the frame rides here instead of on the parameter list.
 var _frame_depths: Dictionary = {}
 var _frame_source: SkillNode = null

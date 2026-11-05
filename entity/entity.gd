@@ -56,7 +56,7 @@ enum Attitude { SELF, ALLIED, HOSTILE }
 ## node) rather than derived from entity identity. See #475.
 @export var is_human_controlled: bool = false
 ## The entity's authoritative, SILENT state — [member stat_board],
-## [member _tags], [member core_location] and [member _effect_instances] are
+## [member core_location] and [member _effect_instances] are
 ## forwarders into it whose setters keep the entity's emits and dispatches.
 ## Declared before every forwarder and before [member _combat], whose
 ## initialiser reads it. Not exported: the forwarders carry the serialized
@@ -489,15 +489,6 @@ var _turn_start_leaves: Array[SkillNode] = []
 ## MIRROR peer never runs an AI turn at all).
 var ai_growth_capped: bool = false
 
-## Refcounted status markers, entity-wide twin of [member SkillNode._tags] — see
-## docs/domain/effect-system.md § "Known limits". Granted/revoked through [method EffectContext.grant_tag]
-## / `revoke`, never written to directly.
-var _tags: Dictionary[StringName, int]:
-	get:
-		return state.tags
-	set(v):
-		state.tags = v
-
 ## The live combat-state slice (#498 step 1, docs/domain/attack-timeline.md).
 ## Entity COMPOSES this — it owns the live one, it does not copy one.
 ## Constructed here (a field initializer, not `_ready`) so it exists before
@@ -671,39 +662,6 @@ func dispatch(hook: StringName, args: Array = []) -> void:
 
 func get_effects() -> Array[EffectInstance]:
 	return _effect_instances.duplicate()
-
-
-## Increment [param tag]'s refcount, creating the entry at 1 if new.
-func add_tag(tag: StringName) -> void:
-	_combat.add_tag(tag)
-
-
-## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
-## [method get_active_tags] only ever reports what's actually live.
-func remove_tag(tag: StringName) -> void:
-	_combat.remove_tag(tag)
-
-
-func has_tag(tag: StringName) -> bool:
-	return _combat.has_tag(tag)
-
-
-## How many times [param tag] is currently applied; 0 when it is not held.
-##
-## The count, not just the name, is what crosses in an [EntitySnapshot] (#561):
-## a tag applied twice and removed once is still active, so a resync that
-## restored names only would collapse every stacked marker to one application —
-## the repair path silently becoming the bug.
-func get_tag_count(tag: StringName) -> int:
-	return _tags.get(tag, 0)
-
-
-## The live tag set — no [StatRegistry] entry, no board slot.
-func get_active_tags() -> Array[StringName]:
-	var out: Array[StringName] = []
-	for t in _tags:
-		out.append(t)
-	return out
 #endregion
 
 

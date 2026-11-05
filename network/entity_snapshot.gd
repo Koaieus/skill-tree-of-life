@@ -24,15 +24,16 @@ const _R_SPELLBOOK := 4  ## index into `res`, -1 for none
 const _R_TIER := 5       ## Entity.entity_tier
 const _R_CORE_LOC := 6   ## core_location's stable_id, 0 for none — pass 2 only
 const _R_EFFECTS := 7    ## Array of [res_idx, source_stable_id] (0 = entity-wide)
-const _R_TAGS := 8       ## Array of [name, refcount] — see [method _restore_tags]
-const _R_SCENE := 9      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
-const _R_NAME := 10      ## Entity.display_name — carried only so a materialized row is not nameless
-const _R_SPELL_IDS := 11 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
-const _R_TURNS := 12     ## Entity.turns_taken — see [method restore_turn_cursor]
-const _R_VOLLEYS := 13   ## Entity.volleys_launched_this_turn — a mid-turn arrival keeps the budget spent
-const _R_CORE_MOVED := 15 ## Entity.core_moved_this_turn — a mid-turn arrival must not exert a second time
-const _R_TURN_LEAVES := 14 ## Entity.get_turn_start_leaves() as stable_ids — pass 2 only
-const _R_RING_SPENT := 16 ## Entity.ring_spent as Strings (ring cell names); the ring_points pool rides _R_BOARD
+const _R_SCENE := 8      ## `scene_file_path` interned into `res`, -1 for none — see [method _materialize]
+const _R_NAME := 9       ## Entity.display_name — carried only so a materialized row is not nameless
+const _R_SPELL_IDS := 10 ## Array of indices into `spells`, or null — see [method _encode_spell_ids]
+const _R_TURNS := 11     ## Entity.turns_taken — see [method restore_turn_cursor]
+const _R_VOLLEYS := 12   ## Entity.volleys_launched_this_turn — a mid-turn arrival keeps the budget spent
+const _R_TURN_LEAVES := 13 ## Entity.get_turn_start_leaves() as stable_ids — pass 2 only
+const _R_CORE_MOVED := 14 ## Entity.core_moved_this_turn — a mid-turn arrival must not exert a second time
+const _R_RING_SPENT := 15 ## Entity.ring_spent as Strings (ring cell names); the ring_points pool rides _R_BOARD
+## Row length: one past the last `_R_*` index.
+const _ROW_SIZE := 16
 
 
 ## Build the payload for every [Entity] under `graph.entities_container`.
@@ -133,7 +134,6 @@ static func resolve_graph_refs(
 		_restore_turn_start_leaves(e, graph, row as Array)
 		_grant_effects(e, graph, row as Array, res, true)
 		_restore_board(e, row as Array)
-		_restore_tags(e, row as Array)
 
 
 ## The per-turn reload producer set, by stable_id. Replaced wholesale, so a
@@ -196,15 +196,12 @@ static func _encode_entity(
 		if inst.source_node != null and is_instance_valid(inst.source_node):
 			src = graph.get_stable_id(inst.source_node)
 		effects.append([table.intern(inst.effect.resource_path), src])
-	var tags: Array = []
-	for t in e.get_active_tags():
-		tags.append([String(t), e.get_tag_count(t)])
 	var leaves: Array = []
 	for n in e.get_turn_start_leaves():
 		if is_instance_valid(n) and graph.get_stable_id(n) != 0:
 			leaves.append(graph.get_stable_id(n))
 	var row: Array
-	row.resize(17)
+	row.resize(_ROW_SIZE)
 	row[_R_SCENE] = table.intern(e.scene_file_path) if e.scene_file_path != "" else -1
 	row[_R_NAME] = e.display_name
 	row[_R_ENTITY_ID] = e.entity_id
@@ -215,7 +212,6 @@ static func _encode_entity(
 	row[_R_TIER] = e.entity_tier
 	row[_R_CORE_LOC] = graph.get_stable_id(e.core_location) if e.core_location != null else 0
 	row[_R_EFFECTS] = effects
-	row[_R_TAGS] = tags
 	row[_R_SPELL_IDS] = _encode_spell_ids(e.spellbook, spell_table)
 	row[_R_TURNS] = e.turns_taken
 	row[_R_VOLLEYS] = e.volleys_launched_this_turn
@@ -572,33 +568,3 @@ static func _restore_board(e: Entity, row: Array) -> void:
 	if e.stat_board == null:
 		return
 	e.stat_board.read_dict(row[_R_BOARD] as Dictionary)
-
-
-## Tags reconcile to the authority's REFCOUNT, not merely to its name set
-## (#561 gap 2). [member Entity._tags] is refcounted — a tag applied twice and
-## removed once is still active — so a restore that only asked `has_tag` would
-## silently collapse every stacked marker to one application, and a resync
-## would be the thing that broke it.
-##
-## Reading the LIVE count and moving it to the wanted one is also what keeps
-## this composable with the grants above: an effect re-granted in pass 2 has
-## already put its own tag row back, so this sees the count it produced and
-## adds nothing on top. That is the double-count the name-only version avoided
-## by being lossy instead.
-##
-## Runs in pass 2, after the node-sourced effects, for that reason.
-static func _restore_tags(e: Entity, row: Array) -> void:
-	var wanted: Dictionary[StringName, int] = {}
-	for entry in (row[_R_TAGS] as Array):
-		wanted[StringName((entry as Array)[0])] = int((entry as Array)[1])
-	for tag in wanted:
-		var have := e.get_tag_count(tag)
-		for _i in maxi(0, wanted[tag] - have):
-			e.add_tag(tag)
-		for _i in maxi(0, have - wanted[tag]):
-			e.remove_tag(tag)
-	for tag in e.get_active_tags():
-		if wanted.has(tag):
-			continue
-		for _i in e.get_tag_count(tag):
-			e.remove_tag(tag)

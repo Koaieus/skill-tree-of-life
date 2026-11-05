@@ -41,9 +41,11 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## 12: the crit-taken aspect's resources were renamed to Mark, and an 11's
 ##     `hex` rows name an id that now means another status; no row moved.
 ##     Older files are refused.
-const FORMAT_VERSION := 12
+## 13: the entity row lost its status-tag slot and every later `_R_*` index
+##     moved down one. Older files are refused.
+const FORMAT_VERSION := 13
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
-const MIN_FORMAT_VERSION := 12
+const MIN_FORMAT_VERSION := 13
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

@@ -461,18 +461,6 @@ var _node_board_ready: bool = false:
 	set(value):
 		state.board_ready = value
 
-## Refcounted status markers ("poisoned", "lifeline", ...) — the non-numeric
-## sibling to [member node_board]. See docs/domain/effect-system.md § "Known limits". Sparse:
-## an entry exists only while at least one source has granted it. Refcounted,
-## not a bool, because multiplicity is real — two effects granting the same
-## tag must both need to revoke before it clears. Granted/revoked through
-## [method EffectContext.grant_tag] / `revoke`, never written to directly.
-var _tags: Dictionary[StringName, int] = {}:
-	get:
-		return state.tags
-	set(value):
-		state.tags = value
-
 ## Per-node allocation cap — the N in the M/N dial, and `.max` of the
 ## node-board `stake_level` PoolStat (the baked [member NodeStatBoard.stake_level]).
 ## `allocation_level` is that pool's `.current`: 0 = unowned, 1 = baseline,
@@ -1257,32 +1245,6 @@ func remove_local_modifier(m: StatModifier) -> void:
 		if s != null:
 			node_board.unbind_modifier(leaf)
 			s.remove_modifier(leaf, node_board)
-
-
-## Increment [param tag]'s refcount, creating the entry at 1 if new. State half
-## on [method NodeCombat.add_tag] (#520), so an aura recomputing against a
-## shadow tags the shadow instead of the real node.
-func add_tag(tag: StringName) -> void:
-	_combat.add_tag(tag)
-
-
-## Decrement [param tag]'s refcount; drops the entry entirely at 0 so
-## [method get_active_tags] only ever reports what's actually live.
-func remove_tag(tag: StringName) -> void:
-	_combat.remove_tag(tag)
-
-
-func has_tag(tag: StringName) -> bool:
-	return _combat.has_tag(tag)
-
-
-## The live tag set — no [StatRegistry] entry, no board slot. Tooltips /
-## [DebugClipboard] read this for a generic "what's currently active" listing.
-func get_active_tags() -> Array[StringName]:
-	var out: Array[StringName] = []
-	for t in _tags:
-		out.append(t)
-	return out
 
 
 ## Appends [param effect] to [member effects] and re-resolves the central
