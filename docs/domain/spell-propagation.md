@@ -126,7 +126,7 @@ Receives the **already narrowed** candidate list and answers one question:
 `CastSpell`, never does damage math, never writes `hops_remaining`. The
 payload is read-only inside `select`.
 
-`PropagationPick` (`propagation/propagation_pick.gd`, RefCounted) is a
+`PropagationPick` (`attack/spell/propagation/propagation_pick.gd`, RefCounted) is a
 destination plus the facts the spread decided about it, every one typed:
 `node`, `share` (the child's `arrival_share` IS this number), and the curl's
 stamps — `arrival_bearing`, `turn_sign`, `closed_cycle`, `came_from`,

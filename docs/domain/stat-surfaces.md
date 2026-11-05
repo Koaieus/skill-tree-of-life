@@ -84,6 +84,8 @@ above).
 | id | surface |
 |---|---|
 | `stake_level` | `skill_node/visuals/node_visuals_composite.gd` (`_rim_ring.fill_max = stake_level`) |
+| `stake_ceiling` | no row; read at the stake gate (`systems/allocation_system.gd`, effective cap against `SkillNode.stake_ceiling`) |
+| `ring_points` | `ui/ring/ring_body.gd` (the pool behind the ring's spend cells) and `ui/hud/hero_sigil_card/hero_sigil_card.gd` (unspent-points badge) |
 | `addon_slots` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — baked on every node board (#332); the row is omitted only when the node carries no addons |
 | `deflection` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on an addon granting it locally (`bunker_addon.tscn`) |
 | `swing_drag` | `ui/tooltip_fan/panels/node_stats_panel.gd`, dynamic — conditional on something granting it locally (no shipped granter: Fortress was struck, #1369) |
@@ -109,7 +111,7 @@ above).
 | `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
 | `infusion_slots` | `ui/hud/command_tray/bodies/infusion_sockets.gd` (one socket per slot, plus a ghost socket labelled with the next INT threshold) |
 | `*_aspect` (`sunder`, `bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `mark`, `poison`, `scout`, `weakness`, `wither`) | caster load in `ui/hud/command_tray/bodies/readout_lines.gd` (the crucible readout's lines) and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
-| `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `greed`, `mark`, `poison`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
+| `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
 | `*_resistance` (`bleeding`, `blindness`, `corruption`, `curse`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
 | `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |
 | `bounty` | no row; read by `systems/loot_system.gd` as a node's payout overlay |

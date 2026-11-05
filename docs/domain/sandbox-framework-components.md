@@ -36,7 +36,7 @@ knowledge. It scans `directory` (`@export_dir`; optionally `recursive`) for
 
 `SandboxLiveTab._wire_sidebar` connects `selected_resource` of any `%Sidebar` child
 that has the signal to `load_object`, so a tab needs no wiring code. Consumers:
-`tabs/12_spell_tab.tscn` (`res://attack/spell/defs`) and `tabs/35_procgen_tab.tscn`
+`addons/sandbox_host/tabs/12_spell_tab.tscn` (`res://attack/spell/defs`) and `addons/sandbox_host/tabs/35_procgen_tab.tscn`
 (`res://procgen/presets`). Tested by `test/unit/test_directory_card_list.gd`.
 
 ## `SandboxTooltipFanMount` — the real hover tooltip in a tab's world
