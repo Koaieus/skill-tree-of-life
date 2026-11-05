@@ -121,7 +121,10 @@ def main():
         p = payload("Bash", {"command": "cat systems/turn_manager.gd"}, session="sess8")
         p["transcript_path"] = os.path.join(ro, "x.jsonl")
         code, out, _ = run_hook(p)
-        check("unwritable latch: silent exit 0", code == 0 and out == "", out)
+        if os.geteuid() == 0:
+            print("  skip unwritable latch: root ignores chmod")
+        else:
+            check("unwritable latch: silent exit 0", code == 0 and out == "", out)
         os.chmod(os.path.join(ro, "rule-hook-state"), 0o700)
         # 10
         t0 = time.monotonic()
