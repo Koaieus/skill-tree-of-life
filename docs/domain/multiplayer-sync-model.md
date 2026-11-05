@@ -736,3 +736,48 @@ both shapes — which is the reason this is a resync pull and not the two
 pushed snapshots `scenes/dev/mp_procgen_sandbox.gd` sends in the opposite
 order. Anyone "fixing" this to match the harness's order will reintroduce the
 bug; `test_graph_snapshot.gd` pins both shapes.
+
+## CommandChannel (`network/command_channel.gd`)
+
+Bridges one `CommandApplier` to a `NetworkLink`: the host broadcasts the
+commands it confirmed, every client applies them through its own applier.
+
+**It runs BOTH ways.** Host-authoritative intent-up / confirmed-command-down
+(owner call, 2026-08-24): a client's `CommandApplier.submit` does not
+queue — it emits the command upward as a `KIND_INTENT`, the host puts
+it through the same `_validate -> confirm -> apply` a local command takes, and
+the confirm comes back down as an ordinary `KIND_COMMAND` the client
+applies through `CommandApplier.apply_remote`. There is no local
+pre-application and no prediction.
+
+**A refusal has its own leg** (`KIND_REFUSAL`), because a command
+the host's gate rejects never confirms and so never crosses down — and a
+client waiting on a confirmation that will never arrive is the failure mode
+this feature most needs to not ship. There is deliberately NO timeout, retry
+or heartbeat for a confirm that is simply lost: ENet's reliable-ordered
+channel is the guarantee, and a desync on a one-room LAN is a restart.
+
+**Every verb `CommandApplier` handles mirrors** — launch_attack rides down
+with an `AttackRecord` the client replays rather than re-resolving, loot as a
+`LootRoundCommand` per round carrying what was granted BY VALUE. This class
+mirrors whatever the applier handles, so a verb missing from the wire is
+almost always a missing submission site, not a transport gap. Check who
+raises the command first.
+
+`PickLootCommand` is the one verb built for the upward direction, and the
+exception on both ends: the applier answers it through
+`PickLootCommandHandler.apply`, NOT through its queue, so it never
+confirms and can never be broadcast back down. For the same reason it opens
+no awaiting window and is not watched for refusal; see `_on_intent`.
+
+**The determinism probe hangs off the mirror path here** as two optional
+calls into `DeterminismProbe` and no logic of its own; the per-command
+compare is `WorldSyncChannel`'s. It never changes what is applied, and it is
+off unless a harness turns it on.
+
+This channel is also the one that tells the applier whether it DECIDES or is
+told: the core's `NetworkLink.role` reaches it through
+`_on_identity_changed`, so the core holds no applier.
+
+See `docs/domain/multiplayer-harness.md` and
+`docs/domain/determinism-probe.md`.

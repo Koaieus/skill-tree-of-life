@@ -170,3 +170,44 @@ Only if the verb's wire form carries **both** its inputs and the host's derived
 result. If it carries intent only, there is nothing to compare and adding it
 would just re-count the WORLD column. If it carries a result with no inputs,
 the honest answer is `unavailable`, not agreement.
+
+## DeterminismProbe (`network/determinism_probe.gd`)
+
+#529: measure whether a peer could have DERIVED what the host sent it,
+instead of arguing about it. This class produces a NUMBER, not a feature —
+the input to the owner's choice between #463's confirm-down model and
+lockstep + snapshot recovery.
+
+**It mutates nothing and changes nothing about what the client applies.**
+`CommandChannel` still submits the host's version through the same
+`CommandApplier`; this only watches, tallies, and prints. It is
+`enabled`-gated and OFF by default, so a normal run pays one branch
+per command.
+
+**Three independent questions, tallied separately.**
+
+  1. **RESOLVE** — could this peer have derived the host's result from
+     the same inputs? Only `LaunchAttackCommand` can even be asked: it is
+     the one verb whose result rides the wire (an `AttackRecord`) alongside
+     the inputs that produced it (the plan + `LaunchAttackCommand.resolve_seed`). Every other verb carries intent
+     only, so "re-resolving" it is just applying it, and question 2 is the
+     whole answer.
+  2. **LAND** — could this peer have derived the host's LAND-TIME
+     arithmetic: the post-mitigation numbers, the HP bars, the reclassified
+     hit kind, the gated bit, and the forced-dealloc cascades? This column
+     was added 2026-08-24 and it is the one the model decision actually
+     turns on — see `LAND_KEYS`.
+  3. **WORLD** — after applying, do the two worlds agree? That is
+     `WorldFingerprint.compute`, which `WorldSyncChannel` already
+     compares; the probe only attributes each verdict to the command type
+     that produced it, because "3 mismatches out of 412, all launch_attack"
+     is the useful output and a single boolean is not.
+
+**The denominator is reported, not assumed.** `CommandChannel._on_remote_command` deliberately SKIPS the fingerprint compare
+while the queue is non-empty or a newer command has superseded it (a
+spurious ✗ poisons the only diagnostic the harness has). Those commands are
+tallied as `skipped`, not silently dropped from the count — a clean
+"0 diverged" read is worthless if a third of the commands were never
+compared, and that ratio is itself a finding.
+
+See `docs/domain/determinism-probe.md`.

@@ -105,3 +105,48 @@ file never has to know what an `OptionChoiceRow` is.
 
 Emits `changed` after every mutation that altered a seat or the
 START gate; the screen's one handler repaints from it.
+
+## RunBootstrap (`session/run_bootstrap.gd`)
+
+Starts a run from an authored `RunConfig` when no composer did — the
+editor-launch half of #584.
+
+**This is a child node, deliberately, and it is the whole mechanism.** A
+level scene that can be launched directly needs a run to consume, and there
+are three ways to give it one: a fallback branch inside the level (what this
+replaces), a virtual hook the sandbox subclass overrides (what `9b0e185`
+did), or a sibling that fills `GameSession` in before the level looks. Only
+the third leaves the level with **one** way to learn what run it is
+generating, and that property is the point:
+
+```
+lobby  → GameSession.start(composed RunConfig)  ┐
+                                                ├→ level reads GameSession
+RunBootstrap → GameSession.start(authored .tres)┘
+```
+
+A sandbox that parsed its settings differently from a lobby-launched run
+would stop being a rehearsal of the real game — the owner's call, 2026-08-26:
+*"if our first level sandbox deviates from the 'lobby launched level' in a
+meaningful way (or in how it parses its settings) it becomes less of a real
+representative of the real game"*. Here the two paths differ only in
+**who authored the RunConfig**, never in what the level does with it.
+
+The level never references this class. That is what makes it a rehearsal
+rather than an accommodation: `scenes/level.tscn` has no idea a bootstrap
+exists, so there is no sandbox-shaped seam in the shipped code for the two
+paths to drift apart along.
+
+**Ordering.** A child's `_ready` runs before its parent's, and
+`GameRoot._ready` is where the level reaches `_setup_level` — the only
+thing in a level's bring-up that reads `GameSession.roster`. So the
+bootstrap wins that race wherever it sits, with no explicit call from
+`GameRoot` to keep in sync.
+
+It is nonetheless authored as the **first** child (`index="0"`). Godot
+readies depth-first in tree order, so last-child would leave the guarantee
+resting on an audit — "nothing under `Graph` or `HudRoot` reads
+`GameSession.config` in its own `_ready`" — that is true today and
+that a future sibling could quietly break, with the symptom being a null
+config rather than an error. First-child makes it true by layout instead:
+nothing in the level can observe a session this node has not opened yet.
