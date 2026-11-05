@@ -259,12 +259,14 @@ run = "godot --path ."
 # from the argument (`.gd` → one script, anything else → a directory).
 
 [tasks."test:one"]
-description = "Run a single test script: `mise run test:one -- res://test/unit/test_smoke.gd`"
+description = "Run a single test script: `mise run test:one -- test/unit/test_smoke.gd` (a plain path or res://…; fails fast if the file does not exist)"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-script="${1:?usage: mise run test:one -- res://test/unit/test_smoke.gd}"
-exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$script"
+script="${1:?usage: mise run test:one -- test/unit/test_smoke.gd}"
+source "${MISE_PROJECT_ROOT:-.}/.mise/tasks/lib/res_path.sh"
+target=$(res_path file "$script") || exit $?
+exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$target"
 '''
 
 [tasks."test:unit"]
@@ -276,12 +278,14 @@ exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" res://test/unit/
 '''
 
 [tasks."test:dir"]
-description = "Run all tests in a directory: `mise run test:dir -- res://test/unit/`"
+description = "Run all tests in a directory: `mise run test:dir -- test/unit/` (a plain path or res://…; fails fast if it does not exist)"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
-dir="${1:?usage: mise run test:dir -- res://test/unit/}"
-exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$dir"
+dir="${1:?usage: mise run test:dir -- test/unit/}"
+source "${MISE_PROJECT_ROOT:-.}/.mise/tasks/lib/res_path.sh"
+target=$(res_path dir "$dir") || exit $?
+exec "${MISE_PROJECT_ROOT:-.}/.mise/tasks/test" "$target"
 '''
 
 # test:timings (#624) is a pure parser of the JUnit XML `test` already writes —
