@@ -188,7 +188,8 @@ func test_an_offline_run_still_generates_locally() -> void:
 	root.get_node("%HudRoot").enabled = false
 	root.get_node("%TurnManager").opens_first_turn = false
 	root.get_node("%VisionSystem").enabled = false
-	root.node_count_override = 40
+	# Big enough to seat both participants: generate refuses a roster it cannot seat.
+	root.node_count_override = 120
 	add_child_autofree(root)
 	# Procgen yields across frames; the level's `_ready` is a coroutine.
 	for _i in 400:
