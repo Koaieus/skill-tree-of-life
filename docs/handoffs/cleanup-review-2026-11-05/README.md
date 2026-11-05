@@ -8,7 +8,8 @@ Spec digests (Sonnet-read, checked against master that day): `digestA.md`, `dige
 - **Closed (7):** confirmed; no action.
 - **`stale?` (11):** all closed with dated owner comments. #243's tuning list was folded into #1077, and #280's leftover work was refiled as #1764 (Intake). #433 closed as not planned, to revisit CI at the first official release builds.
 
-## Verdicts made but NOT yet applied (spec comments and board moves still to do)
+## Verdicts applied on 2026-11-05 (comments posted, board moved)
+Ready items got milestone `Cross-cutting / infra`; Ready requires a milestone, so name one in any clerk order. #427 is a parked child of hub #420, which hygiene flags.
 - **#427 → Ready.** Owner asked how self-loops get authored. Answer: as an Edge with from == to. `SkillNode.self_loops` is only a back-index that rebuilds from Edge registration, so un-exporting it loses no authoring knob or save data.
 - **#580 → Ready.**
 - **#1216 → Ready** with the spec's UX: push on top of any armed level, including an attack plan; no badge.
@@ -23,4 +24,4 @@ Spec digests (Sonnet-read, checked against master that day): `digestA.md`, `dige
 - **Needs-design forks:** #428, #435, #1186, #859, #1026, #422 and #441. See digestC.md.
 - **"Your calls" section:** #1620's VFX judgments; the ~35 dated owner decisions with no ADR (listed in the #1761 PR description); stale In-progress / In-review claims (#1076, #1107, #1108 and others); hygiene's 16 flags (stale Designing #1429/#1590/#1659/#1708; hub drift #1313/#1397/#1591/#1608/#1646; all-parked hubs #199/#420/#1255/#1380/#1439/#1615/#1711).
 
-Apply the verdicts via a Haiku `clerk` work order (`--body-file`). Board lanes, priority and size are settable from a local session.
+Apply further verdicts via a Haiku `clerk` work order that names a milestone for every Ready move (`--body-file`). Board lanes, priority and size are settable from a local session.
