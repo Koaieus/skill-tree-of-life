@@ -121,6 +121,20 @@ about an issue goes **on** the issue.
 add|rm <name>` flips a label. `hygiene [--json]` reports board invariant
 violations and fixes nothing — run it whenever you look at the board.
 
+`in_progress_stale` flags an open `In progress` **leaf** with no activity for
+more than 6h (`GH_PROJECT_IN_PROGRESS_STALE_HOURS`; owner, 2026-09-21: "stale
+for more than a few hours would already likely better have a fresh agent
+picking it back up, given the 1hr cache TTL"). Activity is the newest of three
+signals: the issue's `updatedAt` (comments included), a commit on any ref
+citing `#<n>`, and a worktree whose branch name carries `<n>` as a token
+(`wt-1014-…`), by its tip commit or HEAD reflog. A dead claim hides the issue
+— and everything `blocked-by` it — from every swarm, since a drone only pulls
+`Ready`. Hubs are excluded: their `In progress` is derived from the children,
+not a claim, and `hub_drift`/`stalled_hub` already own them. Report-only, like
+`stale_claim` (owner, 2026-11-05): `--fix` never moves it — resume the work, or
+release it with `status <n> ready`. Pure half: `.mise/tasks/lib/claims.jq`,
+pinned by `mise run gh-project-selftest`.
+
 A child's status is its own; the hub's is a summary of the children.
 
 ## Hubs: a parent never carries work

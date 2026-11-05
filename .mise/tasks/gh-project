@@ -61,6 +61,9 @@ ITEMS_CACHE="${TMPDIR:-/tmp}/gh-project-${PROJECT}-items.json"
 # `hygiene` flags an Designing issue untouched this long as a stale claim — a
 # /swarmify pass that died holding it. Hours, measured on the issue's updatedAt.
 STALE_CLAIM_HOURS=${GH_PROJECT_STALE_CLAIM_HOURS:-24}
+# ...and an In progress LEAF with no activity this long (updatedAt, a commit
+# citing it, its worktree) as a dead implementer claim. Hours; lib/claims.jq.
+IN_PROGRESS_STALE_HOURS=${GH_PROJECT_IN_PROGRESS_STALE_HOURS:-6}
 
 # True when $1 exists and is younger than $2 seconds.
 fresh() { [ -f "$1" ] || return 1; local age=$(( $(date +%s) - $(stat -c %Y "$1" 2>/dev/null || echo 0) )); [ "$age" -ge 0 ] && [ "$age" -lt "$2" ]; }
@@ -670,6 +673,42 @@ cmd_blocking() { _deps_show "$1" blocking; }
 # it policed a hub's status as hand-set INTENT, and a derived status carries
 # none — a Backlog sibling next to an In progress sibling contradicts nothing
 # (stalled_hub only fires when EVERY open child is parked).
+# Activity epochs for in_progress_stale beyond updatedAt, as {"<n>": epoch}.
+# $1 = the hygiene item stream; only open In progress leaves are probed.
+#  - commits: the newest commit on any ref whose message cites `#<n>`.
+#  - worktrees: a branch carrying <n> as a -/_// delimited token (wt-1014-foo,
+#    wt-gate-toggle-1216) maps to <n>; its activity is the newer of its tip
+#    commit and its HEAD reflog mtime (creation, checkout, commit, reset). The
+#    mapping is a naming heuristic — a miss only suppresses a report, never
+#    invents one.
+_claim_activity() {
+  local nums n ct key val wt="" branch tip ref
+  nums=$(printf '%s\n' "$1" | jq -r 'select(.content.state == "OPEN"
+      and .fieldValueByName.name == "In progress"
+      and (.content.subIssuesSummary.total // 0) == 0) | .content.number')
+  {
+    for n in $nums; do
+      ct=$(git log --all -1 --format=%ct -E --grep="#${n}([^0-9]|\$)" 2>/dev/null)
+      [ -n "$ct" ] && echo "$n $ct"
+    done
+    git worktree list --porcelain 2>/dev/null | while read -r key val; do
+      case "$key" in
+        worktree) wt=$val ;;
+        branch)
+          branch=${val#refs/heads/}
+          for n in $nums; do
+            [[ "-$branch-" =~ [-_/]$n[-_/] ]] || continue
+            tip=$(git -C "$wt" log -1 --format=%ct 2>/dev/null)
+            ref=$(git -C "$wt" rev-parse --path-format=absolute --git-path logs/HEAD 2>/dev/null)
+            [ -n "$tip" ] && echo "$n $tip"
+            [ -n "$ref" ] && [ -f "$ref" ] && echo "$n $(stat -c %Y "$ref")"
+          done ;;
+      esac
+    done
+  } | jq -Rn 'reduce (inputs | select(length > 0) | split(" ")) as [$n, $t]
+      ({}; .[$n] = ([.[$n] // 0, ($t | tonumber)] | max))'
+}
+
 cmd_hygiene() {
   local as_json=false do_fix=false dry_run=false
   for a in "$@"; do
@@ -703,8 +742,11 @@ cmd_hygiene() {
         } }
       }' --jq '.data.node.items.nodes[] | select(.content.number != null)')
 
-  local report
-  report=$(printf '%s\n' "$raw" | jq -s -L "$(dirname "$0")/lib" --argjson stale "$((STALE_CLAIM_HOURS * 3600))" 'include "hub_derive";
+  local activity report
+  activity=$(_claim_activity "$raw"); [ -n "$activity" ] || activity='{}'
+  report=$(printf '%s\n' "$raw" | jq -s -L "$(dirname "$0")/lib" --argjson stale "$((STALE_CLAIM_HOURS * 3600))" \
+      --argjson ipstale "$((IN_PROGRESS_STALE_HOURS * 3600))" --argjson activity "$activity" \
+      --argjson now "$(date +%s)" 'include "hub_derive"; include "claims";
       [ .[] | { number: .content.number,
                 title:  .content.title,
                 state:  .content.state,
@@ -752,6 +794,10 @@ cmd_hygiene() {
               | (now - (.updated | fromdateiso8601)) as $age
               | select($age > $stale)
               | { number, title, detail: "untouched \($age / 3600 | floor)h" } ],
+          in_progress_stale:
+            [ ($every | in_progress_stale($now; $activity; $ipstale))[] | . as $s
+              | ($every[] | select(.number == $s.number)) as $h
+              | { number, title: $h.title, detail: "no activity \($s.age_hours)h" } ],
           unmilestoned_ready:
             [ $all[] | select(.status == "Ready" and .milestone == null)
               | { number, title, detail: "" } ],
@@ -829,6 +875,10 @@ cmd_hygiene() {
     "A drone must not touch an open fork. Move to needs-design, or drop the label if it is settled."
   _section stale_claim "Designing, untouched past ${STALE_CLAIM_HOURS}h" \
     "A /swarmify pass that died holding its claim. Resume the pass, or release it: mise gh-project -- status <n> nd"
+  # Report-only, like stale_claim: only whoever ran the claim knows whether
+  # the work is abandoned, so --fix never moves it.
+  _section in_progress_stale "In progress, no activity past ${IN_PROGRESS_STALE_HOURS}h" \
+    "A dead implementer claim hides the issue and its blocked-by dependents from every swarm. Resume it, or release it: mise gh-project -- status <n> ready"
   _section unmilestoned_ready "Ready with no milestone" \
     "Invisible to \`roadmap\`. Until this is zero the roadmap cannot be the planning surface."
   # The old `hollow_hub` check exempted a `Ready` parent "with its own scope"
@@ -1024,7 +1074,9 @@ Board hygiene:
   label <n> [<add|rm> <name>]  Read or flip a label (blocked|design|…)
   hygiene [--json] [--fix [--dry-run]]  Report board invariant violations; --fix derives hub statuses
                                 (stalled_hub — a hub whose open children are ALL parked — is
-                                 never touched by --fix: detaching a child is an owner call)
+                                 never touched by --fix: detaching a child is an owner call;
+                                 in_progress_stale — an In progress leaf with no activity past
+                                 $GH_PROJECT_IN_PROGRESS_STALE_HOURS (6h) — is report-only too)
   sync-parent <n>              Derive <n>'s parent hub status from its children (land's hook)
 
 Dependencies (native GitHub issue links, distinct from the `blocked` label):
