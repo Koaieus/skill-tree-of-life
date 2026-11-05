@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#MISE description="Environment smoke check, one ✓/✗/! line each: godot on PATH == mise.toml pin, class cache, native lib, submodules, GitHub REST + GraphQL, jq/python3. Exits non-zero on any ✗ (a ! warning does not). `mise run doctor`"
+set -uo pipefail
+cd "${MISE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}"
+fails=0
+ok()   { echo "✓ $*"; }
+warn() { echo "! $*"; }
+bad()  { echo "✗ $*"; fails=$((fails + 1)); }
+
+# godot: on PATH, and the version is the mise.toml pin ("4.7.2-stable" <-> "4.7.2.stable.official.<hash>")
+pin=$(sed -nE 's/^godot = "([^"]+)".*/\1/p' mise.toml | head -1)
+if ! command -v godot >/dev/null 2>&1; then
+  bad "godot not on PATH — run \`mise install\`"
+else
+  have=$(godot --version 2>/dev/null | head -1)
+  if [[ "$have" == "${pin//-/.}"* ]]; then ok "godot $have matches mise.toml pin $pin"
+  else bad "godot is '$have' but mise.toml pins $pin — \`mise install\`, and run via \`mise run\` / \`mise exec\`"; fi
+fi
+
+# class cache: present, and not older than the newest .gd
+cache=.godot/global_script_class_cache.cfg
+if [ ! -f "$cache" ]; then
+  bad "class cache missing ($cache) — run \`godot --headless --import\` (or \`mise run refresh\`)"
+else
+  newer=$(find . -path ./.godot -prune -o -path ./.worktrees -prune -o -path ./native -prune -o -name '*.gd' -newer "$cache" -print 2>/dev/null | head -1)
+  if [ -n "$newer" ]; then warn "class cache older than ${newer#./} — \`mise run refresh\` if you see \"Could not find type\""
+  else ok "class cache present and current"; fi
+fi
+
+# native lib + submodule
+have_lib=0
+if compgen -G "native/bin/libbladesim.linux.template_debug.*" >/dev/null; then have_lib=1; ok "native/bin populated"
+else bad "native/bin has no template_debug lib — \`mise run native:build\`"; fi
+# The submodule is only needed to BUILD the lib: empty with a lib present is a warning.
+if [ -f native/godot-cpp/SConstruct ]; then ok "git submodules initialised"
+elif [ "$have_lib" = 1 ]; then warn "native/godot-cpp empty (only needed to rebuild) — \`git submodule update --init --recursive\`"
+else bad "native/godot-cpp empty — \`git submodule update --init --recursive\` (\`mise run native:build\` prints the worktree --reference form)"; fi
+
+# tools
+for t in jq python3; do
+  if command -v "$t" >/dev/null 2>&1; then ok "$t present"; else bad "$t missing"; fi
+done
+
+# GitHub
+if ! command -v gh >/dev/null 2>&1; then
+  bad "gh not on PATH"
+else
+  if name=$(timeout 4 gh api repos/Koaieus/skill-tree-of-life --jq .name 2>/dev/null) && [ -n "$name" ]; then ok "GitHub REST reachable ($name)"
+  else bad "GitHub REST unreachable — check \`gh auth status\` / network"; fi
+  if timeout 4 gh api graphql -f query='{viewer{login}}' >/dev/null 2>&1; then ok "GitHub GraphQL reachable"
+  else warn "GraphQL unavailable (cloud session) — board/discussions tooling off"; fi
+fi
+
+if [ "$fails" -gt 0 ]; then echo "✗ doctor: $fails problem(s)"; exit 1; fi
+echo "✓ doctor: environment ok"
