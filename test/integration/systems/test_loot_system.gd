@@ -1,5 +1,4 @@
 extends GutTest
-const _EDGE_SCENE := preload("res://graph/edge.tscn")
 
 ## LootSystem (#68 XP reward + #69 SkillDust loot). On `Events.entity_died`:
 ##   * the killing-blow entity (attributed via TurnManager.current_entity at the
