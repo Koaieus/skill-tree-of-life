@@ -213,8 +213,8 @@ func _setup_level() -> void:
 ## [b]`--autopilot` is what gates this, and that is why the flag is sent to BOTH
 ## peers[/b] (`addons/mp_sandbox/mp_sandbox_panel.gd`), breaking that launcher's
 ## otherwise-strict "each flag goes to the one role that can act on it" rule.
-## [method CommandApplier._apply_mass_allocate] RE-derives affordability from the
-## RECEIVING peer's own board (#458: a stale sender must not dictate spend), so
+## [MassAllocateCommandHandler] RE-derives affordability from the RECEIVING
+## peer's own board (a stale sender must not dictate spend), so
 ## boosting only the host's copy would make that recompute disagree with what the
 ## host actually applied, the instant a budget-gated verb crossed. The client
 ## boosts and then never sweeps — [method _start_sweep_if_due] gates origination

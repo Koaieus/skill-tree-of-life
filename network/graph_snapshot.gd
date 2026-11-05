@@ -85,10 +85,8 @@ const _LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
 ## resource-path table), `nodes` (positional rows, see the `_R_*` consts), and
 ## `edges` (`[low_stable_id, high_stable_id]` pairs, sorted — canonical because
 ## [method decode] re-adds edges by unordered pair, so the live order and
-## direction would not survive a round trip and the bytes would drift). Callers that want to send
-## progress in chunks should slice `graph.get_skill_nodes()` themselves and
-## call [method encode_nodes] per slice, sharing one [_InternTable] across
-## slices — this method exists for the common case (and every unit test).
+## direction would not survive a round trip and the bytes would drift). There
+## is no chunked variant: the whole graph goes as one payload.
 static func encode(graph: Graph) -> PackedByteArray:
 	var table := _InternTable.new()
 	var nodes: Array = []

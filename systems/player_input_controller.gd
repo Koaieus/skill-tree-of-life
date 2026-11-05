@@ -1,8 +1,6 @@
 class_name PlayerInputController
 extends Node
 
-const ZLayers = preload("res://ui/z_layers.gd")
-
 ## Routes player input (skill-node clicks + UI intent) on behalf of a single
 ## Player entity. There are no turn phases — intent is disambiguated by INPUT
 ## CHANNEL, and each channel is gated only by "is it this player's turn?" plus
@@ -984,10 +982,10 @@ func _pop_core_move() -> void:
 ## BFS path (`AllocationSystem.core_path`). Non-reachable / over-budget targets
 ## give an empty path and no-op.
 ##
-## ONE [MoveCoreCommand] carrying the full path (#510), not one per hop — the
-## per-hop loop, the beat between hops and the stop-on-first-failure rule all
-## moved into [method CommandApplier._apply_move_core] unchanged. Splitting it
-## into N commands would put N wire messages where the player took one action.
+## ONE [MoveCoreCommand] carrying the full path, not one per hop — the
+## per-hop loop, the beat between hops and the stop-on-first-failure rule live
+## in [MoveCoreCommandHandler]. Splitting it into N commands would put N wire
+## messages where the player took one action.
 func _commit_core_move(target: SkillNode) -> void:
 	var path := allocation_system.core_path(player, target)
 	if path.size() < 2:

@@ -141,8 +141,8 @@ func round_waiting() -> Array[Entity]:
 ## the few non-entity readers that still look it up.
 const GROUP := &"turn_manager"
 
-## The [PoolStat]s / [Stat]s currently wired to [method _on_forecast_source_changed]
-## — tracked so [method _rebind_forecast_sources] can cleanly disconnect before
+## The [PoolStat]s / [Stat]s currently wired to [method _on_forecast_pool_changed]
+## / [method _on_forecast_speed_changed] — tracked so [method _rebind_forecast_sources] can cleanly disconnect before
 ## re-walking. Never read for anything else.
 var _bound_initiative_pools: Array[PoolStat] = []
 var _bound_initiative_speeds: Array[Stat] = []
