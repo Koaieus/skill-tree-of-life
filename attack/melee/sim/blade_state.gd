@@ -202,10 +202,9 @@ static func from_nodes(
 ## BladeDistanceConstraint per edge (rest = initial distance, fully rigid).
 ## Callers can append further constraints after this returns.
 ##
-## `inner_radii_` is optional — fixtures that never spawn visuals can omit
-## it; it then mirrors
-## `radii_` (inner == outer, i.e. no rim band), which [BladeCircle] draws as a
-## flat fill rather than a degenerate zero-width stroke.
+## `inner_radii_` is optional — fixtures that never spawn visuals can omit it;
+## it then mirrors `radii_` (inner == outer, i.e. no rim band), which
+## [BladeCircle] draws as a flat fill rather than a degenerate zero-width stroke.
 static func build(
 		positions_: Array[Vector2],
 		pivot_idx: int,
