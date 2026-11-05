@@ -129,7 +129,7 @@ func _make_cell(row: int, col: int, kind: String, title: String, color: Color) -
 		var mod_count: int = 3 if (kind == "alloc_travel" and j == 0) else 1
 		for _k in mod_count:
 			mods.append(_str_mod(str_per_node))
-		node.modifiers = mods
+		node.authored_modifiers = mods
 		graph.add_skill_node(node)
 		cell.nodes.append(node)
 
