@@ -1,14 +1,21 @@
 class_name BladeObstacleField
-extends BladeConstraint
+extends RefCounted
 
 ## The defender field: the one object in the solver that tests the blade
 ## against a defender node, wrapping one immutable [BladeDefenderZones]. Two
 ## zone kinds, asymmetric on purpose — a [b]plate[/b] (`deflection`, presence
 ## only) is pushed out of, meters strain and arms a break;
-## a [b]wall[/b] (`swing_drag`, a magnitude) is only SENSED: [method project]
+## a [b]wall[/b] (`swing_drag`, a magnitude) is only SENSED: the contact pass
 ## skips it and its drag is banked on the [BladeSwingClock]. A wall never
-## enters [member _near] and never shatters a blade. A node carrying both stats
+## meters strain and never shatters a blade. A node carrying both stats
 ## is one zone that is both kinds, latched once.
+##
+## [b]This class holds the field's DATA, not its integration.[/b] The per-substep
+## contact/strain pass — pushout, wall sensing, restitution, strain metering, the
+## break pick — exists once, as the C++ `FieldCtx` in
+## native/src/blade_solver_native.cpp, which [method BladeSim.simulate_range]
+## drives. Here: zone authoring, the run's descriptor ([method prepare] /
+## [method native_inputs]), the rewindable accumulators and the break hand-off.
 ##
 ## Invariants: exists only when some defender is inside the swing's whip bound
 ## (no defender, no field, no accumulator — the false-positive guard is
@@ -119,7 +126,7 @@ var _strain: PackedFloat32Array = PackedFloat32Array()
 ## the strain's "which edge" answer. An element is a vertex disc (key = its
 ## particle index) or an edge capsule (key = particle count + edge index), so
 ## an ascending key scan visits vertices first, each kind in index order — the
-## pick's tie rule. See [method _pick_edge].
+## pick's tie rule (the C++ `field_pick_edge`).
 var _edge_residual: Array[Dictionary] = []
 ## Where each driven particle ended the PREVIOUS substep, and where its driver
 ## had prescribed it then (both parallel to `_driven`); empty until one substep
@@ -140,31 +147,21 @@ var _current_step: int = 0
 ## holds it armed: [method consume_break] then lands it with no head replay.
 var history: Array[Bank] = []
 
-# ── Per-run scratch (rebuilt by prepare / per substep) ──────────────────────
+# ── Per-run descriptor (rebuilt by prepare) ─────────────────────────────────
+# Only what the native pass is HANDED lives here: `_state`/`_clock` and the
+# driven set, incidence and pivot hops [method native_inputs] ships. The pass's
+# own per-substep scratch (which elements touched which plate, which plates are
+# near, restitution recoils) is FieldCtx-local and never crosses back — neither
+# [method capture] nor [method native_state] carries it, so GDScript keeps none.
 var _state: BladeState
 var _clock: BladeSwingClock = null
 var _driven: PackedInt32Array = PackedInt32Array()
 var _driven_set: Dictionary = {}
-var _driven_targets: PackedVector2Array = PackedVector2Array()
-## particle -> zone, and edge_idx -> zone, for THIS substep. Cleared at its end.
-var _contact_particles: Dictionary = {}
-## Restitution's record (#1634), per substep: particle -> [approach, normal] of
-## its FIRST disc pushout, only for a particle with
-## [member BladeState.vertex_restitution] > 0. Consumed by [method restitute].
-var _recoil: Dictionary = {}
 ## Per zone: the peak momentum a restituting member reached against it (normal
 ## approach speed in px/s x mass) and the sample it peaked on (-1 = none).
 ## Banked, so it outlives the substep and rewinds with the resolve loop.
 var _impact_peak: PackedFloat32Array = PackedFloat32Array()
 var _impact_step: PackedInt32Array = PackedInt32Array()
-## The GDScript mirror's substep length, set by whoever drives [method project];
-## 0 records no impact peak. The native loop owns its own.
-var substep_dt: float = 0.0
-var _contact_edges: Dictionary = {}
-## zone -> true while some part is within CONTACT_HYSTERESIS of it this substep.
-## PLATES only: a wall never enters this set, so it can never meter strain,
-## arm a break (#811 — see the class docstring).
-var _near: Dictionary = {}
 ## particle -> Array[int] of incident live edge indices. A reference-type
 ## Array on purpose: a packed array read back out of a Dictionary is a copy,
 ## and appending to it would be lost.
@@ -279,7 +276,7 @@ func max_strain() -> float:
 ## neighbours [BladeArcDriver] prescribes — read off the LIVE driver list, since
 ## [method SwingResolve._surviving_drivers] shrinks it after a severance) and
 ## the live edge incidence — plus [param clock], the swing's own accumulator,
-## which [method project] banks a wall contact straight onto (#811; the clock
+## which the native contact pass banks a wall contact straight onto (#811; the clock
 ## owns the once-per-swing latch, so this class keeps no second one). Called by
 ## [method BladeSim.simulate_range] at the top of every call, including a head
 ## replay. A null clock means walls sense nothing: every production caller
@@ -301,7 +298,6 @@ func prepare(state: BladeState, drivers: Array[BladeDriver],
 		_driven_last = PackedVector2Array()
 		_driven_last_target = PackedVector2Array()
 	_driven = driven
-	_driven_targets.resize(_driven.size())
 	_incident.clear()
 	for e_idx in state.edges.size():
 		var e := state.edges[e_idx]
@@ -333,243 +329,6 @@ func _pivot_hops(state: BladeState) -> PackedInt32Array:
 					next.append(o)
 		frontier = next
 	return hops
-
-
-## The GLOBAL index of the sample the next substeps produce.
-func begin_sample(step: int) -> void:
-	_current_step = step
-
-
-## Snapshot the drivers' prescribed positions for this substep — called right
-## after they apply, before the projection pass.
-func after_drivers(positions: PackedVector2Array) -> void:
-	for k in _driven.size():
-		_driven_targets[k] = positions[_driven[k]]
-
-
-## The pushout, and the swing's only contact test. Runs once per solver
-## iteration, after the distance constraints.
-##
-## [b]Both zone kinds walk the same geometry, once.[/b] For every zone this
-## tests each blade vertex disc and each rim-trimmed edge capsule against the
-## zone disc — the geometry [BladeHitScan] queries the physics server for and
-## the geometry #780's deleted `BladeSwingClock.sense` re-implemented. What
-## differs is what a contact DOES:
-##
-## - a plate (`deflects_at(z)`) is pushed out of, to within
-##   [constant CONTACT_SLOP], and marks [member _near] so the strain meter runs;
-## - a wall banks its drag on [member _clock] and is [b]skipped in the pushout
-##   entirely[/b] — it never moves a vertex, never marks `_near`, and so can
-##   never arm a break. A wall spends the swing's budget; it
-##   does not stop the blade.
-##
-## A wall's contact test is the exact reach #780 used — `zone radius + particle
-## radius` for a disc, `zone radius + EDGE_RADIUS` for a capsule, with no
-## [constant CONTACT_SLOP] and no [constant CONTACT_HYSTERESIS] — so moving the
-## sensing here did not move the boundary, only the cadence (per solver
-## substep now, rather than per trajectory sample; strictly finer, and onset
-## can only move earlier-or-equal).
-##
-## A wall also does not skip the pivot. The pushout does (`inv_masses[i] <= 0`:
-## the pivot and any corpse are not pushed), but a fortified node overlapping
-## the pivot did drag under #780 and still does.
-func project(positions: PackedVector2Array, inv_masses: PackedFloat32Array) -> void:
-	var edges := _state.edges
-	var radii := _state.radii
-	var removed_edges := _state.removed_edges
-	var n := positions.size()
-	if n == 0 or zones.is_empty():
-		return
-	# Broad phase, recomputed from THIS iteration's positions so it needs no
-	# safety margin: a zone disc can only touch blade geometry inside the
-	# blade's AABB grown by the widest blade disc, the edge half-thickness, the
-	# hysteresis band and the zone's own radius. #811 widened the query radius
-	# deliberately (see MeleeAttackPlan.whip_bound), so on a wall-heavy map this
-	# field can hold dozens of zones while the blade is near none of them —
-	# without this reject the per-iteration walk is O(zones x blade), measured
-	# at +29% on a blade-size-4 prediction on `first_level`.
-	var lo := positions[0]
-	var hi := positions[0]
-	var widest := 0.0
-	for i in n:
-		lo = lo.min(positions[i])
-		hi = hi.max(positions[i])
-		if i < radii.size():
-			widest = maxf(widest, radii[i])
-	var pad := widest + _EDGE_RADIUS + CONTACT_HYSTERESIS
-	lo -= Vector2(pad, pad)
-	hi += Vector2(pad, pad)
-	for z in zones.size():
-		var c := zones.centers[z]
-		var zr := zones.radii[z]
-		if c.x < lo.x - zr or c.x > hi.x + zr or c.y < lo.y - zr or c.y > hi.y + zr:
-			continue
-		var deflect := _live_deflects[z] != 0
-		# A wall that has already banked has nothing left to learn — the same
-		# early-out #780's `touched` check was, asked of the one latch that
-		# exists now (the clock's).
-		var wants_drag := _live_drags[z] > 0.0 and _clock != null \
-				and not _clock.has_banked(z)
-		if not deflect and not wants_drag:
-			continue
-		for i in n:
-			var p := positions[i]
-			var pr: float = radii[i] if i < radii.size() else 0.0
-			var d2 := p.distance_squared_to(c)
-			if wants_drag:
-				var touch := zr + pr
-				if d2 <= touch * touch:
-					_clock.bank_drag(z, _live_drags[z])
-					wants_drag = false
-			if not deflect:
-				continue
-			if inv_masses[i] <= 0.0:
-				continue  # the pivot, or a corpse — neither is pushed
-			var reach := zr + pr - CONTACT_SLOP
-			if d2 >= (reach + CONTACT_HYSTERESIS) * (reach + CONTACT_HYSTERESIS):
-				continue
-			_near[z] = true
-			if d2 >= reach * reach:
-				continue
-			var d := sqrt(d2)
-			var normal := (p - c) / d if d > 1e-6 else Vector2.RIGHT
-			_record_recoil(i, p, normal, z, inv_masses[i])
-			positions[i] = c + normal * reach
-			_contact_particles[i] = z
-		if not deflect and not wants_drag:
-			continue  # wall, already banked by a disc — skip the capsule pass
-		var cap_reach := zr + _EDGE_RADIUS
-		for e_idx in edges.size():
-			if removed_edges.has(e_idx):
-				continue  # severed (#781) — a gone edge touches nothing
-			var e := edges[e_idx]
-			var a := positions[e.x]
-			var b := positions[e.y]
-			var delta := b - a
-			var length := delta.length()
-			var trimmed := length - radii[e.x] - radii[e.y]
-			if trimmed < 1e-4:
-				continue  # discs overlap — no exposed span (mirrors BladeHitScan)
-			var dir := delta / length
-			var p0 := a + dir * radii[e.x]
-			var seg := dir * trimmed
-			var u := clampf((c - p0).dot(seg) / (trimmed * trimmed), 0.0, 1.0)
-			var q := p0 + seg * u
-			var d2 := q.distance_squared_to(c)
-			if wants_drag and d2 <= cap_reach * cap_reach:
-				_clock.bank_drag(z, _live_drags[z])
-				wants_drag = false
-				if not deflect:
-					break
-			if not deflect:
-				continue
-			var wa := inv_masses[e.x]
-			var wb := inv_masses[e.y]
-			if wa + wb <= 0.0:
-				continue
-			if d2 >= (cap_reach + CONTACT_HYSTERESIS) * (cap_reach + CONTACT_HYSTERESIS):
-				continue
-			_near[z] = true
-			if d2 >= cap_reach * cap_reach:
-				continue
-			var d := sqrt(d2)
-			var normal := (q - c) / d if d > 1e-6 else Vector2(-dir.y, dir.x)
-			var push := normal * (cap_reach - d)
-			# q's barycentric coordinate along the FULL a..b segment.
-			var sfrac := (radii[e.x] + trimmed * u) / length
-			var wa_s := (1.0 - sfrac) * wa
-			var wb_s := sfrac * wb
-			var denom := (1.0 - sfrac) * wa_s + sfrac * wb_s
-			if denom <= 0.0:
-				continue
-			positions[e.x] = a + push * (wa_s / denom)
-			positions[e.y] = b + push * (wb_s / denom)
-			_contact_edges[e_idx] = z
-
-
-func _record_recoil(i: int, p: Vector2, normal: Vector2, z: int, inv_mass: float) -> void:
-	var e := _state.vertex_restitution
-	if i >= e.size() or e[i] <= 0.0 or _recoil.has(i) or i >= _state.prev_positions.size():
-		return
-	var vn := (p - _state.prev_positions[i]).dot(normal)
-	if vn < 0.0:
-		_recoil[i] = [vn, normal]
-		if substep_dt > 0.0 and z < _impact_peak.size():
-			var momentum := -vn / substep_dt / inv_mass
-			if momentum > _impact_peak[z]:
-				_impact_peak[z] = momentum
-				_impact_step[z] = _current_step
-
-
-## Bunker x bunker recoil (#1634), after a substep's projection: a particle
-## that hit a plate leaves along its normal at restitution x its approach
-## speed, written into the Verlet history [param prev] (the next integrate
-## reads velocity as `position - prev`). Only the normal component moves.
-## The native loop's `field_restitute` is this, transliterated.
-func restitute(positions: PackedVector2Array, prev: PackedVector2Array) -> void:
-	for i: int in _recoil:
-		var approach: float = _recoil[i][0]
-		var normal: Vector2 = _recoil[i][1]
-		var target := -_state.vertex_restitution[i] * approach
-		var vn := (positions[i] - prev[i]).dot(normal)
-		if vn < target:
-			prev[i] -= normal * (target - vn)
-	_recoil.clear()
-
-
-## Close the substep: meter the strain, arm a break, and roll the driver history.
-func end_substep(positions: PackedVector2Array) -> void:
-	if _near.is_empty():
-		# Nothing anywhere near a plate: every contact is over. Reset, don't bank.
-		for z in _strain.size():
-			if _strain[z] != 0.0:
-				_strain[z] = 0.0
-				_edge_residual[z].clear()
-		_roll_driven(positions)
-		return
-	# The unresolved drive: the most any grip particle fell short of the
-	# advance its DRIVER made this substep (target now minus target then),
-	# measured along that advance. A step that went BACKWARDS counts as fully
-	# refused (capped at the request — a jammed body thrown back is not "more
-	# jammed" than one held still); a step that caught up counts negative and
-	# bleeds the bank.
-	var unresolved := 0.0
-	var any := false
-	if _driven_last.size() == _driven.size():
-		for k in _driven.size():
-			var want := _driven_targets[k] - _driven_last_target[k]
-			var req := want.length()
-			if req <= 1e-6:
-				continue
-			var got := maxf(0.0, (positions[_driven[k]] - _driven_last[k]).dot(want / req))
-			var u := req - got
-			unresolved = u if not any else maxf(unresolved, u)
-			any = true
-	for z in _strain.size():
-		if _near.has(z):
-			_strain[z] = maxf(0.0, _strain[z] + unresolved)
-		elif _strain[z] != 0.0:
-			_strain[z] = 0.0
-			_edge_residual[z].clear()
-	# "Which edge": every element (vertex disc, edge capsule) pushed out of a
-	# plate this substep banks the refused drive against that plate.
-	if unresolved > 0.0:
-		for i in _contact_particles:
-			_bank_load(_contact_particles[i], i, unresolved)
-		var n := positions.size()
-		for e_idx in _contact_edges:
-			_bank_load(_contact_edges[e_idx], n + e_idx, unresolved)
-	if _break_edge < 0:
-		for z in _strain.size():
-			if _strain[z] < SHATTER_DISTANCE:
-				continue
-			var e := _pick_edge(z)
-			if e >= 0:
-				_break_edge = e
-				_break_step = _current_step
-				_break_zone = z
-				break
-	_roll_driven(positions)
 
 
 ## True if a break was armed during the substeps of GLOBAL sample [param step].
@@ -697,14 +456,11 @@ func restore(b: Bank) -> void:
 	_impact_peak = b.impact_peak.duplicate()
 	_impact_step = b.impact_step.duplicate()
 	_size_impacts()
-	_contact_particles.clear()
-	_contact_edges.clear()
-	_near.clear()
 
 
 # ── The native boundary (#813) ────────────────────────────────────────────────
-# The C++ backend runs [method project] and [method end_substep] itself rather
-# than calling back into GDScript per solver iteration — a callback there fires
+# The C++ `FieldCtx` is the only contact/strain pass, run inside the solver loop
+# rather than calling back into GDScript per solver iteration — a callback there fires
 # in the innermost loop, and the crossing would eat most of the 22x this exists
 # to unlock. So the field crosses as data: the immutable half once
 # ([method native_inputs]), the accumulators in and out
@@ -820,65 +576,3 @@ func apply_native_state(d: Dictionary) -> void:
 	_impact_peak = d.get("impact_peak", PackedFloat32Array())
 	_impact_step = d.get("impact_step", PackedInt32Array())
 	_size_impacts()
-	# The per-substep scratch never survives a substep on either path; clearing
-	# it here mirrors [method restore] rather than leaving GDScript's stale.
-	_contact_particles.clear()
-	_contact_edges.clear()
-	_near.clear()
-
-
-func _roll_driven(positions: PackedVector2Array) -> void:
-	_driven_last.resize(_driven.size())
-	_driven_last_target.resize(_driven.size())
-	for k in _driven.size():
-		_driven_last[k] = positions[_driven[k]]
-		_driven_last_target[k] = _driven_targets[k]
-	_contact_particles.clear()
-	_contact_edges.clear()
-	_near.clear()
-
-
-func _bank_load(z: int, key: int, r: float) -> void:
-	var d := _edge_residual[z]
-	d[key] = float(d.get(key, 0.0)) + r
-
-
-## The edge zone [param z] breaks, or -1 if nothing is left to break there.
-## The contact element with the most banked drive (ties: vertices first, lowest
-## index) decides it: an edge capsule breaks itself; a vertex breaks its live
-## edge to the neighbour nearest the pivot (ties: lowest edge index). An
-## element with nothing live to break falls through to the next.
-func _pick_edge(z: int) -> int:
-	var n := _state.positions.size()
-	var best := -1
-	var best_r := -1.0
-	var keys := _edge_residual[z].keys()
-	keys.sort()
-	for key: int in keys:
-		var e_idx := _element_edge(key, n)
-		if e_idx < 0:
-			continue
-		var r: float = _edge_residual[z][key]
-		if r > best_r:
-			best_r = r
-			best = e_idx
-	return best
-
-
-## The live edge element [param key] would break, or -1.
-func _element_edge(key: int, n: int) -> int:
-	if key >= n:
-		return -1 if _state.removed_edges.has(key - n) else key - n
-	var best := -1
-	var best_hop := 0
-	for e_idx: int in _incident.get(key, []):
-		if _state.removed_edges.has(e_idx):
-			continue
-		var e := _state.edges[e_idx]
-		var hop := _hops[e.y if e.x == key else e.x]
-		if best < 0 or hop < best_hop or (hop == best_hop and e_idx < best):
-			best = e_idx
-			best_hop = hop
-	return best
-
-

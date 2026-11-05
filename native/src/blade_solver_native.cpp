@@ -38,16 +38,17 @@ using namespace godot;
 
 /* ── The defender half (#813) ─────────────────────────────────────────────────
  *
- * BladeSwingClock + BladeObstacleField, transliterated under the same rules as
- * everything above. Three notes that only apply down here:
+ * BladeSwingClock + BladeObstacleField's per-substep pass, transliterated under
+ * the same rules as everything above. The pass (`field_*` below) is now the ONLY
+ * implementation — GDScript keeps just the field's data and accumulators. Three notes that only apply down here:
  *
  *   - `_strain` is a PackedFloat32Array whose arithmetic is double: the read
  *     widens, the add and the maxf happen in double, the STORE narrows, and the
  *     `< SHATTER_DISTANCE` test then compares the narrowed value. Keeping a
  *     double accumulator "for accuracy" is a different solver. `_edge_residual`
  *     is the opposite — its values are plain GDScript floats, i.e. doubles.
- *   - `_contact_particles` / `_contact_edges` are godot
- *     Dictionaries here for the same reason they are in GDScript: iteration is
+ *   - `contact_particles` / `contact_edges` are godot
+ *     Dictionaries on purpose: iteration is
  *     INSERTION order, and the element banking pass sums into the zone banks in
  *     that order. A particle touched by zone 3 and then zone 7 keeps zone 7's
  *     value at zone 3's position — a key-sorted map is NOT equivalent.
@@ -177,7 +178,7 @@ double clock_progress(const FieldCtx &f) {
     return f.clock_warping ? f.clock_f : -1.0;
 }
 
-// BladeObstacleField.after_drivers(). ptrw() is taken FRESH rather than cached:
+// Snapshot the drivers' prescribed positions for this substep. ptrw() is taken FRESH rather than cached:
 // these buffers get snapshotted into banks, and a stale write pointer would
 // retroactively rewrite every snapshot.
 void field_after_drivers(FieldCtx &f, const Vector2 *positions) {
@@ -187,7 +188,7 @@ void field_after_drivers(FieldCtx &f, const Vector2 *positions) {
     }
 }
 
-// BladeObstacleField.project() — the pushout, and the swing's only contact test.
+// The pushout, and the swing's only contact test.
 void field_project(FieldCtx &f, Vector2 *positions, const Vector2 *prev,
         const float *inv_masses, int64_t n) {
     if (n == 0 || f.zone_count == 0) {
@@ -342,15 +343,15 @@ void field_project(FieldCtx &f, Vector2 *positions, const Vector2 *prev,
     }
 }
 
-// BladeObstacleField._bank_load() — the values are GDScript floats, i.e.
-// doubles, unlike `strain`.
+// Bank one element's refused drive — the values are doubles (GDScript floats
+// once they cross back), unlike `strain`.
 void field_bank_load(FieldCtx &f, int64_t z, int64_t key, double r) {
     Dictionary d = f.edge_residual[z];
     const double prev = d.has(key) ? (double)d[key] : 0.0;
     d[key] = prev + r;
 }
 
-// BladeObstacleField._element_edge() — the live edge one contact element
+// The live edge one contact element
 // breaks, or -1. Key < n is a vertex: its live edge to the neighbour nearest
 // the pivot, lowest edge index on a tie. Key >= n is edge `key - n` itself.
 int64_t field_element_edge(const FieldCtx &f, int64_t key, int64_t n) {
@@ -376,7 +377,7 @@ int64_t field_element_edge(const FieldCtx &f, int64_t key, int64_t n) {
     return best;
 }
 
-// BladeObstacleField._pick_edge() — the contact element with the most banked
+// The edge zone z breaks: the contact element with the most banked
 // drive (ascending keys plus a strict `>`: vertices first, lowest index on a
 // tie) decides; an element with nothing live to break falls through.
 int64_t field_pick_edge(const FieldCtx &f, int64_t z) {
@@ -415,7 +416,7 @@ void field_roll_driven(FieldCtx &f, const Vector2 *positions) {
     f.near_plates.clear();
 }
 
-// BladeObstacleField.restitute() — bunker x bunker recoil (#1634). After the
+// Bunker x bunker recoil (#1634). After the
 // substep's projection, a particle that hit a plate leaves along that plate's
 // normal at restitution x its approach speed: written into the Verlet history
 // (`prev`), since the next integrate reads velocity as `position - prev`.
@@ -439,7 +440,7 @@ void field_restitute(FieldCtx &f, const Vector2 *positions, Vector2 *prev, int64
     }
 }
 
-// BladeObstacleField.end_substep() — meter the driver residual, bank the load
+// Close the substep: meter the driver residual, bank the load
 // share, arm a break, roll the history.
 void field_end_substep(FieldCtx &f, const Vector2 *positions) {
     const int64_t zn = f.strain.size();
@@ -723,7 +724,7 @@ static Dictionary run_range(
         // The INTEGER global step index — added as integers, THEN widened —
         // never an accumulated float offset (#803's trap).
         const double t0 = (double)(p_step_offset + step) * p_dt;
-        // BladeObstacleField.begin_sample(): the GLOBAL index of the sample the
+        // The GLOBAL index of the sample the
         // next substeps produce, which is what an armed break is stamped with.
         if (p_fld != nullptr && p_fld->has_field) {
             p_fld->current_step = p_step_offset + step + 1;
@@ -1017,8 +1018,8 @@ Dictionary BladeSolverNative::simulate_range_field(
         ctx.edge_count = edges.size() / 2;
         ERR_FAIL_COND_V_MSG(edge_removed.size() != ctx.edge_count, Dictionary(),
                 "simulate_range_field: edge_removed must have one byte per edge.");
-        // The GDScript capsule pass indexes `radii[e.x]` unguarded, so a short
-        // array is an index error there and would be a read past the end here.
+        // The capsule pass indexes `radii[e.x]` unguarded, so a short array
+        // would be a read past the end.
         ERR_FAIL_COND_V_MSG(vertex_radii.size() != p_positions.size(), Dictionary(),
                 "simulate_range_field: vertex_radii must parallel positions.");
         ERR_FAIL_COND_V_MSG(incident_offsets.size() != p_positions.size() + 1, Dictionary(),

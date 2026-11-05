@@ -318,8 +318,8 @@ static func _simulate_native(
 		var field_inputs: Dictionary
 		if obstacles != null:
 			# Exact, like the constraint and driver checks above and for the
-			# same reason: a subclass overriding project() or end_substep()
-			# would be silently ignored by the C++ loop.
+			# same reason: a subclass reshaping the field's data would be
+			# silently ignored by the C++ contact pass.
 			if obstacles.get_script() != BladeObstacleField:
 				return _decline("obstacles %s is not a plain BladeObstacleField" % obstacles)
 			# The C++ capsule pass indexes `radii[e.x]` unguarded — a short
