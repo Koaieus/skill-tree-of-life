@@ -46,7 +46,7 @@ extends Control
 ## snap to its final lit state in one frame, hold there for an `allocation_hold`,
 ## and then travel with the needle dropping a `spike_lead` fraction INTO the
 ## travel. Both knobs are retired. `spike_lead` existed only to dodge a clipping
-## defect — the needle is `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD
+## defect — the needle is `radius * height_factor` (the export on `alloc_spike.tscn`) in WORLD
 ## units, so at [constant FrontmatterLayout.SPLASH_ZOOM] it was 845px tall on a
 ## 960px screen whose root sat 422px down. The BOOM now happens at
 ## [member charge_end_zoom] with the root pushed south to

@@ -49,10 +49,10 @@ Effects never touch `NodeVisualsComposite`: ownership-state visuals flip the ins
 - A vertical Polygon2D needle (Lorentzian / Breit-Wigner-ish profile,
   see `_build_needle_polygon`) sits flush on the inner disk: base width =
   `2 * SkillNode.inner_radius`, tip pinned to a sharp point, height =
-  `radius * SPIKE_HEIGHT_FACTOR` (default 6×).
-- Profile tunables: `SPIKE_NEEDLE_GAMMA` (γ in the Lorentzian — lower γ
-  → hair-thin needle, higher γ → candle-flame), `SPIKE_SAMPLES` per side.
-- Tween (`SPIKE_DURATION`, 0.4 s): `modulate:a` 0 → 1 → 0 (peak at 40%), `scale:y` 1 → 0
+  `radius * height_factor` (default 6×).
+- Profile tunables (exports on `alloc_spike.tscn`): `needle_gamma` (γ in the Lorentzian — lower γ
+  → hair-thin needle, higher γ → candle-flame), `samples` per side.
+- Tween (`duration`, 0.4 s): `modulate:a` 0 → 1 → 0 (peak at 40%), `scale:y` 1 → 0
   cubic-ease-in so the needle collapses down into the node center.
 - The polygon's own `color` stays opaque (alpha 1); only `modulate.a`
   animates visibility. Polygon2D multiplies the two, so setting
@@ -64,9 +64,9 @@ Effects never touch `NodeVisualsComposite`: ownership-state visuals flip the ins
 - Snapshot the *just-deallocated* inner disk: spawn a coloured circle of
   radius `SkillNode.inner_radius` at the node center, owner color
   preserved from the signal payload.
-- Tween (~300 ms, all parallel):
-  - `position.y` rises by `inner_radius * LIFT_RISE_FACTOR` (sine ease-out)
-  - `scale` shrinks to `LIFT_END_SCALE` (default 0.6)
+- Tween (~300 ms; exports on `dealloc_lift.tscn`, all parallel):
+  - `position.y` rises by `inner_radius * rise_factor` (sine ease-out)
+  - `scale` shrinks to `end_scale` (default 0.6)
   - `disk_color` shifts owner → `Color.WHITE` over the first 70% (sine
     ease-out) — the "holy puff" bloom
   - `modulate:a` fades 1 → 0 (quad ease-in) — comes in late so the white
@@ -141,13 +141,13 @@ node and every effect resizes in lockstep.
 
 ## Tunables
 
-Live as `const`s at the top of `allocation_vfx.gd` (shatter look as exports). Most
+Live as `const`s at the top of `allocation_vfx.gd` (shatter look, alloc spike and dealloc lift as exports on their scenes). Most
 touched:
 
 - `CASCADE_STEP` (0.35 s) — crackle (~50 ms) vs. domino (~200 ms) for chain kills.
-- `SPIKE_NEEDLE_GAMMA` — needle vs. candle-flame for the alloc spike.
-- `SPIKE_HEIGHT_FACTOR` — alloc spike height as a multiple of node radius.
-- `LIFT_RISE_FACTOR` — how far the deallocation puff floats up.
+- `needle_gamma` — needle vs. candle-flame for the alloc spike.
+- `height_factor` — alloc spike height as a multiple of node radius.
+- `rise_factor` — how far the deallocation puff floats up.
 - `PULSE_STAGGER`, `PULSE_PER_HOP` — modifier-pulse pacing.
 - `shatter_*` exports — shatter intensity.
 

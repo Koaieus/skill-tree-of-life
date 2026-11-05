@@ -401,7 +401,7 @@ func _recompute() -> void:
 		# The spatial index, not a scan: this is ~2000 nodes x ~200 circles at
 		# the scale this project targets, and it measured as 70% of the whole
 		# recompute (13.3ms of 19.4ms) while it was a per-point linear scan.
-		# See [VisionCircles] for why its 3x3 cell lookup is exact.
+		# See [VisionCircles] for why its cell lookup is exact.
 		var all_owned: Array = []  # the OWNED sources' nodes: sensor seeds + stat binds
 		var circles := VisionCircles.new()
 		for src in sources_for(effective):

@@ -396,7 +396,7 @@ const SPLASH_SLOT_RATIO := Vector2(0.5, 0.44)
 ## [b]It is south of the hero slot on purpose, and that is what buys the
 ## zoom.[/b] The allocation needle rises NORTH out of the node, so how close the
 ## camera can be at the BOOM is decided by how much screen sits ABOVE the node:
-## the needle stays whole only while `radius * SPIKE_HEIGHT_FACTOR * zoom` fits
+## the needle stays whole only while `radius * height_factor * zoom` fits
 ## in it. At the hero slot's 480px that ceiling is 1.81; pushing to 0.68 of a
 ## 960px viewport — 653px — raises it to 2.47.
 ##
@@ -565,7 +565,7 @@ static func splash_camera(tree: MenuGraph) -> Transform2D:
 ## out at the instant of the flash.
 ##
 ## [b]Nothing here pins the needle's framing.[/b] The needle is
-## `radius * AllocationVFX.SPIKE_HEIGHT_FACTOR` in WORLD units — 264 at the
+## `radius * height_factor` (`alloc_spike.tscn`) in WORLD units — 264 at the
 ## root's authored radius 44 — against the [constant CHARGE_SLOT_Y_RATIO] slot's
 ## 653px of headroom, so it sat wholly on screen only below `653 / 264` =
 ## **2.47**. That containment was this issue's original fix, retired because it
