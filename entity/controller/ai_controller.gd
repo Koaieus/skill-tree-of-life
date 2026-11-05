@@ -619,59 +619,11 @@ func _gather_ranged_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCom
 	return out
 
 
-## Every (known spell × eligible casting source × visible hostile target)
-## combination whose plan validates. No spellbook / no known spells -> no
-## magic candidates, same as a naive entity that never learned one.
-##
-## [b]Reachability comes from #728's shared [SpellTargetUnion][/b] (#745) — one
-## [method SpellTargetUnion.build] per spell, whose [method RangeFinder.gather_multi]
-## walks every eligible caster in a single pass.
-##
-## What that replaces: the pre-#745 loop stamped a source onto a fresh probe
-## plan and asked [method AttackPlan.get_node_role]. That falls through to
-## [method MagicAttackPlan._rebuild_target_cache], which builds the plan's
-## union — a WHOLE-TERRITORY gather over every eligible caster — just to read
-## one source's row out of it. A fresh probe per owned node meant that whole
-## build ran once PER OWNED NODE, per spell, per turn. Same candidates, same
-## scores, same order: the range test stops being a traversal and becomes a
-## dictionary lookup.
-##
-## The union's [member SpellTargetUnion.best_source] collapse is deliberately
-## NOT used. It auto-picks a caster by node-local `spell_damage` alone, while
-## the loop below scores every (source, target) pair fully and lets
-## [method AiCombatScorer.pick_best] decide — which strictly dominates that
-## heuristic. Only the ENUMERATION is shared, never the pick.
-##
-## Fog stays here ([param visible_enemies], off [method AiRecon.visible_enemy_nodes]):
-## the union answers reachability only, and each caller applies its own viewer's
-## fog.
-##
-## [b]The intersection is taken from the REACH side[/b] — the smaller one.
-## [member SpellTargetUnion.per_source] is already ownership-filtered, so it
-## holds the hostile nodes inside this spell's ball (a handful), while
-## [param visible_enemies] holds every fog-visible hostile node and grows with
-## the board. Enumerating the reach and testing fog membership therefore costs
-## O(reach) per source instead of O(visible).
-##
-## The fog list's ORDER is then re-imposed via [code]visible_order[/code],
-## because [method AiCombatScorer.pick_best] breaks a score tie by
-## first-appended: appending in the range finder's gather order would silently
-## re-decide ties that the pre-#745 implementation settled the other way. The
-## sort is over the intersection only, which is why it is free.
-##
-## The range test itself stays necessary — [method AttackPlan.is_valid] cannot
-## stand in for it. validate() checks presence and source degree only, and
-## [method AttackPlan.resolve] trusts a set target unconditionally (it exists to
-## preview/commit a UI-picked target, not to re-validate one), so dropping it
-## would let the AI "cast" at an out-of-hop-range target and still score a hit.
-## Two-tier gated since #537 (D1/D3) — PASS 1 below enumerates every
-## (spell, source, target) combination exactly as before (still cheap:
-## [method AttackPlan.is_valid] never resolves), then PASS 2 promotes only the
-## top [constant _CANDIDATE_GATE_K], globally across every spell and source
-## this turn, to a real gate-accurate [method AttackPlan.resolve]. Below the
-## gate — every existing fixture, whose spell/source/target counts are small —
-## this is byte-for-byte the old exhaustive behaviour: same candidates, same
-## order, same scores.
+## Every (known spell x eligible casting source x visible hostile target)
+## combination whose plan validates, via the shared `SpellTargetUnion` (enumeration
+## only, never its pick). Fog is applied per caller; the range test stays
+## necessary. Two-tier gated: PASS 1 enumerates, PASS 2 resolves the top-K.
+## See docs/domain/ai-controller.md
 func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiCombatScorer.ScoredCandidate]:
 	var out: Array[AiCombatScorer.ScoredCandidate] = []
 	if entity.spellbook == null or entity.navigator == null:

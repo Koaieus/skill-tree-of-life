@@ -1,56 +1,11 @@
 class_name GraphSnapshot
 extends RefCounted
 
-## Encoder/decoder for #527's "a joining client receives a serialized graph;
-## it does not regenerate one" contract. Procgen is deterministic, but
-## serializing also covers the cases regenerating can't: mid-run join,
-## hand-authored levels, and (later) save/load. See
-## #527's acceptance spec, and #463's 2026-08-24 sync-model decision comment.
-##
-## [b]Three tiers, split per-moment not per-system[/b] (the issue's own
-## table):
-## - Authored (archetype, addon placements, the node's own scene, and
-##   node-direct `effects` — #527's Decisions section named keystones here;
-##   since #929 a landmark's effects ride in its scene) crosses as an
-##   INTERNED REF into a resource-path table built once per snapshot. 7
-##   archetypes / 6 addon scenes repeated per-node as full paths is the
-##   single biggest lever the issue's arithmetic calls out — ~230 KB of
-##   repeated strings collapses to a handful of bytes plus a once-sent
-##   table. An effect built via `.new()` rather than loaded from a shared
-##   `.tres` (real gameplay content never does this — only tests) has no
-##   `resource_path` and is silently dropped rather than crossing broken;
-##   that mirrors how `_encode_node` already treats an addon with no
-##   `scene_file_path`. An effect EMBEDDED in the node's own scene (a
-##   landmark's SubResource `StatEffect`, path `<scene>::<id>`) is not
-##   interned either: the scene is re-instantiated on the create path and
-##   brings it along, and `_reconcile_authored` leaves it in place.
-## - Accumulated (owner, HP, stake/allocation level, regen stacks, the
-##   modifier LIST) crosses BY VALUE — no formula rederives history.
-## - Derived ([StatBoard] totals, aura contributions, vision/fog) never
-##   crosses. Not this class's problem at all.
-##
-## [b]An addon's own modifiers are NOT double-encoded.[/b] Re-instantiating an
-## addon's `.tscn` on decode re-attaches its `entity_modifiers` /
-## `local_modifiers` for free (`.claude/rules/skill-node-addons.md` —
-## attaching is just `add_child`). So [method _encode_node] strips any
-## modifier on [member SkillNode.modifiers] that's also present on one of the
-## node's attached addons before encoding it, and [method _decode_node]
-## attaches addons FIRST, then appends the residual (the node's own "offered"
-## modifiers) on top — reproducing the same list the source node had.
-##
-## [b]Rows are POSITIONAL[/b] (arrays, not dictionaries with string keys) —
-## string keys like `allocation_level` roughly double a naive payload's size,
-## per the issue's own measurement. The whole structure goes through
-## `var_to_bytes` then `PackedByteArray.compress(COMPRESSION_ZSTD)` before it
-## leaves this class — wire time on LAN is 1-7ms either way, so this is a
-## tidiness requirement, not a performance one, but paths-per-node would have
-## been the embarrassing omission.
-##
-## [b]Ownership resolves through the RECEIVING graph's own entities.[/b] An
-## owner id with no matching [Entity] (via [method Graph.get_by_entity_id])
-## decodes as unowned — spawning entities and minting their ids is #528's
-## concern (`RunConfig` / `ParticipantRoster`), not this unit's. A mid-run join
-## is expected to land its roster before (or alongside) its graph snapshot.
+## Encoder/decoder for a serialized graph: a joining client receives it, never
+## regenerates. Three tiers: authored (interned resource refs), accumulated (by
+## value), derived (never crosses). Rows are positional, zstd-compressed;
+## ownership resolves through the receiving graph's entities.
+## See docs/domain/entity-snapshot.md
 
 ## Node row indices — so `_encode_node`/`_decode_node` don't repeat magic
 ## numbers, and a positional row still self-documents at the call site.
