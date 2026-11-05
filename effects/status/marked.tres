@@ -8,7 +8,7 @@
 [sub_resource type="Resource" id="Resource_decay"]
 script = ExtResource("decay_script")
 
-[sub_resource type="Resource" id="Resource_crit_taken"]
+[sub_resource type="Resource" id="Resource_incoming_crit_chance"]
 script = ExtResource("mod_script")
 stat_id = &"crit_chance"
 operation = 3
@@ -21,7 +21,7 @@ display_name = "Marked"
 identity = ExtResource("identity_mark")
 description = "Every stack adds a flat bonus to the crit chance of any hit landing on this node, after the attacker's own increases; a core's mark counts for every node its owner holds."
 tags = Array[StringName]([&"debuff"])
-incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_crit_taken")])
+incoming_modifiers = Array[ExtResource("mod_script")]([SubResource("Resource_incoming_crit_chance")])
 power_max = 0.0
 decay = SubResource("Resource_decay")
 display_max = 10.0
