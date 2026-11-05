@@ -1,1 +1,1 @@
-Glow is one bloom pass **per viewport**, lit iff a colour exceeds 1.0 — only as a named tier, never a raw float (linted: `lint-house-rules`): `Emissive.at()` / a `Tier*` variation; raw uploads (MultiMesh colour, `COLOR`) take `Emissive.raw_lift`. See docs/domain/hdr-color.md
+Glow is one bloom pass **per viewport**, lit iff a colour exceeds 1.0 — only via a named tier, never a raw float (linted: `lint-house-rules`): `Emissive.at()`, a `Tier*` variation, or `Emissive.raw_lift` for raw uploads. See docs/domain/hdr-color.md
