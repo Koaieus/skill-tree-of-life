@@ -119,7 +119,8 @@ about an issue goes **on** the issue.
 `mise gh-project -- roadmap` prints milestone swim-lanes with epic progress;
 `milestone|target|start|estimate <n> [val]` set roadmap fields; `label <n>
 add|rm <name>` flips a label. `hygiene [--json]` reports board invariant
-violations and fixes nothing — run it whenever you look at the board.
+violations — run it whenever you look at the board; `--fix` only derives hub
+statuses and mirrors closed → `Done`, everything else stays report-only.
 
 `in_progress_stale` flags an open `In progress` **leaf** with no activity for
 more than 6h (`GH_PROJECT_IN_PROGRESS_STALE_HOURS`; owner, 2026-09-21: "stale
