@@ -71,17 +71,13 @@ const _MAX_ITER := 4
 ## driver writes back into those params, which is what makes re-solving every
 ## frame a fixed point.
 static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary) -> Dictionary:
-	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
+	var p := params.duplicate()
+	var trunk_dir: Vector2 = p.get("trunk_dir", Vector2(0.0, -1.0))
 	if trunk_dir == Vector2.ZERO:
 		trunk_dir = Vector2(0.0, -1.0)
-	trunk_dir = trunk_dir.normalized()
-	var trunk_frac: float = params.get("trunk", FanTrace.PHI_FRACTION)
-	var trunk_px: float = params.get("trunk_px", 0.0)
-	var anchor := derive_anchor(from, panel_rect, trunk_dir, trunk_frac, trunk_px)
-	return {
-		"anchor": anchor,
-		"edge": _edge_of_route_to(from, anchor, trunk_dir, trunk_frac, trunk_px),
-	}
+	p["trunk_dir"] = trunk_dir.normalized()
+	var anchor := _derive(from, panel_rect, p)
+	return {"anchor": anchor, "edge": _edge_of_route_to(from, anchor, p)}
 
 
 ## Returns the point on `panel_rect`'s boundary where a PCB trace from `from`
@@ -96,12 +92,20 @@ static func solve_route(from: Vector2, panel_rect: Rect2, params: Dictionary) ->
 ## vertical one), clamped to [SLIDE_MIN, SLIDE_MAX]. With a fixed `trunk_px` the trunk top is
 ## a constant, so the only thing the iteration has to agree on is the edge.
 static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, trunk_frac: float = FanTrace.PHI_FRACTION, trunk_px: float = 0.0) -> Vector2:
+	return _derive(from, panel_rect, {"trunk": trunk_frac, "trunk_dir": trunk_dir, "trunk_px": trunk_px})
+
+
+## [method derive_anchor]'s body over a whole [TraceRouter] param dict, so the
+## route reasoned over is the one the trace draws (`shoulder` and any future
+## param ride along). `params.trunk_dir` must already be a unit vector.
+static func _derive(from: Vector2, panel_rect: Rect2, params: Dictionary) -> Vector2:
+	var trunk_dir: Vector2 = params.get("trunk_dir", Vector2(0.0, -1.0))
 	var centre := panel_rect.get_center()
-	var trunk_top := _trunk_top_of_route(from, centre, trunk_dir, trunk_frac, trunk_px)
-	var edge := _edge_of_route_to(from, centre, trunk_dir, trunk_frac, trunk_px)
+	var trunk_top := _trunk_top_of_route(from, centre, params)
+	var edge := _edge_of_route_to(from, centre, params)
 	for _i in range(_MAX_ITER):
 		var anchor := _nearest_on_edge(edge, panel_rect, trunk_top, trunk_dir)
-		var actual := _edge_of_route_to(from, anchor, trunk_dir, trunk_frac, trunk_px)
+		var actual := _edge_of_route_to(from, anchor, params)
 		if actual == edge:
 			return anchor
 		edge = actual
@@ -126,11 +130,11 @@ static func derive_anchor(from: Vector2, panel_rect: Rect2, trunk_dir: Vector2, 
 ## Asks [TraceRouter] for the real route to `to` and reads off which edge its
 ## closing leg (the last segment — always cardinal, per `_pcb`'s own
 ## guarantee) arrives at. The single source of truth stays in TraceRouter;
-## this never re-derives the diagonal/trunk/gable math itself. `trunk_px` goes
-## through because the router picks its FAMILY by it — a hand-built dict
-## without it describes a different line than the one on screen.
-static func _edge_of_route_to(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> FanAnchor.Edge:
-	var pts := _route(from, to, trunk_dir, trunk_frac, trunk_px)
+## this never re-derives the diagonal/trunk/gable math itself. The whole
+## `params` goes through because the router picks its FAMILY by `trunk_px` — a
+## hand-built dict describes a different line than the one on screen.
+static func _edge_of_route_to(from: Vector2, to: Vector2, params: Dictionary) -> FanAnchor.Edge:
+	var pts := route_points(from, to, params)
 	var leg := pts[pts.size() - 1] - pts[pts.size() - 2] if pts.size() >= 2 else Vector2.ZERO
 	if absf(leg.x) >= absf(leg.y):
 		return Edge.LEFT if leg.x >= 0.0 else Edge.RIGHT
@@ -141,21 +145,15 @@ static func _edge_of_route_to(from: Vector2, to: Vector2, trunk_dir: Vector2, tr
 ## point. With a fixed `trunk_px` that is `from + trunk_dir * trunk_px` for
 ## every target; the router is still asked rather than the formula repeated so
 ## the fractional fallback (`trunk_px` 0) stays its arithmetic, not a copy.
-static func _trunk_top_of_route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> Vector2:
-	var pts := _route(from, to, trunk_dir, trunk_frac, trunk_px)
+static func _trunk_top_of_route(from: Vector2, to: Vector2, params: Dictionary) -> Vector2:
+	var pts := route_points(from, to, params)
 	return pts[1] if pts.size() >= 3 else from
 
 
+## The route [TraceRouter] draws for `params` (a [method FanTrace.route_params]
+## dict) — handed over whole, never rebuilt key by key.
 static func route_points(from: Vector2, to: Vector2, params: Dictionary) -> PackedVector2Array:
-	return _route(from, to, params.get("trunk_dir", Vector2(0.0, -1.0)), params.get("trunk", FanTrace.PHI_FRACTION), params.get("trunk_px", 0.0))
-
-
-static func _route(from: Vector2, to: Vector2, trunk_dir: Vector2, trunk_frac: float, trunk_px: float) -> PackedVector2Array:
-	return TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, {
-		"trunk": trunk_frac,
-		"trunk_dir": trunk_dir,
-		"trunk_px": trunk_px,
-	})
+	return TraceRouter.compute_trace_points(from, to, TraceRouter.Style.PCB, params)
 
 
 ## The slide point on `edge`, clamped to the [SLIDE_MIN, SLIDE_MAX] window of
