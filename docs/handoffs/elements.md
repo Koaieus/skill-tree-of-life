@@ -31,39 +31,40 @@ cloud auto-merge takes `docs/design/` and `docs/handoffs/`, NOT `docs/adr/`
 adr-hygiene` after an ADR. `gh issue view` is blocked (GraphQL); use
 `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
 
-Still open, in this order:
+Still open, in this order (2026-11-05 verdicts already in the doc: *member*;
+read / land / settle held → ADR 0074; dual reach concatenated, tentative;
+Frost renamed **Cold**; Cold absorbs reach 1:1 and is spent; **Frozen** = Cold
+≥ T, T = graph degree + 1, a glass ceiling (sub-T reach lost, no Cold spent;
+≥ T breaks then absorbs), pure threshold re-forms; media capped per node at
+k × T; Cold diffuses by Heat's Metropolis rule, the two as one signed
+temperature; Burning = Heat ≥ T pinned, effect parked; Frozen's costs = cold
+passage + brittle; shatter removes T with a +1 crit tier lean; arc mirror
+parked; reflect rejected):
 
-- **"member"** as the term for a status of an element (Fuel is a member of
-  Fire; an Element Matrix row is a member row). Owner asked for a word; not
-  yet accepted.
-- **read / land / settle** as the landing resolution (pass proposal in the
-  doc). If held → ADR 0074 and the pair table's cells are final. Check it
-  against #1741's sequencing first (riders land before their hit, ADR 0067;
-  `CritRoll.decide` memoised by `crit_decided`).
-- **Ice pricing knob**: per-spell int:int affinity converting count to hops
-  plus a per-hop payload multiplier near the measured ratio; whether the
-  multiplier is one number per spell or the measured ladder. Reads both
-  `max_hops` and `max_visits`. Numbers are in the doc (two tables).
-- **Fuel access for ranged**: Element Matrix chosen; availability (a reload
-  grant from the `fire` count?) and the per-element ammo stock cap
-  (`AmmoType.max_stock`, knob or stat?) undecided.
-- **Explosive artifacts**: the design says no Explosive aspect survives; each
-  of `aspects/defs/explosive.tres`, `identity/defs/explosive.tres`,
-  `effects/status/explosive.tres` (tag `charge` → must become `fuel`),
-  `attack/ammo/types/explosive.tres`, the Explosive addon,
-  `docs/domain/explosive.md`, ADR 0061/0062 needs a named destination or a
-  supersession before any element issue goes `Ready`.
+- **Judge the play-situation review** (`docs/handoffs/elements-play-situations.md`,
+  summarised as seven items in the doc's § Open). Items 1, 2 and 4 block the
+  first Fire issue; 3 blocks Ice pricing.
+- **Ice pricing knob** (reads `max_hops` and `max_visits`; the reviewers'
+  item 3 and the payload-per-hop objection in ice.md #2 bear on it).
+- **Fuel access for ranged**: availability (a reload grant from the `fire`
+  count?) and the per-element ammo stock cap (knob or stat?).
+- **Explosive artifacts**: every orphan in finding 15 needs a destination or
+  a supersession (ADR 0061/0062, `charge` tag → `fuel`) before any element
+  issue goes `Ready`.
 - **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
-  (manage-stats skill), what `_facet_id` keys a member's
-  `<x>_stacks_per_hit` / `<x>_resistance` on (the element or the member).
-- Greed under the new vocabulary (#1659); arc pick rule and radius per load
-  (#1733); inner-tree shape for elements; Shocked / Burning parked.
+  (manage-stats), a new `StatDef.Role`; a member keys its own facets
+  (`fuel_resistance`, `cold_stacks_per_hit`).
+- Remaining 2026-11-05 adversarial findings (a)–(i) in § Open: row keys
+  (#1660 B2), ADR 0073 vs 0070 supersession, chain cap per wave vs per
+  attack, rider coalescing, tick-settle record.
+- Greed (#1659); arc pick numbers and radius per load (#1733); inner-tree
+  shape; Shocked and the Burning effect parked.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
-  1:1 guard test (code — belongs to the first element issue, not a docs PR).
+  1:1 guard test (code, first element issue); ADR 0074 PR needs a human
+  merge.
 
-When the open list above is empty, the doc goes `settling` → spec: split
-#1716 into drone-sized children with the `spec` skill (the first is the
-element count + `ReachUse` seam; Fire's family is #1660's children; Ice is
+When the list is empty: split #1716 into drone-sized children with `spec`
+(first: the element count + `ReachUse` seam; Fire = #1660's children; Ice =
 #1444).
 
 ---
