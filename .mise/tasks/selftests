@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+#MISE description="Run every *-selftest task (plus lint-gdscript-warnings --self-test), one ✓/✗ line each and the failing names at the end; exits non-zero if any is red. Full output of a red one: `mise run <name>`. `mise run selftests`"
+set -uo pipefail
+cd "${MISE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}"
+log=$(mktemp -d)
+trap 'rm -rf "$log"' EXIT
+
+names=()
+for f in .mise/tasks/*-selftest; do names+=("$(basename "$f")"); done
+names+=("lint-gdscript-warnings -- --self-test")
+
+failed=()
+for n in "${names[@]}"; do
+  start=$SECONDS
+  # shellcheck disable=SC2086  # $n is "task [-- args]" on purpose
+  if mise run $n >"$log/out" 2>&1; then
+    echo "✓ $n ($((SECONDS - start))s)"
+  else
+    echo "✗ $n ($((SECONDS - start))s)"
+    grep -E 'FAIL|FAILED|Error|error' "$log/out" | head -3 | sed 's/^/    /'
+    failed+=("${n%% *}")
+  fi
+done
+
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "✗ ${#failed[@]}/${#names[@]} selftests red: ${failed[*]}"
+  exit 1
+fi
+echo "✓ all ${#names[@]} selftests green"
