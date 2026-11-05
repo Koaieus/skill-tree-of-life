@@ -1115,7 +1115,7 @@ func is_predicting() -> bool:
 
 ## The trajectory-time length the in-flight slice run will finish at, or the
 ## completed prediction's own duration once there is one. The aim-time twin of
-## [method replay_duration], for the same reason: [method MeleePreview]'s loop
+## [method replay_duration], for the same reason: [MeleePreview]'s loop
 ## sizes its playback tween off this so the ghost mounted on the click frame
 ## keeps arcing as the slices land behind the playhead, rather than ending at
 ## the first slice's [method BladeTrajectory.duration] and starting over.

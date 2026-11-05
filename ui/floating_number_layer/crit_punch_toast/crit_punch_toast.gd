@@ -6,11 +6,9 @@ extends FloaterToast
 
 ## Crit toast, MOTION register — the number LANDS instead of fading in.
 ##
-## The other two crit candidates ([method FloaterStyles.crit_heat] /
-## [method FloaterStyles.crit_gold]) express intensity through colour and size,
-## which a plain [FloaterStyle] can already carry. This one exists because entry
-## animation cannot be expressed as a style field, and motion is the channel the
-## toast layer was not using at all.
+## Colour and size can express crit intensity through a plain [FloaterStyle];
+## this toast exists because entry animation cannot be expressed as a style
+## field, and motion is the channel the toast layer was not using at all.
 ##
 ## The beat: spawn oversized and ignition-white ([constant Emissive.PEAK] above
 ## the style's own fill), snap to true size on a TRANS_BACK overshoot, and cool

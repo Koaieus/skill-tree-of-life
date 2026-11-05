@@ -228,9 +228,9 @@ func build_from_skill_nodes(
 ## call; safe to invoke repeatedly (state is reset to the descriptor's
 ## original positions internally via re-build_from_skill_nodes if needed).
 ## Drivers are auto-built: one BladeArcDriver per pivot-adjacent particle.
-## `clock` is the optional swing drag clock (#780) — pass
-## [method MeleeAttackPlan.build_swing_clock] to make a GHOST preview slow down
-## on a wall exactly as the committed swing will. A clock is single-use (it
+## `clock` is the optional swing drag clock — pass a fresh [BladeSwingClock]
+## to make a GHOST preview slow down on a wall exactly as the committed swing
+## will. A clock is single-use (it
 ## banks the zones it has already touched), so a repeating preview loop must
 ## build a fresh one per cycle. Null keeps the nominal, undragged arc.
 func simulate(

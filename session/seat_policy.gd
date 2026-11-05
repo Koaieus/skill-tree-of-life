@@ -133,7 +133,7 @@ func follows_active_turn() -> bool:
 
 ## Whose sight unions into the local fog, given the bound hero and the
 ## entities to consider (pass them in group order — see the ordering note on
-## [method GameRoot._apply_camp_vision]).
+## [method GameRoot._apply_seat_vision]).
 ##
 ## The rule is [b]camp-mates[/b]: an entity, AI or human, that shares
 ## [param hero]'s camp. That single line covers every case the four run

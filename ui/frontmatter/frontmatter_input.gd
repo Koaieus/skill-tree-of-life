@@ -209,13 +209,10 @@ func dismiss_panel() -> void:
 ## Hands the keyboard to the raised panel, so a controller player is not left
 ## with a lit-up panel and no way into it.
 ##
-## [b]It focuses the panel's first focusable CONTENT, not a back button.[/b] It
-## used to grab [member FrontmatterPanel.back_button], which #600 deleted along
-## with the rest of the per-panel chrome — one shared [BackAffordance] in the
-## hero column replaced five per-panel buttons. Focusing "back" was never the
-## intent anyway: this method exists to get the player INTO the panel, and
-## `ui_cancel` already dismisses it from anywhere (see [method _handle]), so
-## nothing is lost by putting the keyboard on the first operable control.
+## [b]It focuses the panel's first focusable CONTENT, not a back button.[/b]
+## Panels carry no back button (one shared [BackAffordance] in the hero column
+## serves them all); this method exists to get the player INTO the panel, and
+## `ui_cancel` already dismisses it from anywhere (see [method _handle]).
 func grab_panel_focus() -> void:
 	var panels := _panels()
 	if panels == null:
