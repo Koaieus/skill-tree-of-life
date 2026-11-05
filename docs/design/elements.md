@@ -411,6 +411,19 @@ and a blank cell means *nothing special*: the hit lands and the medium sits.
 | **Cold under T** | absorbs: each Cold stack eats one radius step and melts; the rest goes out | absorbs: each stack eats one arc and melts | lands; the copy's onward reach is absorbed the same way | nets: thaw | adds | pays the toll: Cold sheds first (#1444) | drags (#1444) |
 | **Frozen** (Cold ≥ T, T = graph degree + 1) | reach < T: the glass holds, reach lost, no Cold spent; reach ≥ T: breaks, then absorbs 1:1 | same | same; an arc into a Frozen node grounds (mirror idea parked, § Open) | nets; unfreezes for the next landing | adds | toll, a free hop if deep enough | shatters (#1444) |
 
+**An arc's pick is most Charge, then graph degree, then fickle.** Neighbours
+usually tie on the first two (owner, 2026-11-05: *"in most cases there will
+be amongst nbs: no charge diff, no health diff, possibly a degree diff (with
+good chance of having ties still)"*), so the third key decides most arcs: a
+**seeded random pick among the tied** — the attack's own stream for a hit's
+go-off, a hash of the world-turn counter and the node id for a tick's, so
+every peer draws the same arc. Owner, 2026-11-05: *"option 1 seems best.
+zappy and unpredictable by nature"*, picked over "nearest the victim's core
+by owned hops" and "furthest from the attacker's core in pixels". Rejected
+by the owner: fork to every tied neighbour (*"makes a 6-hub at 1 Charge
+absolutely radiant"*) and splitting a share across ties (*"would require
+more duplicating or rounding rules"*).
+
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays no
 shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
@@ -576,8 +589,7 @@ here.
   pass lean: a hit carrying a ride row for medium X is exempt from X's
   go-off at its own landing only; (6) copies' target mask (the shipped bolt
   filters to hostile; a hit's copies take the hit's mask, a terrain hit is
-  side-blind); (7) the arc pick "ties included" makes Charge 1 hit four tied
-  neighbours — ties split the share, ties included, or a visible third key.
+  side-blind).
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
@@ -614,6 +626,7 @@ here.
   aspect status, so sided; the cursed-gold feel needs a carrier. Shapes on
   the table: the stacks jump to the killing node (hot potato), spent on kill
   (as built), or ride the relic (#1662). Unpicked.
-- The arc pick rule and radius-per-load numbers: #1733.
+- The arc pick rule's numbers (leap radius per excess Charge) and
+  radius-per-load: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - Shocked / Burning, and a fire ladder (blaze, inferno): parked above.
