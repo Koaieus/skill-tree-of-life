@@ -74,9 +74,41 @@ spin), `gimbal_{uniform,glass,glyph}.gdshader` (the three styles),
 
 `GimbalWorld` is the single World3D per viewport, drawn by two SubViewports (back
 half just under the node disks, front half at `ZLayers.GIMBAL`, fogged per pixel
-off the shared vision field). Its class header is the contract. The world holds no
-glow `Environment` of its own: the glow is the root viewport's bloom pass on the
-HDR composites (`hdr-color.md`, way 7).
+off the shared vision field; it sits above FogOverlay so it fogs itself with
+`gimbal_front_fog.gdshader`). The real 2D disk sits between the halves: hidden
+exactly where a disk is, visible everywhere else, and opaque rings order
+correctly because a clip plane does not care about draw order.
+
+- **Coordinates:** 1 3D unit = 1 world px; 2D +y down = 3D -y; both ortho
+  cameras look down -Z from `CAMERA_Z`, so a rig at 3D (x, -y, 0) sits on world
+  px (x, y).
+- **One World3D:** `WorldBack` owns it (rigs, light, environment exist once);
+  `WorldFront` shares it. The cameras split the world at the ring plane by
+  near/far (`clip_planes`).
+- **Camera sync is one read, four consumers.** On `RenderingServer.frame_pre_draw`
+  the root viewport's canvas transform x stretch transform (what is actually
+  drawn, after Camera2D smoothing and limits) feeds both cameras and both
+  composites via `map_view`. Zero frame lag by construction: `frame_pre_draw`
+  fires after every `_process` and before the draw, and node transforms reach
+  the RenderingServer synchronously.
+- **Viewport size:** both SubViewports are the root viewport's pixel size (window
+  px, not the stretch-logical size), so fill cost is real and texels are 1:1;
+  both are 4x MSAA.
+- **No glow inside.** `project.godot`'s `default_environment` (the game's bloom
+  env) would otherwise apply to this world too, so the scene pins a plain
+  no-glow Environment. HDR values ride the RGBA16F targets (`use_hdr_2d`) into
+  the root viewport's single bloom pass (`hdr-color.md`, way 7).
+- **Idle:** both render targets are disabled while no rig is on screen
+  (`visible_rig_count`). Each holder carries a `VisibleOnScreenNotifier3D`, but
+  a sleeping viewport culls nothing so its notifiers can never report
+  "entered"; while asleep, `_sync_camera` wakes the world on a cheap
+  sphere-vs-view test and the notifiers take over.
+- **One world per viewport:** authored beside the Graph in `game_root.tscn` and
+  found by group (`acquire`).
+- **Editor:** `@tool` so an editor-hosted preview (the sandbox Node Visuals
+  panel) spins real rigs; only an `acquire`-spawned world outside the edited
+  scene runs (`is_live_for`). An authored one, or anything in the open `.tscn`,
+  stays inert.
 
 ## Verification
 

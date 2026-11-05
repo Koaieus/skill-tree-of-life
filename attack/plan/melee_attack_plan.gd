@@ -1575,46 +1575,11 @@ func _set_swing_cw(value: bool) -> void:
 	_notify_selection_changed()
 
 
-## RIDs to feed BladeHitScan as the physics-query exclude list — covers only
-## the blade members themselves (don't hit their own subgraph) and nodes
-## owned by the attacker. #502: unallocated nodes are NOT excluded here
-## anymore — the scan now sees them too, so a swing sweeping across ground
-## that just died mid-cascade produces the same events it would against
-## ground that was never allocated (no visible difference, per contract).
-## The live ownership/allocation gate moves to consumption time; see
-## [BladeDamageInstance.land_on] / [BladePopResolver.LiveGate].
-##
-## #809: starts from the pre-mirrored owned subgraphs — [member
-## Entity.navigator]'s own [method GraphMirror.get_mirrored_nodes] (MINE) plus
-## every ALLIED entity's own navigator (ALLY) — instead of filtering all of
-## [method Graph.get_skill_nodes] through a per-node ownership predicate.
-## `self_set` (the selection itself) is still unioned in explicitly: a blade
-## member is always MINE by construction ([method _can_be_blade] gates
-## selection on `owned_by == attacker`), so this is redundant on every path
-## that exists today, but it keeps the exact "self_set OR MINE OR ALLY"
-## membership rather than silently narrowing it.
-##
-## [b]This is now the ONE answer to "is that node on my side".[/b] Since #811
-## it is also the defender query's exclude list
-## ([method build_defender_zones]) — the deleted `_is_blade_side` was a second
-## implementation of the same membership, and a blade that bogged down on its
-## own wall would have been the symptom of the two drifting apart (#384's
-## vocabulary throughout: ownership bits, never `owned_by == attacker`).
-##
-## Allies are enumerated via [constant Entity.GROUP] (the same whole-tree
-## roll call [TurnManager] / [VictorySystem] / [GameRoot] already use), not
-## [member Graph.entities_container] — a plan's `attacker` isn't guaranteed to
-## sit under that container (fixtures parent entities straight onto the
-## graph), while every live [Entity] is unconditionally in its group from
-## [method Entity._ready].
-##
-## [b]Order changed on purpose.[/b] The old scan walked [method
-## Graph.get_skill_nodes]'s child order; [method GraphMirror.get_mirrored_nodes]
-## is explicit that its own order is dictionary-iteration, not stable — so
-## this sorts the union by [member SkillNode.stable_id] before minting RIDs.
-## Physics-server exclude lists are unordered by nature (see [method
-## BladeHitScan.Sweep]'s call site), so this is a determinism/legibility
-## choice, not a correctness one; #809's acceptance note on iteration order.
+## RIDs fed to BladeHitScan as the physics-query exclude list: the blade
+## selection plus the attacker's own and every ALLIED entity's mirrored nodes,
+## sorted by `stable_id`. Unallocated nodes are NOT excluded (the live gate runs
+## at land time). The one answer to "is that node on my side"; the defender
+## query reuses it. See docs/domain/melee-blade-sim.md "collect_target_excludes".
 func collect_target_excludes() -> Array[RID]:
 	var out: Array[RID] = []
 	if attacker == null or attacker.navigator == null:

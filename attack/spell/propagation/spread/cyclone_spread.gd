@@ -2,51 +2,12 @@
 class_name CycloneSpread
 extends PropagationSpread
 
-## Cyclone's curl (#703, superseding the parity design of #699). Ranks the
-## filtered candidates by the turn the front makes to reach them — measured from
-## the edge it arrived on, in one fixed rotational direction — and picks one
-## child per rank, carrying a decaying share of the incoming damage. The share
-## rides the [PropagationPick]; [method PropagationConfig.mint] is where the
-## damage is actually split (#852).
-##
-## [b]The whole spell is three numbers.[/b] Rank 1 is the sharpest turn, so it
-## hugs the face the front is circling; ranks 2 and 3 are wider turns that
-## radiate outward. Give them coefficients whose SUM exceeds 1 while each is
-## individually BELOW 1 and you get the storm: energy grows globally, decays per
-## thread, and therefore concentrates only where the geometry folds threads back
-## together. Circulation reinforces, offshoots diminish. Nothing detects a
-## cycle to make that happen — it is what a weighted walk on a planar graph
-## does.
-##
-## Modelled as a linear operator on directed edges, growth per wave is its
-## spectral radius, and it collapses to two readings:
-## [codeblock]
-## rho(any lone ring)      = c_1          # regardless of LENGTH or PARITY
-## rho(dense triangulated) → sum(c_r)
-## [/codeblock]
-## so the authoring condition is [b]c_1 < 1 < sum(c_r)[/b]: a lone ring cannot
-## sustain itself, a triangulated patch can. Measured: every tree is exactly
-## 0.000, every lone ring (triangle through hexagon alike) 0.650, a hex wheel
-## 1.159, a 37-node triangular lattice 1.326. The spell stopped typing terrain
-## by "is it cyclic" and started typing it by "is it two-dimensional", which is
-## the point — parity was never a designed property, only the residue of a
-## rotation-blind fan.
-##
-## [b]Why a ranked fan and not a face-trace.[/b] Taking only rank 1 is the
-## next-edge permutation, whose orbits are the embedding's faces — elegant, and
-## wrong for this spell: it necessarily assigns one arm to the OUTER face, so a
-## triangle reads as two arms colliding rather than one storm turning. A ranked
-## fan has no such arm. Verified on a hex wheel: all six arms off the hub trace
-## same-signed faces, i.e. they co-rotate, which is the wheel the spell is for.
-##
-## [b]Closing a loop boosts the coefficient[/b] ([member closing_gain]) rather
-## than merely lighting up [CycleCondition]. The crit is sparkle on the
-## landing; the gain feeds FORWARD, so a ring that closes gets sustain and a
-## lone triangle is worth killing over instead of fizzling at c_1 per hop.
-## Owner call 2026-09-01.
-##
-## Every knob is an export because the owner tunes them live — the spell
-## playground re-reads spread exports on each Cast (`playground_panel.gd`).
+## Cyclone's curl. Ranks the filtered candidates by the turn the front makes to
+## reach them (one fixed rotational direction) and picks one child per rank,
+## each carrying a decaying share of the incoming damage; the split itself
+## happens in [method PropagationConfig.mint]. Authoring condition
+## `c_1 < 1 < sum(c_r)`. Every knob is an export (tuned live in the playground).
+## See docs/domain/spell-propagation.md "CycloneSpread: the curl".
 
 
 ## Shortest ring worth remembering. Below this the "cycle" is the reversal edge

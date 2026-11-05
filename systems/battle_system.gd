@@ -378,48 +378,11 @@ func prepare_launch_command(command: LaunchAttackCommand) -> bool:
 
 
 ## Apply [param command] — the [CommandApplier]'s entry point, and the one
-## place an attack mutates the world.
-##
-## [b]ONE launch path (#536).[/b] There used to be two — `_launch_as_authority`,
-## which resolved and applied its own outcome against the real world, and
-## `_replay_launch`, which reconstructed a record. Every machine now runs the
-## same half here:
-##
-## [codeblock]
-## prepare (validate) -> COMPUTE: resolve on a shadow, capture the record
-## apply   (mutate)   -> REPLAY:  rebuild that record, land it on the BeatClock
-## [/codeblock]
-##
-## Per #498: [i]"the host becomes a peer of itself; it is the only one that
-## computes, not the only one that replays."[/i] Which half a machine ran is a
-## payload question, never a peer role (see [LaunchAttackCommand]) — and since
-## #545 moved the compute ahead of the confirm, the payload field that answers it
-## is [member LaunchAttackCommand.computed_here], not an empty record.
-##
-## [b]An unprepared command is refused, not quietly computed.[/b] There is no
-## compute branch left here to fall into: whoever applies must have run
-## [method prepare_launch_command] first, because that is where the confirm sits
-## between the two.
-##
-## [b]One refusal below is NOT pre-empted by validate[/b], and the invariant
-## "a confirmed command will apply" is that much weaker for it: on the REPLAY
-## branch a malformed [member LaunchAttackCommand.plan] fails
-## [method AttackPlanCodec.from_dict] here, having already confirmed. Vetting it
-## in [method prepare_launch_command] would mean rebuilding the plan twice per
-## replay to catch a corrupt payload that is already corrupt — not worth it, and
-## it costs nothing on the wire ([method CommandChannel._on_command_confirmed]
-## broadcasts only under [constant NetworkConfig.Role.HOST], which a replaying
-## peer is not).
-##
-## [b]The round trip through capture -> rebuild is the point, not waste.[/b]
-## Reusing the computed [AttackOutcome] object for the live pass would land the
-## same hits a second time, and every land-time write on them is one-shot:
-## [method CritRoll.apply] multiplies `amount` in place, `hp_before`/`hp_after`
-## would be overwritten with post-cascade numbers, and — worst — a
-## [member HitInstance.deallocations] left over from the shadow would make
-## [method _on_node_depleted] take its RECORDED branch and re-apply a stale
-## cascade set. Rebuilding mints fresh hits, so none of that is possible by
-## construction rather than by discipline. Do not "optimise" it away.
+## place an attack mutates the world. Every machine runs the same two halves
+## (prepare: resolve on a shadow and capture the record; apply: rebuild that
+## record and land it on the BeatClock), and the capture -> rebuild round trip
+## is load-bearing: never land the computed [AttackOutcome] itself. An
+## unprepared command is refused. See docs/domain/attack_plan_system.md.
 func apply_launch_command(command: LaunchAttackCommand) -> bool:
 	if command == null or is_launching:
 		return false

@@ -334,6 +334,28 @@ parallel-array table (centres, radii, drag magnitudes, deflect flags, source
 nodes). `BladeObstacleField` wraps one and owns every mutable accumulator;
 `BladeSwingClock` owns the banked drag.
 
+- **One question, one query:** "which nodes near this swing carry `swing_drag`
+  or `deflection`?" is the physics layer bits, a single `intersect_shape`
+  against a mask of both, never a walk of every `SkillNode` (a rest-pose radius
+  cull also undershoots a whipped blade's real reach). For one physics frame
+  after a collision-affecting write, `mark_broadphase_dirty` makes the query a
+  graph walk instead (the dirty-frame fallback).
+- **Immutable, hence shareable:** nothing in `BladeDefenderZones` is sim state, so
+  one instance is built per pivot and handed to all that pivot's rollout
+  proposals (`AiBladeRollout` evaluates up to 192 concurrently in
+  `WorkerThreadPool` tasks): the query runs on the main thread, the solver reads
+  plain arrays.
+- **Two kinds, one zone:** a node carrying both stats is ONE entry, both a wall
+  and a plate, never two; the latch that stops a zone paying its drag twice keys
+  on the zone index. The kinds are asymmetric: `deflection` is a bool stat
+  (presence only), `swing_drag` a magnitude.
+- **Order is by `SkillNode.stable_id`, and that is a contract.** `intersect_shape`
+  returns colliders in undefined, machine-dependent broadphase order. Two
+  first-wins tie-breaks read this order (`BladeSwingClock._warping`'s seeding,
+  and which zone arms a break first in `BladeObstacleField.end_substep`), so a
+  mirror peer redrawing the swing must see the same one
+  (`test_attack_determinism.gd`).
+
 - **Two zone kinds, asymmetric on purpose.** `deflection` is a BOOL (presence
   only); `swing_drag` a magnitude. A plate is pushed out of, meters strain, arms a
   break. A wall is **sensed and nothing more**: `project()` skips it in the
@@ -721,3 +743,94 @@ reach and knobs (`warhead_reach`, `shrapnel_fraction`):
 6. `attack/melee/skill_blade.gd`, `swing_resolve.gd`
 7. `attack/plan/melee_attack_plan.gd` (`resolve()`, `build_defender_zones`, `whip_bound`, `prediction()`)
 8. `attack/melee/melee_preview.gd` (ghost loop, prediction pump)
+
+## Spike pop: `BladePopResolver`
+
+Given the raw `BladeHitEvent`s of a swing scan, `BladePopResolver` decides which
+of the attacker's own blade vertices die and which are then severed from the
+driven handle and disintegrated.
+
+- A blade vertex that sweeps into a spiked, allocated enemy node drains that
+  node's remaining `spikes` pool by the vertex's own `blunting`. Remaining >=
+  blunting: the pool depletes by blunting and the vertex **pops** (the vertex
+  itself dies). Remaining < blunting: the remainder drains to 0 and the vertex
+  is **not** popped; it passes through as an ordinary contact ("pop only if the
+  full amount is removed", owner). A partial drain therefore never reaches
+  `LiveGate._kill` or mints a `Pop`; `blunting_spent` on a `Pop` is always the
+  vertex's full `blunting`.
+- The contact deals damage to nobody but the defender it pops against: the
+  spiked node takes none, and a popping vertex's own hit never lands
+  (`BladeDamageInstance.land_on` returns as soon as `admit` refuses the
+  contact, before `super.land_on`, the only place damage is applied).
+- Killing a vertex disconnects everything downstream of it from the pivot.
+  Every vertex no longer reachable through surviving edges is recorded as a
+  **severance**: it keeps coasting on the same trajectory, because nothing pulls
+  on it any more. It is not killed. The pivot is exempt (popping the wielder's
+  own handle is out of scope). An unspiked node (no `spikes` pool; only
+  `SpikeRingAddon` mints one) never pops anything at any stake level.
+- The result is a record, not a solver: each dead vertex carries its death time
+  (callers drop its hits from then on) and each severance the set it orphaned.
+  Re-baking the trajectory around those facts is `MeleeAttackPlan.resolve_against`'s
+  job (see `attack-timeline.md`).
+- **`LiveGate` is the only implementation of these predicates.** The AI/preview
+  estimate runs the same gate against a shadow `CombatWorld`, so the AI's
+  shape-risk signal (`AttackOutcome.popped_nodes`) comes from the code that
+  produces the real one. (A separate batch pass would drift: it could record a
+  pop at t2 for a vertex that disintegrated at t1 < t2.)
+
+## `BladeHitScan` determinism
+
+`BladeHitScan` queries the 2D physics server: every particle as a circle at its
+sampled position, every edge as a swept capsule between sampled endpoints
+trimmed back to the rim of each endpoint's own disk, so a hub never deals vertex
+plus one-per-incident-edge. A whole-blade bounding-box query short-circuits any
+substep sweeping empty space (`_is_region_empty`). Targets publish a
+`CollisionShape2D`; the module encodes no target geometry.
+
+- **Purity holds only while no query hits `_MAX_HITS_PER_QUERY`.** Queries are a
+  pure function of (sim positions, world state) as long as the world state is
+  itself sim-driven and the cap is never reached; ghost previews work the same
+  way because only the query shapes enter the physics world. The cap bounds one
+  query (one element, one substep), not the sweep; it is a stop-gap against
+  erroneous placement, not a knob. Reaching it is a determinism bug: dedup is on
+  first contact across substeps, so a truncated query may pick the collider up
+  later with a different `t`, corrupting the landing order, and which colliders
+  survive the cap is broadphase-ordered. `_warn_if_truncated` is the alarm; the
+  gap stays open (`test_gap_melee_hit_detection_truncates_a_physics_query`).
+- **Result order is stabilised.** Godot documents no ordering for overlapping
+  colliders, and `MeleeAttackPlan` pops spikes during its scan of these events,
+  so raw order could change the hit set itself. `scan` stable-sorts its own
+  output: `t` first, ties on `SkillNode.stable_id` (a value every peer agrees
+  on), never collider identity or query position.
+- **Dedup is the whole counting rule:** each particle or edge emits at most one
+  event per collider across the whole sweep, on first contact. Nothing
+  arbitrates between elements; edges carry no damage (ADR 0005), and a
+  degree-6 hub is worth one damaging contact because the capsules are trimmed to
+  the endpoints' rims (geometry), not because a tiebreak suppressed them.
+
+## `MeleeAttackPlan.collect_target_excludes`: "is that node on my side"
+
+The RIDs fed to `BladeHitScan` as the physics-query exclude list. They cover the
+blade's own selection plus every node on the attacker's side: the attacker's
+pre-mirrored owned subgraph (`Entity.navigator`'s `GraphMirror.get_mirrored_nodes`,
+MINE) plus every allied entity's navigator (ALLY). Unallocated nodes are not
+excluded: the scan sees them too, so a swing across ground that just died
+mid-cascade produces the same events as against never-allocated ground. The live
+ownership / allocation gate happens at consumption time
+(`BladeDamageInstance.land_on`, `BladePopResolver.LiveGate`).
+
+- **This is the one answer to "is that node on my side".** It is also the
+  defender query's exclude list (`build_defender_zones`); a second implementation
+  would let a blade bog down on its own wall when the two drift. Ownership bits,
+  never `owned_by == attacker`.
+- `selection_set()` is unioned explicitly: a blade member is MINE by construction
+  (`_can_be_blade` gates selection on `owned_by == attacker`), so it is redundant
+  today, but it keeps the exact "self OR MINE OR ALLY" membership.
+- Allies are enumerated via `Entity.GROUP` (the whole-tree roll call
+  `TurnManager`, `VictorySystem` and `GameRoot` use), not
+  `Graph.entities_container`: a plan's `attacker` is not guaranteed to sit under
+  that container (fixtures parent entities straight onto the graph), while every
+  live `Entity` is in its group from `Entity._ready`.
+- The union is sorted by `SkillNode.stable_id` before minting RIDs, because
+  `get_mirrored_nodes` order is dictionary iteration. Physics exclude lists are
+  unordered by nature, so this is a determinism / legibility choice.

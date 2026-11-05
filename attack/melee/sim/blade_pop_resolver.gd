@@ -1,47 +1,13 @@
 class_name BladePopResolver
 extends RefCounted
 
-## Defensive spike "pop" resolution (#170, budget model #778). Given the raw
-## BladeHitEvents from a swing scan, decides which of the ATTACKER's own blade
-## vertices are killed — and which are then severed from the driven handle and
-## disintegrated.
-##
-## The model (see the #170 design comment, budget rule per #778):
-##   - A blade vertex that sweeps into a spiked, allocated enemy node drains
-##     that node's remaining `spikes` pool by the vertex's own `blunting`.
-##     Remaining >= blunting: the pool depletes by blunting and the vertex
-##     POPS — the vertex itself dies. Remaining < blunting: the remainder
-##     drains to 0 and the vertex is NOT popped, passing through to deal
-##     damage as an ordinary contact (owner: "pop only if full amount is
-##     removed"). Either way the contact deals damage to NOBODY BUT the
-##     defender it pops against — the spiked node itself takes none, and a
-##     popping vertex's own hit never lands: [method BladeDamageInstance.land_on]
-##     returns as soon as [method admit] refuses the contact, before
-##     `super.land_on` (the only place damage is ever applied) runs.
-##   - Killing a vertex disconnects everything downstream of it from the pivot /
-##     handle. Every vertex no longer reachable from the pivot through surviving
-##     edges is recorded as a SEVERANCE (#801) — it keeps coasting in the same
-##     trajectory, because nothing is pulling on it any more; it is not killed.
-##   - The pivot is exempt — popping the wielder's own handle is out of scope.
-##   - An unspiked node (no `spikes` pool minted — only [SpikeRingAddon] ever
-##     mints one) never pops anything, at any stake level.
-##
-## Result is a RECORD, not a solver: it marks each dead vertex with the time it
-## died (so callers drop that vertex's hits from then on) and each severance
-## with the set it orphaned. Re-baking the trajectory around those facts is
-## [method MeleeAttackPlan.resolve_against]'s job, not this file's — see
-## docs/domain/attack-timeline.md.
-##
-## [b]There is exactly one implementation of these predicates: [LiveGate].[/b]
-## There used to be two — a pure `resolve()` batch pass for the AI/preview
-## estimate and [LiveGate] for the real swing — and they did not agree (the
-## batch pass ran its whole kill pass before its disconnection pass, so a vertex
-## that disintegrated at t1 could still be recorded as a pop at t2 > t1).
-## #498 step 3 retired the batch pass exactly as this file's own comment
-## promised it would: the estimate now runs THIS gate against a shadow
-## [CombatWorld], so the AI's shape-risk signal
-## ([member AttackOutcome.popped_nodes]) is produced by the same code that
-## produces the real one, against a detached copy of the same world.
+## Defensive spike "pop" resolution. Given the raw BladeHitEvents from a swing
+## scan, decides which of the ATTACKER's own blade vertices are killed (a full
+## `blunting` drain of the defender's `spikes` pool) and which vertices are then
+## severed from the handle. The result is a RECORD, not a solver. [LiveGate] is
+## the single implementation of these predicates; the AI/preview estimate runs
+## it against a shadow [CombatWorld]. See docs/domain/melee-blade-sim.md
+## "Spike pop".
 
 ## Per-pop record. `t` is the contact time; `defender` is the spiked node that
 ## popped `particle_idx`; `position` is where to play the pop VFX.
