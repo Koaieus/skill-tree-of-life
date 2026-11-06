@@ -32,9 +32,16 @@ Ready items got milestone `Cross-cutting / infra`; Ready requires a milestone, s
 - **#441 → Ready** with the re-scope spec: `FoldReducer` abstract base with a virtual `_fold_damage`; CancelIfMulti extends FirstReducer with the guard (the Retract-over-Max shape). No `.tres` changes.
 - Milestones: `Cross-cutting / infra` for #1186, #422 and its children, #435's children; #441 keeps `Status effects & spell automata`.
 
-## Still to do
-- **"Your calls" section (not started — a design conversation, its own pass):**
-  - #1620's VFX judgments.
-  - About 35 dated owner decisions with no ADR (in the #1761 PR description).
-  - Stale In-progress and In-review claims (#1076, #1107, #1108 and others).
-  - Hygiene's 16 flags: stale Designing (#1429, #1590, #1659, #1708); hub drift (#1313, #1397, #1591, #1608, #1646); all-parked hubs (#199, #420, #1255, #1380, #1439, #1615, #1711).
+## Fourth pass (2026-11-05/06, night): "your calls", served one by one
+- **Stale Designing:** #1429, #1590, #1708 released to Needs design. #1659 closed, not planned (owner: Greed stacks are exploit-sensitive; they are consumed by the kill's XP payout and vanish with the node).
+- **Parked hubs:** #347, #199, #1380 closed; their lone children #1768, #1653, #1658 detached as standalone issues. #1711 and #1615 moved to Needs design. #1619's premise shifts: barrels produce the goo / "volatile fuel", check the Element Matrix (owner, verbatim on the issue).
+- **#1255 children after an Explore staleness scan** (posted on each): #967 closed (per-status decay mode, not a rule); #968 stays Backlog as two addon cells awaiting an aspect/element home; #969 → Needs design on one fork only, "which Aspect Matrix cell takes a rare costly cure-all"; #1203 closed, superseded by the per-def decay slot. Hub → Needs design.
+- **Mark row:** #1439, #1442, #1443 bodies rewritten to the shipped row (DEX, `mark_aspect`, status `mark`, flat +5%/stack, −1 decay; rename premise dropped, rider restated as `+1 mark_stacks_per_hit`); children → Needs design. Old bodies in the edit history.
+- **Gimbal:** #1076 closed, done. #1107/#1108: an Opus state check (posted on both) found every build item landed on 2026-09-24; only the #804 `perf:idle` post and the sandbox eyeball pass are open, and the drift stamps cite an unknown sha. **Left In progress for the owner's call**, since the owner's premise ("deletion still needs to be done") turned out false — recommended: close both as landed, file one small perf+eyeball issue, and a one-line ADR/doc note sanctioning the per-viewport group lookup in `GimbalWorld.acquire`.
+- Hygiene after this pass: only #422/#435 derived "In progress" (children Ready — correct).
+
+## Still to do (owner was asked, EOD before answering)
+- **#1620's four VFX eyeball judgments** (blast ring + rider layers in the blast tab at three zooms; charge beads + spend flare and shrug sheen + piece-blast ring in the melee sandbox; all shipped on tentative knobs). Options offered: close #1620 and let the knobs ride the Explosive/Elements rework (recommended); file one eyeball-pass Intake issue and close #1620; keep #1620 open as the reminder.
+- **~35 dated owner decisions with no ADR** (list in PR #1761's description). Options offered: ADRs only for the ~8–10 architectural ones (sync model, shadow-always, AttackRecord post-apply, SpellDef.id, MenuGraph, VisionCircles, CombatWorld required world, ContestantRule) via the `adr` skill, tuning calls stay domain-doc prose (recommended); all 35 by one Opus subagent; none.
+- **#1107/#1108 disposition** (above).
+- **#1442/#1443** are now in Needs design with their forks listed; design them in the week's aspect/Elements rework.
