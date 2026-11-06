@@ -49,7 +49,25 @@ hit's target mask. **Owner lean, not yet firm**: a chained go-off's copies
 carry the root payload flat (*"LET IT RIDE"*), with the owner's own doubt
 about whether medium *planting* along a chain should decay per link.
 
+Settled 2026-11-06 (doc § Derived states): the three derived states are the
+**travel triad** — Frozen ends a path (0D), Shocked conducts one (1D, a
+pass-through spends one Charge, no hop), Burning re-blasts a disc (2D,
+backdraft, Heat spent to T − 1); **Shocked = #1733's critical Charge**
+(Charge ≥ T), named; Burning is a light source through fog; the Shocked
+crackle (`sensor_range`) parked as minor; the medium cap is
+**k × T, k = 2 + `stake_level`** (k 3–5 under the default stake ceiling of
+3); the cap is **soft** — stacks past it are an **excess band** that
+decays fast and does one thing per element. Deep freeze is the owner's
+(shatter removes T plus all the excess, which adds to the damage).
+
 Still open, in this order:
+
+- **Blaze and Supercharge** (doc § Derived states, the excess table): both
+  are pass proposals the owner has not yet answered. Blaze: excess Heat
+  flows to every neighbour each tick with no dead band. Supercharge: excess
+  Charge arcs out on the world tick as a terrain hit, one arc per excess
+  stack. Ask first, it is the freshest thread; the owner's cue was *"or a
+  mix of all of these, each fitting to the status effect"*.
 
 - **Firm the chain lean** (doc § The reach rule, § Open (d)). The doc and
   the #1735 comment commit to one reading of *"The hit, all rider, no
@@ -74,14 +92,20 @@ Still open, in this order:
 - **ADR 0075** (needs a human merge): supersedes 0073 in part (the use is
   0070's open set, `CleanseUse` beside ride, the Ice use as a resource) and
   records the eight 2026-11-05 verdicts above; ADR 0074 is merged (#1747),
-  so today's landing verdicts go in 0075, not an amendment.
+  so today's landing verdicts go in 0075, not an amendment. 0075 also
+  supersedes 0074 §5 in part: the cap's k is `2 + stake_level`, and the cap
+  is soft (the excess band) where 0074 wasted the surplus.
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
 - Greed (#1659); the arc leap radius per excess Charge (#1733); inner-tree
-  shape; Shocked and Burning's extra twist parked; #1765.
+  shape; #1765. The pair table's Frozen/Shocked/Burning columns do not yet
+  show the travel verbs (pass-through, backdraft); fold them in at spec.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
   1:1 guard test (code, first element issue).
+
+Delete this file once #1716 is split into children (below) and the
+items above are all settled or filed.
 
 When the list is empty: split #1716 into drone-sized children with `spec`
 (first: the element count + `ReachUse` seam; Fire = #1660's children; Ice =
