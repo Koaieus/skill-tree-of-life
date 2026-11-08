@@ -6,28 +6,14 @@ extends RefCounted
 ## extracted from `graph_procgen.gd` with its body unchanged: the
 ## GuaranteedPlacement pre-pass (PlacementContext + role tags + scene slots),
 ## removable-blocker planning (indices, prune seeds, footprints, pre-stakes,
-## faces) and the per-node radius stamp helper. Static and stateless — the
-## caller owns the main RNG and hands it in; blocker and face draws ride their
-## own salted streams so the main stream is untouched, and this phase never
-## touches the progress callback. Same seed → byte-identical graph is guarded
-## by `test/integration/procgen/test_procgen_golden.gd`.
+## faces) and the per-node radius stamp helper. Static and stateless —
+## [GraphProcgen] owns every RNG: it derives the scene, blocker and face streams
+## from its salts (`GraphProcgen._SCENE_RNG_SALT`, `_BLOCKER_RNG_SALT`,
+## `_FACE_RNG_SALT`) and hands them in, as the sibling phases do, so the main
+## stream is untouched; this phase never touches the progress callback. Same
+## seed → byte-identical graph is guarded by
+## `test/integration/procgen/test_procgen_golden.gd`.
 ## See docs/domain/procgen-v4.md and docs/domain/procgen.md.
-
-## Arbitrary offset mixed into the main `rng.seed` to derive [member
-## _place_blocker_indices]'s own RNG stream. Blocker placement has to
-## run BEFORE the per-node content loop (so the loop can pick the right node
-## scene), which would otherwise consume draws off the shared `rng` ahead of
-## every other roll — silently reshuffling what a given seed generates
-## everywhere else. A same-seed-derived-but-independent stream keeps blocker
-## placement itself deterministic while leaving the main stream untouched.
-const _BLOCKER_RNG_SALT := 0x8477
-## Salt for [member PlacementContext.scene_rng] — scene placements draw
-## off their own derived stream so the main `rng` is byte-identical with or
-## without them.
-const _SCENE_RNG_SALT := 0x3300
-## Salt for the Dormant Core face roll ([method GraphProcgenBlockers.roll_faces]):
-## its own stream, so faces on or off leave every blocker draw above it intact.
-const _FACE_RNG_SALT := 0xFACE
 
 
 ## What [method run] hands back: the placement context the per-node loop reads
@@ -52,12 +38,16 @@ static func run(
 		starter_indices: PackedInt32Array,
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
+		scene_rng: RandomNumberGenerator,
+		blocker_rng: RandomNumberGenerator,
+		face_rng: RandomNumberGenerator,
 ) -> Result:
 	var out := Result.new()
 	# Pre-roll pass: GuaranteedPlacements decorate nodes with role tags.
 	# starting_points were placed first into the position list (by index).
 	var placement_ctx := _build_placement_context(
-			positions, edge_pairs, type_assignments, starter_indices, config, rng)
+			positions, edge_pairs, type_assignments, starter_indices, config, rng,
+			scene_rng)
 	out.ctx = placement_ctx
 	for placement in config.content.guaranteed_placements:
 		if placement != null:
@@ -73,15 +63,13 @@ static func run(
 	# plus, never a node inside the core safe radius
 	# (blocker_min_hops_from_core).
 	#
-	# Deliberately rides its OWN derived RNG, not the shared `rng` stream:
-	# running this before the per-node content loop (needed so the loop can
-	# pick the right scene) would otherwise shift every subsequent draw off
-	# `rng` — silently changing what a given seed generates for the rest of
-	# `generate` (archetype rolls, modifier rolls, self-loops, ...). Deriving
-	# from `config.seed` keeps the main stream byte-for-byte identical to
-	# before blockers existed.
-	var blocker_rng := RandomNumberGenerator.new()
-	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
+	# Deliberately rides its OWN derived RNG stream, handed in by
+	# `GraphProcgen`, not the shared `rng`: running this before the per-node
+	# content loop (needed so the loop can pick the right scene) would
+	# otherwise shift every subsequent draw off `rng` — silently changing what
+	# a given seed generates for the rest of `generate` (archetype rolls,
+	# modifier rolls, self-loops, ...). Deriving from `rng.seed` keeps the main
+	# stream byte-for-byte identical to before blockers existed.
 	var blocker_sizes := _place_blocker_indices(
 			positions.size(), placement_ctx, config, blocker_rng)
 	out.blocker_sizes = blocker_sizes
@@ -106,8 +94,6 @@ static func run(
 	# earlier seed produced. Always two draws per blocker, chance or not, so
 	# a later pass appended here is stable across a chance retune too.
 	out.blocker_stakes = _roll_blocker_stakes(blocker_sizes, config.blockers, blocker_rng)
-	var face_rng := RandomNumberGenerator.new()
-	face_rng.seed = rng.seed + _FACE_RNG_SALT
 	out.blocker_faces = config.blockers.roll_faces(blocker_sizes.keys(), face_rng)
 	return out
 
@@ -122,6 +108,7 @@ static func _build_placement_context(
 		starter_indices: PackedInt32Array,
 		config: GraphProcgenConfig,
 		rng: RandomNumberGenerator,
+		scene_rng: RandomNumberGenerator,
 ) -> PlacementContext:
 	var ctx := PlacementContext.new()
 	ctx.positions = positions
@@ -149,8 +136,7 @@ static func _build_placement_context(
 	ctx.scenes = sc
 	# Derived stream, same reason as the blocker pass below: scene
 	# draws never shift the main `rng`, and every peer reproduces the picks.
-	ctx.scene_rng = RandomNumberGenerator.new()
-	ctx.scene_rng.seed = rng.seed + _SCENE_RNG_SALT
+	ctx.scene_rng = scene_rng
 	return ctx
 
 

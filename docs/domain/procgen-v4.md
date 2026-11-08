@@ -370,7 +370,7 @@ could see in the inspector.
 
 Returns a `Dictionary` mapping index → `EntityFactory.BlockerSize` int, in
 insertion (tier) order. Rides its own derived `rng` (see
-`ProcgenPlacement._BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
+`GraphProcgen._BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
 uses — so placements are still seed-deterministic without perturbing every
 other roll.
 

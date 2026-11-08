@@ -32,9 +32,23 @@ extends RefCounted
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 
+## Arbitrary offset mixed into the main `rng.seed` to derive [member
+## ProcgenPlacement._place_blocker_indices]'s own RNG stream. Blocker placement
+## has to run BEFORE the per-node content loop (so the loop can pick the right
+## node scene), which would otherwise consume draws off the shared `rng` ahead
+## of every other roll — silently reshuffling what a given seed generates
+## everywhere else. A same-seed-derived-but-independent stream keeps blocker
+## placement itself deterministic while leaving the main stream untouched.
+const _BLOCKER_RNG_SALT := 0x8477
+## Salt for [member PlacementContext.scene_rng] — scene placements draw
+## off their own derived stream so the main `rng` is byte-identical with or
+## without them.
+const _SCENE_RNG_SALT := 0x3300
+## Salt for the Dormant Core face roll ([method GraphProcgenBlockers.roll_faces]):
+## its own stream, so faces on or off leave every blocker draw above it intact.
+const _FACE_RNG_SALT := 0xFACE
 ## Salt for the node-subtype placement roll, for the same reason as the
-## placement phase's salted streams and one more: the roll happens mid-loop,
-## per node, so off the
+## two above and one more: the roll happens mid-loop, per node, so off the
 ## shared `rng` every modifier draw after it would shift — both goldens would
 ## churn on any `base_chance` retune and a placement change would be
 ## indistinguishable from a content change.
@@ -153,8 +167,18 @@ static func generate(
 	var starter_indices := PackedInt32Array()
 	for k in starters.size():
 		starter_indices.append(k)
+	# The phase's three salted streams are derived HERE, next to the subtype
+	# and addon ones, so every salt stays visible on this file. Creating and
+	# seeding an RNG consumes no draws — the phase's draw order is unchanged.
+	var scene_rng := RandomNumberGenerator.new()
+	scene_rng.seed = rng.seed + _SCENE_RNG_SALT
+	var blocker_rng := RandomNumberGenerator.new()
+	blocker_rng.seed = rng.seed + _BLOCKER_RNG_SALT
+	var face_rng := RandomNumberGenerator.new()
+	face_rng.seed = rng.seed + _FACE_RNG_SALT
 	var placement := ProcgenPlacement.run(
-			positions, edge_pairs, type_assignments, starter_indices, config, rng)
+			positions, edge_pairs, type_assignments, starter_indices, config, rng,
+			scene_rng, blocker_rng, face_rng)
 	var placement_ctx := placement.ctx
 	var blocker_sizes := placement.blocker_sizes
 	var blocker_seeds := placement.blocker_seeds

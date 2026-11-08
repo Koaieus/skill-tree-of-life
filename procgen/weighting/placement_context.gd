@@ -20,7 +20,7 @@ var starter_indices: PackedInt32Array = PackedInt32Array()
 var role_tags: Array = []
 ## Per-node authored [PackedScene] (or null). Set by [ScenePlacement]; the
 ## per-node loop instantiates it as node `i` in place of the plain skill node
-## (#330). Sized to `positions` by [GraphProcgen].
+## (#330). Sized to `positions` by [ProcgenPlacement].
 var scenes: Array = []
 ## Derived stream for scene placements (seed + salt, like the blocker pass) so
 ## their draws never shift the main [member rng] stream.

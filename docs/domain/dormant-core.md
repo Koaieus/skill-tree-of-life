@@ -228,7 +228,7 @@ Otherwise `add_modifier` would drop the grant silently and leave a ghost in the
 register.
 
 **The roll.** `GraphProcgenBlockers.roll_faces` draws a face and a seed per
-placement on its own `face_rng` (salt `ProcgenPlacement._FACE_RNG_SALT`), always two draws, at
+placement on its own `face_rng` (salt `GraphProcgen._FACE_RNG_SALT`), always two draws, at
 weight 1 per face against `faceless_weight`. An empty `faces` draws nothing, and
 the separate stream leaves every other blocker draw unchanged either way. The
 placement dict carries `face` + `face_seed`, and `spawn_blocker(..., face,
