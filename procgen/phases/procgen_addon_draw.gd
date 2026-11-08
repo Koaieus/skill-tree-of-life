@@ -85,5 +85,3 @@ static func weighted_pick(
 		if r <= 0.0:
 			return e
 	return null
-
-
