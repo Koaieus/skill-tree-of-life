@@ -1,6 +1,6 @@
 @tool
 class_name FirstReducer
-extends IncidentReducer
+extends FoldReducer
 
 ## Takes the first-arrived incident verbatim, ignoring later arrivals at
 ## the same node in the same wave. Deterministic (the first incident is
@@ -8,10 +8,8 @@ extends IncidentReducer
 ## [member PropagationConfig.reducer] is null.
 
 
-func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents)
-	merged.damage = incidents[0].damage
-	return merged
+func _fold_damage(incidents: Array[CastSpell]) -> float:
+	return incidents[0].damage
 
 
 func get_description() -> String:

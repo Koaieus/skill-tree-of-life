@@ -1,15 +1,13 @@
 @tool
 class_name MaxDamageReducer
-extends IncidentReducer
+extends FoldReducer
 
 ## Resolves to the strongest incident at this node — the sanity floor for
 ## spells that fan widely but shouldn't compound when they overlap.
 
 
-func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents)
-	merged.damage = strongest(incidents).damage
-	return merged
+func _fold_damage(incidents: Array[CastSpell]) -> float:
+	return strongest(incidents).damage
 
 
 ## The incident with the highest damage — the WINNER, not just the winning

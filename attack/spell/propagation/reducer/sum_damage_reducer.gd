@@ -1,19 +1,17 @@
 @tool
 class_name SumDamageReducer
-extends IncidentReducer
+extends FoldReducer
 
 ## Adds all incident damages. The "Resonator" reducer — the spell built to
 ## be weaponised by self-loops + cycles. Single-incident case is a no-op
 ## (damage carries through unchanged).
 
 
-func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
-	var merged := _merge_payload_defaults(incidents)
+func _fold_damage(incidents: Array[CastSpell]) -> float:
 	var total: float = 0.0
 	for inc in incidents:
 		total += inc.damage
-	merged.damage = total
-	return merged
+	return total
 
 
 func get_description() -> String:

@@ -1,21 +1,20 @@
 @tool
 class_name CancelIfMultiReducer
-extends IncidentReducer
+extends FirstReducer
 
 ## Fizzles where the spell overlaps itself — returns null when ≥2 incidents
 ## arrive at the same node in the same wave. The CANCEL also kills onward
 ## propagation from this node (the resolver drops it before expanding).
+## A lone arrival is [FirstReducer]'s.
 ##
 ## A signature mechanic: makes spells route AROUND already-touched zones,
 ## creates interesting topology-puzzle play.
 
 
-func reduce(incidents: Array[CastSpell], _cast: PropagationContext) -> CastSpell:
+func reduce(incidents: Array[CastSpell], cast: PropagationContext) -> CastSpell:
 	if incidents.size() > 1:
 		return null
-	var merged := _merge_payload_defaults(incidents)
-	merged.damage = incidents[0].damage
-	return merged
+	return super.reduce(incidents, cast)
 
 
 func get_description() -> String:
