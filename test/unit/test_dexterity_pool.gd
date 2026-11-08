@@ -1,7 +1,7 @@
 extends GutTest
 ## v4 StatPool conformance for dexterity.tres (#321 wave 1).
 const _PACK := preload("res://procgen/pools/dexterity.tres")
-const _GP := preload("res://procgen/graph_procgen.gd")
+const _GP := preload("res://procgen/phases/procgen_modifier_roller.gd")
 func _rng(s: int) -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new(); r.seed = s; return r
 func test_pack_loads_as_statpack() -> void:
@@ -70,7 +70,7 @@ func test_draw_only_emits_pack_stat_ids() -> void:
 	pool_set.packs = [_PACK.duplicate(true)]
 	var ids: Array = []
 	for seed_value in range(1, 25):
-		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"dexterity", &"dexterity", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
+		var mods: Array = _GP.run(pool_set, [], &"dexterity", &"dexterity", [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods: if not (m.stat_id in ids): ids.append(m.stat_id)
 	# every rolled stat_id must be one this pack owns
 	# Every rolled stat_id must be one this pack owns — read OFF the pack, not
@@ -159,7 +159,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 ## Acceptance #1: a node rolled with the poison entry, once allocated, raises
 ## the entity's `poison_aspect` by the grant and a reload then adds
 ## that many poison arrows; deallocating takes the grant back. The node's
-## `modifiers` is the exact seam `GraphProcgen._roll_modifiers_v4` writes.
+## `modifiers` is the exact seam `ProcgenModifierRoller.run` writes.
 func test_rolled_poison_grant_lands_on_the_board_and_mints_on_reload() -> void:
 	var pp := _pool_for(&"poison_aspect")
 	if pp == null:

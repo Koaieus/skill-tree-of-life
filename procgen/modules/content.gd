@@ -24,7 +24,7 @@ const DEFAULT_UNIVERSAL_SHARE := 0.2
 ## &""`) content, whatever the node's archetype — a share of picks, not of
 ## budget points. Renormalized over what is drawable at each pick: when one
 ## side has nothing drawable, the other takes the whole pick. See
-## [method GraphProcgen._v4_pick_distribution] and docs/domain/procgen-v4.md.
+## [method ProcgenModifierRoller.pick_distribution] and docs/domain/procgen-v4.md.
 @export_range(0.0, 1.0) var universal_share: float = DEFAULT_UNIVERSAL_SHARE
 
 const DEFAULT_MULTIPLY_FUSE_FLOOR := 0.1

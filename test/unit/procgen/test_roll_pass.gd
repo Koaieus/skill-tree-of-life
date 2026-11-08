@@ -56,7 +56,7 @@ func _stats(entries: Array[ModifierPoolEntry]) -> Dictionary:
 
 
 func _roll(pool_set: ModifierPoolSet, subtype: NodeSubtype, seed_value: int, budget: int = 1, fp: Dictionary = {}) -> Array[StatModifier]:
-	return GraphProcgen._roll_modifiers_v4(pool_set, [], &"dexterity", &"dexterity",
+	return ProcgenModifierRoller.run(pool_set, [], &"dexterity", &"dexterity",
 		[] as Array[StringName], Vector2.ZERO, 0, budget, _rng(seed_value), fp, subtype)
 
 

@@ -7,7 +7,7 @@ extends GutTest
 ## determinism tests (same seed / different seed / zero-width RNG
 ## consumption) live in test_stat_draw.gd alongside the rest of the draw.
 
-const _GP := preload("res://procgen/graph_procgen.gd")
+const _GP := preload("res://procgen/phases/procgen_modifier_roller.gd")
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:
@@ -92,24 +92,24 @@ func test_value_override_pins_exact_value_every_roll() -> void:
 # ── Acceptance 7 + 8: neutral-element detection ────────────────────────────
 
 func test_add_base_zero_is_neutral() -> void:
-	assert_true(_GP._is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.0)))
+	assert_true(_GP.is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.0)))
 
 
 func test_add_base_nonzero_is_not_neutral() -> void:
-	assert_false(_GP._is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 3.0)))
+	assert_false(_GP.is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 3.0)))
 
 
 func test_multiply_x1_is_neutral() -> void:
-	assert_true(_GP._is_neutral_result(_mod(StatModifier.Operation.MULTIPLY, 1.0)))
+	assert_true(_GP.is_neutral_result(_mod(StatModifier.Operation.MULTIPLY, 1.0)))
 
 
 func test_multiply_x0_is_not_neutral() -> void:
 	# x0 annihilates — maximally impactful, never a no-op (issue's explicit call-out).
-	assert_false(_GP._is_neutral_result(_mod(StatModifier.Operation.MULTIPLY, 0.0)))
+	assert_false(_GP.is_neutral_result(_mod(StatModifier.Operation.MULTIPLY, 0.0)))
 
 
 func test_set_is_never_neutral() -> void:
-	assert_false(_GP._is_neutral_result(_mod(StatModifier.Operation.SET, 0.0)))
+	assert_false(_GP.is_neutral_result(_mod(StatModifier.Operation.SET, 0.0)))
 
 
 # ── Acceptance 9: coercion-aware neutrality ─────────────────────────────────
@@ -123,9 +123,9 @@ func test_small_add_is_neutral_on_int_stat_but_not_float_stat() -> void:
 	var float_def: StatDef = StatRegistry.get_def(&"crit_chance")
 	assert_eq(int_def.value_type, StatDef.ValueType.INT, "fixture assumption: constitution is INT")
 	assert_eq(float_def.value_type, StatDef.ValueType.FLOAT, "fixture assumption: crit_chance is FLOAT")
-	assert_true(_GP._is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.4, &"constitution")),
+	assert_true(_GP.is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.4, &"constitution")),
 			"+0.4 on an INT stat rounds to 0 — a no-op")
-	assert_false(_GP._is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.4, &"crit_chance")),
+	assert_false(_GP.is_neutral_result(_mod(StatModifier.Operation.ADD_BASE, 0.4, &"crit_chance")),
 			"+0.4 on a FLOAT stat stays 0.4 — not a no-op")
 
 
@@ -156,7 +156,7 @@ func _neutral_multiply_pool_set() -> ModifierPoolSet:
 func test_always_neutral_pool_is_dropped_after_retry_cap() -> void:
 	var pool_set := _neutral_multiply_pool_set()
 	var fp := {}
-	var mods: Array = _GP._roll_modifiers_v4(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp)
+	var mods: Array = _GP.run(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp)
 	assert_eq(mods.size(), 0, "a permanently-neutral fused result must be dropped, not emitted")
 	assert_gt(fp.get("no_op_retries", 0), 0, "the retry path should have fired")
 	assert_gt(fp.get("dropped", 0), 0, "the drop path should have fired")
@@ -166,8 +166,8 @@ func test_no_op_retry_is_deterministic_across_identical_seeds() -> void:
 	var pool_set := _neutral_multiply_pool_set()
 	var fp_a := {}
 	var fp_b := {}
-	var mods_a: Array = _GP._roll_modifiers_v4(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp_a)
-	var mods_b: Array = _GP._roll_modifiers_v4(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp_b)
+	var mods_a: Array = _GP.run(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp_a)
+	var mods_b: Array = _GP.run(pool_set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 4, _rng(11), fp_b)
 	assert_eq(mods_a.size(), mods_b.size())
 	assert_eq(fp_a.get("no_op_retries"), fp_b.get("no_op_retries"), "same seed must retry the same number of times")
 	assert_eq(fp_a.get("dropped"), fp_b.get("dropped"))
@@ -193,7 +193,7 @@ func test_no_op_retry_can_recover_a_nonzero_result() -> void:
 	set.packs = packs
 	var saw_nonzero := false
 	for seed_value in range(1, 100):
-		var mods: Array = _GP._roll_modifiers_v4(set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 1, _rng(seed_value))
+		var mods: Array = _GP.run(set, [], &"strength", &"strength", [] as Array[StringName], Vector2.ZERO, 0, 1, _rng(seed_value))
 		if mods.size() > 0:
 			saw_nonzero = true
 			assert_ne(mods[0].value, 0.0, "an emitted result must not be the neutral element")

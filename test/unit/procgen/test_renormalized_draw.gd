@@ -1,6 +1,6 @@
 extends GutTest
 
-## The v4 pick's distribution (`GraphProcgen._v4_pick_distribution`) asserted
+## The v4 pick's distribution (`ProcgenModifierRoller.pick_distribution`) asserted
 ## exactly: universal vs archetype by `universal_share`, pool by
 ## `pool_weight × m̄`, tier by `w_t·m_t` — each renormalized over what is
 ## drawable at this pick. Default [TierShape] everywhere: tier weights 1, 2, 4, 8.
@@ -55,7 +55,7 @@ func _dist(entries: Array[ModifierPoolEntry], remaining: int = _ALL,
 		profiles: Array[Resource] = [], share: float = 0.2) -> Dictionary:
 	var ctx := WeightContext.new()
 	ctx.archetype = &"red"
-	return GraphProcgen._v4_pick_distribution(entries, profiles, ctx, remaining, share)
+	return ProcgenModifierRoller.pick_distribution(entries, profiles, ctx, remaining, share)
 
 
 func _stat_total(dist: Dictionary, stat: StringName) -> float:
@@ -182,12 +182,12 @@ func test_nothing_drawable_is_empty_and_the_pick_is_null() -> void:
 	assert_eq(_dist(entries, 0).size(), 0, "broke node: empty distribution")
 	var ctx := WeightContext.new()
 	var profiles: Array[Resource] = []
-	assert_null(GraphProcgen._v4_weighted_pick(entries, profiles, ctx, 0,
+	assert_null(ProcgenModifierRoller.weighted_pick(entries, profiles, ctx, 0,
 		RandomNumberGenerator.new(), 0.2))
 	var d := _dist(entries, 1)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	var picked := GraphProcgen._v4_weighted_pick(entries, profiles, ctx, 1, rng, 0.2)
+	var picked := ProcgenModifierRoller.weighted_pick(entries, profiles, ctx, 1, rng, 0.2)
 	assert_true(d.has(picked), "the pick samples the distribution")
 
 

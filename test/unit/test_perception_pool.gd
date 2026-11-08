@@ -1,7 +1,7 @@
 extends GutTest
 ## v4 StatPool conformance for perception.tres (#321 wave 1).
 const _PACK := preload("res://procgen/pools/perception.tres")
-const _GP := preload("res://procgen/graph_procgen.gd")
+const _GP := preload("res://procgen/phases/procgen_modifier_roller.gd")
 
 func _rng(s: int) -> RandomNumberGenerator:
 	var r := RandomNumberGenerator.new()
@@ -82,7 +82,7 @@ func test_perception_draw_only_emits_pack_stat_ids() -> void:
 	var primary := &"perception"
 	var ids: Array = []
 	for seed_value in range(1, 25):
-		var mods: Array = _GP._roll_modifiers_v4(pool_set, [], primary, primary, [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
+		var mods: Array = _GP.run(pool_set, [], primary, primary, [] as Array[StringName], Vector2.ZERO, 0, 8, _rng(seed_value))
 		for m in mods:
 			if not (m.stat_id in ids):
 				ids.append(m.stat_id)

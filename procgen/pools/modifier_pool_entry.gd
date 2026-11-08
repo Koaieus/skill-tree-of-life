@@ -21,13 +21,13 @@ extends Resource
 @export var operation: StatModifier.Operation = StatModifier.Operation.ADD_BASE
 ## Inclusive range sampled at roll time. Both ends equal → fixed value.
 @export var value_range: Vector2 = Vector2(1.0, 1.0)
-## Budget cost — see [method GraphProcgen._v4_pick_distribution]. Floor of 1 keeps
+## Budget cost — see [method ProcgenModifierRoller.pick_distribution]. Floor of 1 keeps
 ## per-node draw count bounded (no cost-0 entries).
 @export var cost: int = 1
 ## This tier's weight inside its pool — the bare [method StatPool.tier_weight],
 ## before [WeightProfile] modulation. Never carries [member pool_weight]: the
 ## draw weighs pools and tiers at separate levels (see
-## [method GraphProcgen._v4_pick_distribution]).
+## [method ProcgenModifierRoller.pick_distribution]).
 @export var weight: float = 1.0
 ## The pool this tier was minted from — [member id] minus its `_t<N>` suffix.
 ## The draw groups tiers by it. Empty (a hand-built entry) = its own pool.
@@ -60,7 +60,7 @@ func roll(rng: RandomNumberGenerator) -> StatModifier:
 ## target stat's value_type. MULTIPLY is a raw scalar (×1.07) and is NOT
 ## coerced — rounding would destroy the roll.
 ##
-## Static (#629) so [method GraphProcgen._is_neutral_result] can reuse the
+## Static (#629) so [method ProcgenModifierRoller.is_neutral_result] can reuse the
 ## exact same coercion when deciding whether a FUSED modifier is a no-op —
 ## one predicate, not a parallel reimplementation. `target_stat_id` is the
 ## `stat_id` an instance call would otherwise read off `self`.

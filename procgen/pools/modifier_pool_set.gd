@@ -10,7 +10,7 @@ extends Resource
 ## the node's primary archetype (universal `archetype_stat == &""` pools stay
 ## shared as the defensive/mobility content).
 ##
-## See [method GraphProcgen._roll_modifiers_v4] and docs/domain/procgen-v4.md.
+## See [method ProcgenModifierRoller.run] and docs/domain/procgen-v4.md.
 
 @export var packs: Array[StatPack] = []
 

@@ -256,7 +256,7 @@ func test_no_configuration_warnings() -> void:
 ## #750 — WIS (gold) and PER (purple) are locked out of universal *defensive*
 ## content by `forbid_tags = [&"defense"]`, and only that: mobility still
 ## rolls. Runs each entry through the real weight pipeline
-## (`GraphProcgen._v4_weighted_pick` on a one-entry list — non-null iff its
+## (`ProcgenModifierRoller.weighted_pick` on a one-entry list — non-null iff its
 ## effective weight is > 0), with the module's own profiles and forbid list.
 const _MODULE_CONTENTS: Array[String] = [
 	"res://procgen/modules/first_level/content.tres",
@@ -272,7 +272,7 @@ func _is_drawable(entry: ModifierPoolEntry, content: GraphProcgenContent,
 	ctx.node_index = 0
 	ctx.forbid_tags = forbid
 	var one: Array[ModifierPoolEntry] = [entry]
-	return GraphProcgen._v4_weighted_pick(one, content.weight_profiles, ctx,
+	return ProcgenModifierRoller.weighted_pick(one, content.weight_profiles, ctx,
 		1 << 20, RandomNumberGenerator.new()) != null
 
 

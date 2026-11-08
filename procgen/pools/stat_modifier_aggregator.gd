@@ -26,7 +26,7 @@ extends RefCounted
 ##   biggest-investment-first); ties keep the dictionary's insertion order
 ##   through the same `sort_custom` the draw has always used.
 ##
-## See [method GraphProcgen._roll_modifiers_v4] and docs/domain/procgen-v4.md.
+## See [method ProcgenModifierRoller.run] and docs/domain/procgen-v4.md.
 
 
 ## One fused line: the modifier every contribution merged into, the summed

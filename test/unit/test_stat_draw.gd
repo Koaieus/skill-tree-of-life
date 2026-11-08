@@ -4,7 +4,7 @@ extends GutTest
 ## Replaces the old `test_phased_modifier_draw.gd` (slots / off-archetype phase /
 ## defensive+rare phases — all deleted in v4).
 
-const _SCRIPT := preload("res://procgen/graph_procgen.gd")
+const _SCRIPT := preload("res://procgen/phases/procgen_modifier_roller.gd")
 
 
 func _pool(
@@ -56,7 +56,7 @@ func _rng(seed_value: int = 1) -> RandomNumberGenerator:
 
 
 func _draw(pool_set: ModifierPoolSet, primary_stat: StringName, budget: int, rng: RandomNumberGenerator, fp: Dictionary = {}) -> Array:
-	return _SCRIPT._roll_modifiers_v4(
+	return _SCRIPT.run(
 			pool_set, [], &"strength", primary_stat, [], Vector2.ZERO, 0, budget, rng, fp)
 
 

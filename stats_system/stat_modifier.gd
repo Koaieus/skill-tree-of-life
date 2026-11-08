@@ -62,7 +62,7 @@ enum Valence {
 ## neutral element to measure from" are different facts — callers MUST
 ## `is_nan()` before judging or comparing. This is also the single home of
 ## "which value is this op's no-op", which
-## [method GraphProcgen._is_neutral_result] previously kept its own copy of.
+## [method ProcgenModifierRoller.is_neutral_result] previously kept its own copy of.
 ##
 ## Static and value-taking (not an instance method) so a procgen candidate
 ## value can be tested before any [StatModifier] exists to hold it.

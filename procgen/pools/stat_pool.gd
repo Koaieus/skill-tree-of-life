@@ -15,7 +15,7 @@ extends Resource
 ## override for that tier), `weight` (the bare [method tier_weight]), the pool
 ## stamps (`pool_key`, `pool_weight`, `universal`), and `tags` (this pool's
 ## tags + [TierLadder] auto-tags for the tier). The draw
-## loop ([method GraphProcgen._roll_modifiers_v4]) picks among those entries
+## loop ([method ProcgenModifierRoller.run]) picks among those entries
 ## with weight profiles, spends budget until broke, then aggregates per
 ## (stat_id, operation): ADD*/INCREASE sum, MULTIPLY product, SET max.
 ##
@@ -111,7 +111,7 @@ const FLOOR_UNSET := INF
 ## This pool's share among its drawable siblings in the same group (universal
 ## or archetype) — the pool level of the draw. Tier weight within the pool is
 ## [method tier_weight], normalized separately: authoring more or pricier tiers
-## never grows the pool's mass. See [method GraphProcgen._v4_pick_distribution].
+## never grows the pool's mass. See [method ProcgenModifierRoller.pick_distribution].
 @export var pool_weight: float = 1.0
 
 ## How this pool's weight spreads over its tiers — see [TierShape]. Default

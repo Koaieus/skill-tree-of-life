@@ -1,8 +1,8 @@
 extends GutTest
 
 ## Covers ArchetypeWeightProfile, the forbid-tag filter, and their composition
-## through the procgen pick path (`GraphProcgen._v4_weighted_pick`) and the
-## real v4 draw (`GraphProcgen._roll_modifiers_v4`).
+## through the procgen pick path (`ProcgenModifierRoller.weighted_pick`) and the
+## real v4 draw (`ProcgenModifierRoller.run`).
 
 
 ## Budget-exhaustion roll loop over the surviving pick primitive. Mirrors how
@@ -26,7 +26,7 @@ func _roll_pipeline(
 	ctx.forbid_tags = forbid_tags
 	var remaining := budget
 	while remaining > 0:
-		var entry := GraphProcgen._v4_weighted_pick(entries, profiles, ctx, remaining, rng)
+		var entry := ProcgenModifierRoller.weighted_pick(entries, profiles, ctx, remaining, rng)
 		if entry == null:
 			break
 		out.append(entry.roll(rng))
@@ -166,7 +166,7 @@ func test_v4_draw_fuses_duplicate_stat_op_picks_into_one_modifier() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
 	var fp := {}
-	var mods: Array[StatModifier] = GraphProcgen._roll_modifiers_v4(
+	var mods: Array[StatModifier] = ProcgenModifierRoller.run(
 			pool_set, profiles, &"red", &"strength", [] as Array[StringName],
 			Vector2.ZERO, 0, 3, rng, fp)
 	assert_eq(fp.get("draws", 0), 3, "budget 3 of cost-1 picks must draw three times")

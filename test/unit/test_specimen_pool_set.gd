@@ -8,7 +8,7 @@ extends GutTest
 ## mobility's movement/deallocation) drawn by every node.
 
 const _SET := preload("res://procgen/pools/specimen_pool_set.tres")
-const _GP := preload("res://procgen/graph_procgen.gd")
+const _GP := preload("res://procgen/phases/procgen_modifier_roller.gd")
 
 
 func _rng(seed_value: int = 1) -> RandomNumberGenerator:
@@ -65,12 +65,12 @@ const _BAND_SIGMAS := 4.0
 ## The pick's own distribution — no profiles, no forbid tags.
 func _dist(entries: Array[ModifierPoolEntry], remaining: int,
 		share: float = GraphProcgenContent.DEFAULT_UNIVERSAL_SHARE) -> Dictionary:
-	return _GP._v4_pick_distribution(entries, [], WeightContext.new(), remaining, share)
+	return _GP.pick_distribution(entries, [], WeightContext.new(), remaining, share)
 
 
 ## Probability that a spend-until-broke draw of `budget` picks `stat_id` at
 ## least once, computed exactly from the pick's distribution at each remaining
-## budget ([method GraphProcgen._v4_pick_distribution], exactly what the draw
+## budget ([method ProcgenModifierRoller.pick_distribution], exactly what the draw
 ## samples). Exact, so the affordability reshaping late in a draw is in the
 ## expectation rather than in a fudge on the tolerance.
 func _expected_presence(entries: Array[ModifierPoolEntry], stat_id: StringName, budget: int) -> float:
@@ -98,7 +98,7 @@ func test_procgen_draw_mobility_rate_matches_authored_weights() -> void:
 	var entries := pool_set.flatten_for_node(&"strength")
 	var seen := {&"movement_points": 0, &"deallocation_points": 0}
 	for seed_value in range(1, _BAND_SEEDS + 1):
-		var mods: Array = _GP._roll_modifiers_v4(
+		var mods: Array = _GP.run(
 				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, _BAND_BUDGET, _rng(seed_value))
 		for sid: StringName in seen.keys():
 			for m in mods:
@@ -217,7 +217,7 @@ func test_strength_pack_intelligence_curse_is_drawable() -> void:
 	var saw_int_debuff := false
 	for seed_value in range(1, 80):
 		var rng := _rng(seed_value)
-		var mods: Array = _GP._roll_modifiers_v4(
+		var mods: Array = _GP.run(
 				pool_set, [], &"strength", &"strength", [], Vector2.ZERO, 0, 7, rng)
 		for m in mods:
 			if m.stat_id == &"intelligence" and m.operation == StatModifier.Operation.INCREASE and m.value < 0.0:
@@ -275,7 +275,7 @@ func _stacks_increase_ids_over_seeded_draws(primary: StringName,
 	subtype.id = subtype_id
 	var seen: Array[StringName] = []
 	for seed_value in range(1, 200):
-		var mods: Array = _GP._roll_modifiers_v4(
+		var mods: Array = _GP.run(
 				pool_set, [], primary, primary, [], Vector2.ZERO, 0, 7, _rng(seed_value),
 				{}, subtype)
 		for m in mods:

@@ -11,7 +11,7 @@ The content model: flat `StatPool`s drawn spend-until-broke. It replaces the del
   Retuning the game's cost curve is a one-file edit. Per-pool authoring carries only `unit_value` (the T1 magnitude) and an
   optional sparse `value_overrides` escape hatch (D11; seed budget ≤ 6
   repo-wide, pinned by `test_specimen_pool_set.gd`).
-- **Spend-until-broke draw** — `_roll_modifiers_v4` (`graph_procgen.gd`):
+- **Spend-until-broke draw** — `ProcgenModifierRoller.run` (`procgen/phases/procgen_modifier_roller.gd`):
   flatten the node's pools, then repeatedly pick an affordable entry from the
   renormalized three-level distribution (see "The renormalized draw" below),
   subtract its cost, until nothing's affordable. T1 always costs 1, so leftover
@@ -44,7 +44,7 @@ The content model: flat `StatPool`s drawn spend-until-broke. It replaces the del
 
 ## The renormalized draw (#1079)
 
-Each pick is one sample from `GraphProcgen._v4_pick_distribution` (entry →
+Each pick is one sample from `ProcgenModifierRoller.pick_distribution` (entry →
 probability, summing to 1, or empty when the node is broke). Three levels,
 each renormalized over what is **drawable at this pick** — an entry passes
 `forbid_tags`, every weight profile leaves it a positive multiplier, and (at
@@ -144,7 +144,7 @@ fused-no-op re-roll is the rest of the roll: procgen's spend-until-broke
 draw fuses same-`(stat, op)` picks (see "Per-(stat,op) aggregation" above),
 and with negative `M` legal, a fused result can land exactly on its
 operation's neutral element (`0` for ADD*/INCREASE, `1` for MULTIPLY — `SET`
-has none) — a slot that does nothing. `_roll_modifiers_v4` detects this
+has none) — a slot that does nothing. `ProcgenModifierRoller.run` detects this
 *after* fusion (never per-roll — individual rolls are allowed to be small or
 negative) and re-rolls just that group's contributing picks, up to a fixed
 retry cap, dropping the modifier if it still no-ops after exhausting
