@@ -8,15 +8,18 @@ extends ColorRect
 ##
 ## #391 split the shader's uniforms in two. Genuinely per-panel values (this
 ## node's rect [member ColorRect.size], [member glow], [member glow_edges],
-## [member glow_energy]) are exported here and ride `instance uniform` /
-## `set_instance_shader_parameter` on ONE shared [ShaderMaterial]
-## ([method _shared_material]) — so every panel that doesn't author its own
-## material batches into one draw call. Everything that was constant across
-## every panel scene in practice (fill, gradient, scanlines, glow colour/width,
-## border, corner) is baked into that shared material instead of being an
-## `@export` here: the point of #391 is that those can no longer drift
+## [member glow_energy], and since #1771 [member glow_color],
+## [member border_color], [member border_width]) are exported here and ride
+## `instance uniform` / `set_instance_shader_parameter` on ONE shared
+## [ShaderMaterial] ([method _shared_material]) — so every panel that doesn't
+## author its own material batches into one draw call, tinted or not.
+## Everything else that is constant across every panel scene (fill, gradient,
+## scanlines, glow width, corner) is baked into that shared material instead of
+## being an `@export` here: the point of #391 is that those can no longer drift
 ## per-panel, so removing the knob is what makes the uniformity structural,
 ## not just a convention. Retune them by editing [method _shared_material].
+## #1771 (owner, 2026-11-05) partly reverses that for exactly the three tint
+## knobs, whose defaults are the values the shared material used to bake.
 
 # --- Edge glow (per-panel) ---
 
@@ -44,9 +47,27 @@ extends ColorRect
 		glow_energy = v
 		_push_instance(&"glow_energy", v)
 
-@export var glow_color: Color = Color(0.4, 0.95, 1.0, 1.0)
-@export var border_color: Color = Color(0.47, 0.55, 0.75, 0.16)
-@export_range(0.0, 8.0, 0.1) var border_width: float = 1.0
+## The glow's identity hue before [member glow_energy] raises it (#1771).
+## A tinted site that wants an HDR value passes it through [method Emissive.at]
+## (`.claude/rules/hdr-color.md`), never a raw channel above 1.0.
+@export var glow_color: Color = Color(0.4, 0.95, 1.0, 1.0):
+	set(v):
+		glow_color = v
+		_push_instance(&"glow_color", v)
+
+# --- Border (per-panel, #1771) ---
+
+## Hairline border stroke colour; its alpha is how strongly it shows.
+@export var border_color: Color = Color(0.47, 0.55, 0.75, 0.16):
+	set(v):
+		border_color = v
+		_push_instance(&"border_color", v)
+
+## Hairline border stroke width in pixels (0 = no border).
+@export_range(0.0, 8.0, 0.1) var border_width: float = 1.0:
+	set(v):
+		border_width = v
+		_push_instance(&"border_width", v)
 
 
 func _ready() -> void:
@@ -57,6 +78,9 @@ func _ready() -> void:
 	_push_instance(&"glow", glow)
 	_push_instance(&"glow_edges", glow_edges)
 	_push_instance(&"glow_energy", glow_energy)
+	_push_instance(&"glow_color", glow_color)
+	_push_instance(&"border_color", border_color)
+	_push_instance(&"border_width", border_width)
 
 
 func _push_size() -> void:
@@ -71,7 +95,8 @@ func _push_instance(param: StringName, value: Variant) -> void:
 
 
 ## One [ShaderMaterial], lazily built and cached at the class level, carrying
-## every constant-across-every-panel uniform. Every [FusedPanel] that doesn't
+## every constant-across-every-panel uniform. The three tint knobs are not
+## here since #1771 — they're instance uniforms, pushed per panel. Every [FusedPanel] that doesn't
 ## author its own `material` override in its scene shares this exact object,
 ## so they batch into one draw call (`.claude/rules/rendering-performance.md`)
 ## instead of each paying for a separate unbatchable material.
@@ -94,10 +119,7 @@ static func _shared_material() -> ShaderMaterial:
 		mat.set_shader_parameter(&"scanline_pitch", 1.6)
 		mat.set_shader_parameter(&"scanline_speed", 0.35)
 		mat.set_shader_parameter(&"scanline_intensity", 0.09)
-		mat.set_shader_parameter(&"glow_color", Color(0.4, 0.95, 1.0, 1.0))
 		mat.set_shader_parameter(&"glow_width", 2.0)
-		mat.set_shader_parameter(&"border_color", Color(0.47, 0.55, 0.75, 0.16))
-		mat.set_shader_parameter(&"border_width", 1.0)
 		mat.set_shader_parameter(&"corner_radius", 13.0)
 		mat.set_shader_parameter(&"glow_corner_softness", 0.35)
 		_cached_material = mat

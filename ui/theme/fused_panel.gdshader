@@ -10,7 +10,8 @@ shader_type canvas_item;
 // Per-panel — see FusedPanel.gd (#391): rides set_instance_shader_parameter
 // on ONE shared ShaderMaterial rather than a separate material per panel, so
 // batching survives. Genuinely varies per instance: panel footprint, the
-// glow selection/intensity, which edges glow, and the glow's HDR energy.
+// glow selection/intensity, which edges glow, the glow's HDR energy, and
+// (#1771) the glow hue and the border's colour and width.
 instance uniform vec2 size = vec2(300.0, 120.0);
 
 // --- Fill ---
@@ -38,8 +39,9 @@ uniform float scanline_speed = 0.35;
 uniform float scanline_intensity : hint_range(0.0, 1.0, 0.01) = 0.09;
 
 // --- Edge glow ---
-// Constant across every panel — the identity hue before HDR tiering.
-uniform vec4 glow_color : source_color = vec4(0.4, 0.95, 1.0, 1.0);
+// Per-panel (#1771): the identity hue before HDR tiering. Default is the value
+// the shared material used to bake.
+instance uniform vec4 glow_color : source_color = vec4(0.4, 0.95, 1.0, 1.0);
 // Per-panel: how much of the stroke shows (0 = off). Animated at runtime by
 // FanPanel's idle pulse, so this MUST stay an instance uniform, not baked
 // into the shared material.
@@ -55,8 +57,9 @@ instance uniform float glow_energy : hint_range(0.0, 3.0, 0.05) = 1.0;
 uniform float glow_width : hint_range(1.0, 12.0, 0.5) = 2.0;
 
 // --- Border ---
-uniform vec4 border_color : source_color = vec4(0.47, 0.55, 0.75, 0.16);
-uniform float border_width : hint_range(0.0, 8.0, 0.1) = 1.0;
+// Per-panel (#1771); defaults are the values the shared material used to bake.
+instance uniform vec4 border_color : source_color = vec4(0.47, 0.55, 0.75, 0.16);
+instance uniform float border_width : hint_range(0.0, 8.0, 0.1) = 1.0;
 
 // --- Corner ---
 uniform float corner_radius : hint_range(0.0, 40.0, 0.5) = 13.0;
