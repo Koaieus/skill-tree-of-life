@@ -69,37 +69,42 @@ no rule of its own (backdraft is this trigger):
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*); the arc pick rule is gone | conducts a spell walk (§ Derived states) |
 | **Frozen** | denies: absorbs arriving reach, ends a path (0D) | a blade snaps on it (below) |
 
-**The cost law: a go-off pays one stack for each node it reaches**, spending
-down to T at most (pass: a node at excess 1 still fires whole); Frozen pays one Cold per unit of reach it absorbs, as it
-already did. Owner, 2026-11-08, on what drains a 100-hit buildup: *"Maybe..
-spend ½T stacks instead of 1? Or some multiple of *degree*? … Can we boost
-that?"* With T = 2 × degree, ½T *is* the degree, the count of nodes a level-1
-Shocked node strikes, so both are one number. A Shocked node filled to the
-bare-ground cap (3T) goes off exactly 2(k − 1) = 4 times whatever its degree
-(6 at stake 2, 8 at stake 3); for Burning this holds only if its disc is a
-hop ball (§ Open). **Copies carry everything**, element stacks
-included (owner pick, 2026-11-08, re-affirming 2026-11-05): a 1-stack rider
-on a copy breaks even with the stack its copy cost, so a go-off moves stacks
-outward and never multiplies them; riders of 2+ per copy grow the primed area
-about a ring per hit, paid in load and bounded by the cap and decay. On a
-Shocked leaf (one copy) a stream of r-stack hits changes the node by r − 1
-per hit.
+**What a go-off pays: open, per element.** Every trigger spends stacks from
+its own node; how many is the open call. Owner, 2026-11-08: *"Maybe.. spend
+½T stacks instead of 1? Or some multiple of *degree*?"*; then, of a degree-4
+node (T 8) at 9 Charge: *"would zap all nbs at cost of 1? or 4? 4 being ½T.
+would decharge more rapidly"*; and of Fire: *"9 heat / 1 burning it would
+feel a bit off if we were to hand off heat to any node like that (charge is
+more travel-across-edges-ey)"*. The two shapes: **1 per trigger** (excess E
+fires E times: #1733's size(F), size(F−1), … volley) or **½T = degree per
+trigger**, one per neighbour struck (a node full to the bare-ground cap 3T
+holds excess 2T = 4 × degree, so it fires 4 times whatever its degree). Lean:
+Shocked pays per neighbour (it travels edges), Burning pays 1 per blast.
+Whether a spend may take the node below T rides the same call (owner: *"it
+spends then however much we design it to, 1 (arriving AT `T`) or more"*). The
+spend destroys stacks and hands none to the reached nodes; only the
+triggering hit's riders ride the copies. **Copies carry everything**, element
+stacks included, chained links flat (owner, 2026-11-08: *"everything rides
+yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
+the cap and decay are the brakes.
 
-**One size ladder.** Level L at count > L² × T (owner, of Charge: *"T = 1
-hop, 4T = 2 hops, 9T = 3 hops"*), for all three: a radius step for Burning, a
-hop for Shocked; power stays the excess. On bare ground (cap 3T) level 2
-lives only in the overflow or on a staked node. Knobs.
+**Size.** Burning's disc is Euclidean, radius ≈ √power × node radius, power
+= the excess (owner, 2026-11-08: *"size(N) ≈ sqrt(N)×node_radius so chances
+are power 1 doesn't hit any node, but that's tuning"*). Shocked's hops: level
+L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
 
 **Fuel is an accelerant.** Owner: *"Fuel would only be a supportive sticky
 "pre fire but would burn as such" goo … if any fire-related combustion
 occurs, consume all fuel stacks too add them to the explosive power, and
-leave residual heat."* Fuel never counts toward T (pass); when its node
+leave residual heat."* Fuel never counts toward T (owner, 2026-11-08: *"fuel indeed doesnt count
+towards burning"*); when its node
 explodes all of it is spent, added to the power, and burns into **N = 2 Heat
 per Fuel on its own node** (owner pick, 2026-11-08, over +1 Heat on every
 node the disc touched, which makes Heat from nothing); flow spreads it. Heat
 is spent per copy and Fuel whole, so Heat arrows sustain and Fuel-then-Heat
 bursts: two volley shapes. A Burning node holding Fuel also goes off on the
-world tick (pass; keeps #1660's fuse).
+world tick (owner, 2026-11-08: *"burning holding fuel explodes"*; keeps
+#1660's fuse).
 
 **A blade on Frozen: a fragile snap.** Owner, 2026-11-08: *"if a melee blade
 node has Frozen on it, if should shatter on first contact. Reduces reach
@@ -109,8 +114,9 @@ node!"*, then *"We want to pop just the two vtx. Not too dramatic, and
 remember Ice is 0D. Point like. Single target. So no splash or anything just
 a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
 check, nothing severed) and breaks the ice; pass: the ice spends everything
-above T, overflow included, as single-target damage to the frozen node's
-holder. This replaces the "remove T, +1 crit tier" pane below.
+above T, overflow included, into single-target damage to the frozen node's
+holder; the shape is open (owner, 2026-11-08: *"idk how it uses the excess as
+damage, flat increase or % or × idk yet. or differs per hit?"*). This replaces the "remove T, +1 crit tier" pane below.
 
 **Cooling.** Heat is terrain now, so it no longer dies on unallocated ground;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -124,7 +130,8 @@ cools faster than a lump: no board-wide budget is needed.
 of "element capacity" in blocks e.g. when hovering nodes. Hover leaf node and
 see N*degree empty blocks for heat/cold and maybe sparkles inside for
 counting blips of Charge (same threshold? Tho excess.. can make this
-messy)"*). Pass proposal: **one block = degree stacks = one go-off's cost**.
+messy)"*). Pass proposal: **one block = degree stacks** (one go-off's cost, if the spend is per
+neighbour).
 With T = 2 × degree every node's bar then has the same shape: 2 inert blocks,
 then 2(k − 1) primed blocks to the cap (4 on bare ground, +2 per stake), and
 each lit block reads "one more blast left". On a leaf a block is one stack, so
@@ -825,8 +832,7 @@ here.
   (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
   made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
   its three words — a short superseding ADR, since an ADR is never edited;
-  (d) closed 2026-11-08 by the cost law (pass inference from the owner's
-  "everything rides"; confirm) (§ The threshold model): copies carry
+  (d) closed 2026-11-08 (owner: *"LET IT RIDE!"*) (§ The threshold model): copies carry
   everything, chained links included, flat, and the per-copy spend is the brake,
   so #1735 fork 1 is *flat*, as built; (e) **Ice raising seed payload** strains "the slot buys reach only";
   (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
@@ -848,12 +854,12 @@ here.
 - The arc pick rule's numbers (leap radius per excess Charge) and
   radius-per-load: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
-- **Burning's disc under the cost law**: a hop ball (cost = the nodes in
-  it, ≈ degree at level 1, the 4-times fact holds) or the Euclidean disc of
-  § The reach triad (cost depends on local density)?
-- **Ice concentrate under terrain-only reach** (§ The threshold model): is
-  the cast-time hops-for-payload trade a `shape` use that survives, or does an
-  Ice infusion become a Cold ride row like Fire's and Lightning's?
+- **Ice concentrate under terrain-only reach** (§ The threshold model):
+  owner, 2026-11-08: *"ice concentration should i think still be a thing
+  just not sure how"* — kept; its shape (a cast-time `shape` use, or
+  something else) is open.
+- **What a go-off pays** and **how a shatter turns excess into damage**
+  (§ The threshold model): both open.
 - **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops
   the one, docs may be stale"* — `BladePopResolver`'s header and
   `docs/domain/ai-blade-rollout.md` describe severing past a pop; check
