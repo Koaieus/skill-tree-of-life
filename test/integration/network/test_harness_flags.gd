@@ -29,6 +29,7 @@ func test_an_ordinary_launch_reads_nothing() -> void:
 	assert_eq(HarnessFlags.value(HarnessFlags.LOBBY, "", none), "")
 	assert_false(HarnessFlags.has(HarnessFlags.AUTOPLAY, none))
 	assert_eq(HarnessFlags.number(HarnessFlags.MAX_TURNS, 400, none), 400)
+	assert_eq(HarnessFlags.number(HarnessFlags.SEED, 0, none), 0)
 
 
 func test_unrelated_arguments_are_skipped_not_rejected() -> void:
@@ -60,3 +61,12 @@ func test_number_falls_back_on_a_valueless_flag() -> void:
 func test_last_occurrence_wins() -> void:
 	var args: PackedStringArray = ["--lobby=host", "--lobby=client"]
 	assert_eq(HarnessFlags.value(HarnessFlags.LOBBY, "", args), "client")
+
+
+## `--seed=N` is the host's procgen seed for `mise run mp:e2e -- --seed N`
+## (#1186); absent reads 0, the sentinel [method RunConfig.resolve_seed] draws
+## a random seed for, so a launch that names no seed keeps today's behaviour.
+func test_seed_flag_reads_its_value() -> void:
+	var args: PackedStringArray = ["--lobby=host", "--autoplay", "--seed=42"]
+	assert_eq(HarnessFlags.number(HarnessFlags.SEED, 0, args), 42)
+	assert_eq(HarnessFlags.number(HarnessFlags.SEED, 0, _RUNG4), 0)

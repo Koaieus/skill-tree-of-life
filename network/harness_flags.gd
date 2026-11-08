@@ -46,6 +46,8 @@ const AI_DELAY := "ai-delay"
 ## instead of a few hundred. Read by BOTH processes — the flag has to reach the
 ## mirror too, exactly as `--autopilot`'s budget boost does.
 const LETHAL := "lethal"
+## RED stub (#1186) — the real word lands with the fix.
+const SEED := ""
 
 
 ## `--<name>=<v>` -> `v`; `--<name>` alone -> `""`; absent -> [param fallback].
