@@ -53,7 +53,7 @@ mechanism. There is no `NodeSubtype.forbid_tags` — the set IS the give-up (D12
   with no symptom. D13's demotion does **not** catch it, because the node still stands on
   its other pools.
 - **D13, the demotion:** a rolled subtype stands only if some *reachable* pool NAMES it
-  (`GraphProcgen._build_subtype_drawability`, computed once per `generate()`). An ungated
+  (`ProcgenSubtypeRoll.build_drawability`, computed once per `generate()`). An ungated
   `[]` pool deliberately does not count — it is drawn by everyone, so counting it would
   let a node look blighted and play regular.
 

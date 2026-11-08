@@ -47,7 +47,7 @@ func test_mint_with_null_scene_returns_null() -> void:
 func test_pool_pick_empty_returns_null() -> void:
 	var pool := AddonPool.new()
 	pool.entries = []
-	var picked := GraphProcgen._weighted_pick_addon(pool, [], _rng())
+	var picked := ProcgenAddonDraw.weighted_pick(pool, [], _rng())
 	assert_null(picked)
 
 
@@ -61,7 +61,7 @@ func test_pool_pick_weighted() -> void:
 	var high_count := 0
 	for i in 100:
 		var rng := _rng(i + 1)
-		var p := GraphProcgen._weighted_pick_addon(pool, [], rng)
+		var p := ProcgenAddonDraw.weighted_pick(pool, [], rng)
 		if p != null and p.id == &"high":
 			high_count += 1
 	assert_gt(high_count, 90, "99:1 weight should favour 'high' overwhelmingly")
@@ -74,5 +74,5 @@ func test_pool_pick_excludes_already_minted_unique_scenes() -> void:
 	a.id = &"spike"
 	pool.entries = [a]
 	# Mark scene as already minted → no candidates → null.
-	var picked := GraphProcgen._weighted_pick_addon(pool, [_SPIKE_RING], _rng())
+	var picked := ProcgenAddonDraw.weighted_pick(pool, [_SPIKE_RING], _rng())
 	assert_null(picked)

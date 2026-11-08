@@ -10,8 +10,9 @@ extends RefCounted
 ##   4. Cluster-assign an [ArchetypePolicy] per node (target-driven BFS-grow).
 ##   5. Per node, roll a budget ([BudgetPolicy]) and draw modifiers from the
 ##      node's archetype + universal [StatPool]s (spend-until-broke v4 draw,
-##      [ProcgenModifierRoller]).
-##   6. Instantiate SkillNodes + Edges under the [Graph].
+##      [ProcgenModifierRoller]) after rolling its subtype ([ProcgenSubtypeRoll]).
+##   6. Instantiate SkillNodes + Edges under the [Graph], with the post-loop
+##      addon pass ([ProcgenAddonDraw]) between.
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
 ## Array[SkillNode], starters: Array[StartingPoint], blockers:
@@ -48,7 +49,7 @@ const _FACE_RNG_SALT := 0xFACE
 ## churn on any `base_chance` retune and a placement change would be
 ## indistinguishable from a content change.
 const _SUBTYPE_RNG_SALT := 0x5B17
-## Salt for the addon placement pass's own stream (see [method _place_addons]).
+## Salt for the addon placement pass's own stream (see [method ProcgenAddonDraw.run]).
 const _ADDON_RNG_SALT := 0xADD0
 
 ## Poisson-disk auto-scale sizing: the disc area a ShapeMask needs to hold
@@ -274,7 +275,7 @@ static func generate(
 	var subtype_drawable: Dictionary = {}
 	if config.content != null:
 		default_subtype = config.content.resolved_default_subtype()
-		subtype_drawable = _build_subtype_drawability(config.content)
+		subtype_drawable = ProcgenSubtypeRoll.build_drawability(config.content)
 	# Yield ~10 times across the per-node loop so the bar moves smoothly
 	# without paying a frame per node. With 500 nodes that's every ~50.
 	@warning_ignore("integer_division")
@@ -327,7 +328,7 @@ static func generate(
 			# authored — a constant draw count keeps a `base_chance` retune
 			# from shifting another node's roll. The budget-0 else branch gets
 			# no subtype (nor any content).
-			var node_subtype := _roll_subtype(
+			var node_subtype := ProcgenSubtypeRoll.run(
 					config.content.subtypes, archetype_primary_stat,
 					subtype_drawable, default_subtype, subtype_rng)
 			# Radius follows the rolled budget; an authored scene never
@@ -374,7 +375,7 @@ static func generate(
 	# density never shifts the modifier rolls on the main `rng`.
 	var addon_rng := RandomNumberGenerator.new()
 	addon_rng.seed = rng.seed + _ADDON_RNG_SALT
-	_place_addons(addon_eligible, nodes.size(), config, addon_rng)
+	ProcgenAddonDraw.run(addon_eligible, nodes.size(), config, addon_rng)
 
 	GraphProcgenSpellGrants.distribute(
 			int_nodes, config.content.spell_grant_pool, config.content.spell_grant_ratio, rng)
@@ -1072,82 +1073,6 @@ static func _stamp_radius(sn: SkillNode, base_radius: float) -> void:
 	sn.base_inner_radius = base_radius - _INNER_RING_PX
 
 
-## Places `roundi(node_count × k / 100)` addons, each on a node drawn
-## uniformly WITH replacement from `eligible`. A repeat draw raises the node's
-## `stake_level` to its new addon count BEFORE the attach, so `addon count ≤
-## addon_slots` holds after every step and a node's stake always equals its
-## addon count. A draw landing on a node at `max_addons_per_node`, or whose
-## remaining legal pool is empty (unique filter), is redrawn; redraws are
-## bounded at 4× the target so the pass always ends — it falls short only when
-## the pool is exhausted.
-static func _place_addons(
-		eligible: Array[SkillNode],
-		node_count: int,
-		config: GraphProcgenConfig,
-		rng: RandomNumberGenerator,
-) -> void:
-	var policy: AddonPolicy = config.content.addon_policy if config.content != null else null
-	if policy == null or policy.pool == null or eligible.is_empty():
-		return
-	var target := roundi(float(node_count) * policy.addons_per_100_nodes / 100.0)
-	var max_attempts := target * 4
-	# Per-node ledger (eligible index → count / minted unique scenes): an addon
-	# instance does not carry its pool entry's scene, the uniqueness key.
-	var counts: Dictionary = {}
-	var minted_unique: Dictionary = {}
-	var placed := 0
-	var attempts := 0
-	while placed < target and attempts < max_attempts:
-		attempts += 1
-		var idx := rng.randi_range(0, eligible.size() - 1)
-		var count: int = counts.get(idx, 0)
-		if count >= policy.max_addons_per_node:
-			continue
-		var minted: Array = minted_unique.get(idx, [])
-		var entry := _weighted_pick_addon(policy.pool, minted, rng)
-		if entry == null:
-			continue
-		var instance: SkillNodeAddon = entry.mint(rng)
-		if instance == null:
-			continue
-		var sn := eligible[idx]
-		count += 1
-		if count > 1:
-			EntityFactory.set_procgen_stake(sn, count)
-		sn.add_child(instance)
-		counts[idx] = count
-		if instance.unique:
-			minted.append(entry.addon_scene)
-			minted_unique[idx] = minted
-		placed += 1
-
-
-static func _weighted_pick_addon(
-		pool: AddonPool,
-		minted_unique_scenes: Array,
-		rng: RandomNumberGenerator,
-) -> AddonPoolEntry:
-	var total := 0.0
-	for e in pool.entries:
-		if e == null or e.weight <= 0.0 or e.addon_scene == null:
-			continue
-		if e.addon_scene in minted_unique_scenes:
-			continue
-		total += e.weight
-	if total <= 0.0:
-		return null
-	var r := rng.randf() * total
-	for e in pool.entries:
-		if e == null or e.weight <= 0.0 or e.addon_scene == null:
-			continue
-		if e.addon_scene in minted_unique_scenes:
-			continue
-		r -= e.weight
-		if r <= 0.0:
-			return e
-	return null
-
-
 ## Returns a copy of `config` with its generate-time values resolved — the
 ## shape mask auto-scaled to `node_count` (when the mask opts in and
 ## `scale_mask` is set) and the mask radius handed to every [ScalarField].
@@ -1197,82 +1122,3 @@ static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
 		return
 	for field in config.content.scalar_fields():
 		field.resolve_mask_radius(resolved_radius)
-
-
-# ── Node-subtype placement ───────────────────────────────────────
-
-
-## D13's guard, precomputed ONCE per `generate()` — never inside the node loop.
-## Keyed `"<primary_stat>|<subtype id>"` over every authored archetype × every
-## weighted subtype, because the predicate is per-(archetype, subtype): whether
-## a rolled subtype has anything to draw depends on the node's archetype and
-## nothing else about the node.
-static func _build_subtype_drawability(content: GraphProcgenContent) -> Dictionary:
-	var out: Dictionary = {}
-	if content == null or content.subtypes.is_empty():
-		return out
-	for policy in content.archetypes:
-		if policy == null or policy.archetype == null:
-			continue
-		var primary: StringName = policy.archetype.primary_stat
-		for subtype in content.subtypes:
-			if subtype == null:
-				continue
-			var key := "%s|%s" % [primary, subtype.id]
-			if not out.has(key):
-				out[key] = _has_pool_naming_subtype(
-						content.modifier_pool_set, primary, subtype)
-	return out
-
-
-## Strictly "some reachable pool NAMES this subtype". An ungated (`[]`) pool
-## deliberately does not count: it is drawn by every subtype, so counting it
-## would let every roll stand while drawing exactly the default's content —
-## which is the "looks blighted, plays regular" node D13 exists to prevent.
-static func _has_pool_naming_subtype(
-		pool_set: ModifierPoolSet,
-		primary_stat: StringName,
-		subtype: NodeSubtype,
-) -> bool:
-	if pool_set == null:
-		return false
-	for pack in pool_set.packs:
-		if pack == null:
-			continue
-		if pack.archetype_stat != &"" and pack.archetype_stat != primary_stat:
-			continue
-		for pool in pack.pools:
-			if pool == null or pool.subtypes.is_empty():
-				continue
-			if pool.admits_subtype(subtype):
-				return true
-	return false
-
-
-## The per-node weighted pick: each subtype claims its own
-## `base_chance` slice, the default is the remainder. Exactly one draw per node
-## whatever the authored chances say, so retuning one never shifts another
-## node's roll — and NO draw at all when nothing is authored, which is what
-## keeps "with subtypes" and "without" honestly comparable on the main stream.
-## A rolled subtype with no drawable content demotes to the default (D13) — it
-## still consumed its draw.
-static func _roll_subtype(
-		subtypes: Array[NodeSubtype],
-		primary_stat: StringName,
-		drawable: Dictionary,
-		default_subtype: NodeSubtype,
-		rng: RandomNumberGenerator,
-) -> NodeSubtype:
-	if subtypes.is_empty():
-		return default_subtype
-	var r := rng.randf()
-	var acc := 0.0
-	for s in subtypes:
-		if s == null:
-			continue
-		acc += s.base_chance
-		if r < acc:
-			if drawable.get("%s|%s" % [primary_stat, s.id], false):
-				return s
-			return default_subtype
-	return default_subtype

@@ -56,7 +56,7 @@ One weighted roll per archetype-bearing node, off its own salted stream: each
 weighted `NodeSubtype` carries a `base_chance`, the default subtype takes the
 remainder (`GraphProcgenContent.subtypes`, `default_subtype`). A rolled
 subtype **demotes to the default** unless some pool reachable from that
-archetype names it (`GraphProcgen._build_subtype_drawability`), so the grid may
+archetype names it (`ProcgenSubtypeRoll.build_drawability`), so the grid may
 be ragged anywhere without a node looking blighted and playing regular.
 
 ## Drawing
@@ -79,7 +79,7 @@ beside archetype and subtype).
 
 An extra pass runs after the budget loop, on the same seeded rng, in array
 order (a replay input): `randf() < chance`, then **one** weighted pick through
-`_v4_weighted_pick` with cost ignored. It spends no budget, the subtype and
+`ProcgenModifierRoller.weighted_pick` with cost ignored. It spends no budget, the subtype and
 archetype gates still apply, a pass with nothing eligible rolls nothing, and a
 stat rolled in both passes stacks through the aggregator.
 

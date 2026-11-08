@@ -46,9 +46,10 @@ const DEFAULT_MULTIPLY_FUSE_FLOOR := 0.1
 
 ## Subtype placement (#1056) — the WEIGHTED subtypes only. Each carries its own
 ## `base_chance`; the default subtype is the remainder and authors none. Empty
-## = every node lands on [method resolved_default_subtype]. The roll comes off
-## a salted stream ([constant GraphProcgen._SUBTYPE_RNG_SALT]), so authoring or
-## retuning one shifts no other node's content. See docs/domain/node-subtypes.md.
+## = every node lands on [method resolved_default_subtype]. The roll
+## ([method ProcgenSubtypeRoll.run]) comes off a salted stream ([constant
+## GraphProcgen._SUBTYPE_RNG_SALT]), so authoring or retuning one shifts no
+## other node's content. See docs/domain/node-subtypes.md.
 @export var subtypes: Array[NodeSubtype] = []
 
 ## Per-preset override of the global default subtype (D14). `null` =
