@@ -104,7 +104,9 @@ correctly because a clip plane does not care about draw order.
   "entered"; while asleep, `_sync_camera` wakes the world on a cheap
   sphere-vs-view test and the notifiers take over.
 - **One world per viewport:** authored beside the Graph in `game_root.tscn` and
-  found by group (`acquire`).
+  found by group (`acquire`). The group lookup is the settled shape — scored
+  against a world handle pushed down the composite, a per-node authored gimbal
+  child, and an `Events` listener; owner call, 2026-11-08 (#1107).
 - **Editor:** `@tool` so an editor-hosted preview (the sandbox Node Visuals
   panel) spins real rigs; only an `acquire`-spawned world outside the edited
   scene runs (`is_live_for`). An authored one, or anything in the open `.tscn`,
