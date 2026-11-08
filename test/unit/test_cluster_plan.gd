@@ -47,7 +47,7 @@ func test_all_nodes_assigned() -> void:
 	])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
-	var assignments := GraphProcgen._assign_archetypes(grid.positions, grid.edges, cfg, rng)
+	var assignments := ProcgenArchetypeStamper._assign_archetypes(grid.positions, grid.edges, cfg, rng)
 	assert_eq(assignments.size(), 100)
 	for i in 100:
 		assert_true(assignments[i] != -1, "node %d unassigned" % i)
@@ -62,7 +62,7 @@ func test_target_ratios_roughly_honoured() -> void:
 	])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 13
-	var assignments := GraphProcgen._assign_archetypes(grid.positions, grid.edges, cfg, rng)
+	var assignments := ProcgenArchetypeStamper._assign_archetypes(grid.positions, grid.edges, cfg, rng)
 	var counts := [0, 0, 0]
 	for v in assignments:
 		counts[v] += 1
@@ -83,7 +83,7 @@ func test_clusters_are_graph_connected() -> void:
 	])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 17
-	var assignments := GraphProcgen._assign_archetypes(grid.positions, grid.edges, cfg, rng)
+	var assignments := ProcgenArchetypeStamper._assign_archetypes(grid.positions, grid.edges, cfg, rng)
 
 	# Build adjacency for component-walking.
 	var adj: Array = []
@@ -123,7 +123,7 @@ func test_size_weights_zero_falls_back_to_singletons() -> void:
 	])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
-	var assignments := GraphProcgen._assign_archetypes(grid.positions, grid.edges, cfg, rng)
+	var assignments := ProcgenArchetypeStamper._assign_archetypes(grid.positions, grid.edges, cfg, rng)
 	# All assigned to the single archetype.
 	for v in assignments:
 		assert_eq(v, 0)
@@ -133,6 +133,6 @@ func test_empty_archetypes_returns_unassigned() -> void:
 	var grid = _grid(5)
 	var cfg := _config([])
 	var rng := RandomNumberGenerator.new()
-	var assignments := GraphProcgen._assign_archetypes(grid.positions, grid.edges, cfg, rng)
+	var assignments := ProcgenArchetypeStamper._assign_archetypes(grid.positions, grid.edges, cfg, rng)
 	for v in assignments:
 		assert_eq(v, -1)

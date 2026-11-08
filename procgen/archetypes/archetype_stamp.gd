@@ -4,7 +4,8 @@ extends Resource
 
 ## Paints an archetype onto a region of nodes — either a euclidean disc or a
 ## topological BFS flood from a seed. Runs as a post-clustering pass in
-## [GraphProcgen] after [method GraphProcgen._assign_archetypes] and before the
+## [ProcgenArchetypeStamper] after [method ProcgenArchetypeStamper._assign_archetypes]
+## and before the
 ## content-roll loop, overriding [code]type_assignments[i][/code] for every node
 ## inside the region.
 ##
