@@ -2,8 +2,8 @@
 class_name HoloPanel
 extends ColorRect
 ## Reusable "Arcane Terminal" hologram panel: animated scanlines, translucent
-## hologram tint, and rim glow. Mirrors GlassPanel's push-to-shader pattern
-## (see ui/theme/glass_panel.gd) but exposes a single tunable: `glow`.
+## hologram tint, and rim glow. Mirrors FusedPanel's push-to-shader pattern
+## (see ui/theme/fused_panel.gd) but exposes a single tunable: `glow`.
 
 @export_range(0.0, 1.0, 0.01) var glow: float = 0.0:
 	set(v):

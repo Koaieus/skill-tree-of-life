@@ -33,7 +33,7 @@ still a knob: their value is the default.
            _repaint()
    ```
 
-   (`ui/common/key_chip.gd`, `ui/theme/glass_panel.gd`). The script is
+   (`ui/common/key_chip.gd`, `ui/theme/fused_panel.gd`). The script is
    `@tool` so the setter runs in the editor. When the effect only shows in
    motion or in a composed scene, the knob is reachable from the relevant
    sandbox-host live tab (`docs/domain/sandbox-framework.md`).

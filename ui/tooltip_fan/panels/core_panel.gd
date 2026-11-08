@@ -4,7 +4,7 @@ extends FanPanel
 
 ## Crown, FAR rung (entity-scoped), CORE nodes only — [method has_content] answers
 ## false unless the hovered node IS a core. Deliberate gold skin exception (a
-## [GlassPanel] with [member FanPanel.glow_tint] gold). [method bind] renders the
+## [FusedPanel] with [member FanPanel.glow_tint] gold). [method bind] renders the
 ## class `display_name`, core HP as a numeric [StatValueRow], then one row per
 ## flattened leaf of `entity.core_class.modifiers`; a formula-driven leaf renders
 ## its coefficient plus "(scales)", never [method StatModifier.format].

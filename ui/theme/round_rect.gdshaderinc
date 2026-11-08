@@ -1,5 +1,5 @@
 // Shared rounded-rect helpers for the Arcane Terminal panel skins
-// (fused_panel.gdshader, holo_panel.gdshader, glass_panel.gdshader).
+// (fused_panel.gdshader, holo_panel.gdshader).
 //
 // Parameter names are deliberately underscore-prefixed: Godot's shader codegen
 // rewrites *uniform tokens* even inside included function bodies, so a param

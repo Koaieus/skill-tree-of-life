@@ -4,7 +4,7 @@ extends ColorRect
 ## Hosts `holo_scanline_overlay.gdshader` (#226) — the shader existed unhosted
 ## ("Host on a ColorRect sized to the panel... `size` is pushed by the host",
 ## per the shader's own header comment) until the Tooltip V2 z-sandwich
-## needed it as the top layer. Mirrors GlassPanel/HoloPanel's push-to-shader
+## needed it as the top layer. Mirrors FusedPanel/HoloPanel's push-to-shader
 ## pattern exactly: `mouse_filter = IGNORE`, push `size` on resize, push the
 ## color/authoring exports once at `_ready`.
 ##

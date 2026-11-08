@@ -2,8 +2,8 @@ shader_type canvas_item;
 
 // Arcane Terminal fused panel: dark fill with optional gradient, animated
 // scanlines, per-edge glow, hairline border, and sharp corner AA.
-// Combines the best of GlassPanel (dark readability, gradient, border) and
-// HoloPanel (scanlines, glow edge, CRT aesthetic). Size is pushed from
+// Combines a dark, readable fill, gradient and border with HoloPanel's
+// scanlines, glow edge and CRT aesthetic. Size is pushed from
 // FusedPanel.gd on _ready/resize since canvas_item shaders don't know
 // Control rect size.
 

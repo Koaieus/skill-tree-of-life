@@ -49,7 +49,7 @@ centred in there, and inside it are more margins around headers and content. So:
 ```
 FrontmatterPanel        (this scene's own root, already fills %Remainder)
   %OuterMargin           top / right / bottom (and left)
-    GlassPanel            a FusedPanel (node name kept); fills the outer margin's inset rect
+    FusedPanel            the base scene's panel; fills the outer margin's inset rect
       %InnerMargin          the legibility padding around content
         %Column               %Title  +  %Body
 ```

@@ -191,9 +191,9 @@ Crown, FAR rung (entity-scoped), CORE nodes only, enforced by the panel's own
 not assumed). Envelope sized to the worst case: 8 modifier leaves
 (`pacifist_core.tres`) + 1 core-HP row = 9, with headroom to 12 rows.
 
-**Deliberate gold skin exception**: a `GlassPanel` child with `FanPanel.glow_tint`
+**Deliberate gold skin exception**: a `FusedPanel` child with `FanPanel.glow_tint`
 set gold in-scene (there is no separate gold skin scene; the two skins are
-`GlassPanel`/`HoloPanel` and this is the fan's one intentional non-default choice),
+`FusedPanel`/`HoloPanel` and this is the fan's one intentional non-default choice),
 because the core is the entity's identity and must not read as just another readout.
 
 `bind` renders: `PanelHeader` as the core class's `display_name`, core HP as a

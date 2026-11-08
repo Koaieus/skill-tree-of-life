@@ -104,7 +104,7 @@ presets, participation toggles, play-in/erase/loop/hover — goes through the re
   in both directions — deliberately, since it is an authoring surface, not the
   shipped read.
 - **`FanPanel`** (`ui/tooltip_fan/fan_panel.gd`) — thin wrapper
-  around a hand-placed skin child (`GlassPanel` or `HoloPanel`, swapped by
+  around a hand-placed skin child (`FusedPanel` or `HoloPanel`, swapped by
   editing which scene is instanced under it, not a runtime enum). Forwards a
   single `glow` (0..1) to whichever skin is present. A **peer of `FanTrace`**:
   owns a readable `progress` and `play_in()` / `play_out()` returning a `Tween`

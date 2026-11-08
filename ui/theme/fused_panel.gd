@@ -3,8 +3,8 @@ class_name FusedPanel
 extends ColorRect
 ## Fused "Arcane Terminal" panel: dark fill with optional gradient, animated
 ## scanlines, per-edge glow, hairline border, and sharp corner AA.
-## Combines the best of GlassPanel (dark readability, gradient, border) and
-## HoloPanel (scanlines, glow edge, CRT aesthetic).
+## Combines a dark, readable fill, gradient and border with HoloPanel's
+## scanlines, glow edge and CRT aesthetic.
 ##
 ## #391 split the shader's uniforms in two. Genuinely per-panel values (this
 ## node's rect [member ColorRect.size], [member glow], [member glow_edges],

@@ -9,7 +9,7 @@ extends Control
 ## containers, `@tool`, no code-composed layout). It fills `%Remainder` of the
 ## columns scene and knows nothing of the hero column, the camera, or
 ## [FrontmatterPanels]; it asks to be dismissed ([signal dismissed]) and never
-## dismisses itself. Nesting: this root → %OuterMargin → GlassPanel →
+## dismisses itself. Nesting: this root → %OuterMargin → FusedPanel →
 ## %InnerMargin → %Column (%Title + %Body).
 ## See docs/domain/frontmatter-panels.md.
 

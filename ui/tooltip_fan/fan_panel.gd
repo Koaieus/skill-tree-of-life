@@ -2,8 +2,8 @@
 class_name FanPanel
 extends Node2D
 ## Reusable circuit-fan tooltip panel (#223, epic #159). Wraps whatever skin
-## Control is hand-placed as its first child — a [GlassPanel], [HoloPanel],
-## or [FusedPanel] instance, authored in-scene like every other panel use in
+## Control is hand-placed as its first child — a [FusedPanel] or [HoloPanel]
+## instance, authored in-scene like every other panel use in
 ## `ui/` — and forwards a single `glow` knob to it. Skin choice is "which
 ## packed scene is instanced as the child", per #215 — not a runtime enum
 ## FanPanel owns; swap it the same way you'd swap any other panel skin, by
@@ -15,15 +15,14 @@ extends Node2D
 ## always rendered, just self-driven instead of puppeted by FanUnit.
 
 ## Normalized glow (0..1), forwarded per skin type: directly to [HoloPanel]'s
-## own `glow`, directly to [FusedPanel]'s `glow`, or mapped onto
-## [GlassPanel]'s `glow_color` alpha + `glow_strength`.
+## own `glow` or directly to [FusedPanel]'s `glow`.
 @export_range(0.0, 1.0, 0.01) var glow: float = 0.3:
 	set(v):
 		glow = v
 		_push_glow()
 
-## Tint used for [GlassPanel]'s glow_color when that's the active skin
-## (HoloPanel has no separate tint — its glow is monochrome by design).
+## Tint a skin maps onto a separate glow colour. Both shipped skins light
+## monochrome by design, so nothing reads this today; kept for authored skins.
 @export var glow_tint: Color = Color(0.55, 0.85, 1.0):
 	set(v):
 		glow_tint = v
@@ -149,8 +148,8 @@ func has_content() -> bool:
 
 
 ## The skin scene hand-placed somewhere under this node — whichever of the
-## swappable skins ([HoloPanel] / [GlassPanel] / [FusedPanel]) is found first,
-## searched breadth-first.
+## swappable skins ([HoloPanel] / [FusedPanel]) is found first, searched
+## breadth-first.
 ##
 ## Matches on skin TYPE, not on "first Control child" or "direct child". The
 ## positional version silently mis-resolved any panel that authored its
@@ -167,7 +166,7 @@ func get_skin() -> Control:
 
 static func _find_skin(root: Node) -> Control:
 	for child in root.get_children():
-		if child is HoloPanel or child is GlassPanel or child is FusedPanel:
+		if child is HoloPanel or child is FusedPanel:
 			return child as Control
 	for child in root.get_children():
 		var found := _find_skin(child)
@@ -184,10 +183,6 @@ func _push_glow() -> void:
 		(skin as FusedPanel).glow = glow
 	elif skin is HoloPanel:
 		(skin as HoloPanel).glow = glow
-	elif skin is GlassPanel:
-		var panel := skin as GlassPanel
-		panel.glow_strength = glow * 40.0
-		panel.glow_color = Color(glow_tint.r, glow_tint.g, glow_tint.b, glow)
 
 
 ## Applies the current [member progress] as a cubic-ease-out scale
