@@ -8,10 +8,10 @@ extends RefCounted
 ## removable-blocker planning (indices, prune seeds, footprints, pre-stakes,
 ## faces) and the per-node radius stamp helper. Static and stateless —
 ## [GraphProcgen] owns every RNG: it derives the scene, blocker and face streams
-## from its salts (`GraphProcgen._SCENE_RNG_SALT`, `_BLOCKER_RNG_SALT`,
-## `_FACE_RNG_SALT`) and hands them in, as the sibling phases do, so the main
-## stream is untouched; this phase never touches the progress callback. Same
-## seed → byte-identical graph is guarded by
+## from its salts (`_SCENE_RNG_SALT`, `_BLOCKER_RNG_SALT`,
+## `_FACE_RNG_SALT` on [GraphProcgen]) and hands them in, as the sibling
+## phases do, so the main stream is untouched; this phase never touches the
+## progress callback. Same seed → byte-identical graph is guarded by
 ## `test/integration/procgen/test_procgen_golden.gd`.
 ## See docs/domain/procgen-v4.md and docs/domain/procgen.md.
 
@@ -55,7 +55,7 @@ static func run(
 
 	# Removable-blocker placement. Computed on INDICES before the
 	# per-node loop so a blocked node can be instantiated from
-	# [constant GraphProcgen._BLOCKER_NODE_SCENE] (the boulder visual) rather than
+	# [constant ProcgenNodeRoll._BLOCKER_NODE_SCENE] (the boulder visual) rather than
 	# swapped in afterwards — the edges and self-loops in `generate` wire `nodes`
 	# by reference, so a node can't be replaced once added. Eligibility mirrors
 	# the old post-loop pass: never a starter core (indices < starters.size())

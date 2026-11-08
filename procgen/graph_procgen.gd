@@ -12,11 +12,13 @@ extends RefCounted
 ##      [ProcgenArchetypeStamper]).
 ##   4b. Placement pre-pass ([ProcgenPlacement]): guaranteed placements and
 ##       removable-blocker planning (indices, seeds, footprints, stakes, faces).
-##   5. Per node, roll a budget ([BudgetPolicy]) and draw modifiers from the
-##      node's archetype + universal [StatPool]s (spend-until-broke v4 draw,
-##      [ProcgenModifierRoller]) after rolling its subtype ([ProcgenSubtypeRoll]).
-##   6. Instantiate SkillNodes + Edges under the [Graph], with the post-loop
-##      addon pass ([ProcgenAddonDraw]) between.
+##   5. Per node ([ProcgenNodeRoll]), roll a budget ([BudgetPolicy]) and draw
+##      modifiers from the node's archetype + universal [StatPool]s
+##      (spend-until-broke v4 draw, [ProcgenModifierRoller]) after rolling its
+##      subtype ([ProcgenSubtypeRoll]).
+##   6. Instantiate SkillNodes ([ProcgenNodeRoll]) and wire the edges
+##      ([ProcgenAssembler]) under the [Graph], with the post-loop addon pass
+##      ([ProcgenAddonDraw]) between.
 ##
 ## Returns a Dictionary `{nodes: Array[SkillNode], starting_nodes:
 ## Array[SkillNode], starters: Array[StartingPoint], blockers:
@@ -28,9 +30,6 @@ extends RefCounted
 ## [EntityFactory.BlockerSize] int, `prune_seed` the loot-book prune's seed,
 ## `footprint` the bonus nodes the blocker also owns, `stake_level` the
 ## pre-stake in 1..3) for the caller to hand to `spawn_blocker`.
-
-const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 
 ## Arbitrary offset mixed into the main `rng.seed` to derive [member
 ## ProcgenPlacement._place_blocker_indices]'s own RNG stream. Blocker placement
@@ -181,17 +180,10 @@ static func generate(
 			scene_rng, blocker_rng, face_rng)
 	var placement_ctx := placement.ctx
 	var blocker_sizes := placement.blocker_sizes
-	var blocker_seeds := placement.blocker_seeds
-	var blocker_footprints := placement.blocker_footprints
-	var blocker_stakes := placement.blocker_stakes
-	var blocker_faces := placement.blocker_faces
 
 	await _emit_progress(progress_cb, 0.45, "Rolling content")
 	var nodes: Array[SkillNode] = []
-	# INT-archetype nodes only — the eligible pool for the spell-grant
-	# distribution, run as a single post-loop pass once every node exists
-	# (see GraphProcgenSpellGrants.distribute; it needs the full pool size to
-	# compute the level's grant budget, not a per-node decision).
+	# INT-archetype nodes only — the spell-grant pool the roll fills.
 	var int_nodes: Array[SkillNode] = []
 	# Every non-authored-scene node: the addon pass's draw pool.
 	var addon_eligible: Array[SkillNode] = []
@@ -210,91 +202,12 @@ static func generate(
 	@warning_ignore("integer_division")
 	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
-		var sn: SkillNode
-		var authored_scene: PackedScene = placement_ctx.scenes[i]
-		if authored_scene != null:
-			# An authored-scene node is PURE: the scene IS the content.
-			# Procgen sets its position and nothing else — no archetype, no
-			# budget, no modifier roll, no rolled addons, no radius stamp (the
-			# scene's authored radius stands), never a blocker (eligibility
-			# excluded it), never in the spell-grant pool.
-			sn = authored_scene.instantiate()
-			sn.position = positions[i]
-			if not placement_ctx.role_tags[i].is_empty():
-				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
-			graph.add_skill_node(sn)
-			nodes.append(sn)
-			continue
-		if blocker_sizes.has(i):
-			sn = _BLOCKER_NODE_SCENE.instantiate()
-		else:
-			sn = _SKILL_NODE_SCENE.instantiate()
-		sn.position = positions[i]
-		var archetype_id: StringName = &""
-		var archetype_color: Color = Color.WHITE
-		var archetype_forbid: Array[StringName] = []
-		var archetype_primary_stat: StringName = &""
-		var archetype_resource: Archetype = null
-		if type_assignments[i] >= 0:
-			var policy: ArchetypePolicy = config.content.archetypes[type_assignments[i]]
-			if policy != null and policy.archetype != null:
-				archetype_id = policy.id
-				archetype_color = policy.archetype.color
-				archetype_forbid = policy.forbid_tags
-				archetype_primary_stat = policy.archetype.primary_stat
-				archetype_resource = policy.archetype
-		if archetype_id != &"":
-			var fp := {"archetype": archetype_id, "primary_stat": archetype_primary_stat}
-			if not placement_ctx.role_tags[i].is_empty():
-				fp["role_tags"] = placement_ctx.role_tags[i].duplicate()
-			var role_tags: Array = placement_ctx.role_tags[i]
-			var budget := 0
-			if config.content.budget_policy != null:
-				budget = config.content.budget_policy.compute_budget(
-						archetype_id, positions[i], role_tags, rng)
-			fp["budget"] = budget
-			# One draw per archetype-bearing node whenever any subtype is
-			# authored — a constant draw count keeps a `base_chance` retune
-			# from shifting another node's roll. The budget-0 else branch gets
-			# no subtype (nor any content).
-			var node_subtype := ProcgenSubtypeRoll.run(
-					config.content.subtypes, archetype_primary_stat,
-					subtype_drawable, default_subtype, subtype_rng)
-			# Radius follows the rolled budget; an authored scene never
-			# reaches this branch, so its own radius stands.
-			ProcgenPlacement._stamp_radius(sn, config.topology.radius_for_budget(budget))
-			if config.content.modifier_pool_set != null:
-				sn.authored_modifiers = ProcgenModifierRoller.run(
-						config.content.modifier_pool_set, config.content.weight_profiles,
-						archetype_id, archetype_primary_stat, archetype_forbid,
-						positions[i], i, budget, rng, fp, node_subtype,
-						config.content.universal_share,
-						config.content.multiply_fuse_floor)
-			sn.set_meta("procgen_footprint", fp)
-			# Stamps NodeVisualsComposite's archetype_tint (persistent type
-			# identity, rim/sensed-outline colour). Owner colour stays free to
-			# drive the entity_tint channel via SkillNode.
-			sn.base_type_color = archetype_color
-			# The archetype's own emblem shape (docs/domain/skillnode-emblem.md) —
-			# every archetype carries one now, so this always stamps.
-			sn.archetype = archetype_resource
-			# The node's second identity — the visuals child reads its tint and
-			# emissive tier. Always the resolved value, never null.
-			sn.subtype = node_subtype
-			sn.set_meta("archetype", archetype_id)
-			if archetype_primary_stat != &"":
-				sn.set_meta("primary_stat", archetype_primary_stat)
-			# Persist role tags for downstream inspection / debug overlays.
-			if not placement_ctx.role_tags[i].is_empty():
-				sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
-		else:
-			# No archetype → no budget → the uniform default (budget 0 path).
-			ProcgenPlacement._stamp_radius(sn, config.topology.radius_for_budget(0))
-		graph.add_skill_node(sn)
-		addon_eligible.append(sn)
-		if GraphProcgenSpellGrants.is_eligible_node(archetype_primary_stat):
-			int_nodes.append(sn)
-		nodes.append(sn)
+		# One node per call: the loop (and its progress emits) stays here,
+		# the roll body lives in the phase.
+		ProcgenNodeRoll.run(
+				i, positions, graph, placement_ctx, type_assignments, blocker_sizes,
+				config, rng, subtype_rng, default_subtype, subtype_drawable,
+				nodes, int_nodes, addon_eligible)
 		if i > 0 and i % yield_every == 0:
 			# 0.45 → 0.92 over the per-node loop.
 			var frac: float = 0.45 + 0.47 * (float(i) / float(positions.size()))
@@ -305,85 +218,21 @@ static func generate(
 	var addon_rng := RandomNumberGenerator.new()
 	addon_rng.seed = rng.seed + _ADDON_RNG_SALT
 	ProcgenAddonDraw.run(addon_eligible, nodes.size(), config, addon_rng)
-
 	GraphProcgenSpellGrants.distribute(
 			int_nodes, config.content.spell_grant_pool, config.content.spell_grant_ratio, rng)
 
 	await _emit_progress(progress_cb, 0.95, "Wiring edges")
-	for pair in edge_pairs:
-		graph.add_edge(nodes[pair.x], nodes[pair.y])
-	
-	# Self-loops — floor-guaranteed staged draw without replacement.
-	# Tier 1 draws floor(N × p1) nodes uniformly from all generated nodes
-	# (partial Fisher-Yates, no replacement); tier k draws floor(K_{k-1} × p_k)
-	# from the previous tier's set. Each tier then does ONE Bernoulli on the
-	# fractional remainder to add +1 (floor + 0-or-1), and a node that hits
-	# tier k gets exactly k self-loops. The number of tier knobs IS the cap
-	# (4) — raising it later means adding a tier-5 knob. Cores are NOT
-	# excluded from the tier-1 pool — a self-loop on a core is a defining
-	# launch condition by design.
-	var tier_rates := [
-			config.topology.self_loop_tier1_rate,
-			config.topology.self_loop_tier2_rate,
-			config.topology.self_loop_tier3_rate,
-			config.topology.self_loop_tier4_rate,
-	]
-	var pool: Array = nodes.duplicate()
-	for tier in tier_rates.size():
-		var rate: float = tier_rates[tier]
-		var count := int(floor(pool.size() * rate))
-		if rng.randf() < pool.size() * rate - float(count):
-			count += 1
-		count = mini(count, pool.size())
-		# Partial Fisher-Yates: the first `count` of the shuffled pool.
-		for i in count:
-			var j := i + rng.randi() % (pool.size() - i)
-			var tmp: Variant = pool[i]
-			pool[i] = pool[j]
-			pool[j] = tmp
-		# Each tier UPGRADES its draw by one loop: a tier-1 node gets 1
-		# self-loop, a tier-2 node 2 (1 from tier 1 + this), ... tier-k nodes
-		# end with exactly k loops — add_edge is called k times total per
-		# tier-k node across the cascade. Cap = 4 follows from 4 knobs.
-		for i in count:
-			var node := pool[i] as SkillNode
-			graph.add_edge(node, node)
-		pool = pool.slice(0, count)
-
-	# Starting points were seeded first into Poisson; they occupy positions[0..n).
-	var starting_nodes: Array[SkillNode] = []
-	for i in min(starters.size(), nodes.size()):
-		starting_nodes.append(nodes[i])
-
-	# Removable-blocker placements, rebuilt from the index→size
-	# map sampled before the per-node loop. `blocker_sizes` iterates in
-	# insertion (tier) order — small, then medium, then large — matching the
-	# old post-loop pass's result order, so result shape (`{node, size}`) is
-	# unchanged.
-	var blockers: Array[Dictionary] = []
-	for idx: int in blocker_sizes:
-		# The footprint crosses as NODES, not indices: `spawn_blocker` is
-		# the consumer and it force-allocates them, so resolving here keeps the
-		# index basis (which only `generate` can map) out of the level scene.
-		var footprint: Array[SkillNode] = []
-		for f: int in blocker_footprints.get(idx, PackedInt32Array()):
-			footprint.append(nodes[f])
-		blockers.append({
-			"node": nodes[idx],
-			"size": int(blocker_sizes[idx]),
-			"prune_seed": int(blocker_seeds[idx]),
-			"footprint": footprint,
-			"stake_level": int(blocker_stakes.get(idx, 1)),
-			"face": (blocker_faces.get(idx, {}) as Dictionary).get("face"),
-			"face_seed": int((blocker_faces.get(idx, {}) as Dictionary).get("seed", 0)),
-		})
+	var assembled := ProcgenAssembler.run(
+			graph, nodes, edge_pairs, starters.size(), config, rng,
+			blocker_sizes, placement.blocker_seeds, placement.blocker_footprints,
+			placement.blocker_stakes, placement.blocker_faces)
 
 	await _emit_progress(progress_cb, 1.0, "Done")
 	return {
 		"nodes": nodes,
-		"starting_nodes": starting_nodes,
+		"starting_nodes": assembled.starting_nodes,
 		"starters": starters,
-		"blockers": blockers,
+		"blockers": assembled.blockers,
 		"config": config,
 	}
 

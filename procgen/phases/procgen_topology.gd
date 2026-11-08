@@ -169,7 +169,7 @@ static func resolve_config(config: GraphProcgenConfig, scale_mask: bool = true) 
 	if out.shape == null or out.shape.shape_mask == null:
 		return out
 	# Auto-size the shape mask so Poisson can fit node_count at the requested
-	# spacing without under-filling. See GraphProcgen._POISSON_AREA_PER_POINT.
+	# spacing without under-filling. See `_POISSON_AREA_PER_POINT` on [GraphProcgen].
 	if scale_mask and out.shape.shape_mask.auto_scale:
 		var min_dist := _min_node_dist(out.topology)
 		var target_area := GraphProcgen.target_area_for_node_count(out.topology.node_count, min_dist)

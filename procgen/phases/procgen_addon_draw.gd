@@ -5,7 +5,7 @@ extends RefCounted
 ## The post-loop addon pass of [method GraphProcgen.generate] (hub #422,
 ## child 1), extracted from `graph_procgen.gd` with its body unchanged.
 ## Static and stateless — the caller derives the salted stream
-## (`GraphProcgen._ADDON_RNG_SALT`) and hands it in, owns the draw order and
+## (`_ADDON_RNG_SALT` on [GraphProcgen]) and hands it in, owns the draw order and
 ## emits progress itself; this phase never touches the callback. Same seed →
 ## byte-identical graph is guarded by
 ## `test/integration/procgen/test_procgen_golden.gd`.

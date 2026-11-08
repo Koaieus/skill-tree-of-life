@@ -5,7 +5,7 @@ extends RefCounted
 ## The per-node subtype roll of [method GraphProcgen.generate] (hub #422,
 ## child 1), extracted from `graph_procgen.gd` with its body unchanged.
 ## Static and stateless — the caller derives the salted stream
-## (`GraphProcgen._SUBTYPE_RNG_SALT`), computes [method build_drawability]
+## (`_SUBTYPE_RNG_SALT` on [GraphProcgen]), computes [method build_drawability]
 ## ONCE per generate() and hands both in; this phase never touches the
 ## progress callback. Same seed → byte-identical graph is guarded by
 ## `test/integration/procgen/test_procgen_golden.gd`.
