@@ -312,13 +312,13 @@ the repo at 6 `value_overrides` (D11). Adding a seventh turns it red on
 purpose — that is the escape hatch's budget working, not fragility. Raise the
 budget deliberately or use the ladder instead.
 
-## Blocker footprint growth (`procgen/graph_procgen.gd`)
+## Blocker footprint growth (`procgen/phases/procgen_placement.gd`)
 
 Grow each placed blocker's bonus-node FOOTPRINT (#777) — the pass that turns
 a Dormant Core from "the node it sits on" into territory whose extent reads
 its size.
 
-Per blocker, in the same insertion (tier) order `_place_blocker_indices` produced: roll `randi_range` over the tier's authored
+Per blocker, in the same insertion (tier) order `ProcgenPlacement._place_blocker_indices` produced: roll `randi_range` over the tier's authored
 `GraphProcgenBlockers.footprint_range`, then grow that many nodes by
 repeatedly picking a random ELIGIBLE node adjacent to what the blocker
 already holds.
@@ -341,7 +341,7 @@ reaching inside a camp.
 Returns index → `PackedInt32Array` of bonus-node indices (core excluded);
 a blocker that rolled 0, or found nothing to grow into, is simply absent.
 
-## Blocker index placement (`procgen/graph_procgen.gd`)
+## Blocker index placement (`procgen/phases/procgen_placement.gd`)
 
 Pre-loop pass picking which node INDICES get a removable blocker (#477),
 so `generate` can instantiate `_BLOCKER_NODE_SCENE` for them
@@ -370,7 +370,7 @@ could see in the inspector.
 
 Returns a `Dictionary` mapping index → `EntityFactory.BlockerSize` int, in
 insertion (tier) order. Rides its own derived `rng` (see
-`_BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
+`ProcgenPlacement._BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
 uses — so placements are still seed-deterministic without perturbing every
 other roll.
 
