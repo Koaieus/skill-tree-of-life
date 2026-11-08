@@ -120,6 +120,22 @@ Metropolis step is the discrete graph-Laplacian step; its integer floor is a
 dead band, and the decay clears it. Every warm node loses one, so spread heat
 cools faster than a lump: no board-wide budget is needed.
 
+**Reading it: a capacity bar on hover** (owner idea, 2026-11-08: *"neat UIs
+of "element capacity" in blocks e.g. when hovering nodes. Hover leaf node and
+see N*degree empty blocks for heat/cold and maybe sparkles inside for
+counting blips of Charge (same threshold? Tho excess.. can make this
+messy)"*). Pass proposal: **one block = degree stacks = one go-off's cost**.
+With T = 2 × degree every node's bar then has the same shape: 2 inert blocks,
+then 2(k − 1) primed blocks to the cap (4 on bare ground, +2 per stake), and
+each lit block reads "one more blast left". On a leaf a block is one stack, so
+the blips count exactly; on a hub a block fills in fractions. Heat and Cold
+share one bar, filling red or blue, since they net and a node holds only one
+sign; Charge gets a second bar of the same shape with sparkles; Fuel, which
+never counts toward T, is a goo layer under the temperature bar. The overflow
+is a few blocks past the frame that flicker and fade, so the fast decay is
+visible and the bar never grows unbounded. Same thresholds for all three, so
+the messiness the owner flagged stays in the overflow tail.
+
 **Superseded below, for the deletion pass:** the Fire row of § One count
 (Fuel as medium, Heat as a hurting mover, T = degree + 1, "only movers deal
 damage"); the `reach` use and the element slot (§ The forge); § The reach
