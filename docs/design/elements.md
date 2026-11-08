@@ -76,34 +76,31 @@ no rule of its own:
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
 | **Frozen** | denies: arriving reach stops here, a path ends (0D) | a blade snaps on it (below) |
 
-**What a go-off pays: Shocked settled, Burning open and widened
-(2026-11-08).** Every trigger spends stacks from its own node, at least one
-voided per go-off (owner, 2026-11-08: *"there should be at least 1 stack
-disappearing, possibly more"*), and a spend pays its full cost even when that
-digs under T (owner, 2026-11-08, picked *dig below T* over clamping at T: a
-degree-4 node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 —
-his earlier *"would decharge more rapidly"*). **Shocked pays 1 per neighbour
-struck** — the one-law framing, a trigger pays per reach element it fires
-(owner, 2026-11-08: *"the one law of option one looks good"*; earlier:
-*"charge is more travel-across-edges-ey"*); the shatter spends everything
-above T (§ A blade on Frozen). **Burning's cost is the open call**, widened
-past the original pair (1 per blast — the volley *"explode for size(F),
-size(F-1), …, size(1)"* — vs ½T = degree): *"maybe the cost or transfer (or,
-both, there should be at least 1 stack disappearing, possibly more) should
-generally relate to excess and or topology or reached target count"*, with a
-radiating shape on the table — *"say an explosion spreads heat around, away
-from the explosion triggering node, and also costing at least 1 stack being
-voided, then the explosion happens just once"* — against its own worries:
-minting (*"i think fuel should be the more "mints lots of Heat stacks" and
-explosions maybe shouldn't"*; a blast planting 1 Heat on every hit node at
-cost 1 is +N−1 Heat from nothing), the symmetry at size (*"at some explosion
-size, fire would hit basically "all its nbs" like equalling a shock to each
-nb"*), and the ranged sustain floor (*"heat builds up as arrows land,
-critical at some point, then explodes spreading, then heat up again, more
-explosion. but the explosion may be always at power 1 which would be a bit
-annoying"*). Unless the radiating shape is picked, the spend destroys stacks
-and hands none to the reached nodes; only the triggering hit's riders ride
-the copies. **Copies carry everything**, element
+**What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
+across the triad: a trigger pays 1 stack per target its reach touches —
+Shocked 1 per neighbour struck (*"charge is more travel-across-edges-ey"*),
+Burning 1 per node its disc covers (picked over 1 per blast, whose big disc
+underpays a shock — *"at some explosion size, fire would hit basically "all
+its nbs" like equalling a shock to each nb"* — and over a radiating transfer,
+which mirrors the diffusion flow), Frozen the 0D case turned inward: one
+target, the whole store (§ A blade on Frozen). A blast whose disc reaches no
+node **does not go off** — no spend (owner: *"possibly extend this rule to
+make it cost 0 if it hits nobody?"*, framed as no targets, no go-off, so
+every go-off still voids at least one stack — *"there should be at least 1
+stack disappearing, possibly more"*). A spend pays its full cost even when
+that digs under T (owner picked *dig below T* over clamping at T: a degree-4
+node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 — *"would
+decharge more rapidly"*). **Power is the excess read after the triggering
+hit's riders land** (pass pick; the trigger and the Frozen check still read
+pre-hit), so the oil a hit throws joins its own blast: 1-Heat arrows on a
+sub-reach node charge it hit by hit until the disc first catches a neighbour
+— the owner's ramp (*"heat builds up as arrows land, critical at some point,
+then explodes spreading, then heat up again, more explosion"*) — and a capped
+degree-5 hub pays out as roughly 20 → 10 → 5 → 3 → 1, the volley (*"explode
+for size(F), size(F-1), …, size(1)"*) in topology-sized steps. What
+no-target-no-spend costs: a tiny fire cannot be beaten out by hitting it;
+Cold and decay are the extinguishers. The spend destroys stacks and hands
+none to the reached nodes; only the triggering hit's riders ride the copies. **Copies carry everything**, element
 stacks included, chained links flat (owner, 2026-11-08: *"everything rides
 yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
 the cap and decay are the brakes.
@@ -141,13 +138,11 @@ deals excess × a knob fraction × max HP to the frozen node's holder as TRUE
 damage, nothing if unallocated — the same shared burst path corruption's
 topple uses (`CorruptionStatus` deals topples × threshold × 2% of max HP
 through `DotTick.mint`), so there stays one implementation of "a burst
-lands". Open on it: the attacker-side bonus — the owner wants hits on the
-broken node to crit (*"the attacker's side any hits landing on it turn crits
-(tho i'm a bit unsure about this being feasible as it feels kinda like
-"evaluate payload, determine shatter, evaluate payload again but +1 crit"
-which is a questionable/unintuitive design)"*) — and whether the burst spends
-all the excess or a fraction (*"not sure exactly if all excess or some
-fraction of it"*).
+lands". The crit side is dropped for now (owner, 2026-11-08: *"drop crit for
+now. might do something else with it later"*); the spend fraction is a knob,
+default 1.0 — everything above T. Whether a *crit* can be what breaks Frozen
+rides § Open's breaking-by-reach item (owner, 2026-11-08: *"crits may still
+play a role in determining whether a shatter occurs?"*).
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -161,8 +156,8 @@ cools faster than a lump: no board-wide budget is needed.
 of "element capacity" in blocks e.g. when hovering nodes. Hover leaf node and
 see N*degree empty blocks for heat/cold and maybe sparkles inside for
 counting blips of Charge (same threshold? Tho excess.. can make this
-messy)"*). Pass proposal: **one block = degree stacks** (one go-off's cost, if the spend is per
-neighbour).
+messy)"*). Pass proposal: **one block = degree stacks** (one arc's cost; a
+blast pays per disc node).
 With T = 2 × degree every node's bar then has the same shape: 2 inert blocks,
 then 2(k − 1) primed blocks to the cap (4 on bare ground, +2 per stake), and
 each lit block reads "one more blast left". On a leaf a block is one stack, so
@@ -695,15 +690,6 @@ here.
 
 ## Open
 
-- **Burning's go-off cost, and whether a blast radiates** (§ The threshold
-  model; Shocked per neighbour and dig-below-T settled 2026-11-08): 1 per
-  blast (the declining volley), 1 per reached node (the one law extended to
-  2D), or a transfer of the spent Heat onto the disc with ≥ 1 voided (the
-  radiating shape) — the owner's 2026-11-08 musing is quoted there.
-- **The shatter's attacker side** (§ A blade on Frozen; the %-max-HP burst is
-  settled): whether breaking the ice also makes hits on that node crit —
-  without re-evaluating the breaking hit, which the owner distrusts — and
-  whether the burst spends all the excess or a fraction.
 - **Ice concentrate's shape** (§ Ice on a cast): kept; the bespoke cast-time
   `shape` use there is the pass's best, unconfirmed.
 - **Element rows in the forge**: whether element ride rows take the aspect
@@ -717,8 +703,10 @@ here.
 - **Breaking Frozen by reach**: Frozen denies reach; whether a big enough
   blast or arc arriving breaks the ice instead (owner, 2026-11-05: *"maybe
   the "frozen" state sets some kind of glass ceiling for what it absorbs,
-  which needs to be broken, so it blocks insufficient counts?"*). Heat, a
-  blade's snap and decay break it already.
+  which needs to be broken, so it blocks insufficient counts?"*). A crit as
+  the breaker is on the table (owner, 2026-11-08: *"crits may still play a
+  role in determining whether a shatter occurs?"*). Heat, a blade's snap and
+  decay break it already.
 - **Frozen and Shocked on one node**: whether the ice denies the node's own
   arcs, or only reach arriving from elsewhere.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
