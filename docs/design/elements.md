@@ -84,15 +84,16 @@ underpays a shock — *"at some explosion size, fire would hit basically "all
 its nbs" like equalling a shock to each nb"* — and over a radiating transfer,
 which mirrors the diffusion flow), Frozen the 0D case turned inward: one
 target, the whole store (§ A blade on Frozen). A blast whose disc reaches no
-node **does not go off** — no spend (owner: *"possibly extend this rule to
+*other* node **does not go off** — no spend (owner: *"possibly extend this rule to
 make it cost 0 if it hits nobody?"*, framed as no targets, no go-off, so
 every go-off still voids at least one stack — *"there should be at least 1
 stack disappearing, possibly more"*). A spend pays its full cost even when
 that digs under T (owner picked *dig below T* over clamping at T: a degree-4
 node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 — *"would
 decharge more rapidly"*). **Power is the excess read after the triggering
-hit's riders land** (pass pick; the trigger and the Frozen check still read
-pre-hit), so the oil a hit throws joins its own blast: 1-Heat arrows on a
+hit's riders land** (pass pick): primed-ness and the Frozen check read
+pre-hit, while the disc's size — and so whether anyone is reached — follows
+the post-land power. The oil a hit throws joins its own blast: 1-Heat arrows on a
 sub-reach node charge it hit by hit until the disc first catches a neighbour
 — the owner's ramp (*"heat builds up as arrows land, critical at some point,
 then explodes spreading, then heat up again, more explosion"*) — and a capped
@@ -127,7 +128,8 @@ world tick (owner, 2026-11-08: *"burning holding fuel explodes"*; keeps
 node has Frozen on it, if should shatter on first contact. Reduces reach
 right? Any blade node popped is less sweep. And if frozen node is hit by
 blade node, it.. shatters the ice … but *also* shatters the offending blade
-node!"*, then *"We want to pop just the two vtx. Not too dramatic, and
+node!"* (the blade's touch is one breaker among three — § What breaks the
+ice), then *"We want to pop just the two vtx. Not too dramatic, and
 remember Ice is 0D. Point like. Single target. So no splash or anything just
 a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
 check, nothing severed) and breaks the ice. **The burst is corruption-shaped**
@@ -140,9 +142,20 @@ topple uses (`CorruptionStatus` deals topples × threshold × 2% of max HP
 through `DotTick.mint`), so there stays one implementation of "a burst
 lands". The crit side is dropped for now (owner, 2026-11-08: *"drop crit for
 now. might do something else with it later"*); the spend fraction is a knob,
-default 1.0 — everything above T. Whether a *crit* can be what breaks Frozen
-rides § Open's breaking-by-reach item (owner, 2026-11-08: *"crits may still
-play a role in determining whether a shatter occurs?"*).
+default 1.0 — everything above T.
+
+**What breaks the ice** (owner, 2026-11-08): a blade vertex's touch, **any
+crit hit landing on the node**, and **any damage at or above a flat
+threshold** — a knob, default 10% of the holder's max HP, deliberately *not*
+scaling with excess (owner: *"a flat amount not scaling with excess. else it
+would mean that a deep-frozen node would require more damage to shatter
+right? and that doesn't sound good"*). Each triggers the shatter. The
+threshold applies to direct hits and arriving copies alike — the glass
+ceiling of 2026-11-05 unified with the *"a hit that deals X amount of % max
+health"* breaker: a copy that breaks through also lands — so deep freeze
+raises the burst's stakes, never the wall's strength. Heat and decay still
+end Frozen without a shatter. No re-evaluation anywhere: a hit's crit and
+damage are its own facts, and every check reads pre-hit state.
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -544,12 +557,16 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
 | **Frozen** | denies reach, ends a path; a blade vertex snaps | nets: Heat thaws it, for the next landing | cold passage: no shed (#1444) |
 
-**Frozen mutes the node's own go-offs — tentative** (owner, 2026-11-08,
-picked *ice wins: frozen solid* over "emitting isn't arriving", then: *"that
-last pick is tentative, might need to go more in depth on that one"*): a node
-both Frozen and Shocked neither receives nor emits — the Charge sits trapped
-under the ice until it thaws or shatters. Freezing a wire cuts it. The deeper
-look it needs is § Open's Frozen-pairs item.
+**Frozen mutes the node's own go-offs; the break releases what it trapped**
+(owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
+asked for, *trapped until broken*): a node both Frozen and Shocked neither
+receives nor emits — the Charge sits trapped under the ice — and the hit that
+breaks the ice sets off the Shocked state in the same settle: crack the ice,
+release the storm, plus the shatter burst. Freezing a wire cuts it and stakes
+the trapped Charge as a visible bomb. One compound read, never a
+re-evaluation: the breaking hit's crit and damage are its own facts, both
+stacks are read pre-hit, and the read says "Frozen mutes Shocked unless this
+hit shatters".
 
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
@@ -723,18 +740,16 @@ here.
   spent from elemental attunement (`fire_element`) — rather than the aspect
   slots; how many elements one cast may carry, and the slot's shape, are
   still open.
-- **Breaking Frozen by reach**: Frozen denies reach; whether a big enough
-  blast or arc arriving breaks the ice instead (owner, 2026-11-05: *"maybe
-  the "frozen" state sets some kind of glass ceiling for what it absorbs,
-  which needs to be broken, so it blocks insufficient counts?"*). A crit as
-  the breaker is on the table (owner, 2026-11-08: *"crits may still play a
-  role in determining whether a shatter occurs?"*). Heat, a blade's snap and
-  decay break it already.
-- **Frozen pairs, in depth**: *ice wins — frozen solid* is the tentative pick
-  (owner, 2026-11-08: *"that last pick is tentative, might need to go more in
-  depth on that one"*): whether Frozen muting the node's own arcs holds up
-  once wires, trapped Charge and the shatter interact — revisit with
-  Lightning's spec.
+- **Ice pricing, per spell**: the authored per-hop multiplier is confirmed as
+  a lean (§ Ice on a cast); each spell's per-hop worths and the affinity
+  ratios are spec-time numbers, with #1444.
+- **ADR 0077/0079 vs the terrain path** (librarian pass, 2026-11-08): the
+  world-turn terrain settle and terrain hits sync by determinism, *"never a
+  host-minted record"* (owner, 2026-11-05), while ADR 0077 has peers *"never
+  re-derive a number"* and ADR 0079 mutates the world only through
+  `OutcomeApplier` landing a record; 0077 is also silent on whether an
+  attack's record carries its go-off copies' landings. A scope line, or a
+  widening, in a follow-up ADR is needed before the Fire/Lightning spec.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
   run of Shocked nodes shares its Charge each world turn — the one flow
   Charge could have beside staying put.
