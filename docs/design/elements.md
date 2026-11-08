@@ -62,7 +62,8 @@ fun to have"*). A ride row planting Heat or Charge is one use, so an infused
 AoE spell ramps: its early hits warm the ground, its later hits blow it. A
 bespoke `shape` use is another, as Firecracker's blast waves and Ice
 concentrate are; it may shape the cast (Ice trading hops for payload at cast
-time) but never gives a hit a reach entry.
+time) but never gives a hit a reach entry. ADR 0075 records the threshold
+model and terrain-only reach.
 
 **The trigger is a hit on a primed node**, a copy included, so a chain needs
 no rule of its own:
@@ -729,12 +730,9 @@ here.
   plants"*) is the fix and must be carried into the row design; (b) **facet
   ids**: `<x>_stacks_per_hit` / `<x>_resistance` key per status (#1660 A1),
   so a member keys on itself (`fuel_`, `heat_`), while the count needs a new
-  `StatDef.Role` (`fire` is not `fire_aspect`); (c) **ADR 0073 vs 0070**:
-  0073 wrote the use as a closed set where 0070 made it an open set of
-  `LoadUse` classes — a short superseding ADR, since an ADR is never edited;
-  (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
-  — the #1716 r2 retag to `fuel` is the plan and must be in the first Fire
-  issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
+  `StatDef.Role` (`fire` is not `fire_aspect`); (f) **Charge** collides
+  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag to
+  `fuel` is the plan and must be in the first Fire issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
   of the same id — coalescing is still #1741's open NOTE, not an owner call.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill

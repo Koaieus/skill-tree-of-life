@@ -9,9 +9,9 @@ Continue the elements design pass (#1716 is the hub). Read, in order:
 
 1. `docs/design/elements.md` — every owner call to date, quoted and dated
    (2026-11-03 to 11-08); pass proposals are marked as such.
-2. `docs/adr/0072-*.md`, `0073-*.md`, `0074-*.md`, then `0070-*.md` (a row's
-   use is a swappable `LoadUse` Resource, the open set the owner reached for
-   again on 2026-11-05 for the Ice use).
+2. `docs/adr/0075-*.md`, then `0072-*.md`, `0073-*.md`, `0074-*.md` and
+   `0070-*.md` (a row's use is a swappable `LoadUse` Resource, the open set
+   the owner reached for again on 2026-11-05 for the Ice use).
 3. The adversarial review findings at the end of this file (most are now
    closed in the doc; the live ones are listed in the doc's § Open).
 4. #1733 (payload and reach rules, owner verdicts rounds 2–3), #1444 (Ice),
@@ -69,14 +69,14 @@ Still open, in this order:
   addon cell, `docs/domain/explosive.md` rewritten at build).
 - **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
   (manage-stats), a new `StatDef.Role`; a member keys its own facets.
-- **ADR 0075** (needs a human merge): supersedes 0073 in part (the use is
-  0070's open set, `CleanseUse` beside ride, the Ice use as a resource; the
-  reach entry is gone, reach is terrain-only, 2026-11-08) and 0074 in part
-  (Cold under T no longer absorbs; the cost law, 2026-11-08), and
-  records the eight 2026-11-05 verdicts above; ADR 0074 is merged (#1747),
-  so today's landing verdicts go in 0075, not an amendment. 0075 also
-  supersedes 0074 §5 in part: the cap's k is `2 + stake_level`, and the cap
-  is soft (the excess band) where 0074 wasted the surplus.
+- **ADR 0075** is written:
+  `docs/adr/0075-reach-is-terrain-only-a-terrain-stack-is-inert-to-t-and-primed-past-it.md`.
+  It supersedes 0073 in part (the use is 0070's open set; the reach entry is
+  gone, reach is terrain-only) and 0074 in part (Cold under T no longer
+  absorbs; the cap's k is `2 + stake_level` and the cap is soft), and records
+  the 2026-11-05 verdicts that still hold (terrain hit, determinism, the world
+  clock, copies carry everything). It leaves the go-off cost, the shatter
+  and Ice concentrate's shape open; a later ADR records them once settled.
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
