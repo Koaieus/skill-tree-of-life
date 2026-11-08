@@ -11,7 +11,11 @@ The content model: flat `StatPool`s drawn spend-until-broke. It replaces the del
   Retuning the game's cost curve is a one-file edit. Per-pool authoring carries only `unit_value` (the T1 magnitude) and an
   optional sparse `value_overrides` escape hatch (D11; seed budget ≤ 6
   repo-wide, pinned by `test_specimen_pool_set.gd`).
-- **Spend-until-broke draw** — `ProcgenModifierRoller.run` (`procgen/phases/procgen_modifier_roller.gd`):
+- **Spend-until-broke draw** — `ProcgenModifierRoller.run` (`procgen/phases/procgen_modifier_roller.gd`),
+  called per node by `ProcgenNodeRoll.run` (`procgen/phases/procgen_node_roll.gd`),
+  which also computes the node's budget (`BudgetPolicy.compute_budget`) and
+  instantiates it; `generate()` drives that loop so every progress emit stays
+  in the orchestrator:
   flatten the node's pools, then repeatedly pick an affordable entry from the
   renormalized three-level distribution (see "The renormalized draw" below),
   subtract its cost, until nothing's affordable. T1 always costs 1, so leftover
@@ -344,7 +348,7 @@ a blocker that rolled 0, or found nothing to grow into, is simply absent.
 ## Blocker index placement (`procgen/phases/procgen_placement.gd`)
 
 Pre-loop pass picking which node INDICES get a removable blocker (#477),
-so `generate` can instantiate `_BLOCKER_NODE_SCENE` for them
+so `ProcgenNodeRoll` can instantiate `_BLOCKER_NODE_SCENE` for them
 before the edges/self-loops wire nodes by reference (#478 — a node can't be
 swapped after that). Picks each size tier's count — `floor(config.topology.node_count
 / denom)`, where denom 0 disables the tier and any positive denominator
@@ -370,7 +374,7 @@ could see in the inspector.
 
 Returns a `Dictionary` mapping index → `EntityFactory.BlockerSize` int, in
 insertion (tier) order. Rides its own derived `rng` (see
-`GraphProcgen._BLOCKER_RNG_SALT`), not the shared stream the rest of `generate`
+`_BLOCKER_RNG_SALT` on `GraphProcgen`), not the shared stream the rest of `generate`
 uses — so placements are still seed-deterministic without perturbing every
 other roll.
 

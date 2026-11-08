@@ -21,7 +21,7 @@ Procgen sizing and the playground panel (`procgen/`) — see `docs/domain/procge
 `LootSystem` (`systems/loot_system.gd`) — killing-blow XP, tempo, and a relic on the victim's former core; snapshots on `Events.entity_dying`, before the corpse is stripped. See `docs/domain/loot-system.md`.
 `StatBoard` (`stats_system/`) — PoE-style modifier pipeline. See `.claude/rules/stats-system.md` — **update it when the stat system changes.**
 `VictorySystem` (`systems/victory_system.gd`) — sole emitter of `Events.run_ended(RunOutcome)`; owns the *when* and the *once*, the swappable `VictoryCondition` owns the *what*. See `docs/domain/victory-system.md`.
-`GraphProcgen` (`procgen/graph_procgen.gd`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology), `docs/domain/procgen-v4.md` (content).
+`GraphProcgen` (`procgen/graph_procgen.gd`, phases in `procgen/phases/`) — static pipeline; `generate(config, graph)` returns nodes + starting_nodes. See `docs/domain/procgen.md` (topology), `docs/domain/procgen-v4.md` (content).
 Frontmatter shell (`ui/frontmatter/`) — the menu as a moving-camera skill tree: layout, back button, keyboard input, splash, edges, tooltip. See `docs/domain/frontmatter-shell.md` (panels: `docs/domain/frontmatter-panels.md`).
 Tooltip fan units (`ui/tooltip_fan/`) — anchor, layout, trace router, coordinator, panels. See `docs/domain/tooltip-fan-units.md` (system: `docs/domain/tooltip-fan.md`).
 HUD widgets (`ui/hud/`, `ui/spell_picker_bar/`, `ui/status_overlay/`, `ui/gained_modifier_toast/`) — per-unit contracts. See `docs/domain/hud-widgets.md`.
