@@ -1,21 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/hud/gates_menu/gates_menu.gd" id="1_script"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="3_glass"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_chip"]
-resource_local_to_scene = true
-shader = ExtResource("2_shader")
-shader_parameter/size = Vector2(220, 30)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.784, 0.667, 0.353, 0.22)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 10.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="3_glass"]
 
 [node name="GatesMenu" type="VBoxContainer"]
 custom_minimum_size = Vector2(220, 0)
@@ -37,11 +23,9 @@ text = "Strands 0 nodes: repeat to confirm"
 layout_mode = 2
 mouse_filter = 2
 
-[node name="GlassPanel" parent="Chip" instance=ExtResource("3_glass")]
-material = SubResource("ShaderMaterial_chip")
+[node name="FusedPanel" parent="Chip" instance=ExtResource("3_glass")]
 layout_mode = 2
 border_color = Color(0.784, 0.667, 0.353, 0.22)
-corner_radius = 10.0
 
 [node name="Padded" type="MarginContainer" parent="Chip"]
 layout_mode = 2

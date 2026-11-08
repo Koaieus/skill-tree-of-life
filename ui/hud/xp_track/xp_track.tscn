@@ -1,25 +1,11 @@
 [gd_scene format=3 uid="uid://cv28pc70yp3ll"]
 
 [ext_resource type="Script" uid="uid://do7fy25hnjypk" path="res://ui/hud/xp_track/xp_track.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_qh8mw"]
 [ext_resource type="PackedScene" path="res://ui/hud/xp_track/xp_delta_chip.tscn" id="4_chip"]
 [ext_resource type="PackedScene" uid="uid://3a11l7dmup02" path="res://ui/hud/xp_track/level_up_flourish.tscn" id="5_flourish"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="6_ta1v6"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_qh8mw"]
-resource_local_to_scene = true
-shader = ExtResource("3_qh8mw")
-shader_parameter/size = Vector2(150, 61)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 90.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 10.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_ta1v6"]
 resource_local_to_scene = true
@@ -52,12 +38,9 @@ shader_parameter/cell_gap = 3.0
 custom_minimum_size = Vector2(150, 0)
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." unique_id=1707469390 instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." unique_id=1707469390 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_qh8mw")
 layout_mode = 2
-gradient_angle_deg = 90.0
-corner_radius = 10.0
 
 [node name="Padded" type="MarginContainer" parent="." unique_id=235055006]
 layout_mode = 2

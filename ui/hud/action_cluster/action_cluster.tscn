@@ -3,35 +3,8 @@
 [ext_resource type="Script" uid="uid://yo62frcatw28" path="res://ui/hud/action_cluster/action_cluster.gd" id="1_script"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="2_gauge"]
 [ext_resource type="PackedScene" uid="uid://b3prak7x5n2yc" path="res://ui/end_turn_button/end_turn_button.tscn" id="3_endturn"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_u2gvm"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="4_glass"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="4_glass"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_ouo7o"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_dock"]
-resource_local_to_scene = true
-shader = ExtResource("3_u2gvm")
-shader_parameter/size = Vector2(216, 160)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.784, 0.667, 0.353, 0.22)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_xwrd2"]
-resource_local_to_scene = true
-shader = ExtResource("3_u2gvm")
-shader_parameter/size = Vector2(128, 29)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.784, 0.667, 0.353, 0.22)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 10.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_aibx0"]
 resource_local_to_scene = true
@@ -60,7 +33,6 @@ size_flags_vertical = 0
 script = ExtResource("1_script")
 
 [node name="DockGlass" parent="." unique_id=1859356127 instance=ExtResource("4_glass")]
-material = SubResource("ShaderMaterial_dock")
 layout_mode = 2
 border_color = Color(0.784, 0.667, 0.353, 0.22)
 
@@ -79,12 +51,10 @@ alignment = 2
 [node name="APPanel" type="MarginContainer" parent="DockPadded/Content" unique_id=-684525414]
 layout_mode = 2
 
-[node name="GlassPanel" parent="DockPadded/Content/APPanel" unique_id=1471820004 instance=ExtResource("4_glass")]
+[node name="FusedPanel" parent="DockPadded/Content/APPanel" unique_id=1471820004 instance=ExtResource("4_glass")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_xwrd2")
 layout_mode = 2
 border_color = Color(0.784, 0.667, 0.353, 0.22)
-corner_radius = 10.0
 
 [node name="Padded" type="MarginContainer" parent="DockPadded/Content/APPanel" unique_id=-1448248261]
 layout_mode = 2

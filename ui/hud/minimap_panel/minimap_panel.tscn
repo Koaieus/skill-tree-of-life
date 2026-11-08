@@ -1,25 +1,11 @@
 [gd_scene format=3 uid="uid://cv81a0y70nvs2"]
 
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="1_glass"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="2_shader"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="1_glass"]
 [ext_resource type="Script" uid="uid://c8f7j8x7kxgg6" path="res://ui/hud/minimap_panel/minimap_panel.gd" id="3_panel"]
 [ext_resource type="Script" uid="uid://dw553wnqashv8" path="res://ui/hud/minimap_panel/minimap_graph_layer.gd" id="4_graph"]
 [ext_resource type="Shader" uid="uid://c258ore5pj5e1" path="res://ui/hud/minimap_panel/minimap_fog.gdshader" id="5_fog"]
 [ext_resource type="Script" uid="uid://cqpd8dsq34a0w" path="res://ui/hud/minimap_panel/minimap_viewport_rect_layer.gd" id="6_rect"]
 [ext_resource type="Shader" uid="uid://bluc3rdlftmcc" path="res://ui/hud/minimap_panel/minimap_graph_fog.gdshader" id="7_gfog"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_80oqb"]
-resource_local_to_scene = true
-shader = ExtResource("2_shader")
-shader_parameter/size = Vector2(220, 220)
-shader_parameter/gradient_color_a = Color(0.08700001, 0.09855, 0.15, 1)
-shader_parameter/gradient_color_b = Color(0.036399998, 0.040320005, 0.07, 1)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_graphfog"]
 resource_local_to_scene = true
@@ -40,11 +26,8 @@ offset_bottom = 220.0
 mouse_filter = 2
 script = ExtResource("3_panel")
 
-[node name="GlassPanel" parent="." unique_id=1711283948 instance=ExtResource("1_glass")]
-material = SubResource("ShaderMaterial_80oqb")
+[node name="FusedPanel" parent="." unique_id=1711283948 instance=ExtResource("1_glass")]
 layout_mode = 2
-gradient_color_a = Color(0.08700001, 0.09855, 0.15, 1)
-gradient_color_b = Color(0.036399998, 0.040320005, 0.07, 1)
 
 [node name="Inset" type="MarginContainer" parent="." unique_id=19137294]
 layout_mode = 2
