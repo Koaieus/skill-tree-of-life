@@ -1,21 +1,7 @@
 [gd_scene format=3 uid="uid://doefrm4l5xs8b"]
 
 [ext_resource type="Script" uid="uid://bcuorxkt1fs0c" path="res://ui/frontmatter/panels/frontmatter_panel.gd" id="1_panel"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_fs6d2"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_11cdg"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_km8wp"]
-resource_local_to_scene = true
-shader = ExtResource("3_11cdg")
-shader_parameter/size = Vector2(1202, 960)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_fs6d2"]
 
 [node name="FrontmatterPanel" type="Control" unique_id=1733297501]
 layout_mode = 3
@@ -42,7 +28,6 @@ theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 24
 
 [node name="GlassPanel" parent="OuterMargin" unique_id=747232056 instance=ExtResource("2_fs6d2")]
-material = SubResource("ShaderMaterial_km8wp")
 layout_mode = 2
 
 [node name="InnerMargin" type="MarginContainer" parent="OuterMargin/GlassPanel" unique_id=1713397762]

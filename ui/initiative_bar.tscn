@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://qybxf6lb7hjj"]
 
 [ext_resource type="Script" uid="uid://dlyqruj6280nq" path="res://ui/initiative_bar.gd" id="1_qyhag"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_lh3x5"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_lh3x5"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_bg"]
 bg_color = Color(0, 0, 0, 0.35)

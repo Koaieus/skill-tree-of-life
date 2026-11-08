@@ -1,25 +1,11 @@
 [gd_scene format=3 uid="uid://cxy0rep5jo226"]
 
 [ext_resource type="Script" uid="uid://c8tws2bdteb7j" path="res://ui/hud/turn_resources_panel/turn_resources_panel.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_7rqcp"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="3_gauge"]
 [ext_resource type="PackedScene" uid="uid://ep57rx7ojh8t" path="res://ui/gauges/composite_bar_gauge.tscn" id="4_composite"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="4_d4wth"]
 [ext_resource type="Script" uid="uid://bn5knqrjna2lo" path="res://ui/gauges/surplus_pool_gauge.gd" id="5_surplus"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_8cjsq"]
-resource_local_to_scene = true
-shader = ExtResource("3_7rqcp")
-shader_parameter/size = Vector2(275, 239)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_q3w8c"]
 resource_local_to_scene = true
@@ -112,7 +98,6 @@ offset_bottom = 155.0
 script = ExtResource("1_script")
 
 [node name="GlassPanel" parent="." unique_id=1957706385 instance=ExtResource("2_glass")]
-material = SubResource("ShaderMaterial_8cjsq")
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

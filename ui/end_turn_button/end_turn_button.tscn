@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://darv2oyla5yip" path="res://ui/end_turn_button/end_turn_button.gd" id="1_endturn"]
 [ext_resource type="Shader" uid="uid://cvdpuk53w0ej" path="res://ui/end_turn_button/end_turn_button.gdshader" id="2_chevrons"]
 [ext_resource type="Shader" uid="uid://be6ivh08s24of" path="res://ui/attack_mode_bar/attack_mode_button_text.gdshader" id="3_0oa04"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="4_ekajx"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="4_ekajx"]
 
 [sub_resource type="StyleBoxEmpty" id="StyleBoxEmpty_normal"]
 

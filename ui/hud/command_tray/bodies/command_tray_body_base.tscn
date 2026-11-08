@@ -1,7 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/command_tray_body_base.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_glass"]
 
 [node name="BodyPanel" type="MarginContainer"]
 custom_minimum_size = Vector2(700, 180)

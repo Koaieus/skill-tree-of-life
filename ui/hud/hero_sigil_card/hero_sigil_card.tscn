@@ -1,27 +1,13 @@
 [gd_scene format=3 uid="uid://c1fl7vqnjwoh5"]
 
 [ext_resource type="Script" uid="uid://duxwarhqbilce" path="res://ui/hud/hero_sigil_card/hero_sigil_card.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://b8r855vwvwcgy" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
-[ext_resource type="Shader" uid="uid://ci2owhim8h6wv" path="res://ui/theme/glass_panel.gdshader" id="3_4cef1"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_glass"]
 [ext_resource type="Script" uid="uid://bfx3nby25prre" path="res://ui/hud/hero_sigil_card/emblem_ring.gd" id="3_ring"]
 [ext_resource type="Script" uid="uid://b8wckk2m60vj8" path="res://ui/hud/hero_sigil_card/sigil_glyph.gd" id="3_sigil_glyph"]
 [ext_resource type="PackedScene" uid="uid://cpht4m7pu7b2h" path="res://ui/gauges/pool_gauge.tscn" id="4_gauge"]
 [ext_resource type="Shader" uid="uid://kwbk1ysay5bw" path="res://ui/gauges/pool_gauge.gdshader" id="5_whxag"]
 [ext_resource type="PackedScene" path="res://ui/status_overlay/status_overlay.tscn" id="6_overlay"]
 [ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="7_wheel"]
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_ji1wf"]
-resource_local_to_scene = true
-shader = ExtResource("3_4cef1")
-shader_parameter/size = Vector2(272, 101)
-shader_parameter/gradient_color_a = Color(0.086, 0.098, 0.149, 0.94)
-shader_parameter/gradient_color_b = Color(0.039, 0.043, 0.075, 0.95)
-shader_parameter/gradient_angle_deg = 158.0
-shader_parameter/border_color = Color(0.47, 0.55, 0.75, 0.16)
-shader_parameter/border_width = 1.0
-shader_parameter/corner_radius = 13.0
-shader_parameter/glow_color = Color(1, 1, 1, 0)
-shader_parameter/glow_strength = 0.0
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_badge"]
 content_margin_left = 4.0
@@ -104,7 +90,6 @@ position = Vector2(70, 20)
 
 [node name="GlassPanel" parent="." unique_id=465765485 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
-material = SubResource("ShaderMaterial_ji1wf")
 layout_mode = 2
 
 [node name="Padded" type="MarginContainer" parent="." unique_id=882723540]

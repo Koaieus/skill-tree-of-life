@@ -1,7 +1,7 @@
 [gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://ui/hud/node_inspector_card/node_inspector_card.gd" id="1_script"]
-[ext_resource type="PackedScene" path="res://ui/theme/glass_panel.tscn" id="2_glass"]
+[ext_resource type="PackedScene" path="res://ui/theme/fused_panel.tscn" id="2_glass"]
 [ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="3_wheel"]
 
 [node name="NodeInspectorCard" type="MarginContainer"]
