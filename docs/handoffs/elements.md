@@ -80,8 +80,7 @@ Still open, in this order:
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
-- Greed (#1659); the size-ladder and disc knobs (#1733); inner-tree shape;
-  #1765.
+- The size-ladder and disc knobs (#1733); inner-tree shape; #1765.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
   1:1 guard test (code, first element issue).
 
