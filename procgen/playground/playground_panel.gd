@@ -105,7 +105,7 @@ func refresh_from_config() -> void:
 		if meta is ArchetypePolicy:
 			preferred_id = (meta as ArchetypePolicy).id
 
-	_config = GraphProcgen.resolve_config(_source_config.duplicate(true), false)
+	_config = ProcgenTopology.resolve_config(_source_config.duplicate(true), false)
 	_populate_archetypes(preferred_id)
 	_populate_stamp_archetypes()
 	_update_bound_label()
@@ -187,7 +187,7 @@ func _on_open_presets_folder_pressed() -> void:
 func _set_config(cfg: GraphProcgenConfig) -> void:
 	# The Map Sample heatmap reads the AUTHORED mask size (no auto-scale) with
 	# opted-in fields back-filled from it — on a copy, never the passed config.
-	_config = GraphProcgen.resolve_config(cfg, false) if cfg != null else null
+	_config = ProcgenTopology.resolve_config(cfg, false) if cfg != null else null
 	_populate_archetypes()
 	_populate_stamp_archetypes()
 	_update_bound_label()
