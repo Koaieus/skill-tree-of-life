@@ -299,7 +299,8 @@ Magic gates during candidate selection (wave N+1's filter must see wave N's
 kill), so resolution itself mutates; melee and ranged gate at *consumption*.
 One rule covers all three: **every resolution runs on a `CombatWorld.shadow()`,
 and the real world is mutated only by `OutcomeApplier` landing a rebuilt record**
-(owner call, 2026-08-23: "shadow always"). Nothing needs suppressing, no
+([ADR 0079](../adr/0079-resolution-always-runs-on-a-shadow-the-world-is-a-required-parameter.md)).
+Nothing needs suppressing, no
 "simulation" flag exists, and no preview caller is a special case. How the
 shadow's state is split from its notifications and what it copies:
 `docs/domain/entity-combat.md`.
@@ -313,10 +314,9 @@ resolution, always:            OutcomeApplier.apply(outcome, CombatWorld.shadow(
 
 `combat/combat_world.gd` looks each target's state up somewhere else; the same
 `OutcomeApplier` loop, per-mode gates and mitigation run in both. **The world is
-a required parameter, never a defaulted one** (owner call 2026-08-23): a
-`world = null` meaning "live" would put an implicit live branch back inside
-`OutcomeApplier` and turn "the sim and the real path agree by construction" back
-into "by discipline". Same rule on `BladePopResolver.LiveGate.admit`.
+a required parameter, never a defaulted one**
+([ADR 0079](../adr/0079-resolution-always-runs-on-a-shadow-the-world-is-a-required-parameter.md));
+same rule on `BladePopResolver.LiveGate.admit`.
 
 `HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's `target`
 stays a real `SkillNode` because that is its **identity** (what a record
@@ -561,8 +561,8 @@ what make that order meaningful.
 - **`world` is required**, placed ahead of the optional `clock`. Live for a real
   launch or peer replay, shadow for resolution: the identical loop, gates and
   arithmetic run against detached slices, and there is no `is_preview` flag
-  anywhere below (owner call 2026-08-23, no-parallel-mirrors). A defaulted
-  `world = null` would put an implicit live branch back inside the function.
+  anywhere below
+  ([ADR 0079](../adr/0079-resolution-always-runs-on-a-shadow-the-world-is-a-required-parameter.md)).
 
 ## CritRoll: the one crit implementation
 

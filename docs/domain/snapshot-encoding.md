@@ -199,8 +199,9 @@ WHOLE authored book instead, and a player inspecting one sees a longer spell
 list on the client than the host has. The ids are how the slice crosses.
 
 **ids, not paths** — `SpellDef.id` is the only legal cross-process
-reference to a spell (#511, owner call 2026-08-21), resolved back through
-`SpellCatalog.by_id`. A def with an empty id is dropped, the same rule
+reference to a spell
+([ADR 0078](../adr/0078-spelldef-id-is-the-only-cross-process-spell-reference.md)),
+resolved back through `SpellCatalog.by_id`. A def with an empty id is dropped, the same rule
 `_encode_entity` applies to a path-less effect one method up: real
 content is authored, an id-less def is a fixture.
 

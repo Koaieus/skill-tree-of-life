@@ -393,19 +393,8 @@ consumers build one, `VisionSystem` (the shared, player-scoped instance) and
 - **Build cost is O(circles) and lazy:** `add` only invalidates the index, so a
   caller may add freely and pay for the grid on the first query. A set queried
   once still beats the linear scan at any realistic node count.
-- **Do not merge this grid with `OverlayFieldTileIndex`** (the fog overlay's
-  tile index, via `VisionSourceIndex`). They look like the same grid over the
-  same circles and are not (investigated and rejected 2026-08-17):
-  - Cell size: `max_radius` here vs `(1 + union_smoothness) * max_radius`
-    there, widened for the smin fold's reach.
-  - Margins: 1x max_radius here; 2x cell_size plus a hand-tuned
-    `1e-4 * cell_size` epsilon there, which fixes a measured CPU/shader
-    darkness mismatch from `floor()` boundary ties with only 0.0013 headroom
-    under the visible threshold.
-  - Storage: a dense flat Array here; a sparse Dictionary there, because it
-    must also serialize into GPU data textures in deterministic row-major
-    order.
-  - Semantics: a hard boolean union here; a soft field fold there whose CPU
-    walk must match the fragment shader's tile-gather order exactly.
-  A shared substrate would need parameters for each of those and risk the
-  epsilon, for ~15-20 lines of superficial shape.
+- **Kept separate from `OverlayFieldTileIndex`** (the fog overlay's tile
+  index, via `VisionSourceIndex`): they look like the same grid over the same
+  circles and are not — cell size, margins, storage and semantics all differ.
+  The full comparison and the merge rejection are
+  [ADR 0076](../adr/0076-visioncircles-grid-stays-separate-from-overlayfieldtileindex.md).

@@ -205,10 +205,8 @@ along that curve — still one `MultiMesh` (`curve_point`).
 
 ## MenuGraph (`menu_graph.gd`)
 
-The menu tree as menu-local data. **Deliberately NOT a `Graph`.** Owner call
-2026-08-24: *"special menu local model for sure, if we did our composibility
-right we could steal just the *visuals* of the real elements involved iff not
-using the real ones directly"*. Nothing here touches `Graph`, `SkillNode`,
+The menu tree as menu-local data. **Deliberately NOT a `Graph`**
+([ADR 0080](../adr/0080-menugraph-is-not-a-graph.md)). Nothing here touches `Graph`, `SkillNode`,
 `Entity`, `StatBoard`, `AllocationSystem` or `TurnManager` — the menu borrows the
 node VISUALS (`skill_node/visuals/node_visuals_composite.tscn`) and none of the
 machinery that drives them.

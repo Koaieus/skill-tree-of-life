@@ -258,7 +258,7 @@ book holds the const defs `SpellCatalog.by_id` returns rather than copies of
 them, which is what `SpellDef` identity comparisons (#511) need. The ids
 themselves are interned into a `spells` table beside `res`, separate from it
 because a `SpellDef.id` is a wire name and not a path `_load_interned` may
-`load()`.
+`load()` ([ADR 0078](../adr/0078-spelldef-id-is-the-only-cross-process-spell-reference.md)).
 
 **The rebuild is a no-op when the membership already agrees**, and that guard is
 the same trap as `_on_resync`'s: *a repeat decode must change nothing it has
@@ -656,7 +656,8 @@ the same encoding the obvious one.
 ## AttackRecord: the post-apply wire form
 
 `AttackRecord` (`attack/outcome/attack_record.gd`) is what crosses the wire for
-an attack. It is **post-apply, not resolve-time**: the host resolves
+an attack. It is **post-apply, not resolve-time**
+([ADR 0077](../adr/0077-attackrecord-is-post-apply-not-resolve-time.md)): the host resolves
 (`AttackPlan.resolve`), applies through `OutcomeApplier` with every mode's
 land-time gate live, and records what each landing actually did. A client
 cannot re-derive a combat number: mitigation is read node-locally at land time,
