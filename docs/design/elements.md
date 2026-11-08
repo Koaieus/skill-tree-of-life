@@ -70,18 +70,20 @@ no rule of its own (backdraft is this trigger):
 | **Frozen** | denies: absorbs arriving reach, ends a path (0D) | a blade snaps on it (below) |
 
 **The cost law: a go-off pays one stack for each node it reaches**, spending
-down to T at most; Frozen pays one Cold per unit of reach it absorbs, as it
+down to T at most (pass: a node at excess 1 still fires whole); Frozen pays one Cold per unit of reach it absorbs, as it
 already did. Owner, 2026-11-08, on what drains a 100-hit buildup: *"Maybe..
 spend ½T stacks instead of 1? Or some multiple of *degree*? … Can we boost
 that?"* With T = 2 × degree, ½T *is* the degree, the count of nodes a level-1
-Shocked node strikes, so both are one number. A node filled to the
+Shocked node strikes, so both are one number. A Shocked node filled to the
 bare-ground cap (3T) goes off exactly 2(k − 1) = 4 times whatever its degree
-(6 at stake 2, 8 at stake 3). **Copies carry everything**, element stacks
+(6 at stake 2, 8 at stake 3); for Burning this holds only if its disc is a
+hop ball (§ Open). **Copies carry everything**, element stacks
 included (owner pick, 2026-11-08, re-affirming 2026-11-05): a 1-stack rider
 on a copy breaks even with the stack its copy cost, so a go-off moves stacks
 outward and never multiplies them; riders of 2+ per copy grow the primed area
 about a ring per hit, paid in load and bounded by the cap and decay. On a
-leaf (one copy) a stream of r-stack hits changes the node by r − 1 per hit.
+Shocked leaf (one copy) a stream of r-stack hits changes the node by r − 1
+per hit.
 
 **One size ladder.** Level L at count > L² × T (owner, of Charge: *"T = 1
 hop, 4T = 2 hops, 9T = 3 hops"*), for all three: a radius step for Burning, a
@@ -807,7 +809,8 @@ here.
   (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
   made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
   its three words — a short superseding ADR, since an ADR is never edited;
-  (d) closed 2026-11-08 by the cost law (§ The threshold model): copies carry
+  (d) closed 2026-11-08 by the cost law (pass inference from the owner's
+  "everything rides"; confirm) (§ The threshold model): copies carry
   everything, chained links included, flat, and the per-copy spend is the brake,
   so #1735 fork 1 is *flat*, as built; (e) **Ice raising seed payload** strains "the slot buys reach only";
   (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
@@ -829,6 +832,9 @@ here.
 - The arc pick rule's numbers (leap radius per excess Charge) and
   radius-per-load: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
+- **Burning's disc under the cost law**: a hop ball (cost = the nodes in
+  it, ≈ degree at level 1, the 4-times fact holds) or the Euclidean disc of
+  § The reach triad (cost depends on local density)?
 - **Ice concentrate under terrain-only reach** (§ The threshold model): is
   the cast-time hops-for-payload trade a `shape` use that survives, or does an
   Ice infusion become a Cold ride row like Fire's and Lightning's?

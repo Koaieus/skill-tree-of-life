@@ -85,7 +85,11 @@ Still open, in this order:
   ride row like the other two.
 - **Pass picks to confirm in one line**: Fuel never counts toward T; a
   Burning node holding Fuel goes off on the world tick; the shatter spends
-  everything above T as single-target damage; the blade speed curve of `t`.
+  everything above T as single-target damage; the blade speed curve of `t`;
+  a go-off spends down to T at most (a node at excess 1 fires whole); § Open
+  (d) / #1735 fork 1 closed *flat* (inferred from "everything rides").
+- **Burning's disc geometry** (doc § Open): hop ball or Euclidean under the
+  cost law.
 - **Explosive artifacts**: every orphan in finding 15 needs a destination or
   a supersession before any element issue goes `Ready` — mostly spec-time
   facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired
