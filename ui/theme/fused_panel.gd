@@ -96,8 +96,9 @@ func _push_instance(param: StringName, value: Variant) -> void:
 
 ## One [ShaderMaterial], lazily built and cached at the class level, carrying
 ## every constant-across-every-panel uniform. The three tint knobs are not
-## here since #1771 — they're instance uniforms, pushed per panel. Every [FusedPanel] that doesn't
-## author its own `material` override in its scene shares this exact object,
+## here since #1771 — they're instance uniforms, pushed per panel. Every
+## [FusedPanel] that doesn't author its own `material` override in its scene
+## shares this exact object,
 ## so they batch into one draw call (`.claude/rules/rendering-performance.md`)
 ## instead of each paying for a separate unbatchable material.
 static var _cached_material: ShaderMaterial = null
