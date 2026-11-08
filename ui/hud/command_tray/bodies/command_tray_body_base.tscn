@@ -9,7 +9,7 @@ layout_mode = 2
 size_flags_horizontal = 3
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." instance=ExtResource("2_glass")]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

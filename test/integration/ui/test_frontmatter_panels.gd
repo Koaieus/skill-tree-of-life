@@ -526,10 +526,10 @@ func test_the_base_panel_reshapes_into_outer_margin_glass_inner_margin() -> void
 
 	var glass := outer.find_children("*", "FusedPanel", false, false)
 	assert_eq(glass.size(), 1, "exactly one glass panel, direct child of the outer margin")
-	var glass_panel := glass[0] as Control
+	var fused_panel := glass[0] as Control
 
-	var inner := glass_panel.get_node("%InnerMargin") as MarginContainer
-	assert_eq(inner.get_parent(), glass_panel, "the inner margin is inside the glass, not beside it")
+	var inner := fused_panel.get_node("%InnerMargin") as MarginContainer
+	assert_eq(inner.get_parent(), fused_panel, "the inner margin is inside the glass, not beside it")
 
 	var column := inner.get_node("%Column")
 	assert_eq(column.get_parent(), inner, "content sits inside the inner margin")

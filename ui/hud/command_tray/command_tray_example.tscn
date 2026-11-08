@@ -5,7 +5,7 @@
 
 [node name="CommandTray" unique_id=444879786 instance=ExtResource("1_hppep")]
 
-[node name="GlassPanel" parent="Chrome" parent_id_path=PackedInt32Array(1327060860) index="0" unique_id=1802552914]
+[node name="FusedPanel" parent="Chrome" parent_id_path=PackedInt32Array(1327060860) index="0" unique_id=1802552914]
 
 [node name="MagicBody" parent="Chrome/Padded/BodySlot" parent_id_path=PackedInt32Array(2094750369) index="0" unique_id=631294482 instance=ExtResource("3_xc21f")]
 layout_mode = 2

@@ -97,7 +97,7 @@ offset_right = 275.0
 offset_bottom = 155.0
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." unique_id=1957706385 instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." unique_id=1957706385 instance=ExtResource("2_glass")]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0

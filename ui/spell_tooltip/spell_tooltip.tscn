@@ -13,7 +13,7 @@ layout_mode = 3
 anchors_preset = 0
 mouse_filter = 2
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." instance=ExtResource("2_glass")]
 unique_name_in_owner = true
 layout_mode = 2
 

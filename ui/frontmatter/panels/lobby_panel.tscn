@@ -8,7 +8,7 @@ script = ExtResource("2_lobby")
 panel_id = &"lobby"
 title = "LOBBY"
 
-[node name="GlassPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
+[node name="FusedPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
 
-[node name="Title" parent="OuterMargin/GlassPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
+[node name="Title" parent="OuterMargin/FusedPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
 text = "LOBBY"

@@ -9,17 +9,17 @@ script = ExtResource("2_host")
 panel_id = &"host"
 title = "HOST"
 
-[node name="GlassPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
+[node name="FusedPanel" parent="OuterMargin" parent_id_path=PackedInt32Array(1713397761) index="0" unique_id=747232056]
 
-[node name="Title" parent="OuterMargin/GlassPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
+[node name="Title" parent="OuterMargin/FusedPanel/InnerMargin/Column" parent_id_path=PackedInt32Array(155366615) index="0" unique_id=1262299303]
 text = "HOST"
 
-[node name="NetworkFields" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="0" unique_id=286348382 instance=ExtResource("3_fields")]
+[node name="NetworkFields" parent="OuterMargin/FusedPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="0" unique_id=286348382 instance=ExtResource("3_fields")]
 unique_name_in_owner = true
 layout_mode = 2
 show_address = false
 
-[node name="HostButton" type="Button" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="1" unique_id=286348383]
+[node name="HostButton" type="Button" parent="OuterMargin/FusedPanel/InnerMargin/Column/Body" parent_id_path=PackedInt32Array(2096987890) index="1" unique_id=286348383]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Start Hosting"

@@ -9,6 +9,6 @@ script = ExtResource("2_script")
 panel_id = &"spell_catalogue"
 title = "SPELL CATALOGUE"
 
-[node name="List" parent="OuterMargin/GlassPanel/InnerMargin/Column/Body" index="0" instance=ExtResource("3_list")]
+[node name="List" parent="OuterMargin/FusedPanel/InnerMargin/Column/Body" index="0" instance=ExtResource("3_list")]
 unique_name_in_owner = true
 layout_mode = 2

@@ -14,7 +14,7 @@ mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxEmpty_entry")
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." instance=ExtResource("2_glass")]
 layout_mode = 2
 
 [node name="Padded" type="MarginContainer" parent="."]

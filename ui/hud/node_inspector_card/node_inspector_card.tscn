@@ -9,7 +9,7 @@ layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_script")
 
-[node name="GlassPanel" parent="." instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." instance=ExtResource("2_glass")]
 unique_name_in_owner = true
 layout_mode = 2
 

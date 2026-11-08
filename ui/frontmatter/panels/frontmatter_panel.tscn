@@ -27,10 +27,10 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 24
 
-[node name="GlassPanel" parent="OuterMargin" unique_id=747232056 instance=ExtResource("2_fs6d2")]
+[node name="FusedPanel" parent="OuterMargin" unique_id=747232056 instance=ExtResource("2_fs6d2")]
 layout_mode = 2
 
-[node name="InnerMargin" type="MarginContainer" parent="OuterMargin/GlassPanel" unique_id=1713397762]
+[node name="InnerMargin" type="MarginContainer" parent="OuterMargin/FusedPanel" unique_id=1713397762]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 15
@@ -44,18 +44,18 @@ theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 32
 theme_override_constants/margin_bottom = 24
 
-[node name="Column" type="VBoxContainer" parent="OuterMargin/GlassPanel/InnerMargin" unique_id=155366615]
+[node name="Column" type="VBoxContainer" parent="OuterMargin/FusedPanel/InnerMargin" unique_id=155366615]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 16
 alignment = 1
 
-[node name="Title" type="Label" parent="OuterMargin/GlassPanel/InnerMargin/Column" unique_id=1262299303]
+[node name="Title" type="Label" parent="OuterMargin/FusedPanel/InnerMargin/Column" unique_id=1262299303]
 unique_name_in_owner = true
 layout_mode = 2
 theme_type_variation = &"CinzelHeader"
 
-[node name="Body" type="VBoxContainer" parent="OuterMargin/GlassPanel/InnerMargin/Column" unique_id=2096987890]
+[node name="Body" type="VBoxContainer" parent="OuterMargin/FusedPanel/InnerMargin/Column" unique_id=2096987890]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_vertical = 3

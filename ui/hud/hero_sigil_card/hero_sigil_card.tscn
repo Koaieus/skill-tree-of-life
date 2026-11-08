@@ -88,7 +88,7 @@ mouse_default_cursor_shape = 2
 unique_name_in_owner = true
 position = Vector2(70, 20)
 
-[node name="GlassPanel" parent="." unique_id=465765485 instance=ExtResource("2_glass")]
+[node name="FusedPanel" parent="." unique_id=465765485 instance=ExtResource("2_glass")]
 unique_name_in_owner = true
 layout_mode = 2
 
