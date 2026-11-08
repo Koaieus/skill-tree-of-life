@@ -8,7 +8,7 @@ names is on master; nothing lives only in a transcript.
 Continue the elements design pass (#1716 is the hub). Read, in order:
 
 1. `docs/design/elements.md` — every owner call to date, quoted and dated
-   (2026-11-03/04/05); pass proposals are marked as such.
+   (2026-11-03 to 11-08); pass proposals are marked as such.
 2. `docs/adr/0072-*.md`, `0073-*.md`, `0074-*.md`, then `0070-*.md` (a row's
    use is a swappable `LoadUse` Resource, the open set the owner reached for
    again on 2026-11-05 for the Ice use).
@@ -60,14 +60,15 @@ crackle (`sensor_range`) parked as minor; the medium cap is
 decays fast and does one thing per element. Deep freeze is the owner's
 (shatter removes T plus all the excess, which adds to the damage).
 
-Settled 2026-11-08 (doc § The threshold model, which overrides the older
-passages it lists): one side-less terrain stack per element (Heat, Cold,
+Settled 2026-11-08 (doc § The threshold model; the doc now reads as one
+design under it, and it overrides the 2026-11-05/06 lines above where they
+disagree): one side-less terrain stack per element (Heat, Cold,
 Charge), inert up to **T = 2 × degree**, primed past it (Burning, Frozen,
 Shocked); **reach is terrain-only** (a hit is damage + riders; an element
-infusion plants Heat or Charge); the trigger is a hit on a primed node;
-**a go-off pays one stack per node it reaches** (½T = degree); copies carry
-everything (the per-copy spend is the brake, so § Open (d) and #1735 fork 1
-close *flat*); Shocked arcs to every neighbour (the arc pick rule is gone);
+infusion's use is an open set, a Heat or Charge ride row or something
+bespoke); the trigger is a hit on a primed node; what a go-off pays is open
+per element (below); copies carry everything (*"LET IT RIDE!"*, so #1735
+fork 1 closes *flat*); Shocked arcs to every neighbour; Charge stays put;
 one size ladder L at count > L² × T; Burning burns its holder; Fuel is an
 accelerant spent whole into 2 Heat on its own node; Frozen × blade is a
 two-vertex fragile snap; flat decay of 1 per world turn cools the board;
@@ -75,21 +76,19 @@ two-vertex fragile snap; flat decay of 1 per world turn cools the board;
 
 Still open, in this order:
 
-- **The deletion pass** (first, before any new call): § The threshold model
-  ends with the list of superseded passages in elements.md; delete or rewrite
-  each against it (the family table, the forge's `reach` use, § The reach
-  rule, the pair table, § Derived states, § Temperature, § Three things wear
-  "explosive", the Vocabulary guard). The five atomics need re-reading
-  under "the node must be primed".
-- **Ice concentrate** (doc § Open): a `shape` use that survives, or a Cold
-  ride row like the other two.
-- **Pass picks to confirm in one line**: Fuel never counts toward T; a
-  Burning node holding Fuel goes off on the world tick; the shatter spends
-  everything above T as single-target damage; the blade speed curve of `t`;
-  a go-off spends down to T at most (a node at excess 1 fires whole); § Open
-  (d) / #1735 fork 1 closed *flat* (inferred from "everything rides").
-- **Burning's disc geometry** (doc § Open): hop ball or Euclidean under the
-  cost law.
+- **What a go-off pays, per element**: 1 per trigger, or ½T = degree. Lean:
+  Shocked pays per neighbour, Burning pays 1. This also decides whether a
+  spend may take a node below T.
+- **How a shatter turns excess into damage**: flat, a percentage, a
+  multiplier, or per hit.
+- **Ice concentrate**: kept, shape open. The owner's 2026-11-08 line:
+  infusions may be bespoke (*"spell infusions may also do bespoke stuff
+  instead of simply adding riders"*).
+- **Pass picks to confirm in one line**: the shatter spends everything above
+  T as single-target damage; the blade speed curve of `t`.
+- The rest of the doc's § Open (element rows in the forge, a death blast,
+  Fuel's cap, breaking Frozen by reach, Frozen + Shocked on one node, the
+  parked "a wire evens itself out").
 - **Explosive artifacts**: every orphan in finding 15 needs a destination or
   a supersession before any element issue goes `Ready` — mostly spec-time
   facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired
@@ -108,8 +107,8 @@ Still open, in this order:
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
-- Greed (#1659); the arc leap radius per excess Charge (#1733); inner-tree
-  shape; #1765. The pair table is rewritten in the deletion pass.
+- Greed (#1659); the size-ladder and disc knobs (#1733); inner-tree shape;
+  #1765.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
   1:1 guard test (code, first element issue).
 
