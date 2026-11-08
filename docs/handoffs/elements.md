@@ -60,28 +60,32 @@ crackle (`sensor_range`) parked as minor; the medium cap is
 decays fast and does one thing per element. Deep freeze is the owner's
 (shatter removes T plus all the excess, which adds to the damage).
 
+Settled 2026-11-08 (doc § The threshold model, which overrides the older
+passages it lists): one side-less terrain stack per element (Heat, Cold,
+Charge), inert up to **T = 2 × degree**, primed past it (Burning, Frozen,
+Shocked); **reach is terrain-only** (a hit is damage + riders; an element
+infusion plants Heat or Charge); the trigger is a hit on a primed node;
+**a go-off pays one stack per node it reaches** (½T = degree); copies carry
+everything (the per-copy spend is the brake, so § Open (d) and #1735 fork 1
+close *flat*); Shocked arcs to every neighbour (the arc pick rule is gone);
+one size ladder L at count > L² × T; Burning burns its holder; Fuel is an
+accelerant spent whole into 2 Heat on its own node; Frozen × blade is a
+two-vertex fragile snap; flat decay of 1 per world turn cools the board;
+"excess" = above T, "overflow" = above the cap; Blaze/Supercharge dropped.
+
 Still open, in this order:
 
-- **Blaze and Supercharge** (doc § Derived states, the excess table): both
-  are pass proposals the owner has not yet answered. Blaze: excess Heat
-  flows to every neighbour each tick with no dead band. Supercharge: excess
-  Charge arcs out on the world tick as a terrain hit, one arc per excess
-  stack. Ask first, it is the freshest thread; the owner's cue was *"or a
-  mix of all of these, each fitting to the status effect"*.
-
-- **Firm the chain lean** (doc § The reach rule, § Open (d)). The doc and
-  the #1735 comment commit to one reading of *"The hit, all rider, no
-  decay"*: share `s` applied once, every link flat at `s × root`, every rider
-  riding (as built). The owner's words also admit "share 1 on chained
-  copies". Restate the reading in one line so the owner can correct it, then
-  ask the one residual — does a medium rider on a chained copy decay per
-  link while damage and other riders ride flat? Then #1735
-  fork 1 closes (flat = as built; the issue closes with a doc line) and the
-  first Fire issue is unblocked on this count.
-- **Play-situation item 5** (pass lean in § Open, cheap): the planting
-  exemption scoped to the medium the hit itself plants, at its own landing
-  only (the alternative: any medium the hit plants exempts every medium on
-  the node).
+- **The deletion pass** (first, before any new call): § The threshold model
+  ends with the list of superseded passages in elements.md; delete or rewrite
+  each against it (the family table, the forge's `reach` use, § The reach
+  rule, the pair table, § Derived states, § Temperature, § Three things wear
+  "explosive", the Vocabulary guard). The five atomics need re-reading
+  under "the node must be primed".
+- **Ice concentrate** (doc § Open): a `shape` use that survives, or a Cold
+  ride row like the other two.
+- **Pass picks to confirm in one line**: Fuel never counts toward T; a
+  Burning node holding Fuel goes off on the world tick; the shatter spends
+  everything above T as single-target damage; the blade speed curve of `t`.
 - **Explosive artifacts**: every orphan in finding 15 needs a destination or
   a supersession before any element issue goes `Ready` — mostly spec-time
   facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired
@@ -90,7 +94,9 @@ Still open, in this order:
 - **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
   (manage-stats), a new `StatDef.Role`; a member keys its own facets.
 - **ADR 0075** (needs a human merge): supersedes 0073 in part (the use is
-  0070's open set, `CleanseUse` beside ride, the Ice use as a resource) and
+  0070's open set, `CleanseUse` beside ride, the Ice use as a resource; the
+  reach entry is gone, reach is terrain-only, 2026-11-08) and 0074 in part
+  (Cold under T no longer absorbs; the cost law, 2026-11-08), and
   records the eight 2026-11-05 verdicts above; ADR 0074 is merged (#1747),
   so today's landing verdicts go in 0075, not an amendment. 0075 also
   supersedes 0074 §5 in part: the cap's k is `2 + stake_level`, and the cap
@@ -99,8 +105,7 @@ Still open, in this order:
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
 - Greed (#1659); the arc leap radius per excess Charge (#1733); inner-tree
-  shape; #1765. The pair table's Frozen/Shocked/Burning columns do not yet
-  show the travel verbs (pass-through, backdraft); fold them in at spec.
+  shape; #1765. The pair table is rewritten in the deletion pass.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
   1:1 guard test (code, first element issue).
 

@@ -31,6 +31,106 @@ Poison's "does it move" idea (#1657) must therefore be a behaviour of the one
 Poison status, never a second one. No Explosive aspect survives: Fuel is
 Fire's medium (the ranged-access question this raises is in § Open).
 
+## The threshold model (owner, 2026-11-08)
+
+Owner, 2026-11-08: *"make them all inert before some threshold T is passed.
+when "elemental terrain-reach stacks" (== cold/heat/charge stacks) exceed T,
+then they become primed -- the derived status … this derived effect has a
+"trigger" and if triggered it performs (generally) a reach-based action, and
+finally, each triggering has a stack-cost … this derived status IS the reach
+face of the element. without it, no reach effects"*. Where a passage below
+disagrees, this section wins; the list at its end names them for deletion.
+
+**One terrain stack per element, inert up to T.** Heat (Fire), Cold (Ice) and
+Charge (Lightning) are side-less terrain, owner-blind. At or under T they
+only *feel*: Cold drags a blade and Heat speeds it, one curve of the signed
+`t = heat − cold` (owner: *"maybe cold stacks slowing blade nodes sweeping
+over them (and heat stacks... should speed them up a lil?)"*). Past T the node
+is **primed**: Burning, Frozen, Shocked. **T = 2 × graph degree**, primed at
+count > T (owner: *"T = 2*graph_degree, so a leaf node fits 2 stacks of any
+without any effects, the third would be 3"*), a knob. The **excess** is
+count − T; the band above the cap k × T is the **overflow** (the 2026-11-06
+"excess band", renamed).
+
+**Reach is terrain-only.** A hit is damage plus riders and carries no reach of
+its own. Owner, 2026-11-08: *"Think that charge settles it in favor of the
+"there's 1 and its just the terrain stacks": if 1 "charge as direct arc
+reach" is infused it reintroduces "which one neighbor then?" While a system
+where "charge Level = 1" means you got enough to hit *all* nbs."* A Fire or
+Lightning infusion is a ride row planting Heat or Charge, so an infused AoE
+spell ramps: its early hits warm the ground, its later hits blow it.
+
+**The trigger is a hit on a primed node**, a copy included, so a chain needs
+no rule of its own (backdraft is this trigger):
+
+| State | A hit on it | Also |
+|---|---|---|
+| **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
+| **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*); the arc pick rule is gone | conducts a spell walk (§ Derived states) |
+| **Frozen** | denies: absorbs arriving reach, ends a path (0D) | a blade snaps on it (below) |
+
+**The cost law: a go-off pays one stack for each node it reaches**, spending
+down to T at most; Frozen pays one Cold per unit of reach it absorbs, as it
+already did. Owner, 2026-11-08, on what drains a 100-hit buildup: *"Maybe..
+spend ½T stacks instead of 1? Or some multiple of *degree*? … Can we boost
+that?"* With T = 2 × degree, ½T *is* the degree, the count of nodes a level-1
+Shocked node strikes, so both are one number. A node filled to the
+bare-ground cap (3T) goes off exactly 2(k − 1) = 4 times whatever its degree
+(6 at stake 2, 8 at stake 3). **Copies carry everything**, element stacks
+included (owner pick, 2026-11-08, re-affirming 2026-11-05): a 1-stack rider
+on a copy breaks even with the stack its copy cost, so a go-off moves stacks
+outward and never multiplies them; riders of 2+ per copy grow the primed area
+about a ring per hit, paid in load and bounded by the cap and decay. On a
+leaf (one copy) a stream of r-stack hits changes the node by r − 1 per hit.
+
+**One size ladder.** Level L at count > L² × T (owner, of Charge: *"T = 1
+hop, 4T = 2 hops, 9T = 3 hops"*), for all three: a radius step for Burning, a
+hop for Shocked; power stays the excess. On bare ground (cap 3T) level 2
+lives only in the overflow or on a staked node. Knobs.
+
+**Fuel is an accelerant.** Owner: *"Fuel would only be a supportive sticky
+"pre fire but would burn as such" goo … if any fire-related combustion
+occurs, consume all fuel stacks too add them to the explosive power, and
+leave residual heat."* Fuel never counts toward T (pass); when its node
+explodes all of it is spent, added to the power, and burns into **N = 2 Heat
+per Fuel on its own node** (owner pick, 2026-11-08, over +1 Heat on every
+node the disc touched, which makes Heat from nothing); flow spreads it. Heat
+is spent per copy and Fuel whole, so Heat arrows sustain and Fuel-then-Heat
+bursts: two volley shapes. A Burning node holding Fuel also goes off on the
+world tick (pass; keeps #1660's fuse).
+
+**A blade on Frozen: a fragile snap.** Owner, 2026-11-08: *"if a melee blade
+node has Frozen on it, if should shatter on first contact. Reduces reach
+right? Any blade node popped is less sweep. And if frozen node is hit by
+blade node, it.. shatters the ice … but *also* shatters the offending blade
+node!"*, then *"We want to pop just the two vtx. Not too dramatic, and
+remember Ice is 0D. Point like. Single target. So no splash or anything just
+a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
+check, nothing severed) and breaks the ice; pass: the ice spends everything
+above T, overflow included, as single-target damage to the frozen node's
+holder. This replaces the "remove T, +1 crit tier" pane below.
+
+**Cooling.** Heat is terrain now, so it no longer dies on unallocated ground;
+every warm or cold node decays 1 toward zero per world turn (owner: *"if we
+make each node lose e.g. at least 1 heat/cold (towards net 0) per tick, it
+should eventually cool off"*), Charge likewise, Fuel slowly — knobs. The
+Metropolis step is the discrete graph-Laplacian step; its integer floor is a
+dead band, and the decay clears it. Every warm node loses one, so spread heat
+cools faster than a lump: no board-wide budget is needed.
+
+**Superseded below, for the deletion pass:** the Fire row of § One count
+(Fuel as medium, Heat as a hurting mover, T = degree + 1, "only movers deal
+damage"); the `reach` use and the element slot (§ The forge); § The reach
+rule's reach entry, `S + SI`, Cold-under-T absorbing, one stack per landing,
+the atomics' bare Fuel or Charge going off, and the planting exemption (the
+owner's own volley has a Heat arrow blowing the node it lands on); dual
+reach's "the hit's load spends nothing"; § Pair rules' table, the arc pick
+rule and the pane; § Derived states' backdraft verb, Shocked's leaps and
+Blaze and Supercharge (dropped: the overflow just decays fast, the ladder is
+the inferno ramp); § Temperature's Heat sink and min(heat, fuel); the Fire
+reach row of § Three things wear "explosive". ADR 0073 (the reach entry) and
+0074 (absorption under T) go to ADR 0075.
+
 ## One count, a family of statuses with fixed roles (owner, 2026-11-04)
 
 An element is one count on the entity and a short family of statuses on
@@ -707,12 +807,9 @@ here.
   (c) **ADR 0073 vs 0070**: 0073 wrote the use as a closed set where 0070
   made it an open set of `LoadUse` classes, and `CleanseUse` fits none of
   its three words — a short superseding ADR, since an ADR is never edited;
-  (d) **does medium *planting* decay along a chain?** The owner's lean (§ The
-  reach rule) lets damage and riders ride a fuse flat and wonders whether
-  terrain planting through copies should decay per link after all; if so, the
-  decay is one factor on the medium-rider rows of a copy, nothing structural.
-  #1735 fork 1 (hit damage along a chain) is otherwise leaning *flat*, pending
-  the owner firming the lean; (e) **Ice raising seed payload** strains "the slot buys reach only";
+  (d) closed 2026-11-08 by the cost law (§ The threshold model): copies carry
+  everything, chained links included, flat, and the per-copy spend is the brake,
+  so #1735 fork 1 is *flat*, as built; (e) **Ice raising seed payload** strains "the slot buys reach only";
   (f) **Charge** collides with explosive's `charge` tag and `vertex_charges`
   — the #1716 r2 retag to `fuel` is the plan and must be in the first Fire
   issue; (h) a rider map keyed by id merges a BEFORE
@@ -732,5 +829,10 @@ here.
 - The arc pick rule's numbers (leap radius per excess Charge) and
   radius-per-load: #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
-- The excess-band verbs for Heat and Charge (pass proposals, § Derived
-  states) await the owner; the Cold one is authored.
+- **Ice concentrate under terrain-only reach** (§ The threshold model): is
+  the cast-time hops-for-payload trade a `shape` use that survives, or does an
+  Ice infusion become a Cold ride row like Fire's and Lightning's?
+- **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops
+  the one, docs may be stale"* — `BladePopResolver`'s header and
+  `docs/domain/ai-blade-rollout.md` describe severing past a pop; check
+  against the code at the Ice spec.
