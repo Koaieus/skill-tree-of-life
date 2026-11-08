@@ -389,6 +389,14 @@ func _drive_lobby_from_cmdline() -> void:
 		# slower machine. `mise run mp:e2e` blocks on exactly this string.
 		print("[%s] rung 3: listening on port %d" % [role, port])
 		_apply_autoplay_preset()
+		if HarnessFlags.has(HarnessFlags.AUTOPLAY):
+			# The only moment a DRAWN seed becomes known: [method GameSession.start]
+			# resolves the sentinel and then emits, so the payload is the resolved
+			# value. `mise run mp:e2e` greps exactly this line into its summary
+			# (#1186), which is how a run that named no `--seed` can be replayed.
+			GameSession.run_started.connect(
+					func(cfg: RunConfig) -> void: print("[host] rung 4: seed %d" % cfg.seed),
+					CONNECT_ONE_SHOT)
 		# The host presses START once a human has actually arrived — which is the
 		# whole thing under test: the seat was authored up front so procgen could
 		# see it, and only its identity was outstanding.
@@ -457,5 +465,10 @@ func _apply_autoplay_preset() -> void:
 	screen.set_ai_opponents(_AUTOPLAY_AI_OPPONENTS)
 	screen.pick_option(LobbyScreen.KNOB_MAP_SIZE, _AUTOPLAY_MAP_SIZE_INDEX)
 	screen.pick_option(LobbyScreen.KNOB_VICTORY, _AUTOPLAY_VICTORY_INDEX)
+	# Last, after the AI count's roster rebuild, and only when one was given:
+	# absent keeps the row empty, which is today's random draw (#1186).
+	var requested_seed := HarnessFlags.number(HarnessFlags.SEED, 0)
+	if requested_seed != 0:
+		screen.set_seed(requested_seed)
 	print("[host] rung 4: autoplay preset — smallest map, turn-limit victory, %d AI opponents"
 			% _AUTOPLAY_AI_OPPONENTS)

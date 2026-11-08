@@ -737,6 +737,20 @@ func set_ai_opponents(count: int) -> void:
 		_ai_count_row.set_value(count)
 
 
+## Type a seed into the Seed row from code, as a host would (#1186). Unlike
+## [method set_ai_opponents] this DOES need the second call: assigning
+## [member LineEdit.text] from code does not emit `text_changed`, so the
+## screen's own [method _on_seed_text_changed] is invoked by hand. The value
+## still reaches the run the one way a typed seed does — [method
+## build_run_config] parses the row's text with [method LobbyRoster.parse_seed]
+## — so there is no second write path.
+func set_seed(value: int) -> void:
+	if _seed_edit == null:
+		return
+	_seed_edit.text = str(value)
+	_on_seed_text_changed(_seed_edit.text)
+
+
 func _ladder_row(knob: StringName) -> OptionChoiceRow:
 	match knob:
 		KNOB_MAP_SIZE:

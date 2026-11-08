@@ -46,8 +46,14 @@ const AI_DELAY := "ai-delay"
 ## instead of a few hundred. Read by BOTH processes — the flag has to reach the
 ## mirror too, exactly as `--autopilot`'s budget boost does.
 const LETHAL := "lethal"
-## RED stub (#1186) — the real word lands with the fix.
-const SEED := ""
+## The HOST's procgen seed for an autoplay run (#1186): `--seed=20261105` types
+## it into the lobby's Seed row ([method LobbyScreen.set_seed]); absent reads 0,
+## the sentinel [method RunConfig.resolve_seed] draws a random seed for, so a
+## run that names none behaves exactly as before. It fixes the MAP, not the
+## fights — combat rolls per attack (`AttackPlan.resolve_seed`), so the same
+## seed makes two runs comparable, never bit-identical. Host only: the client
+## runs no procgen and adopts the host's resolved seed off the wire.
+const SEED := "seed"
 
 
 ## `--<name>=<v>` -> `v`; `--<name>` alone -> `""`; absent -> [param fallback].

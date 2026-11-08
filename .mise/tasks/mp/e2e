@@ -67,6 +67,9 @@ DIVERGED = re.compile(r"✗ DIVERGED (?P<when>.*?) — mine \d+, host \d+")
 JOIN_APPLIED = re.compile(r"resync applied — join:")
 
 TIMEOUT_EXIT = 2
+# The host's resolved procgen seed, printed once on `GameSession.run_started`
+# (`MetaRoot._drive_lobby_from_cmdline`) — the only place a DRAWN seed is known.
+SEED_LINE = re.compile(r"\[host\] rung 4: seed (?P<seed>\d+)\s*$")
 
 
 def spawn(role, log_path, extra):
@@ -144,8 +147,13 @@ def main():
                     help="TCP/UDP port (default: a random high port, so two runs never collide)")
     ap.add_argument("--max-turns", type=int, default=0,
                     help="entity-turn cap before the run calls itself a timeout")
-    ap.add_argument("--timeout", type=int, default=180,
-                    help="wall-clock ceiling for the whole pair, in seconds")
+    # A hang backstop, not a pace gate (#1186): measured runs take 13–17 s, so
+    # 600 is ~35× the median and only a real hang reaches it.
+    ap.add_argument("--timeout", type=int, default=600,
+                    help="wall-clock ceiling for the whole pair, in seconds (a hang backstop)")
+    ap.add_argument("--seed", type=int, default=None,
+                    help="procgen seed for the HOST; fixes the map, not the fights "
+                         "(combat rolls per attack). Default: random, printed in the summary")
     ap.add_argument("--boot-timeout", type=int, default=60,
                     help="how long the host gets to open its socket")
     ap.add_argument("--ai-delay", type=float, default=None,
@@ -177,12 +185,18 @@ def main():
     host = None
     client = None
     try:
-        host = spawn("host", HOST_LOG, extra)
+        # The seed goes to the HOST only: the client runs no procgen and adopts
+        # the host's resolved seed off the wire (`test_client_skips_procgen.gd`).
+        host_extra = extra + (["--seed=%d" % args.seed] if args.seed else [])
+        client_extra = extra + ["--address=127.0.0.1"]
+        assert not any(a.startswith("--seed") for a in client_extra), \
+            "the client must never receive --seed"
+        host = spawn("host", HOST_LOG, host_extra)
         if wait_for_line(HOST_LOG, LISTENING, host, args.boot_timeout) is None:
             print("✗ the host never opened its socket within %ds" % args.boot_timeout)
             print(tail(read_lines(HOST_LOG)))
             return 1
-        client = spawn("client", CLIENT_LOG, extra + ["--address=127.0.0.1"])
+        client = spawn("client", CLIENT_LOG, client_extra)
 
         deadline = started + args.timeout
         while time.monotonic() < deadline:
@@ -205,12 +219,13 @@ def main():
     # AFTER the logs have been read: `godot-reap` only removes strays, but the
     # order says which one is the source of truth. GUT runs are skipped by its
     # own default, so a peer agent's suite is safe from this.
-    code = report(host.returncode, client.returncode, time.monotonic() - started)
+    code = report(host.returncode, client.returncode, time.monotonic() - started,
+                  args.seed)
     reap()
     return code
 
 
-def report(host_code, client_code, elapsed):
+def report(host_code, client_code, elapsed, requested_seed=None):
     host_lines = read_lines(HOST_LOG)
     client_lines = read_lines(CLIENT_LOG)
     failures = []
@@ -271,6 +286,16 @@ def report(host_code, client_code, elapsed):
         print("  verdict: winner=%s after %s entity-turns" % (
             host_verdict.group("winner"), host_verdict.group("turns")))
     print("  %d mid-run divergence(s), %.0fs wall clock" % (len(diverged), elapsed))
+    # Every outcome, pass or fail or timeout (#1186): a run worth replaying is
+    # most often one that went wrong. The host's resolved line wins; a run that
+    # never reached START falls back to what was asked for.
+    resolved = first_match(host_lines, SEED_LINE)
+    if resolved:
+        print("  seed=%s" % resolved.group("seed"))
+    elif requested_seed:
+        print("  seed=%d (requested; the host never started the run)" % requested_seed)
+    else:
+        print("  seed=unknown (the host never started the run)")
 
     if failures:
         print("\n✗ rung 4 FAILED")
