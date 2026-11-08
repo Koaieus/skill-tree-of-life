@@ -240,9 +240,14 @@ extends Resource
 
 Stock subclasses:
 
-- `SumDamageReducer` — sum damages, MAX hops_left, union visited
-- `MaxDamageReducer` / `FirstReducer`
-- `CancelIfMultiReducer` — null if `incidents.size() > 1`
+- `FoldReducer` (`@abstract`) — the pure folds' template: `reduce` is
+  `_merge_payload_defaults` then `damage = _fold_damage(incidents)`; a
+  subclass fixes only `_fold_damage`, a guard overrides `reduce` and calls
+  `super` (#441)
+  - `SumDamageReducer` — sum damages, MAX hops_left, union visited
+  - `MaxDamageReducer` (`strongest` is static and public) / `FirstReducer`
+  - `CancelIfMultiReducer` — extends `FirstReducer`: null if `incidents.size() > 1`
+  - `RetractReducer` — extends `MaxDamageReducer`, the WAIT guard
 - `CycloneReducer` — Cyclone's converging fronts add their power
 - `ExpressionReducer` — one-off escape hatch
 
