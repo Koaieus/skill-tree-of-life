@@ -79,7 +79,10 @@ The descriptor handed to the sim (`attack/melee/sim/blade_state.gd`; built by
 `BladeState.build(positions, pivot_idx, edges, radii)`, which seeds one
 `BladeDistanceConstraint` per edge at its initial length; callers append more
 constraints). Fields worth knowing: `inv_masses` (0 = static, the pivot and
-frozen corpses), `vertex_restitution` (per-particle recoil against a deflecting plate; 0 = inelastic), `vertex_damage` (a per-particle damage **coefficient**, not the
+frozen corpses; otherwise mass is the disc's area, `(radius / 32)²`, so an
+unstaked node weighs 1 and a stake-4 one ~2.44 — it splits constraint
+corrections, the heavier end yielding less, and scales the Bunker impact bank;
+it never slows the kinematically driven swing), `vertex_restitution` (per-particle recoil against a deflecting plate; 0 = inelastic), `vertex_damage` (a per-particle damage **coefficient**, not the
 landing amount), `speed_history` (per-particle speed per sample),
 `removed_edges` / `removed_vertices` (recorded sets, never splices), `damping`
 (per-particle, severance only), `obstacles` (the defender field).
@@ -434,7 +437,7 @@ it (ADR 0005), but an edge. `build_defender_zones` + `attach_defender_field` in
 loop's `consume_break` handling severs.
 
 **A Bunker member on the blade** (`BunkerAddon.apply_to_blade`) weighs
-`blade_mass` plain members (`inv_mass` divided) and recoils off a plate at
+`blade_mass` × a same-size plain member (`inv_mass` divided) and recoils off a plate at
 `blade_restitution` × its approach speed along the plate normal, written into
 the Verlet history (`prev`) after the substep's projection
 (native `field_restitute`). Disc contact only; every other contact stays

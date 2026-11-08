@@ -20,8 +20,20 @@ extends RefCounted
 ## driving any more. See [member damping].
 const SEVERED_DRAG: float = 0.8
 
+## The radius that weighs exactly 1 — [SkillNode]'s default `base_radius`, so
+## an unstaked plain member keeps the unit mass every knob was tuned against
+## (Bunker's `blade_mass`, `destroy_momentum`). Mass goes as the disc's AREA,
+## `(radius / MASS_REF_RADIUS)²`: a stake-4 node (50 px) weighs ~2.44.
+const MASS_REF_RADIUS: float = 32.0
+
 var positions: PackedVector2Array
 var prev_positions: PackedVector2Array
+## Per-particle inverse mass: 0 pins (the pivot, a corpse), otherwise
+## `(MASS_REF_RADIUS / radius)²` from [method build] — mass is the disc's area,
+## see [const MASS_REF_RADIUS]. With the grip driven kinematically, mass only
+## decides how a constraint correction splits between its two ends (the heavier
+## end yields less) and the impact momentum a Bunker plate banks; it never slows
+## the swing.
 var inv_masses: PackedFloat32Array
 var radii: PackedFloat32Array
 ## Inner-disk radius per particle, mirroring [member SkillNode.inner_radius] —
@@ -235,11 +247,21 @@ static func build(
 	s.inv_masses = PackedFloat32Array()
 	s.inv_masses.resize(positions_.size())
 	for i in positions_.size():
-		s.inv_masses[i] = 0.0 if i == pivot_idx else 1.0
+		s.inv_masses[i] = 0.0 if i == pivot_idx else inv_mass_for(radii_[i])
 	for e in edges_:
 		var rest := positions_[e.x].distance_to(positions_[e.y])
 		s.constraints.append(BladeDistanceConstraint.new(e.x, e.y, rest))
 	return s
+
+
+## Inverse mass of a free particle of [param radius] — mass is the disc's area,
+## normalised so [const MASS_REF_RADIUS] weighs 1. A non-positive radius (a
+## degenerate fixture) falls back to unit mass rather than dividing by zero.
+static func inv_mass_for(radius: float) -> float:
+	if radius <= 0.0:
+		return 1.0
+	var ratio := MASS_REF_RADIUS / radius
+	return ratio * ratio
 
 
 ## True if [param edge_idx] has been severed this swing — see [member

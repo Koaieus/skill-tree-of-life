@@ -199,7 +199,7 @@ func test_a_death_is_a_frozen_corpse_and_a_dropped_constraint_set() -> void:
 
 	assert_eq(state.inv_masses[0], 0.0, "the pivot is still the pinned handle")
 	assert_eq(state.inv_masses[2], 0.0, "the corpse is frozen where it died")
-	assert_eq(state.inv_masses[3], 1.0, "the orphan is still dynamic — it coasts")
+	assert_gt(state.inv_masses[3], 0.0, "the orphan is still dynamic — it coasts")
 	assert_true(state.is_vertex_removed(2), "recorded, so the scan stops querying it")
 	assert_eq(state.edges.size(), 3,
 			"`edges` is NOT spliced — a BladeHitEvent carries an index into it (#785)")
