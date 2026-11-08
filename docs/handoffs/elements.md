@@ -29,36 +29,9 @@ design doc, `adr-hygiene` after an ADR. `gh issue view` is blocked
 behind origin on purpose (owner WIP in `ui/hud/minimap_panel/` blocks a
 fast-forward); the verdicts live on origin/master.
 
-Settled 2026-11-05 (all in the doc): same-element sources are one go-off of
-size S + SI, one stack spent per landing; a go-off with no parent hit is a
-terrain hit credited to the sided party, synced by determinism; a medium
-rides a copy; copies land
-raw on the as-cast payload; Ice concentrate onto a keg is a combo; **Burning
-ignites** (Heat ≥ T), a Burning tick spends min(heat, fuel); the world clock
-is the world turn as built over a temperature index (rate knob
-`ceil(sqrt(N))`, tentative); an arc's third key is **fickle** (seeded random
-among ties); the Ice price is an authored mass per spell spent by a
-swappable use (hops / visits); ranged Fuel access reframed as Clamp parity →
-#1765.
-
-Settled later on 2026-11-05 (continuation 2, local): S + SI confirmed by the
-owner for Fire and Charge alike; a copy carries **every** rider, the medium
-its reach spent included (decay rates are the buildup knob; the pass's
-"except the spent medium" proposal is rejected); a hit's copies take the
-hit's target mask. **Owner lean, not yet firm**: a chained go-off's copies
-carry the root payload flat (*"LET IT RIDE"*), with the owner's own doubt
-about whether medium *planting* along a chain should decay per link.
-
-Settled 2026-11-06 (doc § Derived states): the three derived states are the
-**travel triad** — Frozen ends a path (0D), Shocked conducts one (1D, a
-pass-through spends one Charge, no hop), Burning re-blasts a disc (2D,
-backdraft, Heat spent to T − 1); **Shocked = #1733's critical Charge**
-(Charge ≥ T), named; Burning is a light source through fog; the Shocked
-crackle (`sensor_range`) parked as minor; the medium cap is
-**k × T, k = 2 + `stake_level`** (k 3–5 under the default stake ceiling of
-3); the cap is **soft** — stacks past it are an **excess band** that
-decays fast and does one thing per element. Deep freeze is the owner's
-(shatter removes T plus all the excess, which adds to the damage).
+Earlier verdicts (2026-11-03 to 11-06) live in the doc where they still hold;
+ADRs 0073/0074 predate the threshold model and are read as history, superseded
+in part by ADR 0075.
 
 Settled 2026-11-08 (doc § The threshold model; the doc now reads as one
 design under it, and it overrides the 2026-11-05/06 lines above where they
