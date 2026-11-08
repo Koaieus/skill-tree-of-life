@@ -32,7 +32,7 @@ Output is a five-table markdown report, printed and written to `snapshot.md`
 - `curl_lattices.gd` — the idealised terrains #703 tuned against, as the
   calibration column.
 - `curl_procgen_terrain.gd` — stages 1–3 of the real pipeline
-  (`PoissonDiskSampler.sample` → `GraphProcgen._triangulate_and_prune`) and
+  (`PoissonDiskSampler.sample` → `ProcgenTopology.triangulate_and_prune`) and
   nothing else.
 - `curl_cast_probe.gd` — real `SpellResolver` casts, for the rules the operator
   cannot represent.

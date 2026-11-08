@@ -7,7 +7,7 @@ extends RefCounted
 ## inside the mask, Delaunay, prune to the MST plus a `connectivity` share of
 ## the shortest leftovers. Those are the exact calls
 ## [method GraphProcgen.generate] makes — [method PoissonDiskSampler.sample] and
-## `GraphProcgen._triangulate_and_prune` — never a re-implementation, because
+## `ProcgenTopology.triangulate_and_prune` — never a re-implementation, because
 ## the prune's shortest-extras-first rule is precisely the thing under
 ## measurement. Stages 4–6 (archetypes, modifier draws, node instantiation)
 ## decide what a node IS and cannot move an edge, so they are skipped and a
@@ -42,7 +42,7 @@ static func sample(
 	mask.size_for(GraphProcgen.target_area_for_node_count(node_count, min_dist), min_dist * 4.0)
 	var anchors: Array[Vector2] = []
 	var positions := PoissonDiskSampler.sample(mask, min_dist, node_count, anchors, rng)
-	var pairs := GraphProcgen._triangulate_and_prune(positions, connectivity)
+	var pairs := ProcgenTopology.triangulate_and_prune(positions, connectivity)
 	var pts := PackedVector2Array(positions)
 	var edges: Array = []
 	for pair in pairs:
