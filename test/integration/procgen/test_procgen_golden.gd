@@ -23,8 +23,8 @@ extends GutTest
 ## unsettled (`test_pool_seed_values.gd`); a deliberate content or preset
 ## tune going red here is re-captured, never "fixed" in the pipeline.
 ##
-## Wall time at e0b838af: 8.4 s script (3.9 first_level / 3.4 coop_versus /
-## 1.0 self-check), 10.7 s task wall including boot — integration tier,
+## Wall time at e0b838af: 7.6 s script (3.4 first_level / 3.2 coop_versus /
+## 1.0 self-check), 9.9 s task wall including boot — integration tier,
 ## under its 15 s budget. At the authored 800 nodes it was 16.3 s.
 
 const _FIRST_LEVEL := "res://procgen/presets/first_level/first_level.tres"
@@ -40,12 +40,12 @@ const GOLDEN_NODE_COUNT := 400
 
 ## `"<preset basename>:<seed>"` → sha256 of [method fingerprint].
 const EXPECTED := {
-	"first_level:1": "273c15962f38fa8bd0af9c3b4b8fbe4e769a3fb8f9fedc63c4ae56473490c602",
-	"first_level:20261105": "be0e504e613e2dbd121111421799daab410d8b3dbc57128c7b8dc27923f1c489",
-	"first_level:777": "a1c5f209c3eb1a2a326f3bcd5614ff40742cd7de657f8d0ef78f7e84d71a15d8",
-	"coop_versus:1": "ae80d070db0b37fededa885fa918ac47d4c037df1dd40565105a043c32e93bd3",
-	"coop_versus:20261105": "78301c168febc8c45f308f47ad73609295c6ebeb63588a36897e38346b88f8f7",
-	"coop_versus:777": "4ce4fce894708f68cdbf1dde5703b7dc9d8fe1196de797a36a3c4a040b893791",
+	"first_level:1": "cadab0c199f9f2403bcf7947c8c6c14096cea88e95d58575cee0534738a92cbb",
+	"first_level:20261105": "5aace240d130a646a5a4672674390ea0733a5a9cbed6c4bfb417d298558a55a3",
+	"first_level:777": "f4570c8505865d30bb8f55b236456119cc390ea2cdcf06cd95d05dfa67cf80dd",
+	"coop_versus:1": "9337587352d74a049210ff810dec33d0366a8f728cccd305b417d6ece646468f",
+	"coop_versus:20261105": "7c2da9f9f1b8e7b64caea0d362dd44abc12ff548ab3a62f68465ba7cfe88e401",
+	"coop_versus:777": "0adf01150c8e30c3f04ba966cd3869802a28110e54fa8637682f5c9880510b34",
 }
 
 
@@ -106,12 +106,15 @@ static func fingerprint(result: Dictionary, graph: Graph) -> String:
 		var footprint := PackedStringArray()
 		for f: SkillNode in b.get("footprint", []):
 			footprint.append(str(graph.get_stable_id(f)))
+		# `face` is a Resource: hash its path, never `str()` (an instance id
+		# that shifts with whatever ran earlier in the shard).
+		var face: Resource = b.get("face") as Resource
 		lines.append("B %d size=%d stake=%d prune=%d face=%s face_seed=%d fp=[%s]" % [
 			graph.get_stable_id(b.get("node")),
 			int(b.get("size")),
 			int(b.get("stake_level", 1)),
 			int(b.get("prune_seed", 0)),
-			str(b.get("face")),
+			face.resource_path if face != null else "-",
 			int(b.get("face_seed", 0)),
 			",".join(footprint),
 		])
