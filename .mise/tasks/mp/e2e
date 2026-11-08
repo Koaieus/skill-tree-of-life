@@ -195,6 +195,8 @@ def main():
         if wait_for_line(HOST_LOG, LISTENING, host, args.boot_timeout) is None:
             print("✗ the host never opened its socket within %ds" % args.boot_timeout)
             print(tail(read_lines(HOST_LOG)))
+            print("  seed=%s (the host never started the run)" % (
+                "%d (requested)" % args.seed if args.seed else "unknown"))
             return 1
         client = spawn("client", CLIENT_LOG, client_extra)
 
