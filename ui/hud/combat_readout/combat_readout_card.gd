@@ -11,7 +11,7 @@ extends Control
 ## max of its children's — specifically the "Padded" inner MarginContainer
 ## wrapping Content. A plain Control root reports (0,0) regardless of its
 ## children's real size, which collapsed every card to zero height inside
-## the shell's VBoxContainer. GlassPanel is a sibling of Padded at the same
+## the shell's VBoxContainer. The [FusedPanel] is a sibling of Padded at the same
 ## 0-margin level so it fills the exact same rect as the card, behind it.
 
 @export_range(0.0, 1.0, 0.01) var dim_opacity := 0.72
@@ -20,7 +20,7 @@ extends Control
 
 @export var _board: StatBoard
 
-## #390 — GlassPanel's `border_color`/`glow_color` sit inside the HUD's
+## #390 — the [FusedPanel]'s `border_color`/`glow_color` sit inside the HUD's
 ## bloom-included canvas layer, so this is a "panel border" case the tier
 ## vocabulary covers same as text: VALUE for the selected-mode border.
 @export var mode_color: Color = Emissive.at(Color(0.9, 0.75, 0.4), Emissive.VALUE)
@@ -54,8 +54,14 @@ var _plan: AttackPlan = null
 var _binds := BindScope.new()
 
 
+## An unselected card's panel reads as an untinted [FusedPanel]: these are its
+## export defaults (#1771).
+const _IDLE_BORDER_COLOR := Color(0.47, 0.55, 0.75, 0.16)
+const _IDLE_BORDER_WIDTH := 1.0
+
+
 @onready var _title_label: Label = %Title
-@onready var _panel: GlassPanel = %GlassPanel
+@onready var _panel: FusedPanel = %FusedPanel
 
 
 func set_title(v: String) -> void:
@@ -130,10 +136,13 @@ func set_active(active: bool) -> void:
 
 func _apply_active(active: bool) -> void:
 	if _panel != null:
-		_panel.border_color = mode_color if active else Emissive.at(Color(0.47, 0.55, 0.75, 0.16), Emissive.INERT)
-		_panel.border_width = 1.8 if active else 1.0
-		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, glow_strength if active else 0.0)
-		_panel.glow_strength = glow_strength if active else 0.0
+		_panel.border_color = mode_color if active else _IDLE_BORDER_COLOR
+		_panel.border_width = 1.8 if active else _IDLE_BORDER_WIDTH
+		_panel.glow_color = Color(mode_color.r, mode_color.g, mode_color.b, 1.0)
+		# #1773: glow_strength now drives FusedPanel.glow directly (0-1 stroke
+		# visibility), the FanPanel mapping — a tentative read of the old
+		# pre-#1773 panel units, pending the owner's eyeball pass.
+		_panel.glow = glow_strength if active else 0.0
 	modulate.a = 1.0 if active else dim_opacity
 
 
