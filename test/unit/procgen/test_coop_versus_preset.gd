@@ -8,7 +8,7 @@ extends GutTest
 ## asserts an exact value. What is pinned is monotonicity inward, the two
 ## endpoints staying inside their design bands, and — the one authored value
 ## that could silently regress without any ratio-based assertion noticing —
-## `outer_radius = 0`, the opt-in that lets `_propagate_mask_radius` track the
+## `outer_radius = 0`, the opt-in that lets `ProcgenTopology._propagate_mask_radius` track the
 ## auto-scaled mask instead of a hardcoded radius.
 
 const _PRESET_PATH := "res://procgen/presets/coop_versus/coop_versus.tres"

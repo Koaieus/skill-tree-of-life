@@ -2,7 +2,7 @@ extends GutTest
 
 ## Acceptance for #339 ① — the procgen connectivity certificate. The skill
 ## tree must be ONE connected component, and that today rests on the Kruskal
-## pass in GraphProcgen._triangulate_and_prune spanning every node by
+## pass in ProcgenTopology.triangulate_and_prune spanning every node by
 ## construction. This test verifies it independently over the emitted graph:
 ## union-find over every real edge (self-loops excluded) must yield exactly
 ## one component.
