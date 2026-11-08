@@ -44,7 +44,9 @@ face of the element. without it, no reach effects"*.
 Charge (Lightning) are side-less terrain, owner-blind. At or under T they
 only *feel*: Cold drags a blade and Heat speeds it, one curve of the signed
 `t = heat − cold` (owner: *"maybe cold stacks slowing blade nodes sweeping
-over them (and heat stacks... should speed them up a lil?)"*). Past T the node
+over them (and heat stacks... should speed them up a lil?)"*; pass knob,
+2026-11-08: sweep-speed × `clamp(1 + c × t / T, 1 − c, 1 + c)`, `c` exported
+on the blade def, default 0.5 — tentative, easy to change). Past T the node
 is **primed**: Burning, Frozen, Shocked. **T = 2 × graph degree**, primed at
 count > T (owner: *"T = 2*graph_degree, so a leaf node fits 2 stacks of any
 without any effects, the third would be 3"*), a knob. The **excess** is
@@ -74,23 +76,34 @@ no rule of its own:
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
 | **Frozen** | denies: arriving reach stops here, a path ends (0D) | a blade snaps on it (below) |
 
-**What a go-off pays: open, per element.** Every trigger spends stacks from
-its own node; how many is the open call. Owner, 2026-11-08: *"Maybe.. spend
-½T stacks instead of 1? Or some multiple of *degree*?"*; then, of a degree-4
-node (T 8) at 9 Charge: *"would zap all nbs at cost of 1? or 4? 4 being ½T.
-would decharge more rapidly"*; and of Fire: *"9 heat / 1 burning it would
-feel a bit off if we were to hand off heat to any node like that (charge is
-more travel-across-edges-ey)"*. The two shapes: **1 per trigger** (#1733 round 3:
-*"consuming 1 at a time"*; excess E fires E times, the owner's volley: *"if
-you land F+1 hits on it it would explode for size(F), size(F-1), …,
-size(1)"*) or **½T = degree per
-trigger**, one per neighbour struck (a node full to the bare-ground cap 3T
-holds excess 2T = 4 × degree, so it fires 4 times whatever its degree). Lean:
-Shocked pays per neighbour (it travels edges), Burning pays 1 per blast.
-Whether a spend may take the node below T rides the same call (owner: *"it
-spends then however much we design it to, 1 (arriving AT `T`) or more"*). The
-spend destroys stacks and hands none to the reached nodes; only the
-triggering hit's riders ride the copies. **Copies carry everything**, element
+**What a go-off pays: Shocked settled, Burning open and widened
+(2026-11-08).** Every trigger spends stacks from its own node, at least one
+voided per go-off (owner, 2026-11-08: *"there should be at least 1 stack
+disappearing, possibly more"*), and a spend pays its full cost even when that
+digs under T (owner, 2026-11-08, picked *dig below T* over clamping at T: a
+degree-4 node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 —
+his earlier *"would decharge more rapidly"*). **Shocked pays 1 per neighbour
+struck** — the one-law framing, a trigger pays per reach element it fires
+(owner, 2026-11-08: *"the one law of option one looks good"*; earlier:
+*"charge is more travel-across-edges-ey"*); the shatter spends everything
+above T (§ A blade on Frozen). **Burning's cost is the open call**, widened
+past the original pair (1 per blast — the volley *"explode for size(F),
+size(F-1), …, size(1)"* — vs ½T = degree): *"maybe the cost or transfer (or,
+both, there should be at least 1 stack disappearing, possibly more) should
+generally relate to excess and or topology or reached target count"*, with a
+radiating shape on the table — *"say an explosion spreads heat around, away
+from the explosion triggering node, and also costing at least 1 stack being
+voided, then the explosion happens just once"* — against its own worries:
+minting (*"i think fuel should be the more "mints lots of Heat stacks" and
+explosions maybe shouldn't"*; a blast planting 1 Heat on every hit node at
+cost 1 is +N−1 Heat from nothing), the symmetry at size (*"at some explosion
+size, fire would hit basically "all its nbs" like equalling a shock to each
+nb"*), and the ranged sustain floor (*"heat builds up as arrows land,
+critical at some point, then explodes spreading, then heat up again, more
+explosion. but the explosion may be always at power 1 which would be a bit
+annoying"*). Unless the radiating shape is picked, the spend destroys stacks
+and hands none to the reached nodes; only the triggering hit's riders ride
+the copies. **Copies carry everything**, element
 stacks included, chained links flat (owner, 2026-11-08: *"everything rides
 yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
 the cap and decay are the brakes.
@@ -120,10 +133,21 @@ blade node, it.. shatters the ice … but *also* shatters the offending blade
 node!"*, then *"We want to pop just the two vtx. Not too dramatic, and
 remember Ice is 0D. Point like. Single target. So no splash or anything just
 a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
-check, nothing severed) and breaks the ice; pass: the ice spends everything
-above T, overflow included, into single-target damage to the frozen node's
-holder; the shape is open (owner, 2026-11-08: *"idk how it uses the excess as
-damage, flat increase or % or × idk yet. or differs per hit?"*).
+check, nothing severed) and breaks the ice. **The burst is corruption-shaped**
+(owner, 2026-11-08: *"frozen side: effect removed at %maxhp propto the amount
+removed"*; earlier: *"maybe %dmg like corruption stack triggers?"*): the
+shatter removes everything above T, overflow (deep freeze) included, and
+deals excess × a knob fraction × max HP to the frozen node's holder as TRUE
+damage, nothing if unallocated — the same shared burst path corruption's
+topple uses (`CorruptionStatus` deals topples × threshold × 2% of max HP
+through `DotTick.mint`), so there stays one implementation of "a burst
+lands". Open on it: the attacker-side bonus — the owner wants hits on the
+broken node to crit (*"the attacker's side any hits landing on it turn crits
+(tho i'm a bit unsure about this being feasible as it feels kinda like
+"evaluate payload, determine shatter, evaluate payload again but +1 crit"
+which is a questionable/unintuitive design)"*) — and whether the burst spends
+all the excess or a fraction (*"not sure exactly if all excess or some
+fraction of it"*).
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -671,13 +695,15 @@ here.
 
 ## Open
 
-- **What a go-off pays, per element** (§ The threshold model): 1 per
-  trigger, or ½T = degree; lean: Shocked pays per neighbour, Burning pays 1.
-  The same call decides whether a spend may take a node below T.
-- **How a shatter turns excess into damage** (§ The threshold model): flat, a
-  percentage, a multiplier, or per hit (owner, 2026-11-08). The owner's
-  2026-11-05 shapes are candidates too: *"maybe %dmg like corruption stack
-  triggers? … (or make it crit?!? [add +1 crit level])"*.
+- **Burning's go-off cost, and whether a blast radiates** (§ The threshold
+  model; Shocked per neighbour and dig-below-T settled 2026-11-08): 1 per
+  blast (the declining volley), 1 per reached node (the one law extended to
+  2D), or a transfer of the spent Heat onto the disc with ≥ 1 voided (the
+  radiating shape) — the owner's 2026-11-08 musing is quoted there.
+- **The shatter's attacker side** (§ A blade on Frozen; the %-max-HP burst is
+  settled): whether breaking the ice also makes hits on that node crit —
+  without re-evaluating the breaking hit, which the owner distrusts — and
+  whether the burst spends all the excess or a fraction.
 - **Ice concentrate's shape** (§ Ice on a cast): kept; the bespoke cast-time
   `shape` use there is the pass's best, unconfirmed.
 - **Element rows in the forge**: whether element ride rows take the aspect
