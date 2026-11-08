@@ -44,6 +44,10 @@ extends ColorRect
 		glow_energy = v
 		_push_instance(&"glow_energy", v)
 
+@export var glow_color: Color = Color(0.4, 0.95, 1.0, 1.0)
+@export var border_color: Color = Color(0.47, 0.55, 0.75, 0.16)
+@export_range(0.0, 8.0, 0.1) var border_width: float = 1.0
+
 
 func _ready() -> void:
 	if material == null:
