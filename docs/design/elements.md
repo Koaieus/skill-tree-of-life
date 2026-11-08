@@ -187,7 +187,11 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
 - **Terrain is side-less.** A terrain stack, and Fuel, rests on a node
   regardless of owner, survives kills, retakes and deallocs, and leaves by
   being *spent* (a go-off spends its own node's stacks), by decay (per-def,
-  ADR 0048; § The threshold model's cooling) or by a cleanse. Heat and Cold
+  ADR 0048; § The threshold model's cooling) or by a cleanse. **A holder's
+  death changes nothing**: death is not a hit and terrain cannot see owners
+  (owner, 2026-11-08, picked *nothing — terrain persists* over a terrain hit
+  per primed node; #1660's "death blasts first" is pre-threshold history).
+  The battlefield a fight built stays dangerous for whoever retakes it. Heat and Cold
   flow as one signed `t` (§ Temperature) and rest on unallocated ground; Fuel
   and Charge stay put. Owner, 2026-11-05, on a capped wall beside bare
   neighbours: *"something doesn't quite feel right of a 100 Cold node with
@@ -208,7 +212,9 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
   1) gives k = 3. `stake_ceiling` is 3 unless raised, so k runs 3–5; a leaf
   (T 2) holds 6–10, a degree-5 hub (T 10) 30–50, which late counts (20–50)
   can fill. The cap is soft: stacks past it are the **overflow** (§ Derived
-  states). Owner, 2026-11-05, asked whether a 100-Cold wall should be nigh
+  states). **Fuel takes its own cap of the same k × T** (owner, 2026-11-08,
+  over sharing the temperature cap or none): one derived rule reused, one bar
+  shape, and a blast is bounded at roughly excess + Fuel ≤ 2 × k × T. Owner, 2026-11-05, asked whether a 100-Cold wall should be nigh
   impossible to remove: *"option 1 sounds good"* (the cap) over proportional
   decay alone. One rule bounds a Cold wall's depth, a blast's power and a
   Shocked node's hops — the magnitude fork of #1733 round 3.
@@ -367,7 +373,7 @@ aspects change payload, damage stays one number. Movers get
 place it is one word, "elemental" (owner, 2026-11-04: *"if it gets one, its
 just 'elemental' (opposing physical or magic or true)"*).
 
-## Ice on a cast: concentrate (owner, 2026-11-04/05/08; shape open)
+## Ice on a cast: concentrate (owner, 2026-11-04/05/08)
 
 Burning and Shocked add copies at a landing. Ice concentrate does the
 opposite **at cast time**: an Ice load rewrites the spell's own hops down and
@@ -409,12 +415,27 @@ an 800-map and about the same on the aimed 2–4k map, so the number to
 reason against is reach versus the *target's territory*, which grows over a
 run (an entity holding 100 nodes is covered by a 6-hop fan). The first hops
 are worth the most: a flat bonus per hop
-removed overpays long spells and underpays short ones. **Pass lean:**
-the Ice row's int:int affinity converts count to hops per spell (Venom Burst
-2:1, Pestilence 4:1 — the ADR 0060 mechanism, which also absorbs counts of
-20–50), and each hop removed multiplies the seed payload by a per-spell knob
-near the measured ratio of the hop it removes. Surplus Ice beyond the spell's
-hops is wasted; a 0-hop spell has nothing to trade.
+removed overpays long spells and underpays short ones. **The pricing (owner,
+2026-11-08: *"leaning 1"*):** the Ice row's int:int affinity converts count
+to hops per spell (Venom Burst 2:1, Pestilence 4:1 — the ADR 0060 mechanism,
+which also absorbs counts of 20–50), and each hop removed multiplies the seed
+payload by a per-spell knob near the measured ratio of the hop it removes.
+Surplus Ice beyond the spell's hops is wasted; a 0-hop spell has nothing to
+trade. The affinity may live on a dedicated **elemental slot** in the forge
+(owner, 2026-11-08: *"spells could use a separate elemental affinity (3 units
+of int:int, for fire/ice/lightning, befitting the forge's elemental slot that
+players can spend their elemental attunement on (how much "fire" they are,
+`fire_element`)"* — a lean, carried by § Open's forge-slots item).
+
+**"Ice alters the spell" and "Ice adds Cold riders" are one mechanism, two
+uses** (owner asked, 2026-11-08: *"seems both should be made possible, or are
+they one and the same?"*): an intake row is identity + rates + a swappable
+use (ADR 0070), so a Cold *ride* row plants riders and the concentrate is a
+bespoke *shape* use on the same row type. Which one a spell's Ice row runs is
+authored per spell — a Frost Nova plants Cold, a Pestilence concentrates —
+and one spell may carry both as two rows, since rows key on the status or use
+they run, never on the bare element (#1660 B2), while the one `ice` count
+budgets both.
 
 **The price is an authored mass per spell, spent by a swappable use** (owner,
 2026-11-05: *"option 1 but possibly even in this authoring one could set up
@@ -522,6 +543,13 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **Burning** | explodes (§ The threshold model) | nets: Cold cools it, for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
 | **Frozen** | denies reach, ends a path; a blade vertex snaps | nets: Heat thaws it, for the next landing | cold passage: no shed (#1444) |
+
+**Frozen mutes the node's own go-offs — tentative** (owner, 2026-11-08,
+picked *ice wins: frozen solid* over "emitting isn't arriving", then: *"that
+last pick is tentative, might need to go more in depth on that one"*): a node
+both Frozen and Shocked neither receives nor emits — the Charge sits trapped
+under the ice until it thaws or shatters. Freezing a wire cuts it. The deeper
+look it needs is § Open's Frozen-pairs item.
 
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
@@ -690,16 +718,11 @@ here.
 
 ## Open
 
-- **Ice concentrate's shape** (§ Ice on a cast): kept; the bespoke cast-time
-  `shape` use there is the pass's best, unconfirmed.
-- **Element rows in the forge**: whether element ride rows take the aspect
-  slots (INT) or slots of their own, and how many elements one cast may
-  carry.
-- **A death blast** (#1660: a death blasts first): a holder's death is not a
-  hit, so whether it sets off a primed node, spends its terrain, or does
-  nothing to it.
-- **Fuel's cap**: k × T caps the terrain stacks; whether Fuel, which never
-  counts toward T, shares that cap.
+- **Element rows in the forge**: the owner's lean (2026-11-08, § Ice on a
+  cast) is a dedicated elemental slot — 3 units of int:int, one per element,
+  spent from elemental attunement (`fire_element`) — rather than the aspect
+  slots; how many elements one cast may carry, and the slot's shape, are
+  still open.
 - **Breaking Frozen by reach**: Frozen denies reach; whether a big enough
   blast or arc arriving breaks the ice instead (owner, 2026-11-05: *"maybe
   the "frozen" state sets some kind of glass ceiling for what it absorbs,
@@ -707,8 +730,11 @@ here.
   the breaker is on the table (owner, 2026-11-08: *"crits may still play a
   role in determining whether a shatter occurs?"*). Heat, a blade's snap and
   decay break it already.
-- **Frozen and Shocked on one node**: whether the ice denies the node's own
-  arcs, or only reach arriving from elsewhere.
+- **Frozen pairs, in depth**: *ice wins — frozen solid* is the tentative pick
+  (owner, 2026-11-08: *"that last pick is tentative, might need to go more in
+  depth on that one"*): whether Frozen muting the node's own arcs holds up
+  once wires, trapped Charge and the shatter interact — revisit with
+  Lightning's spec.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
   run of Shocked nodes shares its Charge each world turn — the one flow
   Charge could have beside staying put.
