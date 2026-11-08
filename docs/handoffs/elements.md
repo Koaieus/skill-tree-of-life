@@ -8,84 +8,98 @@ names is on master; nothing lives only in a transcript.
 Continue the elements design pass (#1716 is the hub). Read, in order:
 
 1. `docs/design/elements.md` — every owner call to date, quoted and dated
-   (2026-11-03 to 11-08); pass proposals are marked as such.
-2. `docs/adr/0075-*.md`, then `0072-*.md`, `0073-*.md`, `0074-*.md` and
-   `0070-*.md` (a row's use is a swappable `LoadUse` Resource, the open set
-   the owner reached for again on 2026-11-05 for the Ice use).
-3. The adversarial review findings at the end of this file (most are now
-   closed in the doc; the live ones are listed in the doc's § Open).
-4. #1733 (payload and reach rules, owner verdicts rounds 2–3), #1444 (Ice),
+   (2026-11-03 to 11-08); pass proposals are marked as such. The doc reads as
+   one design under the threshold model and is close to settled.
+2. `docs/adr/0075-*.md` (the threshold model and terrain-only reach; its
+   "not decided here" list is now almost all decided — see below), then
+   `0070-*.md` (a row's use is a swappable `LoadUse`, an open set).
+3. The adversarial review findings at the end of this file (most are closed;
+   the live ones are in the doc's § Open).
+4. Only as needed per § Open item: #1733 (payload and reach), #1444 (Ice),
    #1660 (Fire), #1741 (a hit crits once), #1765 (ranged Fuel access).
 
 Work case by case with `AskUserQuestion`, one or two forks per question, the
 recommended option first; after each verdict write it into
-`docs/design/elements.md` with the quote and date. **Local session (the
-checkout is `/home/bramh/...`): commit on master and push, no PR** (owner,
-2026-11-05). Cloud session: a docs-only PR (auto-merge takes `docs/design/`
-and `docs/handoffs/`, never `docs/adr/`). `mise run docs-hygiene` after a
-design doc, `adr-hygiene` after an ADR. `gh issue view` is blocked
-(GraphQL); use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and
-`/comments`. **Pull before editing**: on 2026-11-05 local master was left
-behind origin on purpose (owner WIP in `ui/hud/minimap_panel/` blocks a
-fast-forward); the verdicts live on origin/master.
+`docs/design/elements.md` with the quote and date, commit, push. **Local
+session (the checkout is `/home/bramh/...`): commit on master and push, no
+PR** (owner, 2026-11-05); from a worktree, push `HEAD:master` (the main
+checkout holds owner WIP in `ui/hud/minimap_panel/` and stays behind origin
+on purpose — **pull/rebase onto origin/master before editing and before every
+push**; other sessions land commits mid-pass). Cloud session: a docs-only PR
+(auto-merge takes `docs/design/` and `docs/handoffs/`, never `docs/adr/`).
+`mise run docs-hygiene` after a design doc, `adr-hygiene` after an ADR.
+`gh issue view` is blocked (GraphQL); use
+`gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
 
-Earlier verdicts (2026-11-03 to 11-06) live in the doc where they still hold;
-ADRs 0073/0074 predate the threshold model and are read as history, superseded
-in part by ADR 0075.
-
-Settled 2026-11-08 (doc § The threshold model; the doc now reads as one
-design under it, and it overrides the 2026-11-05/06 lines above where they
-disagree): one side-less terrain stack per element (Heat, Cold,
-Charge), inert up to **T = 2 × degree**, primed past it (Burning, Frozen,
-Shocked); **reach is terrain-only** (a hit is damage + riders; an element
-infusion's use is an open set, a Heat or Charge ride row or something
-bespoke); the trigger is a hit on a primed node; what a go-off pays is open
-per element (below); copies carry everything (*"LET IT RIDE!"*, so #1735
-fork 1 closes *flat*); Shocked arcs to every neighbour; Charge stays put;
-one size ladder L at count > L² × T; Burning burns its holder; Fuel is an
-accelerant spent whole into 2 Heat on its own node; Frozen × blade is a
-two-vertex fragile snap; flat decay of 1 per world turn cools the board;
-"excess" = above T, "overflow" = above the cap; Blaze/Supercharge dropped.
+Settled 2026-11-08, evening pass (all in the doc with quotes; commits
+0769a0f1..e0b838af): **a go-off pays 1 per node it reaches** (one law:
+Shocked 1 per neighbour, Burning 1 per disc node, Frozen the 0D case turned
+inward — one target, the whole store); a blast reaching no *other* node does
+not go off (no spend); a spend digs below T (full cost); power = excess read
+after the triggering hit's riders land (primed-ness reads pre-hit, disc size
+post-land); the radiating-blast shape was rejected (mirrors diffusion). **The
+shatter burst is corruption-shaped**: excess × knob fraction (default 1%/
+stack) × max HP as TRUE damage through the shared `DotTick.mint` path,
+nothing if unallocated; spend fraction knob default 1.0. **Ice breakers**:
+a blade vertex's touch, any crit hit, and any damage ≥ a flat threshold
+(knob, default 10% max HP, deliberately not excess-scaled); the threshold
+covers direct hits and arriving copies (a copy that breaks through also
+lands). **Frozen + Shocked**: frozen solid — the ice mutes the node's own
+go-offs; trapped Charge releases when the ice breaks, same settle, one
+compound read ("Frozen mutes Shocked unless this hit shatters"), never a
+re-evaluation. **A holder's death changes nothing** to terrain ("death blasts
+first" is pre-threshold history). **Fuel takes its own cap of the same
+k × T.** **Ice concentrate pricing**: authored per-hop multiplier, confirmed
+as a lean; "alters the cast" vs "plants Cold" are two uses of the one row
+mechanism, authored per spell. **Forge lean**: a dedicated elemental slot —
+3 units of int:int, one per element, spent from elemental attunement
+(`fire_element`). Blade speed curve knob written (clamped linear in t/T).
+Greed/#1659 was closed not planned by a parallel session and is off the list.
 
 Still open, in this order:
 
-- **What a go-off pays, per element**: 1 per trigger, or ½T = degree. Lean:
-  Shocked pays per neighbour, Burning pays 1. This also decides whether a
-  spend may take a node below T.
-- **How a shatter turns excess into damage**: flat, a percentage, a
-  multiplier, or per hit.
-- **Ice concentrate**: kept, shape open. The owner's 2026-11-08 line:
-  infusions may be bespoke (*"spell infusions may also do bespoke stuff
-  instead of simply adding riders"*).
-- **Pass picks to confirm in one line**: the shatter spends everything above
-  T as single-target damage; the blade speed curve of `t`.
-- The rest of the doc's § Open (element rows in the forge, a death blast,
-  Fuel's cap, breaking Frozen by reach, Frozen + Shocked on one node, the
-  parked "a wire evens itself out").
-- **Explosive artifacts**: every orphan in finding 15 needs a destination or
-  a supersession before any element issue goes `Ready` — mostly spec-time
-  facts (`explosive` → `fuel` rename, `DetonateUse`/`DetonateEffect` retired
-  by Burning-ignites + the `ReachUse` seam, the barrel addon → the Fire::Fuel
-  addon cell, `docs/domain/explosive.md` rewritten at build).
+- **Follow-up ADR**: ADR 0075's "not decided here" is now almost all decided
+  (go-off cost, shatter shape, ice breakers, trapped charge, death, Fuel's
+  cap, the Ice pricing lean). Write the ADR recording them (`/adr`), and in
+  it or beside it resolve the **ADR 0077/0079 terrain-path tension** (doc
+  § Open, librarian pass 2026-11-08): terrain cascades sync by determinism
+  with "never a host-minted record" (owner, 2026-11-05) vs 0077's "peers
+  never re-derive a number" and 0079's "the world is mutated only by
+  `OutcomeApplier` landing a rebuilt record"; 0077 is also silent on whether
+  an attack's record carries its go-off copies' landings. Needs an owner
+  call on scope (a terrain-path carve-out vs widening the record).
+- **The forge elemental slot**: the owner's lean is recorded (doc § Open);
+  open: the slot's shape and how many elements one cast may carry.
+- **#1765 — ranged's access to Fuel / the Element Matrix**: availability
+  parity with Clamp, one budget per element vs each ammo type minting, the
+  per-type stock cap (doc § Open carries the quotes).
+- **Explosive artifacts**: every orphan in finding 15 (below) needs a
+  destination or a supersession before any element issue goes `Ready` —
+  mostly spec-time facts (`explosive` → `fuel` rename, `DetonateUse`/
+  `DetonateEffect` retired by Burning-ignites + the `ReachUse` seam, the
+  barrel addon → the Fire::Fuel addon cell, `docs/domain/explosive.md`
+  rewritten at build).
 - **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
   (manage-stats), a new `StatDef.Role`; a member keys its own facets.
-- **ADR 0075** is written:
-  `docs/adr/0075-reach-is-terrain-only-a-terrain-stack-is-inert-to-t-and-primed-past-it.md`.
-  It supersedes 0073 in part (the use is 0070's open set; the reach entry is
-  gone, reach is terrain-only) and 0074 in part (Cold under T no longer
-  absorbs; the cap's k is `2 + stake_level` and the cap is soft), and records
-  the 2026-11-05 verdicts that still hold (terrain hit, determinism, the world
-  clock, copies carry everything). It leaves the go-off cost, the shatter
-  and Ice concentrate's shape open; a later ADR records them once settled.
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).
-- The size-ladder and disc knobs (#1733); inner-tree shape; #1765.
+- Parked, not open: "a wire evens itself out"; the arc mirror (Lightning's
+  spec); spike-pop docs-vs-code check (Ice spec). The size-ladder and disc
+  knobs tune with #1733; inner-tree shape and the card offer's cadence are
+  filed against the hub.
 - Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
   1:1 guard test (code, first element issue).
 
-Delete this file once #1716 is split into children (below) and the
-items above are all settled or filed.
+Knobs so far (tentative pass picks unless marked owner): T = 2 × degree
+(owner); k = 2 + stake_level (owner); shatter fraction 1%/stack; shatter
+spend fraction 1.0; ice break threshold 10% max HP; blade sweep-speed
+clamp(1 + c·t/T, 1−c, 1+c), c = 0.5; Fuel → 2 Heat per Fuel (owner); hop
+ladder L² × T (owner); disc radius √power × node radius (owner); decay 1 per
+world turn, Fuel slower; world turn every ceil(sqrt(N)) played turn ends.
+
+Delete this file once #1716 is split into children (below) and the items
+above are all settled or filed.
 
 When the list is empty: split #1716 into drone-sized children with `spec`
 (first: the element count + `ReachUse` seam; Fire = #1660's children; Ice =
