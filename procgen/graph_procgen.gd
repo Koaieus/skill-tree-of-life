@@ -129,7 +129,7 @@ static func generate(
 	# Generation resolves on its OWN copy and returns it as `"config"`; the
 	# caller's config object is never written to (see resolve_config). Copy
 	# before the first yield, so no frame ever runs on the caller's object.
-	config = ProcgenTopology.resolve_config(config)
+	config = resolve_config(config)
 	await _emit_progress(progress_cb, 0.02, "Preparing shape")
 	await _emit_progress(progress_cb, 0.05, "Sampling positions")
 	# Stages 1–3 in one phase: starter assembly, Poisson sample, Delaunay +
@@ -963,3 +963,48 @@ const _INNER_RING_PX := 8.0
 static func _stamp_radius(sn: SkillNode, base_radius: float) -> void:
 	sn.base_radius = base_radius
 	sn.base_inner_radius = base_radius - _INNER_RING_PX
+
+
+## Returns a copy of `config` with its generate-time values resolved — the
+## shape mask auto-scaled to `node_count` (when the mask opts in and
+## `scale_mask` is set) and the mask radius handed to every [ScalarField].
+## Never writes to `config`. The shallow duplicate shares the untouched
+## modules by reference; the two it mutates — `shape` and `content` — are
+## deep-copied, because both are module `.tres` files whose `duplicate(true)`
+## stops at every ExtResource boundary (see test_procgen_carve_shape.gd): a
+## write through the caller's reference would land on the cached on-disk
+## module every other load of the preset shares.
+## `scale_mask = false` keeps the authored mask size — a preview that samples
+## the authored config rather than a generated map.
+static func resolve_config(config: GraphProcgenConfig, scale_mask: bool = true) -> GraphProcgenConfig:
+	var out: GraphProcgenConfig = config.duplicate()
+	if out.shape != null:
+		out.shape = out.shape.duplicate(true)
+	if out.content != null:
+		out.content = out.content.duplicate(true)
+	if out.shape == null or out.shape.shape_mask == null:
+		return out
+	# Auto-size the shape mask so Poisson can fit node_count at the requested
+	# spacing without under-filling. See _POISSON_AREA_PER_POINT above; the
+	# spacing itself is [method ProcgenTopology.min_node_dist].
+	if scale_mask and out.shape.shape_mask.auto_scale:
+		var min_dist := ProcgenTopology.min_node_dist(out.topology)
+		var target_area := target_area_for_node_count(out.topology.node_count, min_dist)
+		out.shape.shape_mask.size_for(target_area, min_dist * 4.0)
+	_propagate_mask_radius(out)
+	return out
+
+
+## Hands the active shape mask's resolved radius to every [ScalarField] the
+## content holds. Which fields exist is each holder's answer
+## ([method GraphProcgenContent.scalar_fields]); what a field does with the
+## radius is its own ([method ScalarField.resolve_mask_radius]).
+static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
+	if config.shape.shape_mask == null or config.content == null:
+		return
+	var aabb := config.shape.shape_mask.aabb()
+	var resolved_radius := 0.5 * minf(aabb.size.x, aabb.size.y)
+	if resolved_radius <= 0.0:
+		return
+	for field in config.content.scalar_fields():
+		field.resolve_mask_radius(resolved_radius)
