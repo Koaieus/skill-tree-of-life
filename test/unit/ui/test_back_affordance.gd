@@ -200,7 +200,7 @@ func test_set_progress_fades_and_grows_it() -> void:
 ## at the endpoints, never a second curve for the glass.
 func test_the_glass_backing_shares_the_labels_reveal_clock() -> void:
 	var glass: Control = _affordance.get_node("Glass")
-	assert_true(glass is GlassPanel, "the house glass skin backs the button")
+	assert_true(glass is FusedPanel, "the house fused skin backs the button")
 
 	_affordance.apply(MenuGraph.ID_NEW_GAME, false)
 	assert_almost_eq(_affordance.modulate.a, 0.0, 0.0001, "t=0: root (and glass with it) invisible")

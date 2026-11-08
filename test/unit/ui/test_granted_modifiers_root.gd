@@ -119,9 +119,9 @@ func test_bind_adds_no_header_no_legend_no_frame() -> void:
 	assert_null(root.get_node_or_null("Legend"))
 	# No panel/frame Control anywhere in the tree — every child is either the
 	# %Rows container or a bare content row (Label / ModSlabRow), never a
-	# GlassPanel/HoloPanel skin.
+	# FusedPanel/HoloPanel skin.
 	for child in root.get_children():
-		assert_false(child is GlassPanel or child is HoloPanel, "no containing panel by design")
+		assert_false(child is FusedPanel or child is HoloPanel, "no containing panel by design")
 
 
 func test_rows_rest_at_zero_and_are_driven_via_set_progress_stagger() -> void:

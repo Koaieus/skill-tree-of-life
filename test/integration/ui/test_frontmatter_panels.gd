@@ -434,7 +434,7 @@ func test_the_join_panel_dismisses_via_dismiss() -> void:
 ##
 ## Re-pointed: this used to also assert no `ColorRect` anywhere in the tree,
 ## back when a `ColorRect` could only mean an accidental opaque backdrop. #611
-## D2 authors a [GlassPanel] — a `ColorRect` under the hood — as the base
+## D2 authors a [FusedPanel] — a `ColorRect` under the hood — as the base
 ## panel's own deliberate chrome, so that blanket check would now fail on
 ## exactly the thing it is supposed to have. The click-safety concern it was
 ## really guarding is [method _assert_no_full_rect_stop], which still checks
@@ -444,8 +444,8 @@ func test_the_base_panel_has_no_back_button_and_nothing_eats_clicks() -> void:
 	add_child_autofree(panel)
 
 	# `find_children`'s type filter matches a script `class_name`; `_find_type`
-	# below only matches `get_class()`, which is `ColorRect` for a `GlassPanel`.
-	assert_false(panel.find_children("*", "GlassPanel", true, false).is_empty(),
+	# below only matches `get_class()`, which is `ColorRect` for a `FusedPanel`.
+	assert_false(panel.find_children("*", "FusedPanel", true, false).is_empty(),
 			"the base chrome authors its own glass now")
 	assert_null(panel.get_node_or_null("BackButton"), "no per-panel back button")
 	_assert_no_full_rect_stop(panel)
@@ -524,7 +524,7 @@ func test_the_base_panel_reshapes_into_outer_margin_glass_inner_margin() -> void
 	assert_gt(outer.get_theme_constant(&"margin_right"), 0, "inset from the right")
 	assert_gt(outer.get_theme_constant(&"margin_bottom"), 0, "inset from the bottom")
 
-	var glass := outer.find_children("*", "GlassPanel", false, false)
+	var glass := outer.find_children("*", "FusedPanel", false, false)
 	assert_eq(glass.size(), 1, "exactly one glass panel, direct child of the outer margin")
 	var glass_panel := glass[0] as Control
 
@@ -554,7 +554,7 @@ func test_every_inherited_panel_gets_the_frame_from_the_base_scene_alone() -> vo
 		assert_not_null(panel.get_node_or_null("%OuterMargin"), "%s inherits the outer margin" % path)
 		assert_not_null(panel.get_node_or_null("%InnerMargin"), "%s inherits the inner margin" % path)
 		assert_eq(
-			panel.find_children("*", "GlassPanel", true, false).size(), 1,
+			panel.find_children("*", "FusedPanel", true, false).size(), 1,
 			"%s inherits exactly one glass panel, never authors its own" % path,
 		)
 

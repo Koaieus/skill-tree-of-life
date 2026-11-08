@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Tooltip V2 (#159, #303): FanPanel wraps whichever skin Control is hand-placed
-## as its first child (GlassPanel/HoloPanel — swap by editing the child, per
+## as its first child (FusedPanel/HoloPanel — swap by editing the child, per
 ## #215's "which packed scene" decision, not a runtime enum) and forwards a
 ## single `glow` knob per skin type. Since #303, FanPanel is a peer of
 ## FanTrace: a readable `progress` plus self-driven `play_in()` / `play_out()
@@ -18,10 +18,10 @@ func _make() -> FanPanel:
 	return panel
 
 
-func test_default_skin_is_the_hand_placed_glass_panel() -> void:
+func test_default_skin_is_the_hand_placed_fused_panel() -> void:
 	var panel := _make()
 	await get_tree().process_frame
-	assert_true(panel.get_skin() is GlassPanel, "fan_panel.tscn ships a GlassPanel skin by default")
+	assert_true(panel.get_skin() is FusedPanel, "fan_panel.tscn ships a FusedPanel skin by default")
 
 
 func test_swapping_the_skin_child_to_holo_is_picked_up() -> void:
@@ -47,15 +47,15 @@ func test_glow_forwards_to_holo_panel_directly() -> void:
 	assert_almost_eq(holo.glow, 0.7, 0.001, "HoloPanel.glow reads FanPanel.glow directly")
 
 
-func test_glow_maps_onto_glass_panel_strength_and_tint_alpha() -> void:
+func test_glow_forwards_to_the_default_fused_panel_directly() -> void:
 	var panel := _make()
 	await get_tree().process_frame
-	panel.glow_tint = Color(0.5, 0.6, 0.7)
 	panel.glow = 0.5
-	var glass := panel.get_skin() as GlassPanel
-	assert_almost_eq(glass.glow_strength, 20.0, 0.001, "glow_strength = glow * 40")
-	assert_almost_eq(glass.glow_color.a, 0.5, 0.001, "glow_color alpha carries glow")
-	assert_almost_eq(glass.glow_color.r, 0.5, 0.001, "glow_color rgb carries glow_tint")
+	var fused := panel.get_skin() as FusedPanel
+	assert_not_null(fused, "the default skin is a FusedPanel")
+	if fused == null:
+		return
+	assert_almost_eq(fused.glow, 0.5, 0.001, "FusedPanel.glow reads FanPanel.glow directly")
 
 
 func test_progress_zero_parks_at_start_scale_and_hidden() -> void:
