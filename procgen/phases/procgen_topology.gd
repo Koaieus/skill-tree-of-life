@@ -4,8 +4,7 @@ extends RefCounted
 
 ## Stages 1–3 of [method GraphProcgen.generate] (hub #422, child 2),
 ## extracted from `graph_procgen.gd` with their bodies unchanged: config
-## spacing ([method min_node_dist] — the mask resolve itself stays
-## [method GraphProcgen.resolve_config], which has callers outside procgen), starter assembly,
+## resolve (mask auto-scale + radius propagation), starter assembly,
 ## Poisson-disk sampling and the Delaunay → MST + extras prune. Static and
 ## stateless — the caller owns the RNG and hands it in (starter `plan` and
 ## Poisson draw from it in the same order as before), and this phase never
@@ -26,18 +25,18 @@ class Result extends RefCounted:
 
 
 ## Starters → anchors → Poisson positions → pruned edge pairs, on an
-## already-resolved `config` (see [method GraphProcgen.resolve_config]).
+## already-resolved `config` (see [method resolve_config]).
 static func run(config: GraphProcgenConfig, rng: RandomNumberGenerator) -> Result:
 	var out := Result.new()
-	var min_dist := min_node_dist(config.topology)
+	var min_dist := _min_node_dist(config.topology)
 	# Final ordered starter list = manual entries first, then any random anchors
 	# we place. Caller reads back via `starting_nodes` in the same order, so
 	# manual vs. random can be told apart by index.
 	var starters: Array[StartingPoint] = []
 	if config.starting.starter_placement != null:
 		# Camp-relative annulus placement replaces the whole manual
-		# list. Read the resolved radius the same way GraphProcgen.resolve_config
-		# propagates it — the mask is already auto-scaled by this point.
+		# list. Read the resolved radius the same way _propagate_mask_radius
+		# does — the mask is already auto-scaled by this point.
 		var resolved_radius := 0.0
 		if config.shape.shape_mask != null:
 			var mask_aabb := config.shape.shape_mask.aabb()
@@ -147,8 +146,55 @@ static func triangulate_and_prune(positions: Array[Vector2], connectivity: float
 	return kept
 
 
+# ── Config resolve ────────────────────────────────────────────────────────
+
+
+## Returns a copy of `config` with its generate-time values resolved — the
+## shape mask auto-scaled to `node_count` (when the mask opts in and
+## `scale_mask` is set) and the mask radius handed to every [ScalarField].
+## Never writes to `config`. The shallow duplicate shares the untouched
+## modules by reference; the two it mutates — `shape` and `content` — are
+## deep-copied, because both are module `.tres` files whose `duplicate(true)`
+## stops at every ExtResource boundary (see test_procgen_carve_shape.gd): a
+## write through the caller's reference would land on the cached on-disk
+## module every other load of the preset shares.
+## `scale_mask = false` keeps the authored mask size — a preview that samples
+## the authored config rather than a generated map.
+static func resolve_config(config: GraphProcgenConfig, scale_mask: bool = true) -> GraphProcgenConfig:
+	var out: GraphProcgenConfig = config.duplicate()
+	if out.shape != null:
+		out.shape = out.shape.duplicate(true)
+	if out.content != null:
+		out.content = out.content.duplicate(true)
+	if out.shape == null or out.shape.shape_mask == null:
+		return out
+	# Auto-size the shape mask so Poisson can fit node_count at the requested
+	# spacing without under-filling. See GraphProcgen._POISSON_AREA_PER_POINT.
+	if scale_mask and out.shape.shape_mask.auto_scale:
+		var min_dist := _min_node_dist(out.topology)
+		var target_area := GraphProcgen.target_area_for_node_count(out.topology.node_count, min_dist)
+		out.shape.shape_mask.size_for(target_area, min_dist * 4.0)
+	_propagate_mask_radius(out)
+	return out
+
+
 ## Poisson spacing, sized for the LARGEST radius any node can carry:
 ## with a `node_radius_ramp` that is the ramp's asymptote, so a max-budget
 ## node still clears its neighbours; without one the uniform node_radius.
-static func min_node_dist(topology: GraphProcgenTopology) -> float:
+static func _min_node_dist(topology: GraphProcgenTopology) -> float:
 	return 2.0 * topology.max_node_radius() + topology.node_padding
+
+
+## Hands the active shape mask's resolved radius to every [ScalarField] the
+## content holds. Which fields exist is each holder's answer
+## ([method GraphProcgenContent.scalar_fields]); what a field does with the
+## radius is its own ([method ScalarField.resolve_mask_radius]).
+static func _propagate_mask_radius(config: GraphProcgenConfig) -> void:
+	if config.shape.shape_mask == null or config.content == null:
+		return
+	var aabb := config.shape.shape_mask.aabb()
+	var resolved_radius := 0.5 * minf(aabb.size.x, aabb.size.y)
+	if resolved_radius <= 0.0:
+		return
+	for field in config.content.scalar_fields():
+		field.resolve_mask_radius(resolved_radius)
