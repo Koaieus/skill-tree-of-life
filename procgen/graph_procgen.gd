@@ -203,11 +203,13 @@ static func generate(
 	var yield_every := maxi(1, positions.size() / 10)
 	for i in positions.size():
 		# One node per call: the loop (and its progress emits) stays here,
-		# the roll body lives in the phase.
-		ProcgenNodeRoll.run(
+		# the roll body lives in the phase. An authored-scene node skips the
+		# progress tail, as the loop's `continue` always did.
+		if not ProcgenNodeRoll.run(
 				i, positions, graph, placement_ctx, type_assignments, blocker_sizes,
 				config, rng, subtype_rng, default_subtype, subtype_drawable,
-				nodes, int_nodes, addon_eligible)
+				nodes, int_nodes, addon_eligible):
+			continue
 		if i > 0 and i % yield_every == 0:
 			# 0.45 → 0.92 over the per-node loop.
 			var frac: float = 0.45 + 0.47 * (float(i) / float(positions.size()))

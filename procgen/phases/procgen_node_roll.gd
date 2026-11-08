@@ -20,7 +20,9 @@ const _BLOCKER_NODE_SCENE := preload("res://skill_node/blocker_node.tscn")
 
 ## Rolls and instantiates node `i`, appending it to `nodes` and, where the
 ## post-loop passes expect it, to `addon_eligible` / `int_nodes`. The draw
-## order is exactly the old loop body's.
+## order is exactly the old loop body's. Returns false for an authored-scene
+## node (the old loop's `continue`): the caller skips its progress tail for it,
+## as the loop always did.
 static func run(
 		i: int,
 		positions: Array[Vector2],
@@ -36,7 +38,7 @@ static func run(
 		nodes: Array[SkillNode],
 		int_nodes: Array[SkillNode],
 		addon_eligible: Array[SkillNode],
-) -> void:
+) -> bool:
 	var sn: SkillNode
 	var authored_scene: PackedScene = placement_ctx.scenes[i]
 	if authored_scene != null:
@@ -51,7 +53,7 @@ static func run(
 			sn.set_meta("role_tags", placement_ctx.role_tags[i].duplicate())
 		graph.add_skill_node(sn)
 		nodes.append(sn)
-		return
+		return false
 	if blocker_sizes.has(i):
 		sn = _BLOCKER_NODE_SCENE.instantiate()
 	else:
@@ -122,3 +124,4 @@ static func run(
 	if GraphProcgenSpellGrants.is_eligible_node(archetype_primary_stat):
 		int_nodes.append(sn)
 	nodes.append(sn)
+	return true
