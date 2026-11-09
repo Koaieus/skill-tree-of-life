@@ -32,7 +32,16 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Parasitic** | A mechanic that only works with its own kind (MTG). `spikes` × `blunting` was: each existed only for the other, melee-only | — |
 | **Horizontal vs vertical** | Variation by shape vs by numbers. Our variants must be horizontal | — |
 | **Element** | A second axis beside aspects: one count (`fire`), a status family with fixed roles — **medium** (side-less terrain, gives reach), **mover** (sided, hurts), **state** (a threshold, no count). An element's reach load feeds reach; its statuses ride as any rider does. An aspect is one status; only an element is a family — [elements.md](elements.md) | an aspect, a damage type, a parent of aspects |
-| **Payload** / **reach** | What a hit delivers (damage + aspect riders) / where it lands (point, disc, path) | each other |
+| **Payload** | What a hit delivers: damage plus its riders, any status (aspect and element statuses alike) | where it lands |
+| **Reach** | Where a hit's copies land, set by the node it lands on: a disc, a path, a point | anything a hit carries |
+| **Load** | The amount of an infused thing a cast carries: an aspect or element-status load | a node's stacks |
+| **Rider** | Plants a status, any status (a goo arrow plants Catalyst) | a reach |
+| **Use** | What an intake row's load buys: an open set (ride, a bespoke shape, cleanse …) | a slot |
+| **Member** | A status of an element, whatever its role (Heat of Fire, Frostbite of Ice); Catalyst is nobody's member | a facet or a role |
+| **Primed** | A node whose terrain stack is past T (count > T, T = 2 × degree): a hit on it sets it off | a status with stacks of its own |
+| **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
+| **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
+| **Catalyst** | Inert terrain that converts its whole store 1:1 into the element of a hit that lands on its node, or of the element its node primes into: the element analogue of Greed ([elements.md](elements.md) § The threshold model) | fuel, a family member, a reach, a go-off |
 
 Further reading: Mark Rosewater's *Making Magic* columns (color pie,
 parasitic, linear vs modular); *Characteristics of Games* (Elias, Garfield,
@@ -58,8 +67,8 @@ default:
 
 - **Arrow** — *"an arrow type likely applies 1 or more stacks (pending
   balancing) of the status the type represents"*; a few do a special thing
-  *"still in line with its archetype"* (explosive: a euclidean AoE hitscan
-  besides the single-target hit). An arrow type is an arrow whose payload is
+  *"still in line with its archetype"* (Catalyst: the goo plants inert
+  crystals besides the single-target hit). An arrow type is an arrow whose payload is
   a list of on-hit effects (damage, status, other), plus its own look.
 - **Addon** — *"should provide something that fits it too, as local
   modifiers or sometimes an entity wide modifier"* (SpikeRing: local
@@ -151,7 +160,7 @@ addon". Designing a concept's addon cell means filling in these parts:
    look is invisible outside its tooltip.
 4. **Customization needed?** — be on the lookout for anything the addon
    contract doesn't already cover: a new hook, extra hitscans, perf work,
-   worst case C++ marshalling (e.g. explosive's AoE, #1211). Name it in the
+   worst case C++ marshalling (e.g. a hitscan beyond the single target). Name it in the
    cell, so it becomes its own unit instead of a surprise mid-build.
 5. **Procgen weight** (optional, lower priority) — whether procgen places it
    as a map addon, and at what rate.
@@ -249,7 +258,7 @@ stat and addon, shipped or planned.
 
 **The Tag column (owner, 2026-10-05).** *"a 1-3 word sharp summary of
 what it is or what kind of jargon could capture it perfectly"*. The owner's
-examples: poison → DoT; explosive → AoE; corruption → buildup, %dmg, spread;
+examples: poison → DoT; explosive (now Catalyst) → AoE; corruption → buildup, %dmg, spread;
 curse → fragility *("cuz raises damage floor?")*, spill. The four tags the pass proposed (anti-heal, vision debuff, reveal, armor debuff)
 were closed as written by the owner, 2026-10-06 (round 9); every Tag is now the owner's.
 
@@ -268,7 +277,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | Rend (shipped #1719: armor-share strip, armor climb, summit crit), Hell Gnaw (shipped, #1720), Fault Line (shipped, #1721: crack re-read per arrival through the Sunder rider, two armor-heaviest neighbours, weak-point crit) (#1397, § Spell faces) | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). `sunder_stacks_per_hit` exists (Shredder); has no `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. Three spells (owner, 2026-10-20, #1397); `spells.md`'s Heavy Bolt is a library spell, not this row's |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | Sapling #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | Midas Mark #1423 | `lodestone` shipped (#1424): out-and-back tendrils haul every debuff home to the target; look #1725 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
-| Explosive | charges (AoE) | `explosive_aspect` | #1398 — goo: the PLANT face, coats a node | #1399 — the barrel: stacking, refills N charges; on a blade the warhead's lives | #1400 — Firecracker, Flamestrike | #1466 — DETONATE by default; the intake row picks PLANT, FUEL or a composition | row: #1211. Built in [`docs/domain/explosive.md`](../domain/explosive.md), open parts in § Explosive (owner, 2026-10-14, #1608): charges are a side-less status; a hit's load is spent as a blast (DETONATE), planted (PLANT) or shapes propagation (FUEL); a blast carries the hit in a euclidean radius; a blade's contact pops blade. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
+| Catalyst | catalyst (converter) | `catalyst_aspect` | goo: plants Catalyst, inert purple crystals on the node | the barrel: lays Catalyst on the map | Firecracker's intake row | Catalyst is side-less terrain on a node, inert (it never counts toward a threshold, never primes, never goes off); it converts its whole store 1:1 into the element of a hit that lands on its node, or of the element its node primes into. Owner, 2026-11-09 (§ Catalyst): *"in essence this is almost like what Greed is for Aspect Statuses, but for Elements"*. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Mark | hunter's mark, crit taken | `mark_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). DEX's slot (owner, 2026-10-20, #1710: today's Hex renamed Mark, mechanic unchanged; it held INT's slot from 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Mark pass (owner, 2026-10-07, run as Hex): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a marked target even when the attacker's board holds no crit investment (#1280's stream note) |
 | Hex | resistance shred, vulnerability | `hex_aspect` | #1713 | #1714 | #1715 | #1250 | row: #1711 (child 0: the status, #1712). INT's slot (owner, 2026-10-20: *"hex is like wither but for resistances. Tears down immunity and perhaps even applies negative resist aka some kind of vulnerability?"*). Per stack an ADD_BONUS of −`resist_per_stack` (tentative 0.1) on `status_resistance`, so every `<aspect>_resistance` drops at once; **negative resistance is vulnerability** (owner pick over a floor at 0): below 0% more stacks land and tick than the row holds. `FlatDecay` 1. No `hex_resistance`. No ammo, ring cells or glyph of its own yet: the aspect def carries no ammo until #1713, the ring keeps its 2-per-sector table, the icon is a placeholder on Mark's |
@@ -356,64 +365,37 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
   doubles it, so the rung node topples into its friendly neighbours and the
   stain outlasts the node.
 
-### Explosive (owner, 2026-10-14)
+### Catalyst (owner, 2026-11-09)
 
-Built: charges as a status, the three faces, the spend/power formula, the
-blast that carries the hit, chains, the two-sided blade contact, goo ammo,
-the barrel addon, Firecracker and the blast size are in
-[`docs/domain/explosive.md`](../domain/explosive.md). What is still design
-lives here. Issue: #1608 (grammar v2, revisiting #1594 / #1595, row #1211).
+The Explosive aspect is retagged Catalyst (owner, same day: *"yeahhh exactly
+option 1. w/visually like purple crystals or smth instead of black goo"*).
+Owner: *"maybe we should move Fuel OUT of Fire, and turn it into smth like
+"Catalyst" instead, and let it act on any incoming elemental-terrain status
+(Heat, Cold, Charge)"*; *"like "3 Catalyst" has incoming hit of "2 Heat" and
+it turns it into "5 Heat" doing a 1:1 Catalyst→{incoming element} trade"*.
 
-- **Composition** (#1612). The face can be realised as an effects list with
-  the load injected as power (the shape ammo `on_hit_effects` already has);
-  empty means the aspect's default. **Both** (a heal that plants and heals in
-  a circle) is two list entries, never a fourth face (owner, 2026-10-14:
-  *"option 1 but price the PLANT at twice the infusion cost vs DETONATE (and
-  thats still a bargain given N plant means N, N-1, N-2, … worth of
-  explosions)"*): the row pays its infusion once and each entry converts it
-  at its own face's affinity. A list entry can be gated by the propagation
-  filter resource, evaluated at landing, so one spell chooses its face per
-  target. Owner: *"Healing spell might author an alternative set of hits or
-  tag the hit list items then filter this list at hit time depending on
-  target node / spell ctx, e.g. set entire spell to 'detonate if primary
-  target has even degree, plant if odd' or do something with ratio of
-  owned:unowned edges of target"*. Degree inside a resolve goes through the
-  landing context accessor.
-- **Death** (#1604): a node that dies with charges explodes, spending them.
-  Charges reach the core the way any status does, when they land on the core
-  node (*"Halo sticky grenades anyone?"*). On the core they act as on any
-  node, also set off when its host node is attacked; no lit fuse.
-- **Spell: Flamestrike.** One strike; a damage pool divided over the
-  hostile nodes in a circle, so one target takes it all (*"hitting a single
-  target concentrates the boom on the one unlucky node"*). Explosive
-  shrinks the radius (*"more concentrated with aspect"*) as the FUEL face,
-  like Firecracker's (tentative, follows from the Firecracker pick,
-  2026-10-13). Damage divides, riders don't. No jumps, hostile only. Look:
-  the whole circle charges, the charge contracts onto the hit nodes, and the
-  fewer there are, the taller the pillar.
-- **Struck:** Supernova (infusion's blast under a name).
-- **Rejected, with why:**
-  - Charges that remember the side that planted them: charges are ints, and
-    the owner's fuse-cutting volley needs a barrel to hurt its own side.
-  - A barrel blast that carries the striking blade's hit onto the defender's
-    board: *"Sounds counterintuitive"*, and it could kill more than it
-    defends. The node's side of a blade contact never reaches the board.
-  - A blast on a charged blade piece spending a life (it ends alive and
-    empty) or setting it off (a bouquet of grenades pops at the first
-    impact): the piece is armed, not fragile.
-  - A face the player picks at infusion time: new UI and state to sync, for
-    a choice the carrier's author makes better.
-  - A lit fuse on barrels or the core: no anti-blade value, and a pending
-    state that lives on the map.
-  - A per-node charge-cap stat for refills: *"no charge cap on ALL nodes needed
-    for something only an addon (so far) provides"*.
-  - Charge segments drawn by every node: a per-status visual chapter, not
-    started here.
-  - A third "both" face: two authored entries priced by affinity say the
-    same thing without a new enum value (owner, 2026-10-14, above).
-  - Two aspects ("detonate" and "explosive"): it splits the row and leaves
-    FUEL homeless (owner, 2026-10-14).
-- **Later, maybe:** a cluster-grenade arrow that does set off charges.
+- **One status, inert terrain.** Side-less (it rests on a node regardless of
+  owner and survives death); it never counts toward any threshold, never
+  primes, never goes off.
+- **Converts its whole store, 1:1,** into an element when (a) a hit carrying
+  that element's rider (Heat, Cold or Charge) lands on its node, or (b) its
+  node primes (crosses T into Burning / Frozen / Shocked) by any route. A hit
+  carries at most one element, hence no slice (owner: *"iff we decide a hit
+  can have at 0 or 1 Element associated with it then we don't need the
+  "slice" part and can just consume all"*).
+- **Greed for elements.** Owner: *"in essence this is almost like what Greed
+  is for Aspect Statuses, but for Elements (i think Greed shouldn't multiply
+  incoming Heat/Cold/Charge stacks, but Catalyst may?)"*. The split of labour:
+  *"Elements should do just that (affect reach, characteristic to each
+  concrete element) and Aspects do anything else"*.
+- **School and facets.** DEX, where Explosive sat; count `catalyst_aspect`,
+  facets `catalyst_stacks_per_hit` / `catalyst_resistance`. The arrow is the
+  goo (plants Catalyst), the addon is the barrel (map-laid Catalyst), the
+  spell intake is Firecracker's row. Look: purple crystals, not black goo.
+
+The trade and the colouring rule live in
+[elements.md](elements.md) § The threshold model.
+
 
 ### Four addon cells (owner, 2026-10-19)
 
@@ -477,7 +459,7 @@ Hue stays `Identity.tint`.
 | Weakness | plain stacks | — | blunt concussive tip, a dull thud ring on impact |
 | Bleeding | plain stacks | — | dark wound-red drips off the trail, sparse like poison's froth |
 | Mark | **marker**, early, low damage: Curse lifts the floor, Mark lifts the crit chance of the arrows behind it | early | a magenta eye-sigil blinks open over the node on impact, then fades |
-| Explosive | goo: the PLANT face, coats the node with charges and still deals arrow damage | — | a lit-fuse pulsing tip; short sparks thrown backward off the trail |
+| Catalyst | goo: plants Catalyst, inert purple crystals on the node until an element lands or the node primes | — | a crystalline violet tip; glittering shards off the trail (pass proposal) |
 
 - **No "fully absorbed" special.** Owner: *"There is little to no "fully
   absorbed" in this game, i.e. curse may lift the damage floor anyway"*:
@@ -554,8 +536,8 @@ or is struck (the ADR 0045 "dead for two of three attack modes" test).
 | Exposed | surface DoT | STR × INT (pair) | stacks of the status | stacks of the status | stacks of the status | **Round 9 (owner, 2026-10-06): the third-row candidate.** Tick = stacks × the node's edges to *non-owned* neighbours; decay counts the same edges, so consolidating territory is the cure. Owner: *"excellent topological twist of counting *non owned edges* only. it eats away leaf nodes that arent true dead ends. the ratio of connected vs not connected could also be mapped out. and could also be made to decay using edge-counting logic that would fit its scaling mechanic, would also determine counterplay to some extend. a strong contender. if we would add a 3rd row to each, this would 100% be in it"*; *"STR themed feel with an INT themed (edge counting) touch"*. Design issue #1445 |
 | Fatigue / Slow | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Paralysis, *"the whole tardy bunch"*: movement and dealloc are entity pools with no node-local meaning, and a per-node cost deadlocks chokepoints while the nodes worth slowing sit out of reach (round 5) |
 | Paralysis | — | — | — | — | — | **Struck (owner, 2026-10-06)** with Fatigue / Slow. An AP-cap cut also sits on core-class territory (the Pacifist ruling) |
-| Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. **Round 9 lean (pass, 2026-10-06): Spike Ring is Bleeding × Addon** — a sawblade that opens wounds: keeps its local `blade_damage`, gains the bleed rider, and Blunting dies with the pop budget; settled on #1369 and the Bleeding addon cell. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the anti-blade face moved to Explosive's barrel (lean 2026-10-04: *"I think the explosive one thematically fits best"*; shape settled 2026-10-13, § Explosive), so those stats go |
-| Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget (the anti-blade face is Explosive's barrel, 2026-10-13) (and #794 with it) |
+| Spikes | offense | STR? | — | `spike_ring_addon.tscn`: local `blade_damage` (×1.5, +3), allocation-scaled per #1369 | — | **Not an aspect**: its defensive face (pop a blade vertex) has no ranged or spell meaning. Owner, 2026-10-05: *"spikes addon just adds blade damage. Switch to bleed stacks instead? (Or keep some blade dmg mods why not). Spikes do fit bleeding thematically. Though they also fit poison"*. **Round 9 lean (pass, 2026-10-06): Spike Ring is Bleeding × Addon** — a sawblade that opens wounds: keeps its local `blade_damage`, gains the bleed rider, and Blunting dies with the pop budget; settled on #1369 and the Bleeding addon cell. The pop budget (`spikes`, `node_spikes`, `spike_regen`) is the #1369 fork; the anti-blade face moved to Catalyst's barrel (lean 2026-10-04: *"I think the explosive one thematically fits best"*, the aspect now Catalyst; § Catalyst), so those stats go |
+| Blunting | — | — | — | today only a spiked node's +1 | — | Struck candidate: a counter to a counter, meaningless to an arrow or a spell. Dies with the pop budget (the anti-blade face is Catalyst's barrel) (and #794 with it) |
 | Elemental (family) | — | — | — | — | — | **A separate axis (owner, 2026-11-04: *"Separate axis sounds good"*): the definition, roles and reach rule are [elements.md](elements.md).** Ice opened (owner, 2026-10-24, #1444: *"Commit to ice"*) — Frostbite/Frozen above; Fire and Lightning stay with #1716. The 2026-10-05 keep-away is lifted by that doc; its harvest reads stay for the record: each pro is harvested as a mechanic for existing rows. Owner, 2026-10-05: *"Chill or burn sound like pure elemental, which is also a real mechanic family we haven't touched on yet. And if we start adding it, shouldn't half-ass it"*. A family, not a row: which elements, what each does on a graph, and whether elements share a resistance layer are one design pass. Chill would absorb the tempo debuffs above (Fatigue/Slow, Paralysis, Petrified). All or nothing (owner, 2026-10-05): *"either fully flesh it out or keep it away"*. Owner's pros: burning is a canonical DoT; burning could spread to neighbours; freeze may lock a node (can't act, can't be deallocated), chill a lesser or building version (*"enough chill turns into freeze idk"*); lightning *"might do hops based shenanigans"*. Against: the settled aspects (Corruption, Curse, Wither, Poison, Sunder) fit none of fire/cold/lightning, nor a fourth element. Advisor read: burn collides with Poison's axis unless edge-spread sets it apart, freeze is the tempo row's name, lightning is a targeting shape — so elements may be flavour, not a school |
 | Frailty / Fragile | fragility | — | — | — | — | Struck: owner, 2026-10-05, *"likely what curse does so no"* |
 | Healing | heal, regen | CON? | — | — | — | Owner, 2026-10-07, while ruling on Wither's resistance: *"`healing_aspect` sounds like something we might want to look into, maybe a contender? could scale healing power and regen effects. but generally sounds like an odd duck compared to the others"*. A positive aspect among debuffs; whether an arrow or an addon has an honest healing face is the promotion test |
@@ -576,7 +558,7 @@ addon we don't have yet. Not saying we need one"*.
 | School | Aspects | State |
 |---|---|---|
 | STR | Bleeding, Weakness | Bleeding: owner 2026-10-05, promoted 2026-10-06 (round 9). Weakness: owner 2026-10-06 (round 7) |
-| DEX | Poison, Explosive, Mark | Poison, Explosive: owner 2026-10-05. Mark: owner 2026-10-20 (#1710) — today's Hex renamed and moved, *"DEX should house Mark for crits"* |
+| DEX | Poison, Catalyst, Mark | Poison, Explosive (now Catalyst): owner 2026-10-05. Mark: owner 2026-10-20 (#1710) — today's Hex renamed and moved, *"DEX should house Mark for crits"* |
 | INT | Curse, Hex | Curse: owner 2026-09-29. Hex: the resistance shred (#1712); the crit-taken status that held the name left as Mark (#1710); *"INT should house Curse and Hex, no doubt"* (owner, 2026-10-20). Silence stays in Contenders |
 | CON | Wither, Sunder | Wither: owner 2026-10-05. Sunder: owner 2026-10-06 (round 7), *"it straddled STR+CON thematically anyway"* |
 | PER | Scout, Blindness | owner |
@@ -599,7 +581,7 @@ territory) and by vibe (colour, persona), never by a fold.
 2026-10-06, #1410/#1411 review).** Asked whether aspects should take their
 attribute's colour family or stay separate *"(and ignore most collisions like
 purple-purple)"*, the owner picked separate: *"option 1 sounds good"*. Each
-identity keeps a semantic tint (poison green, explosive orange); a school match
+identity keeps a semantic tint (poison green, Catalyst purple); a school match
 like Poison under DEX green is incidental, and cross-kind collisions
 (Corruption and Perception both purple) are accepted. "Vibe (colour)" above
 therefore means an occasional coincidence, not a rule. If school recognition
@@ -683,7 +665,7 @@ and the same never-scales rule holds for an element's school.
   own strength it turns bad (Corruption: WIS's growth gone malignant;
   Wither: CON's health). By that rule Sunder first read as STR; the owner
   moved it to CON in round 7 (below).
-- **Explosive → DEX** (the saboteur beside the poisoner).
+- **Catalyst → DEX** (the saboteur beside the poisoner).
 - **Petrified is struck** until the initiative system is expanded. Owner:
   more initiative means more turns, and so more XP, more level-ups and more
   ticks suffered, which may make it *"one of the most influential tempo stats
@@ -920,7 +902,7 @@ and the same never-scales rule holds for an element's school.
   is CON's stat and Sunder the row attacking it. The row is the defender
   side: a node holding Hex (now Mark) takes crits more often, a per-stack % on the
   saturating curve. Owner floated *"armor break -> INT. explosive -> STR. crit
-  -> DEX"* and chose *"Hex into INT, no moves"*. Spread 2/2/2/2/2/2.
+  -> DEX"* (the explosive aspect is Catalyst now) and chose *"Hex into INT, no moves"*. Spread 2/2/2/2/2/2.
 - **ADR 0022 is superseded hard** (owner: *"ADR 22 must be superseded hard,
   these design sessions since it have brought a lot of good designs we are
   now working out"*). Survives: uncapped stacks; no per-tick clamp. Replaced:
@@ -1173,7 +1155,7 @@ A roll on the parent itself is a later procgen pass, not authored yet.
 based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
 stacks instead of 2 cuz of your 1% resistance". needs something else for
 decay. what is the opposite of greed? sharing freely? hmm"* — its counter is
-open on #1419. Scout, Explosive and Sunder have none by the rule.
+open on #1419. Scout, Catalyst and Sunder have none by the rule.
 
 ## Personas
 
@@ -1187,14 +1169,14 @@ this table's rows.
 - Attribute per concept: settled in § Attributes and pairs; #1249 keeps the
   content work (write it into [node_subtypes.md](node_subtypes.md), swap the
   procgen pools, and supply the six aspect stats that have no node source yet
-  — `corruption`, `curse`, `wither`, `blindness`, `sunder`, `explosive`).
+  — `corruption`, `curse`, `wither`, `blindness`, `sunder`, `catalyst`).
 - Can one hit carry two aspects (#1251).
 - WIS status family: answered — Corruption and Greed (#1252 closes).
 - Travel is an axis (Glossary) any row picks from — in place, sandpile, spill,
   edge spread, hop; Contagion would be an infusion on it, never a row. Pass
   proposal, unruled.
 - `dealloc_damage` is live (the forced-dealloc cascade's core chip, `docs/domain/allocation_system.md`), not an orphan; stale facts: #1414 (`damage_over_time.md`'s halving decay closed with #1448).
-- The anti-blade face is Explosive's barrel (2026-10-13, built: `docs/domain/explosive.md`); the pop budget's fate is #1369's; ADR 0005 is superseded, not edited.
+- The anti-blade face is Catalyst's barrel; the pop budget's fate is #1369's; ADR 0005 is superseded, not edited.
 - Combos / hybrids: #1446; third row = pair row is the lens.
 - **Murk** (owner, 2026-10-19, *"keeping that one warm"*): an anti-lantern
   that hides owned nodes near the carrier from enemy sight, in the spirit of
