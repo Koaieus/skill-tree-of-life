@@ -371,21 +371,30 @@ the elements so far:
   owner's own caveat in the same breath: the slot loads Heat, Cold or Charge,
   *"not really things like Fuel"*. Catalyst is not on the element
   axis; it rides as its own row, an aspect (§ The threshold model).
-- **The element is an axis orthogonal to the subtype** (owner, 2026-11-09, on
-  arrows: *"what if the element of each arrow is orthogonal to its subtype?
-  (where subtype often just adds riders for e.g. aspects status stacks?)
-  explore this concept"*; the pass generalises it to casts and blades): an
-  arrow has a subtype (base, goo … — the aspect riders) and, separately, at
-  most one element; a spell has its aspect rows and, separately, its one
-  element; a blade has its addons and an element. The Element Matrix's
-  columns (Ammo : Addon : Spell : Infusion) stop being cells to find and
-  become the three places that axis is set — the quiver, the forge, the
-  blade. It also dissolves "one budget per element vs each ammo type
-  minting" (#1765 Q2): there is one element axis, so the count mints one
-  budget of element-tagged arrows per reload, whatever their subtype; which
-  arrows of a reload take the tag is spec-time.
+- **An element arrow is its own ammo type, one per element** (owner,
+  2026-11-09: *"arrow pools are *per type* given Fuel is now an Aspect called
+  Catalyst, we can reintroduce plain fire arrows that simply add heat stacks.
+  1:1 fire_element -> fire arrows each reload. possibly more scalers later
+  idk. then ranged could add 1 type of elemental arrows with their volley,
+  and they can reorder it with the others"*): a fire, a cold and a charge
+  arrow beside goo and poison, each a plain arrow whose one rider is its
+  element's stacks, minted 1:1 from the count on every reload into its own
+  bin and ordered in the volley like any card (ADR 0051). An arrow is an
+  aspect subtype *or* an element, never both, so the combination is
+  sequencing across arrows, the owner's suggested use: *"launch Catalyst
+  shots first, then elemental, causing your e.g. fire arrows to generate a
+  lot more Heat which can then be exploited by your next arrows"* —
+  *"catalyst + fire would be needed to AoE spread your status arrows,
+  catalyst + charge for hops-spreading, catalyst + ice to freeze the target
+  and hope one of the many next arrows in the volley crits it"*. **No cap on
+  elements per volley** (owner, 2026-11-09, picked over one element per
+  volley): fire, cold and charge arrows may share one; Heat × Cold netting
+  on the node is the only price of mixing. One type per element is also
+  #1765 Q2's answer, one budget per element. A spell keeps its aspect rows
+  and, separately, its one element; a blade its addons and an element addon
+  (below).
 - For arrows and blades the count is supply the way an aspect count is:
-  it sets how many element arrows a reload mints (`AmmoType.per_reload_stat_id`)
+  it sets how many element arrows a reload mints (1:1, `AmmoType.per_reload_stat_id`)
   or how much element addon a build affords, and each arrow or vertex carries
   an *authored* innate load. A count-scaled load on every arrow would be the
   per-hit load this doc rejects. There is no int:int rate seam on an ammo type
@@ -404,11 +413,33 @@ the elements so far:
   shocked node -> get shocked blade node (zaps/arcs)"*): `BladeVertexFill`
   reads the state at fill as it reads stats; a Burning vertex blasts a disc
   where it touches, a Shocked vertex arcs from the node it touches, a Frozen
-  vertex is brittle and snaps on first contact (a damage bonus to even that
-  out is open). Your terrain travels with your blade. Spec-time (the Fire,
-  Lightning and Ice children): what a vertex go-off spends and reads — the
-  source node's excess at fill is the natural power, and whether the touch
-  spends the source node's stacks or the copy's is the fork to settle there.
+  vertex is brittle and snaps on first contact. Your terrain travels with
+  your blade.
+  - **A vertex go-off spends the copy, never the source** (owner,
+    2026-11-09: *"so far there is *no* gameplay connection back to the
+    source node after a blade node copy is made from it. not starting
+    now"*): the fill is a read, the source node keeps its stacks, and the
+    excess at fill is the vertex's power. An elemental blade lasts while its
+    owner holds primed terrain on their own nodes; that terrain's upkeep and
+    shatter risk are its price.
+  - **The Frozen vertex's snap is a concentrate** (owner, 2026-11-09, picked
+    over no bonus and a flat multiplier): the vertex spends its whole sweep
+    on the first node it touches — one contact hit, then the vertex pops.
+    The bonus rides the stat pipeline as an overlay on that vertex's
+    `blade_damage` read at fill (owner: *"bonus or multiplier riding the
+    pipeline (see `overlay`)"*, picked over a multiply at land and a second
+    hit), the hook a swing's temp upgrades already use, scaled by the Cold
+    excess at fill (owner: *"maybe +10% per excess stack, or +20% or +25%
+    (or 5%, it all depends on balance..?)"*). Knob, pass default: +10% per
+    excess stack as its own multiplier, no base term — ×1.2 off a leaf at
+    stake 0 (excess ≤ 2 at the cap), ×3.4 off a degree-3 node at stake 3
+    (excess ≤ 24), so a shallow freeze an enemy lays on a blade's source
+    node is still a net loss (a disarm) and a deep freeze the owner holds
+    pays. It is one hit, so its crit, the target's armour and the 10% break
+    threshold all see the full amount.
+
+  Spec-time (the Fire and Lightning children): what a Burning or Shocked
+  vertex's go-off reads and reaches.
 
 ## The reach rule (owner's atomics, 2026-11-04)
 
@@ -861,7 +892,11 @@ STR's, Ice in DEX's, Lightning in INT's — the reach triad; today
 inner tree, found and stolen modifiers. **Starter count: 1 in every element
 for now, 3 each for the dev sandbox's Player** (owner, 2026-11-09: *"1 in
 each for now, 3 each for the dev_sandbox's Player (for instant testing)"*), a
-knob. The direction after that, owner's words: *"later i think all should
+knob. **Catalyst starts at 1 as well, 3 for the dev sandbox's Player**
+(owner, 2026-11-09, picked over found-only and a ranged-only grant), the
+same interim rule — *"catalyst might be Ranged's most important aspect,
+almost as if it's their "clamp"?"* — so a reload mints one goo arrow from
+turn one. The direction after that, owner's words: *"later i think all should
 start at 0 and gains be linked to "core skilltree / inner skilltree" or core
 class, or some starting modifier passed from metagame, and still some found
 on the board (e.g. a bespoke skillnode inherited scene [== a Keystone] such as
@@ -917,16 +952,30 @@ hit; the keystone grants its element while held.
   load with another element restores some hops and drastically alters the
   spell"*: its innate Ice row is the concentrate (§ Ice on a cast) eating its
   hops to 0; swap the element at the forge (ADR 0081 §7) and the hops come
-  back. **Open design beat**: its bonus — *"it should have some bonus effect
-  that would be cool to port onto a fire/lightning setup (by tossing the ice
-  load and putting fire or lightning in at the Forge). or has a clever crit
-  condition. crit conditions are now even stronger and more important to get
-  right: they shatter Frozen!"* Nothing else carries an innate element in v1.
-- **Which arrows of a reload take the element tag** (open; the owner's
-  *"explore this concept"* ask): the count mints N per reload through
-  `Entity.reload()` → `reload_yield()` and `per_reload_stat_id`; the first N
-  fired, N of the player's choosing, or every arrow while a tagged stock
-  lasts — a design beat before the quiver child is spec'd.
+  back. **Its signature is a crit condition, Thermal shock** (owner,
+  2026-11-09, picked from four candidates; the ask: *"it should have some
+  bonus effect that would be cool to port onto a fire/lightning setup (by
+  tossing the ice load and putting fire or lightning in at the Forge). or
+  has a clever crit condition. crit conditions are now even stronger and
+  more important to get right: they shatter Frozen!"*): the hit crits when
+  the target's terrain holds a different element than the cast carries, read
+  pre-hit like every check. The Ice form quenches a Burning or Shocked node;
+  with Fire in, the restored hops walk a chain that crits — and so shatters
+  — every Frozen node on it, so one spell freezes the field and, after a
+  forge swap, breaks it. The condition earns its keep in the ported form:
+  eating 4 authored hops to 0 is worth about 24 landings on the seed
+  (§ Ice on a cast's table), so the Ice form likely clears the 10% break
+  threshold on damage alone, while a restored chain at base payload breaks
+  ice only by its crit. "Holds a different element" reads the primed state
+  (Burning, Shocked, Frozen) — the pass's reading, unconfirmed: stray stacks
+  under T would make it near-always on. Spec-time (the Ice child): the
+  authored hop count. Nothing else carries an innate element in v1.
+- **Whip-crack, a Fire spell's crit condition** (a pass candidate for the
+  Cold spell, parked by the owner for Fire, 2026-11-09: *"whip crack sounds
+  like a fun fire-type spell like a fireworks -- hop hop hop (outwards) then
+  *explode*"*): the hit crits on the landing where the walk ends, so only
+  the chain's tips crit and their go-off copies carry it (ADR 0082 §4). Not
+  v1; Firecracker is the existing fireworks spell and one candidate home.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
   run of Shocked nodes shares its Charge each world turn — the one flow
   Charge could have beside staying put.
@@ -954,17 +1003,19 @@ hit; the keystone grants its element while held.
   easily obtainable fashion … can we somehow arrange something like this for
   ranged?"* — tracked as #1765 (the access shape, one budget per element
   across its ammo types vs each type minting the count, the stock cap).
-  **Pass state, 2026-11-09:** the budget question is dissolved by the
-  orthogonal axis (§ The forge). **The access shape is an owner call (2026-11-09, picked over a temp quiver
-  addon and a starter element ammo type): the count is the access** — fire ≥ 1 unlocks the element axis in the
-  quiver and every reload mints `fire` element-tagged arrows, no action,
-  nothing to find or buy (routes through `AmmoType.per_reload_stat_id`; the
-  starter grant is count 1); the rejected alternatives: a temp quiver addon bought with a ranged
-  resource that does not exist yet; a starter type with a fixed grant, two
-  sources of one supply. Catalyst is an
-  aspect, so goo arrows are budgeted by its count exactly as poison arrows are
-  and the Clamp-parity ask is answered for kegs; the element-arrow access
-  shape stays as written. **Stock cap arithmetic (pass):** the count mints that many
+  **Settled 2026-11-09:** one ammo type per element answers the budget
+  question (§ The forge). **The access shape is an owner call (2026-11-09,
+  picked over a temp quiver addon and a starter element ammo type): the
+  count is the access** — every reload mints `fire` fire arrows into their
+  own bin, no action, nothing to find or buy (routes through
+  `AmmoType.per_reload_stat_id`; the starter grant is count 1); the rejected
+  alternatives: a temp quiver addon bought with a ranged resource that does
+  not exist yet; a starter type with a fixed grant, two sources of one
+  supply. Catalyst is an aspect, so goo arrows are budgeted by its count
+  exactly as poison arrows are, and its starter count of 1 (§ Acquisition)
+  answers the Clamp-parity ask from turn one. Element bins sit beside the
+  plain pool, not inside its capacity, so a count adds arrows.
+  **Stock cap arithmetic (pass):** the count mints that many
   element arrows per reload (1 at fire 1, 100 at fire 100), so a flat cap
   serves one end only — 50 halves a late archer's every reload, 999 is the
   hoard — the knob is a multiplier on the type's own per-reload mint, pass

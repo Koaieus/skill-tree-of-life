@@ -37,33 +37,51 @@ its holder like Poison — not terrain (owner lean taken as settled, hedge
 correction into the next element ADR. **A blade's element is an addon
 per element**, rider only, no stat. **A blade vertex copies its source
 node's primed state** (Burning vertex booms, Shocked vertex arcs, Frozen
-vertex is brittle; a damage bonus for Frozen is open) — spec-time in the
-element children: what the vertex go-off spends. **v1 spells:**
+vertex is brittle). **v1 spells:**
 `lightning_bolt` carries Charge; a **new single-target Cold spell** whose
 innate Ice row concentrates it to 0 hops, swap the element at the forge and
 hops return. **Melee crit condition** filed as #1786 (Needs design, P0; crits
 shatter Frozen). Doc fact fixed: spell shrapnel rolls its *own* crit today
 (`paired` null → `draws_own_crit()` true), it does not draw none.
 
-## 1. Design beats still open (owner, design hat — diverge first, no seams)
+**Settled 2026-11-09, night pass (owner quotes in the doc: § The forge,
+§ Acquisition, § Open's v1 spell content):** the Cold spell's signature is
+the crit condition **Thermal shock** (crits when the target's terrain holds
+a different element than the cast carries; with Fire swapped in, the
+restored chain shatters every Frozen node it walks). **Whip-crack** (crits
+where the walk ends) is parked for a Fire spell, not v1. **Element arrows
+are their own ammo type, one per element**, minted 1:1 from the count into
+their own bin, a card in the volley order; an arrow is an aspect subtype or
+an element, never both; no cap on elements per volley — the "element
+orthogonal to subtype" passage is deleted, and "which arrows take the tag"
+is dissolved. **Catalyst starts at 1** (dev sandbox Player 3), same interim
+rule as the elements. **A vertex go-off spends the copy, never the source
+node.** **The Frozen vertex's snap is a concentrate**: one contact hit, then
+the vertex pops; the bonus is an overlay on that vertex's `blade_damage`
+read at fill, scaled by Cold excess at fill.
 
-- **The Cold spell's bonus.** Owner: *"it should have some bonus effect that
-  would be cool to port onto a fire/lightning setup (by tossing the ice load
-  and putting fire or lightning in at the Forge). or has a clever crit
-  condition."* Bring 3–4 candidate mechanics, each with the fantasy it
-  serves, what it does with its hops restored under Fire or Lightning, and
-  which existing system it leans on.
-- **Which arrows of a reload take the element tag** (owner: *"explore this
-  concept"*). Facts: `Entity.reload()` (`entity/entity.gd:~735-750`) mints
-  per type via `reload_yield()` (`:708`); specials read the flat
-  `per_reload_stat_id` on the entity board (`:725-727`); `max_stock` default
-  999 (`stats_system/quiver.gd:35`); the plain-arrow bin is capped by pool
-  capacity, not per type. Options so far: the first N fired; N of the
-  player's choosing; every arrow while a tagged stock lasts, a tagged arrow
-  spending one. Do the step 6 arithmetic at fire 1 and fire 50 against the
-  reload size first.
-- **Frozen blade vertex**: a damage bonus to even out brittleness, or none
-  (owner: *"maybe"*). A knob-sized question once the shape is picked.
+## 1. Design beats still open
+
+None blocking the split. One pass reading the owner has not confirmed, for
+the Ice child's spec: Thermal shock's "holds a different element" reads the
+*primed* state (Burning, Shocked, Frozen), not stray stacks under T.
+
+Seam facts for the picks above (2026-11-09 Explore): a contact hit is
+`vertex_damage[i]` × the speed curve (`attack/melee/sim/blade_damage_instance.gd`
+`land_on`); `vertex_damage` is `blade_damage` read off the source node at
+fill with the swing's overlays (`attack/melee/blade_vertex_fill.gd:30-40,
+64-66`, `attack/plan/melee_attack_plan.gd:596` `overlays_for`); no overlay
+can attach to a single `HitInstance`; a vertex dies through
+`BladePopResolver.LiveGate._kill` (`blade_pop_resolver.gd:603`), and nothing
+pops on first contact today, so "brittle" is a new per-vertex flag on
+`BladeState` beside `vertex_charges` (`blade_state.gd:91`). Spell crit
+conditions are `SpellDef.crit_conditions` (`spell_def.gd:141`), stamped in
+`spell_resolver.gd:551-560`; ranged and melee have no condition path. An
+element ammo type is the existing shape: `per_reload_stat_id`,
+`on_hit_effects` with one `ApplyStatusEffect`, `order`, `max_stock`
+(`attack/ammo/ammo_type.gd:38-59`); `explosive_aspect` defaults to 0.0
+(`stats_system/defs/explosive_aspect.tres:15`), so the Catalyst starter is a
+board value to add.
 
 ## 2. Architectural seams — facts in hand (2026-11-09 Explore), to settle with scorecards
 
@@ -142,9 +160,11 @@ Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in); **6**
 Lightning (Charge, Shocked arcs to every neighbour, L² × T ladder,
 conduction, the Charge addon, a Shocked vertex; `lightning_bolt` renamed);
 **7** Ice (Cold, absorption, breakers + corruption-path burst, blade snap and
-the Frozen vertex, Frostbite #1444, concentrate `shape` use, the Cold addon,
-the new Cold spell); **8** forge and quiver (one element field per cast, 3
-int:int units, per-reload mint + stock cap, starter counts; #1765 closes).
+the Frozen vertex's concentrate snap, Frostbite #1444, concentrate `shape`
+use, the Cold addon, the new Cold spell with Thermal shock); **8** forge and
+quiver (one element field per cast, 3 int:int units, the three element ammo
+types with their 1:1 mint + stock cap, starter counts incl. Catalyst 1;
+#1765 closes).
 4 before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
 #1787 generator keystones; #1786 melee crit condition (P0, independent).
 
@@ -159,7 +179,8 @@ clamp(1 + c·t/T, 1−c, 1+c), c = 0.5; Catalyst ratio 1:1, cap k × T, slow
 decay; hop ladder L² × T (owner); disc radius √power × node radius (owner);
 decay 1 per world turn; world turn every ceil(sqrt(N)) played turn ends;
 element ammo stock cap 2 × the per-reload mint; starter count 1 each, dev
-sandbox Player 3 each (owner); generator +2 per world tick, Charge ceiling
+sandbox Player 3 each, Catalyst the same (owner); Frozen vertex snap +10%
+per excess stack as its own multiplier, no base term; generator +2 per world tick, Charge ceiling
 ~4T (owner, tentative).
 
 Delete this file once #1716 is split into children and they are `Ready`.
