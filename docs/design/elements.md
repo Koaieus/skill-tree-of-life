@@ -232,6 +232,16 @@ is a few blocks past the frame that flicker and fade, so the fast decay is
 visible and the bar never grows unbounded. Same thresholds for all three, so
 the messiness the owner flagged stays in the overflow tail.
 
+**Where it sits and what it reads** (owner, 2026-11-09). The terrain bars sit
+at the **south side of the skill node** (*"since these are terrain
+properties, something tells me UI bars for these should be at the south side
+of the skillnode"*), apart from the status icons, which are rows. The label
+is **one entry per element, updated in place**: the band's name with the
+total count against T (*"show total with different name, and tooltip
+indeed"*) — `Heat 6/6`, then `Burning 7/6`, back to `Heat 5/6` after a
+blast — and the tooltip gives the excess and the power it buys. Never a
+second entry beside the first: the node holds one number.
+
 ## One count, a family of statuses with fixed roles (owner, 2026-11-04/08)
 
 An element is one count on the entity and a short family of statuses on
