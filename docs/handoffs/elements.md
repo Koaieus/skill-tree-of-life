@@ -5,137 +5,85 @@ names is on master; nothing lives only in a transcript.
 
 ---
 
-Continue the elements design pass (#1716 is the hub). **Open the session
-with a quick rundown and game analysis, then re-propose** (owner, 2026-11-09,
-EOD: *"next sesh should repropose these, starting with a quick rundown and
-game analysis like this"*): the rundown is § Open's "Fuel's place on the
-element axis" item in `docs/design/elements.md` — the orthogonal element
-axis, the three Fuel shapes, the generic-catalyst analysis (power vs shape,
-the three faces, the cap arithmetic, the Frozen 60 % number, the
-amplifier-alone note) — restated in a screen for an owner who has read the
-title only; then the four drafted forks (supply, fuse, residual, name and
-kind) as one `AskUserQuestion`, recommended first. Read, in order:
+Continue the elements design pass (#1716 is the hub). **The design is
+settled**: every owner call 2026-11-03 → 11-09 is quoted and dated in
+`docs/design/elements.md` (status `settling`), and the decisions are in ADR
+0072, 0075 and **0081** (2026-11-09: go-off cost, shatter, breakers, frozen
+solid, death, Catalyst replacing Fuel, one element per cast, the orthogonal
+axis, the count as access, the world-turn scope line). What is left is the
+**split of #1716 into drone-sized children with `spec`** — it needs a session
+with board access (`mise gh-project` is GraphQL, which cloud sessions cannot
+reach; a local session can). Read, in order: `docs/design/elements.md`;
+ADR 0081, then 0075 and 0072; this file's findings list only for the
+spec-time items (a), (b), (h) below.
 
-1. `docs/design/elements.md` — every owner call to date, quoted and dated
-   (2026-11-03 to 11-08); pass proposals are marked as such. The doc reads as
-   one design under the threshold model and is close to settled.
-2. `docs/adr/0075-*.md` (the threshold model and terrain-only reach; its
-   "not decided here" list is now almost all decided — see below), then
-   `0070-*.md` (a row's use is a swappable `LoadUse`, an open set).
-3. The adversarial review findings at the end of this file (most are closed;
-   the live ones are in the doc's § Open).
-4. Only as needed per § Open item: #1733 (payload and reach), #1444 (Ice),
-   #1660 (Fire), #1741 (a hit crits once), #1765 (ranged Fuel access).
+Open with the proposed split below as one screen for an owner who has read the
+title only, then `AskUserQuestion` on its shape and order (recommended first);
+write the verdict back here, then run `spec` per child. **Local session:
+commit on master and push, no PR; pull/rebase onto origin/master before editing
+and before every push.** Cloud session: a docs-only PR (auto-merge takes
+`docs/design/` and `docs/handoffs/`, never `docs/adr/`). `mise run
+docs-hygiene` after a design doc, `adr-hygiene` after an ADR. `gh issue view`
+is blocked (GraphQL); use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>`
+and `/comments`.
 
-Work case by case with `AskUserQuestion`, one or two forks per question, the
-recommended option first; after each verdict write it into
-`docs/design/elements.md` with the quote and date, commit, push. **Local
-session (the checkout is `/home/bramh/...`): commit on master and push, no
-PR** (owner, 2026-11-05); from a worktree, push `HEAD:master` (the main
-checkout holds owner WIP in `ui/hud/minimap_panel/` and stays behind origin
-on purpose — **pull/rebase onto origin/master before editing and before every
-push**; other sessions land commits mid-pass). Cloud session: a docs-only PR
-(auto-merge takes `docs/design/` and `docs/handoffs/`, never `docs/adr/`).
-`mise run docs-hygiene` after a design doc, `adr-hygiene` after an ADR.
-`gh issue view` is blocked (GraphQL); use
-`gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
+**Proposed children (pass proposal, 2026-11-09, not an owner call).** The
+order is a dependency order; 1–3 are the substrate every element needs.
 
-Settled 2026-11-09, late pass (in the doc with quotes): **the element is an
-axis orthogonal to the subtype** on arrows (owner, *"explore this concept"*),
-generalised by the pass to casts and blades — it dissolves #1765's "one
-budget vs each type minting" and reads the Element Matrix columns as the
-three places the axis is set; **a spell carries at most one element, the
-forge adds to it (same element, synergy) or replaces it for the cast**
-(owner, verbatim in § The forge) — the elemental slot is one element field,
-not a slot count; **the ADR 0077/0079 terrain-path tension is closed by a
-scope line** (§ Landing resolution: the record carries what a command did,
-go-offs included; the world turn carries what time did, reproduced from the
-end-turn command as DoT ticks are today; the settle is roll-free) — stated
-to the owner, not objected to, awaiting the follow-up ADR. Rejected: Fuel as
-the keg subtype parallel to Frostbite (owner: a keg is AoE-linked, hence
-fiery); per-element Fuel counterparts (pass + advisor: grid-filling, three
-rules and supplies, anchored to nothing). #1765's access shape was asked and
-redirected into the axis idea — unanswered, the pass's pick is in the doc.
+1. **Element counts on the board** — `fire` / `ice` / `lightning` as stats
+   with a new `StatDef.Role` (not `<x>_aspect`); a member keys its own facets
+   (`heat_resistance`, `cold_stacks_per_hit`); the Aspect:Status 1:1 guard
+   test (ADR 0072 §1, none exists). Via `manage-stats`.
+2. **Explosive → Catalyst retag** — the artifact list in the doc's § Open
+   (aspect, status with its `charge` tag freed for Lightning, ammo type,
+   barrel addon, ring slot, DEX pool roll, Firecracker's row); Catalyst's
+   land-phase conversion (whole store, 1:1, one element per hit); the fate of
+   `DetonateUse` / `DetonateEffect`, blade `vertex_charges` / `BladeVertexFill`
+   decided in the spec. Rewrites `docs/domain/explosive.md` at build.
+3. **Terrain substrate** — a side-less node status shape that survives death,
+   retake and dealloc (today's `on_dealloc` CLEAR / LINGER both clear on
+   death); T = 2 × degree, k = 2 + `stake_level`, the soft cap and overflow;
+   decay computed on read; the temperature index and the integer Laplacian
+   step on the world turn; the capacity bar on hover.
+4. **Landing resolution** — read / land / settle over `HitLanding` (today
+   riders are separate `HitInstance`s ordered at `place()`; copies made at
+   settle must pass through it); the once-per-node-per-hit cap; the dual-reach
+   concat/dedupe knob. #1733 closes into this.
+5. **Fire** — Heat ride row, Burning's disc go-off (per-node cost, power read
+   post-land, no-target-no-spend), Burning's burn and light source. #1660 /
+   #1695 / #1696 fold into this child and close.
+6. **Lightning** — Charge, Shocked arcing to every neighbour, the L² × T hop
+   ladder, conduction of a spell walk; `lightning_bolt.tres` renamed, not
+   reshaped.
+7. **Ice** — Cold, Frozen's denial, the three breakers and the shatter burst
+   through the corruption path, the blade snap, Frostbite (#1444's inward
+   pack), the concentrate `shape` use with per-spell pricing.
+8. **Forge and quiver** — one element field per cast (add or swap), the
+   elemental slot's three int:int units, the quiver's element axis minting
+   per reload from the count with the stock-cap multiplier (#1765 closes).
 
-Settled 2026-11-08, evening pass (all in the doc with quotes; commits
-0769a0f1..e0b838af): **a go-off pays 1 per node it reaches** (one law:
-Shocked 1 per neighbour, Burning 1 per disc node, Frozen the 0D case turned
-inward — one target, the whole store); a blast reaching no *other* node does
-not go off (no spend); a spend digs below T (full cost); power = excess read
-after the triggering hit's riders land (primed-ness reads pre-hit, disc size
-post-land); the radiating-blast shape was rejected (mirrors diffusion). **The
-shatter burst is corruption-shaped**: excess × knob fraction (default 1%/
-stack) × max HP as TRUE damage through the shared `DotTick.mint` path,
-nothing if unallocated; spend fraction knob default 1.0. **Ice breakers**:
-a blade vertex's touch, any crit hit, and any damage ≥ a flat threshold
-(knob, default 10% max HP, deliberately not excess-scaled); the threshold
-covers direct hits and arriving copies (a copy that breaks through also
-lands). **Frozen + Shocked**: frozen solid — the ice mutes the node's own
-go-offs; trapped Charge releases when the ice breaks, same settle, one
-compound read ("Frozen mutes Shocked unless this hit shatters"), never a
-re-evaluation. **A holder's death changes nothing** to terrain ("death blasts
-first" is pre-threshold history). **Fuel takes its own cap of the same
-k × T.** **Ice concentrate pricing**: authored per-hop multiplier, confirmed
-as a lean; "alters the cast" vs "plants Cold" are two uses of the one row
-mechanism, authored per spell. **Forge lean**: a dedicated elemental slot —
-3 units of int:int, one per element, spent from elemental attunement
-(`fire_element`). Blade speed curve knob written (clamped linear in t/T).
-Greed/#1659 was closed not planned by a parallel session and is off the list.
+Dependencies: 4 before 5–7; 1 before 8; 2 with or before 5. Children 5–7 share
+`HitLanding` and the status files with 3–4 — a map for the orchestrator, not a
+gate.
 
-**Settled 2026-11-09, afternoon pass (in the doc with quotes; arc in
-`docs/handoffs/fuel-to-catalyst-arc.md`):** Fuel left Fire and is
-**Catalyst** — one element-generic converter in no family, an aspect (the
-Explosive aspect retagged, DEX; owner: *"yeahhh exactly option 1. w/visually
-like purple crystals or smth instead of black goo"*), inert until a hit
-carrying one element lands on its node or the node primes by any route, then
-its whole store converts 1:1 into that element (no slice; a hit carries 0 or
-1 element). The world-tick fuse and the 2-Heat residual went with Fuel; the
-per-element buildup alternative was rejected in the owner's words. Greed must
-not multiply element stacks (owner's lean, for Greed's spec). **#1765's
-access shape is an owner call: the count is the access** (fire ≥ 1 mints
-element-tagged arrows per reload; stock cap a knob, 2× the mint). The aspect
-matrix's Explosive row, section, arrow-look and DEX lists were retagged to
-Catalyst and its Glossary aligned with the doc's Vocabulary guard.
-
-Still open, in this order:
-
-- **Follow-up ADR**: ADR 0075's "not decided here" is now almost all decided
-  (go-off cost, shatter shape, ice breakers, trapped charge, death, Fuel's
-  cap, the Ice pricing lean), plus tonight's axis, one-element-per-spell and
-  the 0077/0079 scope line (§ Landing resolution). Write it with `/adr`
-  after the catalyst settles so its supply (the 0072 partial reversal) goes
-  in the same ADR; fix the sync model's "exactly one subsystem" sentence in
-  the same pass.
-- **Explosive artifacts**: finding 15's orphans are now RETAGS (`explosive`
-  → `catalyst`) listed in the doc's § Open; `DetonateUse`/`DetonateEffect`,
-  blade `vertex_charges`/`BladeVertexFill` and Firecracker's `FuelUse` row
-  are spec-time calls (`docs/domain/explosive.md` rewritten at build).
-- **Element count as a stat**: `fire` / `ice` / `lightning` (and the
-  catalyst's count, if own) on the StatBoard (manage-stats), a new
-  `StatDef.Role`; a member keys its own facets.
-- Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
-  ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
-  coalescing (#1741's open NOTE).
-- Parked, not open: "a wire evens itself out"; the arc mirror (Lightning's
-  spec); spike-pop docs-vs-code check (Ice spec). The size-ladder and disc
-  knobs tune with #1733; inner-tree shape and the card offer's cadence are
-  filed against the hub.
-- Housekeeping: a comment on #1694 pointing at ADR 0072; the Aspect:Status
-  1:1 guard test (code, first element issue).
+**Spec-time items, carried from the 2026-11-05 adversarial review** (in the
+doc's § Open): (a) row keys — `Infusion.load_of` keys one concept id, so two
+rows of one family cannot both key on `ice`; #1660 B2 (the row names the
+status it plants) goes into child 4 or 8; (b) facet ids — child 1; (h) rider
+coalescing — #1741's open NOTE, stays a NOTE. Parked, not open: "a wire
+evens itself out"; the arc mirror (child 6's spec); the spike-pop docs-vs-code
+check (child 7's spec).
 
 Knobs so far (tentative pass picks unless marked owner): T = 2 × degree
 (owner); k = 2 + stake_level (owner); shatter fraction 1%/stack; shatter
 spend fraction 1.0; ice break threshold 10% max HP; blade sweep-speed
-clamp(1 + c·t/T, 1−c, 1+c), c = 0.5; Fuel → 2 Heat per Fuel (owner); hop
-ladder L² × T (owner); disc radius √power × node radius (owner); decay 1 per
-world turn, Fuel slower; world turn every ceil(sqrt(N)) played turn ends.
+clamp(1 + c·t/T, 1−c, 1+c), c = 0.5; Catalyst ratio 1:1, cap k × T, slow
+decay; hop ladder L² × T (owner); disc radius √power × node radius (owner);
+decay 1 per world turn; world turn every ceil(sqrt(N)) played turn ends;
+element ammo stock cap 2 × the per-reload mint.
 
-Delete this file once #1716 is split into children (below) and the items
-above are all settled or filed.
-
-When the list is empty: split #1716 into drone-sized children with `spec`
-(first: the element count + `ReachUse` seam; Fire = #1660's children; Ice =
-#1444).
+Delete this file once #1716 is split into children and they are `Ready`.
+`docs/handoffs/fuel-to-catalyst-arc.md` is cited by ADR 0081 and stays.
 
 ---
 
