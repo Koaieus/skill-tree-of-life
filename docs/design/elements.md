@@ -700,11 +700,15 @@ from scored options).**
   base class between these?"*). The resolver lands with detonation re-hosted
   on the go-off contract, proving it on the shipped tests and deleting both
   spend ledgers; the game keeps its blast until Burning inherits it. The
-  contract is one small `GoOff` resource on the status that primes (pass
-  pick, stated to the owner): a disc subclass (go-off zero, then Burning
+  contract is one small `GoOff` resource on the `Element` def (owner,
+  2026-11-09: *"i think it should sit on Element def, going off is just
+  about their thing"*): a disc subclass (go-off zero, then Burning
   unchanged with another power source) and an edge subclass (Shocked);
   `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc
-  subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it.
+  subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it, on
+  the `Element` def too. Explosive is not an element, so go-off zero's disc
+  rides the Explosive `Aspect` def under the same field name until the
+  Catalyst retag deletes it (pass pick, tentative).
 - **The applier drains an open worklist** (owner picked it over the head
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing

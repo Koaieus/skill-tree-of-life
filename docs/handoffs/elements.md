@@ -87,9 +87,10 @@ snapshot** (generation by generation, sums committed together and clamped at
 0 — the same routine the world-turn tick uses; the per-wave `detonated` scope
 goes); **one share scales the whole payload** (damage and every rider's
 stacks, ceil per rider; one knob per go-off, default 0.5); **today's
-detonation is ported first as go-off zero** on a `GoOff` resource hanging on
-the priming status (disc subclass, later an edge subclass for Shocked; no
-`ArcEffect`; pass pick for the home); **the applier drains an open
+detonation is ported first as go-off zero** on a `GoOff` resource that sits
+on the `Element` def (owner call; disc subclass, later an edge subclass for
+Shocked; no `ArcEffect`; go-off zero's disc rides the Explosive `Aspect` def
+under the same field name until the retag — pass pick); **the applier drains an open
 worklist**, hits compiled through one stamping callable.
 
 ## 1. Design beats still open
@@ -247,7 +248,7 @@ use, the Cold addon, the new Cold spell with Thermal shock); **8** forge and
 quiver (one element field per cast, 3 int:int units, the three element ammo
 types with their 1:1 mint + stock cap, starter counts incl. Catalyst 1;
 #1765 closes).
-4 before 2 (go-off zero is ported before the retag) and before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
+1 before 4 (the `Element` def carries `go_off` / `admits`); 4 before 2 (go-off zero is ported before the retag) and before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
 #1787 generator keystones; #1786 melee crit condition (P0, independent).
 
 Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
