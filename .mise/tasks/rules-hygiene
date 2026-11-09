@@ -319,6 +319,28 @@ def main():
                     "msg": f"references .claude/rules/{ref}, which no longer exists",
                 })
 
+    # A plain (unquoted) YAML scalar ends at ` #` (comment) — seen live,
+    # so a skill's trigger phrases like "swarm #<n>" silently never reach the
+    # model. The charter law: `description:` is a single-quoted scalar.
+    for f in sorted(glob.glob(".claude/skills/*/SKILL.md") + glob.glob(".claude/agents/*.md")):
+        text = open(f, encoding="utf-8").read()
+        if not text.startswith("---"):
+            continue
+        block = text[3:text.find("\n---", 3)]
+        m = re.search(r"^description:[ \t]*(.*)$", block, re.M)
+        if not m:
+            continue
+        value = m.group(1)
+        if value[:1] in ("'", '"', "|", ">") or value == "":
+            continue
+        cut = re.search(r" #", value)
+        if cut:
+            findings.append({
+                "check": "description-unquoted", "file": f,
+                "msg": f"plain-scalar description breaks at char {cut.start()} "
+                       f"({value[max(0, cut.start() - 20):cut.start() + 3]!r}); single-quote it",
+            })
+
     if as_json:
         print(json.dumps({"always_on_bytes": combined,
                           "rule_tier_bytes": always_on_total,
