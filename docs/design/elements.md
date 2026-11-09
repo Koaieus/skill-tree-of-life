@@ -587,7 +587,7 @@ trade. The affinity may live on a dedicated **elemental slot** in the forge
 (owner, 2026-11-08: *"spells could use a separate elemental affinity (3 units
 of int:int, for fire/ice/lightning, befitting the forge's elemental slot that
 players can spend their elemental attunement on (how much "fire" they are,
-`fire_element`)"* — a lean, carried by § Open's forge-slots item).
+`fire_element`)"* — settled 2026-11-09 as one element field per cast, § The forge).
 
 **"Ice alters the spell" and "Ice adds Cold riders" are one mechanism, two
 uses** (owner asked, 2026-11-08: *"seems both should be made possible, or are
@@ -928,7 +928,7 @@ staggered clocks (the one-snapshot Metropolis rule needs one snapshot).
 
 **Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
 needs no tick: a flat decay of 1 per world turn is computable on read (stored
-count, minus world turns since it was last written, floored at 0). So Charge and Catalyst, which never flow, cost nothing per world turn. Only the Heat/Cold
+count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it keeps its own decay rule). Only the Heat/Cold
 diffusion is a real pass: **one** pass over the signed `t`, over the
 temperature index (nodes holding Heat or Cold, the `_lingering` registry's
 shape), on packed arrays, never a walk of the graph (the arrays are the
@@ -1072,8 +1072,8 @@ hit; the keystone grants its element while held.
   threshold on damage alone, while a restored chain at base payload breaks
   ice only by its crit. "Holds a different element" reads the primed state
   (Burning, Shocked, Frozen) — the pass's reading, unconfirmed: stray stacks
-  under T would make it near-always on. Spec-time (the Ice child): the
-  authored hop count. Nothing else carries an innate element in v1.
+  under T would make it near-always on. The spell is filed as #1789 (Needs design), which
+  carries that reading and the authored hop count. Nothing else carries an innate element in v1.
 - **Whip-crack, a Fire spell's crit condition** (a pass candidate for the
   Cold spell, parked by the owner for Fire, 2026-11-09: *"whip crack sounds
   like a fun fire-type spell like a fireworks -- hop hop hop (outwards) then
