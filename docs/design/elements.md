@@ -817,6 +817,26 @@ its stack. **Shocked** is #1733 round 3's *critical Charge* (every neighbour
 struck) under its name; Burning's landing verb is the blast (§ The threshold
 model).
 
+**Modelled as bands on the `Element` def, never as status rows** (owner,
+2026-11-09: *"iff these 3 statuses are a special case (or subclass) by virtue
+of all being `elemental/reach-y/go-off`-ey, option 1 seems cleanest"* — they
+are: a status row is sided, records its applier and clears on death, while a
+state is side-less, sits on unowned nodes, survives death and is rewritten by
+the diffusion pass on every node at once). An element holds an ordered list
+of bands; a band is a threshold as a multiple of T (1, k, …), an `Identity`
+for the name and look, and what the band answers (*go off*, *admits*, travel
+verb, decay rate, light) — so the `GoOff` sits on its element's band. A
+node's state is the highest band its count passes, one pure function of the
+int and T; nothing stores it. **A new band is earned only when behaviour
+changes in kind**; a change in size is the excess curve (blaze, inferno are
+display names on it). Pass picks, tentative: the crossing is announced by
+the node — the one write path to a terrain int compares the band before and
+after and emits one `terrain_band_changed(element, from, to)`, which the
+capacity bar, the glow and vision's light source listen to; no stack, status
+or entity knows about bands (terrain is owner-blind; a holder only receives
+damage through the ordinary path), and a go-off's moment is the attack
+record's blast table, not this signal.
+
 **The travel cell completes the triad** (owner, 2026-11-06: *"picture A
 sounds very good. also in some sense: elec - hops -> 1D (lines); fire - discs
 -> 2D; cold - point -> 0D. it checks out"*). Each element is one mode's
