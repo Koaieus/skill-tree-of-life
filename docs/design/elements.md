@@ -28,8 +28,8 @@ status family: *"option 1 sounds very clean"*. ADR 0072 records it. The code is 
 the widening #1694 asked for was only ever for Fire's second status, and Fire
 is now wholly an element, so #1694 is unneeded; the 1:1 is to be guarded by a test (none exists yet).
 Poison's "does it move" idea (#1657) must therefore be a behaviour of the one
-Poison status, never a second one. No Explosive aspect survives: Fuel is
-Fire's accelerant (the ranged-access question this raises is in § Open).
+Poison status, never a second one. Fuel left Fire and is **Catalyst**
+(§ The threshold model), the Explosive aspect retagged.
 
 ## The threshold model (owner, 2026-11-08)
 
@@ -93,7 +93,7 @@ node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 — *"would
 decharge more rapidly"*). **Power is the excess read after the triggering
 hit's riders land** (pass pick): primed-ness and the Frozen check read
 pre-hit, while the disc's size — and so whether anyone is reached — follows
-the post-land power. The oil a hit throws joins its own blast: 1-Heat arrows on a
+the post-land power. The Heat a hit lands joins its own blast: 1-Heat arrows on a
 sub-reach node charge it hit by hit until the disc first catches a neighbour
 — the owner's ramp (*"heat builds up as arrows land, critical at some point,
 then explodes spreading, then heat up again, more explosion"*) — and a capped
@@ -111,18 +111,59 @@ the cap and decay are the brakes.
 are power 1 doesn't hit any node, but that's tuning"*). Shocked's hops: level
 L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
 
-**Fuel is an accelerant.** Owner: *"Fuel would only be a supportive sticky
-"pre fire but would burn as such" goo … if any fire-related combustion
-occurs, consume all fuel stacks too add them to the explosive power, and
-leave residual heat."* Fuel never counts toward T (owner, 2026-11-08: *"fuel indeed doesnt count
-towards burning"*); when its node
-explodes all of it is spent, added to the power, and burns into **N = 2 Heat
-per Fuel on its own node** (owner pick, 2026-11-08, over +1 Heat on every
-node the disc touched, which makes Heat from nothing); flow spreads it. Heat
-is spent per go-off and Fuel whole, so Heat arrows sustain and Fuel-then-Heat
-bursts: two volley shapes. A Burning node holding Fuel also goes off on the
-world tick (owner, 2026-11-08: *"burning holding fuel explodes"*; keeps
-#1660's fuse).
+**Catalyst is a converter, in no family.** Owner, 2026-11-09, on where Fuel
+sat: *"so my relevation yesterday was: maybe we should move Fuel OUT of Fire,
+and turn it into smth like "Catalyst" instead, and let it act on any incoming
+elemental-terrain status (Heat, Cold, Charge)"*, and on the trade: *"like "3
+Catalyst" has incoming hit of "2 Heat" and it turns it into "5 Heat" doing a
+1:1 Catalyst→{incoming element} trade."* Pass reading: Catalyst is one
+side-less terrain status, inert and colourless: it never counts toward T,
+never primes, never goes off and has no derived state. When a hit whose
+payload carries exactly one element rider (Heat, Cold or Charge) lands on a
+node holding Catalyst, the node's whole Catalyst store converts 1:1 into that
+element (ratio 1:1 a knob), so 3 Catalyst plus an incoming 2 Heat is 5 Heat on
+the node. The conversion happens in the **land** phase, the rider's stacks
+amplified as they are added, so § Landing resolution's read/land/settle
+stands: primed-ness still reads pre-hit, and the converted stacks count toward
+the post-land power and the next hit. **Colouring** (owner, 2026-11-09: *"option 1. or: also when "igniting"? in
+the broadest sense like when enough Heat turns into Burning (through flow,
+hits already covered), or when Cold turns into Frozen, or when Charge turns
+into Shocked? still element-symmetric right?"*). Pass reading: the whole
+store converts into an element in exactly two cases, (a) a hit carrying that
+element's rider lands on its node (land phase), (b) the node primes, its
+stack crossing T into Burning, Frozen or Shocked by any route, read at
+settle. Flow below T never colours it. The rule is symmetric; in practice only
+temperature reaches T without a hit, since Charge never flows and an arc's
+copy is a hit, which is Charge's "stays put" character, not a rule. A goo
+arrow landing on an already-primed node carries no element and flips nothing:
+it is an ordinary trigger, the blast goes off at the node's current excess
+and its copies carry the Catalyst rider over the disc (barrels laid where the
+blast reached), while the Catalyst on the node itself waits for the next
+element. **The trade** (owner, 2026-11-09: *"this is turning into a real
+chemistry question. both options have something going for them. i think
+option 1 sounds best for now. option 2 is more like the Greed's "slice"
+mechanics but that was mostly needed to make multi-status payloads play nice.
+and iff we decide a hit can have at 0 or 1 Element associated with it then we
+don't need the "slice" part and can just consume all"*): the whole store, 1:1,
+no slice. A hit carries 0 or 1 element (§ The forge's one element per cast,
+generalised to every hit; copies carry the root hit's one element). A copy is
+a hit, so a blast's or arc's copies carrying
+an element rider colour the Catalyst on every node they reach. It is the
+element analogue of Greed: Catalyst multiplies incoming element stacks the way
+Greed multiplies aspect stacks, and Greed must not (owner, 2026-11-09: *"in
+essence this is almost like what Greed is for Aspect Statuses, but for
+Elements (i think Greed shouldn't multiply incoming Heat/Cold/Charge stacks,
+but Catalyst may?)"*). Catalyst stays put (no flow) and decays slowly (knob);
+the map's barrels are Catalyst terrain the map lays. **Catalyst is an
+aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
+option 1. w/visually like purple crystals or smth instead of black goo"*; the
+line behind it: *"Aspects do anything else"*): one status, side-less terrain,
+count `catalyst_aspect`, school DEX (where Explosive sits), facets
+`catalyst_stacks_per_hit` / `catalyst_resistance`; the goo arrow plants it. Two volley shapes: Heat arrows
+sustain, each landing adding its own stacks; Catalyst-then-Heat makes the
+first Heat landing a big one (3 Catalyst plus 1 Heat on a leaf, T 2, is
+Burning at once with excess 2). No node holds Catalyst at a go-off that
+matters: it is gone at landing, so no world-tick fuse exists.
 
 **A blade on Frozen: a fragile snap.** Owner, 2026-11-08: *"if a melee blade
 node has Frozen on it, if should shatter on first contact. Reduces reach
@@ -160,7 +201,7 @@ damage are its own facts, and every check reads pre-hit state.
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
 make each node lose e.g. at least 1 heat/cold (towards net 0) per tick, it
-should eventually cool off"*), Charge likewise, Fuel slowly — knobs. The
+should eventually cool off"*), Charge likewise, Catalyst slowly — knobs. The
 Metropolis step is the discrete graph-Laplacian step; its integer floor is a
 dead band, and the decay clears it. Every warm node loses one, so spread heat
 cools faster than a lump: no board-wide budget is needed.
@@ -176,8 +217,9 @@ then 2(k − 1) primed blocks to the cap (4 on bare ground, +2 per stake), and
 each lit block reads "one more blast left". On a leaf a block is one stack, so
 the blips count exactly; on a hub a block fills in fractions. Heat and Cold
 share one bar, filling red or blue, since they net and a node holds only one
-sign; Charge gets a second bar of the same shape with sparkles; Fuel, which
-never counts toward T, is a goo layer under the temperature bar. The overflow
+sign; Charge gets a second bar of the same shape with sparkles; Catalyst, which never counts toward T, is a crystal layer
+under both bars (owner, 2026-11-09: *"purple crystals or smth instead of
+black goo"*), violet until it takes the colour that lands. The overflow
 is a few blocks past the frame that flicker and fade, so the fast decay is
 visible and the bar never grows unbounded. Same thresholds for all three, so
 the messiness the owner flagged stays in the overflow tail.
@@ -190,14 +232,14 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
 
 | Element | Count (entity) | Terrain stack — side-less, inert up to T | Beside it | Primed state — past T, derived |
 |---|---|---|---|---|
-| Fire | `fire` | **Heat** | **Fuel**, the accelerant: never counts toward T, spent whole when its node explodes | **Burning** |
+| Fire | `fire` | **Heat** | none; Catalyst (§ The threshold model) sits beside every element, in no family | **Burning** |
 | Ice | `ice` | **Cold** (owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*) | **Frostbite**, the mover: #1444's inward pack, sided, hurts | **Frozen** |
 | Lightning | `lightning` | **Charge** | none in v1 (owner, 2026-11-04: *"Fun but maybe start with just the 1"*) | **Shocked**, #1733 round 3's *critical Charge* under its name |
 
 - **The count never ticks on anyone.** A mover is an ordinary sided status
   that clears with its owner like Poison does; terrain hurts only through its
   primed state (a blast, Burning's burn).
-- **Terrain is side-less.** A terrain stack, and Fuel, rests on a node
+- **Terrain is side-less.** A terrain stack, and Catalyst, rests on a node
   regardless of owner, survives kills, retakes and deallocs, and leaves by
   being *spent* (a go-off spends its own node's stacks), by decay (per-def,
   ADR 0048; § The threshold model's cooling) or by a cleanse. **A holder's
@@ -205,13 +247,13 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
   (owner, 2026-11-08, picked *nothing — terrain persists* over a terrain hit
   per primed node; #1660's "death blasts first" is pre-threshold history).
   The battlefield a fight built stays dangerous for whoever retakes it. Heat and Cold
-  flow as one signed `t` (§ Temperature) and rest on unallocated ground; Fuel
+  flow as one signed `t` (§ Temperature) and rest on unallocated ground; Catalyst
   and Charge stay put. Owner, 2026-11-05, on a capped wall beside bare
   neighbours: *"something doesn't quite feel right of a 100 Cold node with
   neighbors of 0 Cold … just sits there as if perfectly isolated"*, then
   *"option 1!"* (flow): a wall sheds a fringe around it, #1444's channels for
   free. The readability test: *if nobody owned this node, would it still make
-  sense for this to be here?* Fuel on an empty node, yes; Poison on an empty
+  sense for this to be here?* Catalyst on an empty node, yes; Poison on an empty
   node, no. Build note: today's `on_dealloc` has CLEAR and LINGER and a death
   clears both; terrain needs a shape that survives death too — a seam for
   spec time.
@@ -225,9 +267,11 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
   1) gives k = 3. `stake_ceiling` is 3 unless raised, so k runs 3–5; a leaf
   (T 2) holds 6–10, a degree-5 hub (T 10) 30–50, which late counts (20–50)
   can fill. The cap is soft: stacks past it are the **overflow** (§ Derived
-  states). **Fuel takes its own cap of the same k × T** (owner, 2026-11-08,
-  over sharing the temperature cap or none): one derived rule reused, one bar
-  shape, and a blast is bounded at roughly excess + Fuel ≤ 2 × k × T. Owner, 2026-11-05, asked whether a 100-Cold wall should be nigh
+  states). **Catalyst takes a cap of the same k × T** (pass default, carried from the
+  Fuel cap the owner picked on 2026-11-08, over sharing the temperature cap or
+  none): one derived rule reused, one bar shape. The converted stacks land into
+  the element's own cap with the overflow rules, so a blast is bounded by
+  k × T alone. Owner, 2026-11-05, asked whether a 100-Cold wall should be nigh
   impossible to remove: *"option 1 sounds good"* (the cap) over proportional
   decay alone. One rule bounds a Cold wall's depth, a blast's power and a
   Shocked node's hops — the magnitude fork of #1733 round 3.
@@ -266,21 +310,24 @@ own (§ The threshold model):
 
 A hit crits once, as its own fact, and its riders copy it (#1741, built
 2026-11-04). Whether a go-off's *copy* also copies its parent's crit is open:
-a spell blast's shrapnel draws its own crit today (`PairedDamageEffect`, no
-paired lead), only a melee blast and riding landings copy. #1741's owner line
+a spell blast's shrapnel draws no crit at all today
+(`PairedDamageInstance.draws_own_crit()` is false, so `CritRoll` skips it);
+only a melee blast and riding landings copy. #1741's owner line
 also fixes an order inside a hit — *"elemental riders first … then other
 status(es), then damage(s)"* — which § Landing resolution must keep.
 
-An element status (Fuel, Heat, Cold, Frostbite, Charge) rides exactly as
-Poison rides; it differs only in which count caps it. Owner, on one rider
+An element status (Heat, Cold, Frostbite, Charge) rides exactly as
+Poison rides; it differs only in which count caps it. Catalyst rides too,
+budgeted by its own count. Owner, on one rider
 map: held, conditional on aspects being 1:1 (*"depends on the status
 cardinality maybe"*), which § The two axes settles. There is no third entry:
 anything new is a number that lands (payload); where it lands is the node's.
 
-**Which element statuses ride.** Every counted role — terrain stack, Fuel,
-mover — can be a rider row (a goo arrow plants Fuel, an ice spell plants
+**Which element statuses ride.** Every counted role — terrain stack, Catalyst,
+mover — can be a rider row (a goo arrow plants Catalyst, an ice spell plants
 Cold on the chokepoint, a hot arrow plants Heat); a state never rides, it has
-no count. Owner, 2026-11-04: *"if fuel is to be a fire status.. and option 2
+no count. The quote that settled the rule, owner, 2026-11-04:
+*"if fuel is to be a fire status.. and option 2
 says `fire:heat` at exactly one then how could a fuel-planting arrow exist? it
 couldn't. so i guess that rules out option 2? option 1 sounds reasonable"*.
 One cap per element across its whole family.
@@ -289,15 +336,15 @@ One cap per element across its whole family.
 
 An intake row is the one `AspectIntake` type (ADR 0060: identity, innate,
 int:int rates) plus a **use** that says what its load buys: ADR 0070's
-swappable `LoadUse`, an open set. The seam exists: Firecracker's fuel row
-already carries a `use` (`attack/spell/load_use/`). Owner, 2026-11-08:
+swappable `LoadUse`, an open set. The seam exists: Firecracker's intake row (a
+`FuelUse`) already carries a `use` (`attack/spell/load_use/`). Owner, 2026-11-08:
 *"spell infusions may also do bespoke stuff instead of simply adding riders,
 we are free to design what feels useful and fun to have"*. Two uses carry
 the elements so far:
 
 | Row use | Buys | Supply cap |
 |---|---|---|
-| **ride** (the default) | a rider of the named status: Heat, Fuel, Cold, Charge, or any aspect status | that status's aspect or element count |
+| **ride** (the default) | a rider of the named status: Heat, Cold, Charge, Catalyst, or any aspect status | that status's aspect or element count |
 | **shape** (bespoke, per spell) | spell-specific: Firecracker's blast waves, Ice concentrate (§ Ice on a cast) | whichever count it names |
 
 - **No use gives a hit reach.** A shape use may reshape the cast (Ice trades
@@ -311,7 +358,8 @@ the elements so far:
   slot count: the same element as the spell's innate one adds load, a
   different one replaces it for the cast. The aspect slots are untouched. The
   owner's own caveat in the same breath: the slot loads Heat, Cold or Charge,
-  *"not really things like Fuel"* — Fuel's place is § Open.
+  *"not really things like Fuel"*. Catalyst is not on the element
+  axis; it rides as its own row, an aspect (§ The threshold model).
 - **The element is an axis orthogonal to the subtype** (owner, 2026-11-09, on
   arrows: *"what if the element of each arrow is orthogonal to its subtype?
   (where subtype often just adds riders for e.g. aspects status stacks?)
@@ -342,8 +390,9 @@ each a tiny unit of play the rule must produce, all need the node primed:
 1. *"a ranged poison arrow can hit a fueled up, volatile node and have its
    poison payload be applied amongst the blast radius instead of just the one
    node"* — the node is Burning (Heat past T); the arrow is the trigger; the
-   disc's power is the excess plus all the node's Fuel; the poison lands on
-   the target and a share on the disc; the Fuel burns into 2 Heat per Fuel.
+   disc's power is the excess; any Catalyst the node held was already turned
+   into Heat when Heat first landed there (that is how it got Burning so
+   fast); the poison lands on the target and a share on the disc.
 2. *"take poison spell, craft an AoE effect on it by picking Explosive
    infusion, and watch each hit turn into an AoE hit"* — the infusion plants
    Heat (or is a bespoke shape use, § The forge): early hits warm their
@@ -355,7 +404,7 @@ each a tiny unit of play the rule must produce, all need the node primed:
    the size ladder.
 
 Reach reads the same for an arrow, a blade vertex and a spell hit, since
-none carries any. **Planting** (a goo arrow laying Fuel, an ice spell laying
+none carries any. **Planting** (a goo arrow laying Catalyst, an ice spell laying
 Cold on a chokepoint — the player control #1716 asks for) is a ride row like
 any rider, and a planting hit is a hit: on a primed node it sets it off like
 any other.
@@ -369,10 +418,10 @@ decay. Maybe raise you: for charge arcs hitting charged nodes also just keep
 arcing (and consuming a stack ofc) and concatenating hits."*). That is how it
 is built (#1735's finding), so #1735 closes with a doc line.
 
-**A go-off with no parent hit** — a Burning node holding Fuel on the world
-tick — is a **terrain hit** (owner, 2026-11-05: *"option 1"*): its copies
-carry only the blast's own damage (∝ power), no riders, no crit,
-side-blind, so your own Hearth beside your own keg burns your own nodes too.
+**A go-off with no parent hit** is a **terrain hit** (owner, 2026-11-05:
+*"option 1"*): its copies carry only the blast's own damage (∝ power), no
+riders, no crit, side-blind. Nothing in v1 triggers one; whatever earns it
+later (a keystone emitting Heat, say) burns your own nodes too.
 **The attacker is the sided party in the reaction**: the Heat's latest
 applier (a `NodeStatus` already records `applier_id`). No new fact lands on
 side-less terrain. **Sync by determinism**: a terrain cascade has no crit and
@@ -677,8 +726,7 @@ settle is the same rule applied to a rider. Both signs rest on unallocated
 ground, and the flat decay cools the board (§ The threshold model). Frozen
 ends when Cold drops back to T; **Burning** is its mirror — Heat past T, same
 T, derived, never saved — and **Burning is what ignites** (owner, 2026-11-05:
-*"Burning ignites"*, picked over "any Heat ignites" of #1660 round 2): a
-Burning node holding Fuel explodes on the world tick (#1696's ignition). A
+*"Burning ignites"*, picked over "any Heat ignites" of #1660 round 2)). A
 leaf (T 2) lights at three Heat, a degree-5 hub needs eleven, so hubs are
 hard to blow and tips burn bright. The door the owner kept open (*"a bespoke
 twist or tweaked T value later for Burn. or extinguish mechanics"*) stays
@@ -704,8 +752,7 @@ staggered clocks (the one-snapshot Metropolis rule needs one snapshot).
 
 **Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
 needs no tick: a flat decay of 1 per world turn is computable on read (stored
-count, minus world turns since it was last written, floored at 0). So Charge
-and Fuel, which never flow, cost nothing per world turn. Only the Heat/Cold
+count, minus world turns since it was last written, floored at 0). So Charge and Catalyst, which never flow, cost nothing per world turn. Only the Heat/Cold
 diffusion is a real pass: **one** pass over the signed `t`, over the
 temperature index (nodes holding Heat or Cold, the `_lingering` registry's
 shape), on packed arrays, never a walk of the graph. Worst case is a fully
@@ -715,10 +762,11 @@ toolchain already exists (the XPBD solver is C++), so the cost is a C++
 implementation that must stay the **only** implementation (never a GDScript
 mirror), not a new build.
 
-Everything else coexists. Fuel and Cold coexist: a frozen keg sits inert
-until it is thawed and Heat takes it past T. Heat never touches a Frostbite
+Everything else coexists. Catalyst and Cold coexist: Catalyst under a Frozen
+node is colourless until a hit's element lands; a Cold hit deepens the
+freeze, a Heat hit thaws harder. Heat never touches a Frostbite
 pack (owner, 2026-11-04: *"Heat & Cold don't make sense together. frostBITE
-is an ailment"*). Charge has no opposite. Rejected: Fuel damped by Cold
+is an ailment"*). Charge has no opposite. Rejected: Catalyst damped by Cold
 (terrain fighting terrain with nobody acting).
 
 ## Three things wear the word "explosive" (pass clarification, 2026-11-04)
@@ -731,8 +779,8 @@ different rows share the old word, on every facet alike:
 | | Row | What happens | Plants |
 |---|---|---|---|
 | "infuse Explosive to make it AoE" | a Heat **ride** row (or a bespoke shape use) | the hit plants Heat; once its node is past T, later hits there blast | Heat |
-| "goo arrow" | a Fuel **ride** row | Fuel is added to the landing node, inert until the node is Burning | Fuel |
-| "a fuelled node" | terrain on the node | while Burning, any hit blasts it and its Fuel joins the power; it also blasts on the world tick | — |
+| "goo arrow" | a Catalyst **ride** row | Catalyst is added to the landing node, inert until a hit's element lands | Catalyst |
+| "a catalysed node" | terrain on the node | colourless until a hit carrying one element lands; then its store becomes that element 1:1, same landing | — |
 
 Poison has the second and a third of its own ("poison on a node ticks");
 the only novelty is that primed terrain reacts to *landings* where a mover
@@ -749,13 +797,15 @@ that reaches, so the words are pinned here and in the matrix Glossary:
 | **Payload** | What a hit delivers: damage plus its riders, any status | where it lands |
 | **Reach** | Where a hit's copies land, set by the node it lands on: a disc, a path, a point | anything a hit carries |
 | **Load** | The amount of an infused thing a cast carries (ADR 0060's word): an aspect or element-status load | a node's stacks |
-| **Rider** | Plants a status — any status, terrain and movers included (a goo arrow plants Fuel) | a reach |
+| **Rider** | Plants a status — any status, terrain and movers included (a goo arrow plants Catalyst) | a reach |
 | **Use** | What an intake row's load buys: an open set (ADR 0070's `LoadUse`) — ride, a bespoke shape, cleanse … | a slot |
-| **Terrain stack / Mover / State** | The roles in an element's family (table above): Heat, Cold, Charge / Frostbite / Burning, Frozen, Shocked; Fuel is Fire's accelerant | "the fire status" |
+| **Terrain stack / Mover / State** | The roles in an element's family (table above): Heat, Cold, Charge / Frostbite / Burning, Frozen, Shocked; Catalyst is in no family | "the fire status" |
 | **Primed** | A node whose terrain stack is past T (count > T, T = 2 × degree): a hit on it sets it off | a status with stacks of its own |
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
-| **Member** | A status of an element, whatever its role: Fuel and Heat are members of Fire; an Element Matrix row is a member row; a member keys its own facets (`fuel_resistance`) (owner, 2026-11-05: *"member"*) | a facet (arrow / blade / spell) or a role |
+| **Member** | A status of an element, whatever its role: Heat is a member of Fire, Frostbite of Ice; Catalyst is nobody's member; an Element Matrix row is a member row; a member keys its own facets (`heat_resistance`) (owner, 2026-11-05: *"member"*) | a facet (arrow / blade / spell) or a role |
+| **Catalyst** | inert, colourless terrain that becomes an element 1:1 when a hit carrying it lands or its node primes: the element analogue of Greed | fuel, a family member, a reach, a go-off |
+| **Volatile** | a word the owner floated for the states that go off, Burning and Shocked (owner, 2026-11-09: *"`volatile` is a better fit to describe Burning *and* Shocked"*) — not Frozen, which denies | a status |
 | **Fire / Heat / Burning** | The element (its count) / its terrain stack / Heat past T | three names for one thing |
 
 ## Acquisition (owner sketches, 2026-11-03/04; nothing picked)
@@ -773,57 +823,32 @@ here.
 
 ## Open
 
-- **Fuel's place on the element axis** (owner, 2026-11-09, open). With the
-  element an orthogonal axis (§ The forge), Heat, Cold and Charge are what it
-  plants; Fuel is not. Three shapes were put up: Fuel as Fire's second form
-  (a fire unit plants Heat or Fuel by its authored use), Fuel as the Fire
-  family's *subtype* member the way Frostbite is Ice's (the keg subtype, any
-  element rides it), Fuel as world terrain only (barrels, never loaded). The
-  owner on the keg-subtype shape: *"the "keg" is very much linked to AoE
-  hence in that sense very "fiery" though. unless we also add a shock and
-  lightning counterpart? or change fuel to be an aspect instead -- an
-  element-generic catalyst for any incoming terrain stack, cold/heat/charge."*
-  **Pass + advisor analysis (2026-11-09), for the owner:** the generic
-  catalyst has the game sense; per-element counterparts are grid-filling
-  (three rules, three supplies, the Ice and Lightning ones anchored to
-  neither a concept nor a wanted feel). The move that answers "a keg is
-  fiery": separate *power* from *shape*. The catalyst adds power to whatever
-  go-off spends it — ADR 0075 §6's law (*"consume all fuel stacks too add
-  them to the explosive power"*) with "Fire" struck out — and only Fire's
-  go-off turns power into area. Each face is the element's existing go-off,
-  louder: Burning + catalyst a bigger disc; Shocked + catalyst a harder pulse
-  to every neighbour (reach is topology, so power is damage or Charge laid —
-  a wire-layer, not area); Frozen + catalyst a bigger inward shatter on the
-  holder, nothing on bare ground — a single-target trap, the opposite of
-  AoE, free. Scaling at the settled cap k × T (degree 3: 12–30 per node):
-  Burning a disc of ~6–8 node radii, bounded by the cap and the 1-per-node
-  spend; Frozen is the one to see coming — excess + catalyst ≈ 60 stacks at
-  1 %/stack is a 60 % max-HP true hit from one node, so the catalyst's worth
-  per go-off wants a per-element knob (default 1 for Burning, lower for
-  Frozen); count 1 vs 100: a late archer lays a 100-node minefield, the
-  per-node cap bounds each blast and the count bounds the turn, area ×
-  intensity linear. Designer note: a pure amplifier does nothing alone — a
-  catalyst-only build is dead until an element primes something (own, an
-  ally's, the map's); correct for a catalyst, and exactly what separates it
-  from the retired Explosive aspect that blew up by itself, but it must be
-  visible at acquisition (the card offer pairs it or says so). Never give
-  kegs a standalone go-off to fix that — it is Explosive back under a new
-  name. **Proposed resolutions, drafted, not owner calls** (asked 2026-11-09,
-  session ended before an answer): (1) **supply** — its own count on the
-  StatBoard, a fourth attunement (the demolitionist; a solo build pays two
-  counts where Clamp pays one, so #1765's parity question moves onto the
-  catalyst; partly reverses ADR 0072 — the explosive count returns as the
-  catalyst count, side-less terrain, never an aspect; finding 15's orphans
-  get homes by retag, not deletion); alternatives: found only (barrels and
-  loot — a rare play by design), or any element count feeds it (a split
-  rule). (2) **fuse** — any primed node holding catalyst goes off at the
-  world turn (one rule; frozen and charged kegs become timed traps; rides
-  the terrain-hit path); alternative Burning-only. (3) **residual** — of the
-  spending element (Heat re-primes, Cold is a feedable freeze lock to watch,
-  Charge stays Shocked; one knob N per element, same default); alternatives
-  Heat only, or none. (4) **name and kind** — side-less terrain with its own
-  count, a kind that does not exist yet; "Fuel" is a fiery word for a generic
-  thing; candidates Catalyst, Fuel, Volatile — the owner's word.
+- **Catalyst, settled and what remains** (owner, 2026-11-09). Settled in § The
+  threshold model: Catalyst is one element-generic converter in no family, the
+  world-tick fuse is dropped (it converts at landing, so no node holds it
+  at a go-off). The rejected alternative, in the owner's words: *"either this, OR
+  we add an "inert fuel-like buildup" status for Ice and Lightning too so each
+  has one of them. but i think that'd just be a less comprehensible, more
+  tedious and less fluent way to go about this and that getting just 1
+    catalyzing status for all elements would work better."*
+  - **Settled 2026-11-09 (owner quotes in § The threshold model):** supply
+    is an aspect (the Explosive aspect retagged, DEX), colouring is hits plus
+    priming, the trade is the whole store at 1:1 with no slice. These
+    supersede ADR 0072 §3 (*"Fire is wholly an element. Fuel is Fire's
+    medium; no Explosive aspect survives"*) in part and ADR 0075 §6 (Fuel the
+    accelerant); the follow-up ADR records it. Master artifacts to RETAG
+    (explosive to catalyst), none deleted: `stats_system/defs/explosive_aspect.tres`,
+    `effects/status/explosive.tres` (with its `charge` tag),
+    `aspects/defs/explosive.tres`, `attack/ammo/types/explosive.tres`, the
+    barrel addon `skill_node/addons/defs/explosive_barrel_addon.tscn`, the
+    ring slot in `entity/ring/aspect_ring.tscn`, the `explosive_aspect` roll
+    in `procgen/pools/dexterity.tres`.
+  - **NOTE, fate at spec time:** `DetonateUse`/`DetonateEffect`, blade
+    `vertex_charges`/`BladeVertexFill` and Firecracker's intake row with a
+    `FuelUse`.
+  - **For Greed's spec:** Greed must not multiply element stacks (owner's
+    lean, quoted in § The threshold model).
+  - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow.
 - **Ice pricing, per spell**: the authored per-hop multiplier is confirmed as
   a lean (§ Ice on a cast); each spell's per-hop worths and the affinity
   ratios are spec-time numbers, with #1444.
@@ -836,14 +861,14 @@ here.
   or bounces back onto its emitter is for Lightning's spec. A blanket reflect
   was rejected (owner, 2026-11-05: *"reflect: too powerful, esp being as
   cheap as 2 Cold on a leaf node"*).
-- **Ranged's access to Fuel: an Element Matrix** (owner, 2026-11-04:
+- **Ranged's access to Catalyst and element arrows: an Element Matrix** (owner, 2026-11-04:
   *"option 1 sounds good"*), one row per family status, columns `Ammo :
-  Addon : Spell : Infusion`, so the Explosive addon becomes the Fire::Fuel
+  Addon : Spell : Infusion`, so the Explosive addon becomes the Catalyst
   addon cell. Still open on it: **availability** — a found addon is not
   Clamp-like (owner: *"god i hope i find an explosive addon anywhere in the
   nearest 20 hops from where i spawned"*; the fuel-arrow count *"need to get
   into 10s ASAP"*, and late-game ranged fires hundreds of arrows), so the
-  Fuel ammo cell wants a steady source (a reload grant from the count is one)
+  Catalyst ammo cell wants a steady source (a reload grant from the count is one)
   and **a stock cap per element ammo type** (owner: *"storing 1000 heat arrows
   sounds like bad juju"*) — the `Quiver` already caps per type
   (`AmmoType.max_stock`, 999 default), so each element ammo type sets its
@@ -855,16 +880,16 @@ here.
   ranged?"* — tracked as #1765 (the access shape, one budget per element
   across its ammo types vs each type minting the count, the stock cap).
   **Pass state, 2026-11-09:** the budget question is dissolved by the
-  orthogonal axis (§ The forge). The access shape was put to the owner and
-  redirected into the axis idea, unanswered; the pass's recommended shape is
-  **the count is the access** — fire ≥ 1 unlocks the element axis in the
+  orthogonal axis (§ The forge). **The access shape is an owner call (2026-11-09, picked over a temp quiver
+  addon and a starter element ammo type): the count is the access** — fire ≥ 1 unlocks the element axis in the
   quiver and every reload mints `fire` element-tagged arrows, no action,
   nothing to find or buy (routes through `AmmoType.per_reload_stat_id`; the
-  starter grant is count 1); the alternatives (a temp quiver addon bought
-  with a ranged resource that does not exist yet; a starter type with a
-  fixed grant, two sources of one supply) scored lower. If Fuel becomes a
-  generic catalyst with its own count, the parity question moves onto the
-  catalyst. **Stock cap arithmetic (pass):** the count mints that many
+  starter grant is count 1); the rejected alternatives: a temp quiver addon bought with a ranged
+  resource that does not exist yet; a starter type with a fixed grant, two
+  sources of one supply. Catalyst is an
+  aspect, so goo arrows are budgeted by its count exactly as poison arrows are
+  and the Clamp-parity ask is answered for kegs; the element-arrow access
+  shape stays as written. **Stock cap arithmetic (pass):** the count mints that many
   element arrows per reload (1 at fire 1, 100 at fire 100), so a flat cap
   serves one end only — 50 halves a late archer's every reload, 999 is the
   hoard — the knob is a multiplier on the type's own per-reload mint, pass
@@ -872,16 +897,15 @@ here.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
-  one concept id, so a Fuel ride row and a Heat ride row cannot both key on
-  `fire` — #1660's B2 (*"intake row names which of its aspect's statuses it
+  one concept id, so two rows of one family (Cold and Frostbite, say) cannot both key on
+  `ice` — #1660's B2 (*"intake row names which of its aspect's statuses it
   plants"*) is the fix and must be carried into the row design — with one
   element per spell (§ The forge) the collision is moot on the spell path and
   stays live for arrows, addons and a spell wanting two fire rows; (b) **facet
   ids**: `<x>_stacks_per_hit` / `<x>_resistance` key per status (#1660 A1),
-  so a member keys on itself (`fuel_`, `heat_`), while the count needs a new
+  so a member keys on itself (`heat_`, `cold_`), while the count needs a new
   `StatDef.Role` (`fire` is not `fire_aspect`); (f) **Charge** collides
-  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag to
-  `fuel` is the plan and must be in the first Fire issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
+  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
   of the same id — coalescing is still #1741's open NOTE, not an owner call.
 - **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
   outlive the kill" direction is *"a lame exploit already on paper"* — kill
@@ -894,6 +918,6 @@ here.
   #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops
-  the one, docs may be stale"* — `BladePopResolver`'s header and
-  `docs/domain/ai-blade-rollout.md` describe severing past a pop; check
-  against the code at the Ice spec.
+  the one, docs may be stale"* — `BladePopResolver`'s header describes severing past a pop while
+  the code pops the one vertex and only records a `Severance` for what the
+  pop left unreachable; settle header against code at the Ice spec.

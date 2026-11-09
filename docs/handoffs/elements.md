@@ -82,20 +82,23 @@ mechanism, authored per spell. **Forge lean**: a dedicated elemental slot —
 (`fire_element`). Blade speed curve knob written (clamped linear in t/T).
 Greed/#1659 was closed not planned by a parallel session and is off the list.
 
+**Settled 2026-11-09, afternoon pass (in the doc with quotes; arc in
+`docs/handoffs/fuel-to-catalyst-arc.md`):** Fuel left Fire and is
+**Catalyst** — one element-generic converter in no family, an aspect (the
+Explosive aspect retagged, DEX; owner: *"yeahhh exactly option 1. w/visually
+like purple crystals or smth instead of black goo"*), inert until a hit
+carrying one element lands on its node or the node primes by any route, then
+its whole store converts 1:1 into that element (no slice; a hit carries 0 or
+1 element). The world-tick fuse and the 2-Heat residual went with Fuel; the
+per-element buildup alternative was rejected in the owner's words. Greed must
+not multiply element stacks (owner's lean, for Greed's spec). **#1765's
+access shape is an owner call: the count is the access** (fire ≥ 1 mints
+element-tagged arrows per reload; stock cap a knob, 2× the mint). The aspect
+matrix's Explosive row, section, arrow-look and DEX lists were retagged to
+Catalyst and its Glossary aligned with the doc's Vocabulary guard.
+
 Still open, in this order:
 
-- **Fuel's place: the generic catalyst** (doc § Open, first item) — the
-  four drafted forks: supply (own count, recommended; found only; any
-  element count), fuse (any primed catalyst node self-triggers, recommended;
-  Burning only), residual (of the spending element, recommended; Heat only;
-  none), name and kind (Catalyst / Fuel / Volatile — the owner's word).
-  Couplings: "own count" partly reverses ADR 0072 and turns finding 15's
-  orphans into retags; it also moves #1765's parity question onto the
-  catalyst; the per-element catalyst worth is a knob (Frozen lower).
-- **#1765 — the access shape**: re-ask after the catalyst settles (the
-  pass's pick, "the count is the access", is in the doc with the two
-  alternatives scored); the stock cap is a knob (multiplier on the per-reload
-  mint, default 2).
 - **Follow-up ADR**: ADR 0075's "not decided here" is now almost all decided
   (go-off cost, shatter shape, ice breakers, trapped charge, death, Fuel's
   cap, the Ice pricing lean), plus tonight's axis, one-element-per-spell and
@@ -103,12 +106,10 @@ Still open, in this order:
   after the catalyst settles so its supply (the 0072 partial reversal) goes
   in the same ADR; fix the sync model's "exactly one subsystem" sentence in
   the same pass.
-- **Explosive artifacts**: every orphan in finding 15 (below) needs a
-  destination or a supersession before any element issue goes `Ready` — if
-  the catalyst takes its own count, most are retags (`explosive` → the
-  catalyst's name), else spec-time deletions (`DetonateUse`/
-  `DetonateEffect` retired by Burning-ignites + the `ReachUse` seam,
-  `docs/domain/explosive.md` rewritten at build).
+- **Explosive artifacts**: finding 15's orphans are now RETAGS (`explosive`
+  → `catalyst`) listed in the doc's § Open; `DetonateUse`/`DetonateEffect`,
+  blade `vertex_charges`/`BladeVertexFill` and Firecracker's `FuelUse` row
+  are spec-time calls (`docs/domain/explosive.md` rewritten at build).
 - **Element count as a stat**: `fire` / `ice` / `lightning` (and the
   catalyst's count, if own) on the StatBoard (manage-stats), a new
   `StatDef.Role`; a member keys its own facets.
