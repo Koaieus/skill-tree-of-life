@@ -226,30 +226,47 @@ concept on one spell.
 
 ## 3. Then the split of #1716 (needs board access)
 
-Proposed children (pass proposal, 2026-11-09), dependency-ordered; 1–3 are
-the substrate: **1** element counts on the board (`Role.ASPECT` → `COUNT`,
-`Identity.Kind.ELEMENT`, the `Element` def + roster) + member facets + the
-Aspect:Status 1:1 guard test (`manage-stats`), and the intake row naming its
-status; **2** Explosive → Catalyst
-retag (list above; `charge` tag freed; land-phase conversion and the prime
-trigger; fate of `DetonateUse` / `DetonateEffect`, `vertex_charges` /
-`BladeVertexFill`, Firecracker's `FuelUse`; `docs/domain/explosive.md`
-rewritten) — Catalyst keeps CLEAR; **3** terrain substrate (two ints on
-`NodeState` + snapshot slot, save bump and fingerprint fold, T / k / cap / overflow, decay on read, the temperature index + integer
-Laplacian on the world turn, the capacity bar); **4** the two-stage landing
-resolver as a land-time gather (ADR 0082; the five build calls above, detonation ported as go-off zero; #1733 closes into it; shrapnel copies the hit's crit);
-**5** Fire (Heat ride row, Burning's disc go-off, burn, light source, the
-Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in); **6**
-Lightning (Charge, Shocked arcs to every neighbour, L² × T ladder,
-conduction, the Charge addon, a Shocked vertex; `lightning_bolt` renamed);
-**7** Ice (Cold, absorption, breakers + corruption-path burst, blade snap and
-the Frozen vertex's concentrate snap, Frostbite #1444, concentrate `shape`
-use, the Cold addon, the new Cold spell with Thermal shock); **8** forge and
-quiver (one element field per cast, 3 int:int units, the three element ammo
-types with their 1:1 mint + stock cap, starter counts incl. Catalyst 1;
-#1765 closes).
-1 before 4 (the `Element` def carries `go_off` / `admits`); 4 before 2 (go-off zero is ported before the retag) and before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
-#1787 generator keystones; #1786 melee crit condition (P0, independent).
+Children (owner nod 2026-11-09 night: *"looks good to me"*), in dependency
+order:
+
+1. **Element counts and the `Element` def** — `Role.ASPECT` → `COUNT`,
+   `Identity.Kind.ELEMENT`, the `Element` def with its ordered bands
+   (threshold, identity, go-off, admits) + roster, member facets
+   (`heat_resistance`), the Aspect:Status 1:1 guard test (`manage-stats`),
+   the intake row naming its status.
+2. **Terrain substrate** — two ints on `NodeState` + snapshot slot, save bump
+   and fingerprint fold; T / k / cap / overflow, decay on read, the
+   temperature index + integer Laplacian on the world turn; the band function
+   and `terrain_band_changed`; the south-side bars and the `Burning 7/6`
+   label.
+3. **Applier refactor** — `OutcomeApplier` drains an open worklist, one
+   stamping callable replaces the spell and ranged post-compile stamps, the
+   three landing-to-hit stampers fold into one; no behaviour change.
+4. **The two-stage resolver** — the land-time gather (ADR 0082), crit and
+   crit conditions at its head, one terrain snapshot per beat, one share,
+   detonation ported as go-off zero (both spend ledgers and the per-wave
+   `detonated` scope deleted); #1733 closes into it.
+5. **Explosive → Catalyst retag** — list in § 2; `charge` tag freed;
+   land-phase conversion and the prime trigger; go-off zero's interim disc,
+   `DetonateUse`, `vertex_charges` / `BladeVertexFill`, Firecracker's
+   `FuelUse` resolved; `docs/domain/explosive.md` rewritten; Catalyst keeps
+   CLEAR.
+6. **Fire** — Heat ride row, Burning's disc go-off, burn, light source, the
+   Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in.
+7. **Lightning** — Charge, Shocked arcs to every neighbour, L² × T ladder,
+   conduction, the Charge addon, a Shocked vertex; `lightning_bolt` renamed.
+8. **Ice** — Cold, absorption, breakers + corruption-path burst, blade snap
+   and the Frozen vertex's concentrate snap, Frostbite #1444, concentrate
+   `shape` use, the Cold addon; the Cold spell with Thermal shock comes from
+   #1789 (still Needs design — spec Ice without it unless #1789 is settled).
+9. **Forge and quiver** — one element field per cast, 3 int:int units, the
+   three element ammo types with their 1:1 mint + stock cap, starter counts
+   incl. Catalyst 1; #1765 closes.
+
+Order: 1 → 2 → 3 → 4 → 5, then 6 / 7 / 8 in parallel; 9 any time after 1.
+A go-off with no parent hit (a node priming on the world tick) lands with 6
+and 7. Later, blocked on these: #1787 generator keystones; #1786 melee crit
+condition (P0, independent).
 
 Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
 child 4. Parked: "a wire evens itself out"; the arc mirror (child 6); the
