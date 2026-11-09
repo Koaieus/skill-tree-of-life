@@ -682,6 +682,13 @@ func _coerce(v: float) -> Variant:
 			# applied once after the bins so `% increased` on a ratio target
 			# yields +1 +1 +1 rather than a burst. Pools round their own
 			# `current` separately (PoolStat.available()).
+			#
+			# The bins accumulate by delta, so a total that is whole on paper
+			# can sit one ULP off it; snap that noise to the whole number
+			# before truncating, or a threshold reads one point short.
+			var whole := roundf(v)
+			if is_equal_approx(v, whole):
+				return int(whole)
 			return int(v)
 		StatDef.ValueType.BOOL:
 			return v != 0.0

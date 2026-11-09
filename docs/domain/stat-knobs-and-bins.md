@@ -451,8 +451,8 @@ meaningless without it** — `+1` to a range *multiplier* is not a hop, so
 `cast_range_hops` is base 0 and the spell's `3` is the base every bin applies to.
 **A rate stat keeps an identity base, and an `ADD_BASE +X` on it is a rate
 bonus** — the authored number stays with its consumer, which multiplies it by
-the composed rate. For `spell_damage` that identity base is `5` since #1788
-(it was `1.0`); `healing_received` stays `1.0`. The premise that a flat bonus on
+the composed rate. For `spell_damage` that identity base is `5`
+(1 on the stat line plus the +4 innate); `healing_received` is `1.0`. The premise that a flat bonus on
 spell damage "has nowhere to go" only holds if the flat is measured in damage
 points; owner (#1016): it is measured in multiples of the authored number — the
 arithmetic the code already runs. None of the rate stats below converts to an

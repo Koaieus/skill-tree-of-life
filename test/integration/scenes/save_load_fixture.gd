@@ -83,13 +83,6 @@ func _settle(root: GameRoot) -> void:
 
 
 ## Every entity's stat values and pool `current`s, by entity id.
-##
-## Stats are captured as their UNCOERCED fold rather than through
-## `get_value()`: a save/load rebuild can land a 1-ULP difference in the
-## accumulated bins when a formula source steps through fractional
-## contributions, and an INT stat's floor turns 12.0 vs 11.999999999999998
-## into 12 vs 11. The world is the same; [method _assert_stats_match] compares
-## the fold with a tolerance so that noise cannot flip a floor.
 func _stats(root: GameRoot) -> Dictionary:
 	var out := {}
 	for c in root.graph.entities_container.get_children():
@@ -98,8 +91,8 @@ func _stats(root: GameRoot) -> Dictionary:
 			continue
 		var row := {}
 		for id in e.stat_board.get_stat_ids():
+			row[id] = e.stat_board.get_value(id)
 			var s := e.stat_board.get_stat(id)
-			row[id] = s.resolve_with([]).fold(s.base_value)
 			if s is PoolStat:
 				row[String(id) + ".current"] = (s as PoolStat).current
 		out[e.entity_id] = row
@@ -168,22 +161,8 @@ func _assert_same_world(before: Dictionary) -> void:
 	assert_eq(now.entity_bytes, saved.entity_bytes, "the entity half re-captures identically")
 	assert_eq(now.graph_bytes, saved.graph_bytes, "the graph half re-captures identically")
 	assert_eq(WorldFingerprint.compute(_root.graph), before.fingerprint, "WorldFingerprint")
-	_assert_stats_match(_stats(_root), before.stats)
+	assert_eq(_stats(_root), before.stats, "every entity's stats and pool currents")
 	var holder := _root.turn_manager.current_entity
 	assert_not_null(holder, "a turn holder after load")
 	if holder != null:
 		assert_eq(holder.entity_id, before.holder, "the same seat holds the turn")
-
-
-## Compare [method _stats]' raw folds with a tolerance. The values are
-## pre-coercion, so an INT stat's floor cannot turn a 1-ULP bin drift into a
-## whole-point difference; any real save/load loss is far above 1e-4.
-func _assert_stats_match(now: Dictionary, before: Dictionary) -> void:
-	assert_eq(now.keys(), before.keys(), "the same entities")
-	for id in before:
-		var a: Dictionary = before[id]
-		var b: Dictionary = now.get(id, {})
-		assert_eq(b.keys(), a.keys(), "entity %s: the same stat ids" % id)
-		for key in a:
-			assert_almost_eq(float(b.get(key)), float(a[key]), 0.0001,
-					"entity %s: %s" % [id, key])
