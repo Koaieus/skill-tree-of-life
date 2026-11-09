@@ -173,6 +173,33 @@ pointing comment, post the split as a comment on #1716 and drop its `design`
 label, check the drift stamps, hygiene. Then fix the stale facts below,
 delete `docs/handoffs/elements-split/` and this file.
 
+**Before filing, in this order** (owner, 2026-11-10: *"yeah add that for
+the next session"*):
+1. **Verify the blade ledger's timing, before `go-off-zero` is filed.** Both
+   spend ledgers were planned to die, but the blade one
+   (`attack/melee/sim/blade_pop_resolver.gd` `_node_spent`, spends at
+   `:329-341` and `:410-418`, `take_spends` `:402-408`) was deleted on the
+   writer's unchecked claim that each contact lands at its own key
+   (`attack/melee/swing_resolve.gd:485`) so the previous spend is on the
+   world when the next gate runs. Check it: does a contact's hit land before
+   the next contact's `LiveGate.admit`, or does the sim decide the whole
+   swing first and land afterwards? If the sim runs ahead, the ledger stays
+   as the sim's working copy (only the spell-side `detonate_effect.gd`
+   ledger goes) and `go-off-zero.md` is corrected before it is filed.
+2. **Settle Shocked conduction at 0 hops with the owner.** A spell walk
+   entering a Shocked node leaves without spending a hop, 1 Charge per
+   pass-through (`elements.md:855-858`) — owner, 2026-11-10: *"i forgot i
+   designed that as a feature. it's rather powerful, not spending a hop. but
+   might be just what it needs. or is the arcing already splash madness
+   enough?"* Open: does a walk that arrives with 0 hops left still leave
+   (`lightning.md` says yes, tentative), or does conduction only make a hop
+   free while one is left? The pass's arithmetic for the owner: an arrival
+   is also a hit, so the node arcs to every neighbour and pays 1 per node
+   reached plus 1 for the pass-through; at T = 2 x degree a degree-3 node
+   one stack past T is back under T after a single arrival, so a wire
+   carries roughly one spell before it has to be recharged.
+3. Then the cold review and the clerk order below.
+
 **Look at these first in the cold review** (the writers' own flags):
 - `go-off-zero` deletes the blade's per-swing spend ledger `_node_spent` on
   the reasoning that each contact lands at its own key — unverified; the
