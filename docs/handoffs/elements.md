@@ -5,74 +5,103 @@ names is on master; nothing lives only in a transcript.
 
 ---
 
-Continue the elements design pass (#1716 is the hub). **The design is
-settled**: every owner call 2026-11-03 → 11-09 is quoted and dated in
-`docs/design/elements.md` (status `settling`), and the decisions are in ADR
-0072, 0075 and **0081** (2026-11-09: go-off cost, shatter, breakers, frozen
-solid, death, Catalyst replacing Fuel, one element per cast, the orthogonal
-axis, the count as access, the world-turn scope line). What is left is the
-**split of #1716 into drone-sized children with `spec`** — it needs a session
-with board access (`mise gh-project` is GraphQL, which cloud sessions cannot
-reach; a local session can). Read, in order: `docs/design/elements.md`;
-ADR 0081, then 0075 and 0072; this file's findings list only for the
-spec-time items (a), (b), (h) below.
+Continue the elements design pass (#1716 is the hub). **Read nothing in full.**
+`docs/design/elements.md` is ~950 dense lines and the handoffs are long; a
+session that reads them whole spends a third of its context before the first
+fork (2026-11-09 pass: ~150k at minute two). Instead, open with **one
+`Explore(model: haiku)`** carrying two lists and read only the ranges it
+returns:
 
-Open with the proposed split below as one screen for an owner who has read the
-title only, then `AskUserQuestion` on its shape and order (recommended first);
-write the verdict back here, then run `spec` per child. **Local session:
-commit on master and push, no PR; pull/rebase onto origin/master before editing
-and before every push.** Cloud session: a docs-only PR (auto-merge takes
-`docs/design/` and `docs/handoffs/`, never `docs/adr/`). `mise run
+- **Doc ranges**: for each fork below, the section and line range of
+  `docs/design/elements.md` that carries it, plus the owner quote verbatim
+  with its date; the same for ADR 0081 and 0082 (`docs/adr/`), one line each.
+- **Seam grep** (code, against master): `on_dealloc` and its CLEAR / LINGER
+  handling on death; `NodeStatus` and `StatusHost` (is a node's status row
+  sided, where does `applier_id` live); `Infusion.load_of` / `use_of` /
+  `StatusRoster.by_concept` keying; `StatDef.Role` and `EntityStatBoard`'s
+  minting; `HitLanding.place` / `detonated`; `PairedDamageInstance.draws_own_crit`;
+  `AmmoType.per_reload_stat_id`; `procgen/pools/*.tres` aspect rolls; the
+  world-turn hook (`_end_world_turn`, ADR 0055). One `file:line` fact each.
+
+The design is **settled**: owner calls 2026-11-03 → 11-09 are in the doc,
+and the decisions in ADR 0072, 0075, **0081** (go-off cost, shatter,
+breakers, frozen solid, death, Catalyst, one element per cast, the count as
+access, the world-turn scope line) and **0082** (two-stage hit resolution,
+Frozen absorbs under-threshold copies, a copy carries its parent's crit,
+Catalyst colours on hit or prime). Work `AskUserQuestion` case by case,
+recommended first; write each verdict into the doc with quote and date;
+commit, push. **Local session: commit on master, no PR; pull/rebase onto
+origin/master before editing and before every push.** Cloud session: a
+docs-only PR (auto-merge takes `docs/design/` and `docs/handoffs/`, never
+`docs/adr/`); **the board (`mise gh-project`) is GraphQL and unreachable from
+a cloud session**, so the split (step 3) needs a local one. `mise run
 docs-hygiene` after a design doc, `adr-hygiene` after an ADR. `gh issue view`
-is blocked (GraphQL); use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>`
-and `/comments`.
+is blocked; use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and
+`/comments`.
 
-**Proposed children (pass proposal, 2026-11-09, not an owner call).** The
-order is a dependency order; 1–3 are the substrate every element needs.
+## 1. Forks still open — content and acquisition (owner, design hat)
 
-1. **Element counts on the board** — `fire` / `ice` / `lightning` as stats
-   with a new `StatDef.Role` (not `<x>_aspect`); a member keys its own facets
-   (`heat_resistance`, `cold_stacks_per_hit`); the Aspect:Status 1:1 guard
-   test (ADR 0072 §1, none exists). Via `manage-stats`.
-2. **Explosive → Catalyst retag** — the artifact list in the doc's § Open
-   (aspect, status with its `charge` tag freed for Lightning, ammo type,
-   barrel addon, ring slot, DEX pool roll, Firecracker's row); Catalyst's
-   land-phase conversion (whole store, 1:1, one element per hit); the fate of
-   `DetonateUse` / `DetonateEffect`, blade `vertex_charges` / `BladeVertexFill`
-   decided in the spec. Rewrites `docs/domain/explosive.md` at build.
-3. **Terrain substrate** — a side-less node status shape that survives death,
-   retake and dealloc (today's `on_dealloc` CLEAR / LINGER both clear on
-   death); T = 2 × degree, k = 2 + `stake_level`, the soft cap and overflow;
-   decay computed on read; the temperature index and the integer Laplacian
-   step on the world turn; the capacity bar on hover.
-4. **Landing resolution** — read / land / settle over `HitLanding` (today
-   riders are separate `HitInstance`s ordered at `place()`; copies made at
-   settle must pass through it); the once-per-node-per-hit cap; the dual-reach
-   concat/dedupe knob. #1733 closes into this.
-5. **Fire** — Heat ride row, Burning's disc go-off (per-node cost, power read
-   post-land, no-target-no-spend), Burning's burn and light source. #1660 /
-   #1695 / #1696 fold into this child and close.
-6. **Lightning** — Charge, Shocked arcing to every neighbour, the L² × T hop
-   ladder, conduction of a spell walk; `lightning_bolt.tres` renamed, not
-   reshaped.
-7. **Ice** — Cold, Frozen's denial, the three breakers and the shatter burst
-   through the corruption path, the blade snap, Frostbite (#1444's inward
-   pack), the concentrate `shape` use with per-spell pricing.
-8. **Forge and quiver** — one element field per cast (add or swap), the
-   elemental slot's three int:int units, the quiver's element axis minting
-   per reload from the count with the stock-cap multiplier (#1765 closes).
+Nothing is playable until a count exists and something carries an element.
+§ Acquisition says *"nothing picked"*; § The forge leaves the arrow tag and
+the blade's element unstated.
 
-Dependencies: 4 before 5–7; 1 before 8; 2 with or before 5. Children 5–7 share
-`HitLanding` and the status files with 3–4 — a map for the orchestrator, not a
-gate.
+- **How a player gains `fire` / `ice` / `lightning`.** Procgen pool rolls
+  like today's `explosive_aspect` in `dexterity.tres` (an element roll in
+  the STR / DEX / INT pools, so Fire sits in STR's pool with melee); the
+  inner-tree third ring or three-spoke tree; a periodic card offer; a
+  keystone (the Hearth). Which ship in v1, and is there a starter count of 1
+  (the access shape of ADR 0081 §7 assumes one)?
+- **Which content carries an element in v1.** Spells: `lightning_bolt.tres`
+  renamed not reshaped (#1716 r1); Firecracker's row (Heat ride? Catalyst?);
+  a Frost Nova (Cold ride) vs a Pestilence concentrate — which shipped spells
+  get an Ice row at all. Ammo: the element-tagged arrows per reload. Addons:
+  the Catalyst barrel; is there a Heat or Cold addon for blades?
+- **How a blade gets its element** (§ The forge: *"a blade has its addons
+  and an element"*): an addon, the count directly, or none in v1.
+- **Which arrows of a reload take the element tag** (count mints N): the
+  first N fired, N of the player's choosing, or every arrow while N > 0 and
+  a tagged arrow spends one.
 
-**Spec-time items, carried from the 2026-11-05 adversarial review** (in the
-doc's § Open): (a) row keys — `Infusion.load_of` keys one concept id, so two
-rows of one family cannot both key on `ice`; #1660 B2 (the row names the
-status it plants) goes into child 4 or 8; (b) facet ids — child 1; (h) rider
-coalescing — #1741's open NOTE, stays a NOTE. Parked, not open: "a wire
-evens itself out"; the arc mirror (child 6's spec); the spike-pop docs-vs-code
-check (child 7's spec).
+## 2. Architectural seams to settle in the pass (swarmify step 9, after the Explore)
+
+- **A terrain row that survives death.** `on_dealloc` CLEAR and LINGER both
+  clear on death; options: a third mode (PERSIST), a side-less row kind the
+  host never clears, or terrain held off the StatusHost on the node. Cost
+  and smell per option; the applier_id of the latest Heat still wanted.
+- **Row keys.** `Infusion.load_of` keys one concept id; one element per
+  spell makes the collision moot on casts, live for arrows, addons and a
+  spell wanting two rows of one family. #1660 B2 (the row names the status it
+  plants) — rekey by planted status id, or by row.
+- **The element count's `StatDef.Role`** (a new ELEMENT role vs ASPECT with
+  a tag), and members keying their own facets (`heat_resistance`).
+- **Rider coalescing** (#1741's NOTE): an id-keyed map merges a BEFORE rider
+  with an AFTER copy of the same id — now the stage-two landing list of ADR
+  0082; coalesce per entry or never.
+- **The two-stage resolver's home**: a gather step producing the record's
+  blast table (`attack/`), with `HitLanding.place` applying stage two.
+
+## 3. Then the split of #1716 (needs board access)
+
+Proposed children (pass proposal, 2026-11-09), dependency-ordered; 1–3 are
+the substrate: **1** element counts on the board + member facets + the
+Aspect:Status 1:1 guard test (`manage-stats`); **2** Explosive → Catalyst
+retag (artifact list in the doc's § Open; `charge` tag freed; land-phase
+conversion; fate of `DetonateUse` / `DetonateEffect`, blade `vertex_charges`
+/ `BladeVertexFill`; `docs/domain/explosive.md` rewritten); **3** terrain
+substrate (the surviving row, T / k / cap / overflow, decay on read, the
+temperature index + integer Laplacian on the world turn, the capacity bar);
+**4** the two-stage landing resolver (ADR 0082; #1733 closes into it);
+**5** Fire (Heat ride row, Burning's disc go-off, burn, light source; #1660 /
+#1695 / #1696 fold in); **6** Lightning (Charge, Shocked arcs to every
+neighbour, L² × T ladder, conduction; `lightning_bolt` renamed); **7** Ice
+(Cold, absorption, breakers + corruption-path burst, blade snap, Frostbite
+#1444, concentrate `shape` use); **8** forge and quiver (one element field
+per cast, 3 int:int units, per-reload mint + stock cap; #1765 closes).
+4 before 5–7; 1 before 8; 2 with or before 5.
+
+Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
+child 4. Parked: "a wire evens itself out"; the arc mirror (child 6); the
+spike-pop docs-vs-code check (child 7).
 
 Knobs so far (tentative pass picks unless marked owner): T = 2 × degree
 (owner); k = 2 + stake_level (owner); shatter fraction 1%/stack; shatter
