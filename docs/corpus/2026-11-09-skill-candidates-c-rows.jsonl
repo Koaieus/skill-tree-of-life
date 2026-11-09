@@ -1,0 +1,10 @@
+{"id8":"2ef23c76","date":"2026-11-04","label":"git-hygiene:pull-conflict","quote":"pull git, resolve conflicc"}
+{"id8":"2c31bb1a","date":"2026-11-05","label":"git-hygiene:dirty-triage","quote":"Let's go over dirty git files and see what we do with each"}
+{"id8":"08faeccf","date":"2026-11-04","label":"git-hygiene:merge-pr","quote":"make !1744 merge"}
+{"id8":"42646ddd","date":"2026-11-05","label":"board-table","quote":"tabulate list the issue board, in full, titles and lane and prio"}
+{"id8":"f9337f70","date":"2026-11-05","label":"fanout-review","quote":"i sort of trust the content but it's tbh too much for me to inspect. so maybe option 2? spend any number of Sonnet subagents you need"}
+{"id8":"f9337f70","date":"2026-11-05","label":"askuserquestion","quote":"maybe rapid fire Askuserquestion speeds things up"}
+{"id8":"a8c00e38","date":"2026-11-05","label":"askuserquestion","quote":"Serve one by one via AskUserQuestion"}
+{"id8":"db0490a0","date":"2026-11-05","label":"continuation","quote":"the continuation of the Elemental Big Design session! @docs/handoffs/elements.md"}
+{"id8":"cd9b5b2a","date":"2026-11-05","label":"continuation","quote":"continuation 2: docs/handoffs/elements.md"}
+{"id8":"de99422a","date":"2026-11-05","label":"rc-hub-wish","quote":"when i start an rc hub (`claude rc <options>` etc), ideally: * when i start one in e.g. this repo's dir, it is to be *the* rc sesh for this directory."}

@@ -1,0 +1,24 @@
+{"id8": "886c5d9a", "date": "2026-10-19", "candidates": "1,2", "quote": "Start filing what we settled. And handoff for the remaining discussion, I'm off to bed"}
+{"id8": "0500923b", "date": "2026-10-19", "candidates": "1", "quote": "Handoff so i can resume this tomorrow with 1 good prompt. Also the prompt should include instructing to scour open issues"}
+{"id8": "90cbe64c", "date": "2026-10-25", "candidates": "1", "quote": "When they are done, hand off to issue to i can continue tomorrow"}
+{"id8": "78bd4716", "date": "2026-10-16", "candidates": "1,2,4", "quote": "File 3 more right now | Advisor pass?"}
+{"id8": "4b884bfb", "date": "2026-10-19", "candidates": "1,2", "quote": "advisor pass? | And file it, to Needs Design, P0"}
+{"id8": "13c55d24", "date": "2026-10-17", "candidates": "1,2", "quote": "get an advisor pass"}
+{"id8": "c5a70c7e", "date": "2026-10-19", "candidates": "2", "quote": "did you get an advisor pass in?"}
+{"id8": "81a01bc2", "date": "2026-10-17", "candidates": "1", "quote": "Let a subagent write out design docs, perhaps split or grouped"}
+{"id8": "f27b8af7", "date": "2026-10-17", "candidates": "3", "quote": "any ADRs needed? use Archivist subagent"}
+{"id8": "6122b53b", "date": "2026-10-17", "candidates": "3", "quote": "ADRs needed or nah?"}
+{"id8": "7ad5454f", "date": "2026-10-19", "candidates": "3", "quote": "Let subagent ADR it"}
+{"id8": "a9c72d9f", "date": "2026-10-16", "candidates": "4", "quote": "review time! fan out reviewers (at most 1 Fable subagent i think, maybe 2) followed by fixers"}
+{"id8": "89d7138a", "date": "2026-10-17", "candidates": "5", "quote": "serve as askuserquestion, faster instead of letting me write issue numbers"}
+{"id8": "817ca437", "date": "2026-10-20", "candidates": "4,6", "quote": "Owner addition for this run: also re-read the live Ready column and diff it against every issue already in the whip ledger's trains"}
+{"id8": "153e4757", "date": "2026-10-16", "candidates": "7", "quote": "first message: Session limit 53% used Resets in 1 hr 5 min ... i take it you did exactly that?"}
+{"id8": "42d1a8fe", "date": "2026-10-17", "candidates": "7,charter", "quote": "a swarm train was told when token limit would reset, decided to schedule a wake at some 4+ hours later"}
+{"id8": "eca76d3a", "date": "2026-10-17", "candidates": "7", "quote": "lead a is at 106k tokens? nowhere near 150k. why are they pussying out?"}
+{"id8": "3328f3a1", "date": "2026-10-20", "candidates": "8", "quote": "\"needs a design pass\" = \"needs design\" not Intake lol"}
+{"id8": "6eab0594", "date": "2026-10-17", "candidates": "8", "quote": "swarmify is then to Readify it skipping Intake"}
+{"id8": "5b7aeca5", "date": "2026-10-19", "candidates": "9", "quote": "how many commits the past week?"}
+{"id8": "38421d5a", "date": "2026-10-20", "candidates": "9", "quote": "Commits this week? And backlog & needs design queue?"}
+{"id8": "57fc7fd0", "date": "2026-10-23", "candidates": "charter", "quote": "do something about the handoffs in git. update gitignore?"}
+{"id8": "b705b447", "date": "2026-10-23", "candidates": "charter", "quote": "it should accept more than 1 skill to update, call advisor just once"}
+{"id8": "4b884bfb", "date": "2026-10-19", "candidates": "memory", "quote": "Ignore ctx until 200k, holds for all design sessions"}
