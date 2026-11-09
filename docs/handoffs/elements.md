@@ -30,8 +30,11 @@ sandbox Player**; later 0 with gains from the inner tree / core class /
 metagame / board keystones. **Generator keystones** filed as #1787 (Needs
 design; +2 stacks per world tick, not a hit so no go-off, Charge piles to
 ~4T). **Catalyst is an aspect status on allocated nodes only**, clearing with
-its holder like Poison — not terrain (owner lean taken as settled: it is
-exactly the Explosive status's shape today). **A blade's element is an addon
+its holder like Poison — not terrain (owner lean taken as settled, hedge
+*"but we can always make an exception"* noted: `explosive.tres` leaves
+`on_dealloc` at its default CLEAR, so the retag changes no lifecycle). **ADR
+0081 §6's "one side-less terrain status" wording is stale** — carry the
+correction into the next element ADR. **A blade's element is an addon
 per element**, rider only, no stat. **A blade vertex copies its source
 node's primed state** (Burning vertex booms, Shocked vertex arcs, Frozen
 vertex is brittle; a damage bonus for Frozen is open) — spec-time in the
