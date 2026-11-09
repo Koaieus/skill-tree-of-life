@@ -116,61 +116,69 @@ worklist**, hits compiled through one stamping callable.
   an Ice load on a cast leaves hops alone and scales the seed ×1; the stub
   line sits in the forge unit.
 
-**The split, as drafted** (handles; bodies are drafts in the session
-scratchpad, not yet on the board): spine `defs` → `terrain` → `flow` →
-(`applier`) → `resolver` → `catalyst` → `refresh`; `terrain-ui` after
-`flow`; then `blade-elements` → `fire` / `lightning` / `ice` in parallel →
-`pairs`, `forge` (+ `forge-ui`); `ice-cast` in `Needs design`. Pass picks:
-terrain substrate cut in three (node state, world-turn settle, display); Ice
-cut in two (node, cast); `blade-elements` as the shared base before the three
-elements (addons, vertex copy-on-fill, sweep speed) instead of "the first of
-6 / 7 / 8 to land"; `resolver` likely cut in two (the gather, then go-off
-zero); `catalyst` likely cut in two (retag + conversion + docs, then the
-blade-side explosive teardown). Frostbite #1444 stays its own issue, blocked
-by `ice`.
+**Owner calls on the forks the spec writers raised, 2026-11-10 (verbatim
+where quoted):**
+- **World-turn rate**: an exported rate rule on the turn manager (per-carrier
+  = today, or integer ceil-sqrt), default per-carrier — *"Same rule, linear
+  default"*. ADR 0055 stands; no behaviour change.
+- **Charge decays in the world-turn pass** with Heat and Cold (owner picked
+  it over decay on read). Terrain is exactly two ints; the doc's build note
+  (`elements.md:929-931`) is corrected by the `flow` unit.
+- **The blast gap**: Burning's disc lands before the Catalyst retag — *"option
+  1 but spare no drones, split if needed"*. Master always has a blast.
+- **Firecracker**: its row names Fire and plants Heat; `FuelUse` and
+  `FuelBlastReach` die at the retag. Aside: *"btw infusing Firecracker with
+  Catalyst naturally makes it more effective!"*
+- **Sweep speed on temperature acts per contact** (the factor scales the
+  speed the existing speed-to-damage curve reads on that node) — *"option 1
+  seems best"*. Parked aside: *"also maybe easiest: tune the PBD weight?"*
+- **Starter 1 goes to every entity** (the stat's default) — *"every entity.
+  and possibly later we can decide to replace it with statmodifiers innate,
+  meaning they can get looted too."*
+- **`lightning_bolt` keeps its name** for now; it only gains its Charge row.
+- **Dual reach**: *"riders twice, payload twice. charged burning nodes sounds
+  like a dangerous concept"* — a node gathered by two reaches is two entries,
+  each landing every rider and the damage. Pass reading, unconfirmed: the
+  node's own go-off still fires once per hit.
+- Tentative pass picks, not owner calls: a vertex's copied state reaches the
+  gather as a "go-off source" argument; Lightning's pass-through Charge is
+  spent at the arriving wave's gather head; no int:int seam on `AmmoType`.
 
-**Pass rulings** (doc beats handoff): a planting hit is a hit and sets off a
-primed node (`elements.md:484-487`); the no-parent go-off has no caller and
-no unit builds it (`:498-503`) — § 3's "lands with 6 and 7" is stale; prime
-conversion of Catalyst is read inside the world-turn settle, never hooked on
-`terrain_band_changed` (display-only, `:842-848`); the next element ADR also
-owes corrections to 0061, 0062 and 0070 (code they describe dies in
-`catalyst`).
+**The split, final** (handle — blocked by): `defs` — none · `terrain` — defs ·
+`flow` — terrain · `terrain-ui` — terrain, flow · `applier` — none ·
+`resolver` (the gather) — defs, terrain, flow, applier · `go-off-zero` —
+resolver (closes #1733, #1735) · `burning` (Heat ride row + Burning's disc) —
+go-off-zero · `catalyst` (retag, conversion, Firecracker, docs) — burning ·
+`catalyst-blade` (blade-side explosive teardown) — catalyst · `refresh`
+(re-cut the later specs; board only) — catalyst-blade · `blade-elements`
+(addons, vertex copy-on-fill, sweep speed) — refresh · `fire` (burn, light,
+addon, vertex) / `lightning` / `ice` — blade-elements · `pairs`, `forge`,
+`quiver` (closes #1765) — fire, lightning, ice · `forge-ui` — forge, quiver,
+terrain-ui · `ice-cast` — `Needs design`, a written menu. Siblings of the
+hub, not children: the inner-tree shape + card cadence (`Needs design`); the
+element ADR corrections (0081 §5-§7 and §9, 0082's Context, 0061, 0062,
+0070). Frostbite #1444 stays its own issue, blocked by `ice`. #1660 / #1695
+/ #1696 close into `burning` + `fire`. Milestone: the hub's, "Content depth".
 
-**Forks held for the owner — not yet asked, none settled:**
-1. **World-turn rate.** The doc's `ceil(sqrt(N))` (tentative pass knob,
-   `elements.md:919-925`) contradicts ADR 0055 §1 (owner: every N played turn
-   ends, N = living carriers); `docs/domain/status-effects.md:43-46` and
-   `test/unit/systems/test_world_turn.gd` pin linear N. Options: keep linear
-   N and drop the knob; an exported mode with linear as default; sqrt as
-   default behind a superseding ADR.
-2. **The blast gap.** Go-off zero's disc rides the Explosive aspect "until
-   the retag deletes it" (`:719-721`), yet "the game keeps its blast until
-   Burning inherits it" (`:710-712`), and `catalyst` lands before `fire`.
-   Options: the disc survives the retag as a class with its tests on a
-   fixture (nothing in play blasts until Fire); Burning's disc lands inside
-   the retag; the disc stays on the Catalyst aspect until Fire takes it.
-3. **Firecracker's intake row.** It fuels `FuelBlastReach` from the Explosive
-   load (`attack/spell/defs/firecracker.tres:20-27`), but Catalyst is "not
-   fuel, not a reach" (`:985`). Options: pure retag to Catalyst; the row
-   names Fire; delete the row.
-4. **Charge decay.** On read (the doc's build note, `:929-931`, not an owner
-   call) needs a third node field plus a replicated count of world turns
-   elapsed (none exists: `systems/turn_manager.gd:98-109`) and never
-   announces a node leaving Shocked — against "two ints" (`:279-280`).
-   Alternative, the pass lean: Charge decays in the world-turn pass with
-   Heat and Cold.
-5. **Sweep speed on temperature** (`:45-49`). How it acts when a swing
-   touches several nodes: one warp on the swing clock from the summed t/T,
-   clamped once; a product of per-node clamps; a factor on each contact's
-   damage only — and whether merely cold (not Frozen) ground drags a swing.
-   `c` is "exported on the blade def" in the doc but no blade def exists
-   (pass pick: a ScalarStat beside `blade_speed_half`).
-6. **To confirm, not a fork yet:** a node reached by two reaches at once
-   takes its element riders once and the payload twice (`:646-655`);
-   Lightning's pass-through Charge is spent when the arriving wave is
-   gathered (keeps one terrain writer, `:667-669` vs `:858`); a vertex's
-   copied state reaches the gather as a "go-off source" argument.
+**Where the pass stopped (context budget).** The bodies are drafts in
+`docs/handoffs/elements-split/` (one `<handle>.md` each, `BRIEF.md` is the
+shared brief with both rounds of rulings, `anchors-*.md` the verified code
+anchors at `bd800181`). **Nothing is on the board.** Next session, with board
+access: read each body cold (spec skill § 1), check Decisions quote the
+owner verbatim and no `OPEN FORK:` line survives outside `ice-cast`, then one
+clerk work order: create the children under #1716 with their `blocked-by`
+relations, `Ready` (except `ice-cast`), milestone, the two siblings, close
+#1733 / #1735 / #1765 / #1660 / #1695 / #1696 into their units with a
+pointing comment, post the split as a comment on #1716 and drop its `design`
+label, check the drift stamps, hygiene. Then fix the stale facts below,
+delete `docs/handoffs/elements-split/` and this file.
+
+**Pass rulings** (doc beats this file's § 3): a planting hit is a hit and
+sets off a primed node (`elements.md:484-487`); the no-parent go-off has no
+caller and no unit builds it (`:498-503`) — § 3's "lands with 6 and 7" is
+stale; prime conversion of Catalyst is read inside the world-turn settle,
+never hooked on `terrain_band_changed` (display-only, `:842-848`); Catalyst
+is an aspect status row and keeps its own decay; no stubs on master.
 
 **Stale facts found, to fix when the bodies land:** `aspect_matrix.md:280`
 and its Glossary call Catalyst "side-less terrain" and name an element's
