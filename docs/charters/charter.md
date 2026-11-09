@@ -181,7 +181,9 @@ per post, verdict text already written — pure tool calls, a Haiku
    builder.** Every numbered law has its line in the file; the file cites
    the charter once; it holds no date, no issue number, no owner quote, no
    "was:" — the mechanical half is a grep for `20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]`
-   and `#[0-9]{3,}` that finds only template placeholders; a quote or a
+   and `#[0-9]{3,}` that finds only template placeholders, and a grep for
+   `^description: '.*'$` that finds exactly one line, in the frontmatter
+   (law 17); a quote or a
    reasoning-behind is caught by the law-by-law read; a grep for `<gap: law`
    finds every gap the builder marked (a template placeholder aside). A gap is closed in the charter at its
    law, then sent back to the same subagent by `SendMessage` naming the law
@@ -215,7 +217,7 @@ per post, verdict text already written — pure tool calls, a Haiku
    charter is the one whose first paragraph names the file — usually
    `docs/charters/<name>.md`, but an agent may be built by a skill's
    charter, so the README index is checked before concluding there is
-   none. `handoff`, `manage-stats` and `pickup` have none today; any file found
+   none. `manage-stats` has none today; any file found
    without one is treated the same: the skill writes
    `docs/charters/<name>.md` from the file's own imperatives — each
    must/never becomes a numbered law with the why the file or the rule it
@@ -310,12 +312,57 @@ per post, verdict text already written — pure tool calls, a Haiku
     because the file the patcher reads was itself built clean. Structural
     changes rebuild because a patch cannot tell whether a moved step order
     left an older line wrong.
+16. **The invocation's arguments are read first.** The invocation is
+    `/charter [<name>…] [<wish>]`, and reading it is the pass's first step,
+    ahead of every other, law 1's door included. Leading words that name a charter
+    (`docs/charters/<name>.md`), a skill (`.claude/skills/<name>/`) or an
+    agent (`.claude/agents/<name>.md`) are the pass's charters — an agent
+    resolves through the README index to the charter that builds it (law
+    9); the text from the first word that names none is the wish (law 3),
+    verbatim. Names and no text: the boards are the pass's only input.
+    Text and no leading name: the lead names the charters the wish touches
+    and confirms them with one `AskUserQuestion` (headless: names them in
+    the report). No arguments at all: the lead sweeps —
+    `mise run feedback -- unanswered` with no charter (its usage is
+    `unanswered [<charter>]`) lists every board's open posts, and the
+    README index read against
+    `.claude/skills/` and `.claude/agents/` lists every file with no
+    charter — then offers the charters with open posts and the charter-less
+    files through one multi-select `AskUserQuestion`, and runs the pass on
+    what the owner picks; a headless session reports the sweep as that
+    menu and stops. Law 3's rule for a failing `unanswered` holds for the
+    sweep too. Owner, 2026-11-10: *"it's a skill that afaik doesn't even do
+    anything with the args.. it's not an mcp but it acts like it is.
+    smells!"* *Why:* the skill's header read like a tool signature and no
+    step said what its arguments do, so every session guessed; and the
+    sweep was a pass driven by hand — *"any skill feedbacks? check the
+    boards and ledgers or let explorers do so"* (session 42d1a8fe,
+    2026-10-17) — which the no-argument branch makes the skill's own step.
+17. **A derived file's `description:` is one single-quoted line.** The
+    builder writes it as a single-quoted YAML scalar on one line —
+    `description: '<text>'` — with each `'` inside the text doubled
+    (`''`); never a plain scalar, and not a block (`>-`) or double-quoted
+    one either, so one form is checked everywhere. A charter's
+    *Frontmatter* section states the text plain: the quoting is the
+    builder's, set by the derive and patch briefs, and law 6's grep
+    verifies it. A patch (law 15) re-quotes a description it finds in
+    another form. *Why:* a plain scalar ends at the first ` #` — YAML reads
+    the rest as a comment — and every trigger phrase of the `"swarm #<n>"`
+    shape sits after one: the 2026-11-09 probe found swarm, warp, swarmify
+    and relay cut before them in the live skill listing, so those skills
+    do not fire on their own triggers. Quoting fixed swarm once (ead53d95)
+    and regressed on later rebuilds because no law carried it; block and
+    double-quoted scalars do not truncate, but one form is what a grep can
+    hold and a builder cannot drift from.
 
 ## Frontmatter
 
 - `name: charter`
-- `description`: revise one or more skill or agent files through their
-  charters — edit each charter (a wish, or fold its feedback board with
+- `description` (stated plain; the derived file quotes it per law 17):
+  revise one or more skill or agent files through their charters — read
+  the invocation's arguments first (charter names, then the wish; none:
+  sweep every feedback board, list the charter-less files and offer which
+  to take), edit each charter (a wish, or fold its feedback board with
   `mise run feedback -- unanswered <charter>`), keep foreign laws in sync
   across charters, one advisor pass for the whole pass, one fresh Fable
   (or, for a small charter, Opus) subagent per touched charter re-derives
@@ -323,9 +370,9 @@ per post, verdict text already written — pure tool calls, a Haiku
   laws, an Opus subagent patches just those laws' lines — rules-hygiene, one commit, the folded
   posts answered through a Haiku clerk. Use when the user says "revise a
   skill", "update the charter", "fold the feedback board", "re-derive
-  <skill>", "change the <agent> agent", "/charter <name> [<name>…]", or
-  when a session is about to patch a `SKILL.md` or an agent file
-  directly.
+  <skill>", "change the <agent> agent", "any skill feedback?", "check the
+  boards", "/charter", "/charter <name> [<name>…] [<wish>]", or when a
+  session is about to patch a `SKILL.md` or an agent file directly.
 
 ## Briefs and orders, verbatim
 
@@ -369,8 +416,10 @@ Of a foreign law, the file states only what this skill does with it, never
 the owning skill's side.
 
 The file's frontmatter is `name:` and `description:` as the charter's
-*Frontmatter* section states them. [Agent: and `model:` and `tools:` as
-the charter states them.] The body is steps only — the pipeline a fresh
+*Frontmatter* section states them, the description on one line as a
+single-quoted YAML scalar — `description: '<text>'`, each `'` inside the
+text doubled (`''`). [Agent: and `model:` and `tools:` as the charter
+states them.] The body is steps only — the pipeline a fresh
 session follows, with the exact briefs and orders it uses, taken from the
 charter — with one one-line pointer to the charter and nothing the
 charter's *What the skill file must not contain* section forbids (no
@@ -407,7 +456,8 @@ about eight tool calls.
 
 Edit only the lines that carry the listed laws — add, change or remove
 them — and the frontmatter if the charter's *Frontmatter* section no
-longer matches it. Leave every other line byte for byte. A listed law
+longer matches it or its description is not one single-quoted line
+(`description: '<text>'`, each `'` inside the text doubled). Leave every other line byte for byte. A listed law
 whose change reaches lines that carry an unlisted law is not patched:
 say so in your handback and stop.
 
@@ -480,7 +530,22 @@ and the clerk order, verbatim.
   fills each charter's *Foreign laws* section makes law 14's grep exact;
   until then it also greps the bare charter name.
 - Every charterless file has its charter — law 9 collapses to "a file
-  with no charter is a bug".
+  with no charter is a bug". Since the 2026-11-10 pass chartered
+  `handoff` and `pickup`, `manage-stats` is the last; law 16's
+  no-argument sweep lists it until it is chartered.
+- Derived files keep a description in another form until their next
+  derive or patch (law 17): swarm, warp, swarmify and relay are cut before
+  their `#` triggers today (2026-11-09 probe). A pass naming the four, or
+  a rules-hygiene lint that flags any `description:` that is not one
+  single-quoted line, closes it; the lint is named, not made (law 10).
+- How the harness's skill listing reads `''` inside a single-quoted
+  description is unverified — this skill's own (`laws'' lines`) is the
+  first. If the listing shows `''` or cuts there, law 17 takes a
+  no-apostrophe rule instead.
+- **Open fork — `argument-hint:` frontmatter.** If the harness takes an
+  `argument-hint` field for a skill, showing `[<name>…] [<wish>]` at the
+  prompt, *Frontmatter* adopts it; law 16 stays the step that acts on the
+  arguments. Unverified here.
 - A charter is edited by a `/handoff` sweep without this skill — handoff's
   sweep should spawn this skill's steps instead of carrying its own copy.
 
@@ -492,6 +557,7 @@ and the clerk order, verbatim.
 | 2026-10-17 | gotcha (Read guard) | law 5 and the derive brief: the charter read with `sed -n` in ranges from the first call; guard exemption under *Revisit when* |
 | 2026-10-17 | probe (first bounded derive: 9 calls, 2 dispatches, 70k peak, 540k) | cost-model paragraph (*The derive is bounded*); the tier fork's revisit trigger |
 | 2026-10-17 | gotcha (swarm rebuild lost six lines) | law 12: the current file read against the laws before every derive (the post asked first passes only; widened on the advisor pass), the diff read as a loss list before every commit |
+| 2026-11-09 | probe (DC_kwDOOPLEw84BKZtY: descriptions cut at ` #`; an all-boards sweep; charter-less files) | law 17 — a one-line single-quoted description, law 6's grep, both briefs; the sweep → law 16's no-argument branch; `handoff` and `pickup` chartered this pass, law 9's list down to `manage-stats`, kept under *Revisit when* |
 
 ## Incident corpus
 
@@ -504,3 +570,7 @@ and the clerk order, verbatim.
 | 2026-10-17 | `/charter swarm`, commits b786bea + f542946 | the first rebuild from the charter alone dropped six instructions the old file had and the charter lacked, invented two shapes it left implicit; found by a reverse check after the first commit; two commits, a three-turn derive (~87k, 97k, 113k) | 12 |
 | 2026-10-23 | owner | several charters per pass, one advisor call, one builder per touched charter, Opus for a small one; one capped Sonnet Explore for the builder; foreign laws marked and kept in sync — the last salvaged in part from a sibling repo's port of this protocol (*Stays in sync with* sections, stable law numbers) | 3–5, 7, 8, 13, 14 |
 | 2026-10-23 | owner | an additive patch derive for a small pass (about three laws, no structural change), Opus by default; a full rebuild otherwise — closes the *Revisit when* item on wording churn | 15 |
+| 2026-10-15 | commit ead53d95 | the swarm description single-quoted so YAML stops cutting it at the first `#`; no law carried it, and later rebuilds wrote a plain scalar again | 17 |
+| 2026-10-17 | session 42d1a8fe | *"any skill feedbacks? check the boards and ledgers or let explorers do so"* — a sweep of every board driven by hand; no step of the skill did it | 16 |
+| 2026-11-09 | board post DC_kwDOOPLEw84BKZtY (probe) | swarm, warp, swarmify and relay descriptions cut at the first ` #` in the live skill listing, before their `"swarm #<n>"`-style triggers; the post also asked for the all-boards sweep and named `handoff`, `pickup`, `manage-stats` as charter-less | 9, 16, 17 |
+| 2026-11-10 | owner | *"it's a skill that afaik doesn't even do anything with the args.. it's not an mcp but it acts like it is. smells!"* — the header reads as a signature, no step reads the arguments | 16 |

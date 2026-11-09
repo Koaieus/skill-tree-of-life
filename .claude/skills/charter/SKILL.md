@@ -1,134 +1,157 @@
 ---
 name: charter
-description: >-
-  revise one or more skill or agent files through their charters — edit each
-  charter (a wish, or fold its feedback board with
-  `mise run feedback -- unanswered <charter>`), keep foreign laws in sync
-  across charters, one advisor pass for the whole pass, one fresh Fable (or,
-  for a small charter, Opus) subagent per touched charter re-derives its files
-  from the charter alone — or, for a pass that moves only a few laws, an Opus
-  subagent patches just those laws' lines — rules-hygiene, one commit, the
-  folded posts answered through a Haiku clerk. Use when the user says "revise a skill", "update the
-  charter", "fold the feedback board", "re-derive <skill>", "change the <agent>
-  agent", "/charter <name> [<name>…]", or when a session is about to patch a
-  `SKILL.md` or an agent file directly.
+description: 'revise one or more skill or agent files through their charters — read the invocation''s arguments first (charter names, then the wish; none: sweep every feedback board, list the charter-less files and offer which to take), edit each charter (a wish, or fold its feedback board with `mise run feedback -- unanswered <charter>`), keep foreign laws in sync across charters, one advisor pass for the whole pass, one fresh Fable (or, for a small charter, Opus) subagent per touched charter re-derives its files from the charter alone — or, for a pass that moves only a few laws, an Opus subagent patches just those laws'' lines — rules-hygiene, one commit, the folded posts answered through a Haiku clerk. Use when the user says "revise a skill", "update the charter", "fold the feedback board", "re-derive <skill>", "change the <agent> agent", "any skill feedback?", "check the boards", "/charter", "/charter <name> [<name>…] [<wish>]", or when a session is about to patch a `SKILL.md` or an agent file directly.'
 ---
 
-# /charter <name> [<name>…]
+# charter
 
-Why each step reads as it does: `docs/charters/charter.md`.
+The one way to change a `.claude/skills/<name>/SKILL.md` or a
+`.claude/agents/<name>.md`: the charter changes first, the file is derived
+from it. Design and laws: `docs/charters/charter.md`.
 
-A pass takes one input — a wish (the owner's words, or a lesson from a
-session) and/or a charter's feedback board — and produces one commit holding
-every named charter and every file derived from it, plus the board's posts
-answered. It writes no design. Several names may be given; each gets its own
-charter edit and its own builder, the advisor reads them all once, and one
-commit holds them all.
+## Steps
 
-## 1. One door
+### 1. Read the invocation's arguments
 
-Every change to a `.claude/skills/<name>/SKILL.md` or a
-`.claude/agents/<name>.md` goes through these steps: the charter changes
-first, the file is derived from it. If you are about to patch an instruction
-file directly, stop and run this skill instead. A diff that touches an
-instruction file and not its charter is the bug. This skill's own charter is
-changed the same way — through this skill.
+The invocation is `/charter [<name>…] [<wish>]`. Read it before anything
+else, the door in step 2 included.
 
-## 2. Find the charter; write a first one if there is none
+- Leading words that name a charter (`docs/charters/<name>.md`), a skill
+  (`.claude/skills/<name>/`) or an agent (`.claude/agents/<name>.md`) are
+  the pass's charters. An agent resolves through the `docs/charters/README.md`
+  index to the charter that builds it (step 3).
+- The text from the first word that names none is the **wish**, verbatim.
+- Names and no text: the boards are the pass's only input.
+- Text and no leading name: name the charters the wish touches and confirm
+  them with one `AskUserQuestion` (headless: name them in the report).
+- No arguments at all — the **sweep**: run `mise run feedback -- unanswered`
+  with no charter (its usage is `unanswered [<charter>]`) to list every
+  board's open posts, and read the README index against `.claude/skills/`
+  and `.claude/agents/` to list every file with no charter. Offer the
+  charters with open posts and the charter-less files through one
+  multi-select `AskUserQuestion` and run the pass on what the owner picks.
+  A headless session reports the sweep as that menu and stops. A failing
+  `unanswered` is handled as in step 4.
 
-For each name, the charter is the one whose first paragraph names the file —
-usually `docs/charters/<name>.md`, but an agent may be built by a skill's
-charter, so check the index in `docs/charters/README.md` before concluding
-there is none.
+### 2. One door
 
-A file with no charter gets its first one in this pass, before anything else:
-write `docs/charters/<name>.md` from the file's own imperatives — each
-must/never becomes a numbered law with the why the file or the rule it points
-at gives — plus *What it is for*, a cost model, *Frontmatter*, *Revisit when*
-and an empty corpus; add it to the README index; then continue with the wish.
-Never patch a charterless file.
+Every change to a skill or agent file goes through this skill. A session
+that finds itself patching an instruction file directly stops and runs
+this skill instead. A diff that touches a file and not its charter is the
+bug. This skill's own charter is changed the same way as any other —
+through this skill.
 
-## 3. Read the board, for every charter named
+### 3. Resolve each charter; a file with none gets its first one
 
-Run `mise run feedback -- unanswered <charter>` for each named charter, every
-pass, before anything is derived — a wish never lands on top of an unfolded
-post. Keep each post's comment id for step 12.
+- The charter is the one whose first paragraph names the file — usually
+  `docs/charters/<name>.md`, but an agent may be built by a skill's
+  charter, so check the README index before concluding there is none.
+- A file with no charter: write `docs/charters/<name>.md` from the file's
+  own imperatives — each must/never becomes a numbered law with the why
+  the file or the rule it points at gives — plus *What it is for*, a cost
+  model, *Frontmatter*, *Revisit when* and an empty corpus; add it to the
+  README index; then apply the wish and derive. Never patch a charterless
+  file.
+- A charter names what it builds and carries everything the build needs:
+  its first paragraph lists the derived file or files (a charter may build
+  more than one), and it carries a *Frontmatter* section — the
+  `description` with its trigger phrases, and for an agent the `model` and
+  `tools` — or states them in its laws. A charter missing any of this gets
+  it added now, lifted from the current file, before anything is derived.
+  That lift, step 5's first read and step 3's first charter are the only
+  times a current file is read into a charter.
 
-If `unanswered` fails (Discussions not set up, the GraphQL hour spent), the
-pass continues on the wish and the failure goes under `Not done` in the
-report.
+### 4. Edit every named charter: the wish and the board, same pass
 
-## 4. Check the charter carries what the build needs
+Run for every named charter before anything is derived.
 
-Each charter's first paragraph lists the file or files it builds (a charter
-may build more than one — a skill and its agent). It carries a *Frontmatter*
-section — the `description` with its trigger phrases, and for an agent the
-`model` and `tools` — or states them in its laws. Anything missing is added
-now, lifted from the current file.
+- Read the board every time: `mise run feedback -- unanswered <charter>`.
+  A wish never lands on top of an unfolded post.
+- A **wish** becomes a law (with its why), a row in the incident corpus,
+  an entry under *Revisit when*, or a fork noted there as open.
+- Each **post** becomes one of those or a rejection, with a row in the
+  charter's *Fold digest* (date · kind → what it became). Keep each
+  post's comment id and verdict text for step 12. A post that belongs to
+  another charter is moved with
+  `mise run feedback -- post --verbatim <other> <file>`, not folded here.
+- `unanswered` failing does not stop the pass: continue on the wish and
+  put the failure under `Not done` in the report.
 
-Then read the current derived file once, against the laws: every imperative
-line — each must and never, each command, brief and order — must have its
-law. One that has none is lifted into the charter at the law it belongs to.
-This read, the frontmatter lift above, and step 2's first charter are the
-only times a current file is read into a charter.
+### 5. Read the current file against the laws (first loss-list read)
 
-## 5. Fold the wish and the board into the charter
+Before deriving, read each charter's current file and confirm every
+imperative line — each must and never, each command, brief and order —
+has its law. One that has none is lifted into the charter at the law it
+belongs to.
 
-A wish — the owner's words verbatim and dated, or a session's lesson —
-becomes one of: a numbered law (with its why), a row in the incident corpus,
-an entry under *Revisit when*, or a fork noted there as open.
+### 6. Keep laws in one place; take a changed law's readers with it
 
-Each board post becomes one of those or a rejection, and gets a row in the
-charter's *Fold digest* (date · kind → what it became). Record its verdict
-text now — `folded in <sha>: <law or digest row>` or `rejected: <why>` — for
-step 12. A post that belongs to another charter is moved with
-`mise run feedback -- post --verbatim <other> <file>`, not folded here.
+- A law lives in the charter whose skill or agent *does* the thing. A
+  charter that relies on another's law does not restate it as a numbered
+  law of its own: it lists it in its `## Foreign laws` section, one line
+  each, exactly as `- [<owner>](<owner>.md) law <N> — <what this skill does
+  with it>`, cites it in its own laws in the same `[<owner>](<owner>.md)
+  law <N>` form, and keeps only its own side — what it hands over, what it
+  expects back. A law found duplicated across two charters is merged into
+  the one that does the thing, the other's copy turned into its foreign
+  line, in this pass.
+- For each law the pass changed, superseded, retired or renumbered: grep
+  `docs/charters/` for `(<name>.md) law` and read the hits for <N> (a
+  citation may name a range, `laws 13–14`), plus the charter's bare name
+  near `law`. Update each reader's foreign line and citing laws in this
+  pass; a reader whose derived file states what the law changed joins the
+  pass as a touched charter (step 9).
+- Law numbers are stable: never renumber or delete a law — it stays,
+  reading `retired — <why>` or `superseded by law <M>`, and new laws
+  append.
 
-Law numbers are stable: never renumber or delete a law — it stays, reading
-`retired — <why>` or `superseded by law <M>`, and new laws append.
+### 7. One advisor pass for the whole pass
 
-## 6. Keep foreign laws in sync
+After every charter is edited and before anything is derived: one
+`advisor` call, however many charters the pass names. Apply each point to
+its charter or decline it; name the declined ones in the commit body. One
+pass, not a loop.
 
-A law lives in the one charter whose skill or agent does the thing. A charter
-that relies on another's law does not restate it as a numbered law of its
-own: it lists it in its `## Foreign laws` section, one line each, exactly as
-`- [<owner>](<owner>.md) law <N> — <what this skill does with it>`, and its
-own laws cite it in that same `[<owner>](<owner>.md) law <N>` form, keeping
-only its own side — what it hands over, what it expects back. A law found
-duplicated across two charters is merged into the one that does the thing,
-the other's copy turned into its foreign line, in this pass.
+### 8. Choose the mode per charter: patch or rebuild
 
-For each law this pass changed, superseded, retired or renumbered: grep
-`docs/charters/` for `(<name>.md) law` and read the hits for that number (a
-citation may name a range, `laws 13–14`); also grep for the charter's bare
-name near `law`, for older references. Update each reader's foreign line and
-citing laws in this pass. A reader whose derived file states what the law
-changed joins the pass as a touched charter (it gets its own builder in step
-8).
+- **Patch** when the charter's file exists, the pass moved about three
+  laws or fewer (changed, added, retired) and changed no existing brief,
+  order, report shape or step order — a new law with a new brief of its
+  own is still additive.
+- **Rebuild** otherwise: a first charter (step 3), a step-5 read that
+  lifted anything, a structural change, a patch that fails the step-10
+  check, or the owner asking for one.
+- Name the mode each charter took in the report.
 
-## 7. One advisor pass
+### 9. Derive: one fresh, bounded builder per touched charter
 
-After every named charter is edited and before anything is derived, call
-`advisor` once — one call however many charters the pass names. Apply each
-point to its charter or decline it; name the declined points in the commit
-body. One pass, not a loop.
+- One `general-purpose` subagent per charter the pass edited, with a
+  `name` (step 10 sends gaps back to it) and `run_in_background: false`.
+  It writes every file that charter builds — a skill and its agent in one
+  context. A multi-charter pass spawns its builders in one message.
+- **Tier (rebuild):** `model: "fable"`; a *small* charter — under about
+  200 lines, building one file of under about 150 — may take
+  `model: "opus"`, the lead's call, named in the report. Its brief is the
+  **derive brief** below, verbatim, with only the paths and the foreign-law
+  lines filled: no summary of what changed, no diff, no paste of the old
+  file.
+- **Tier (patch):** `model: "opus"` (Fable when a moved law is subtle, the
+  lead's call), the **patch brief** below, listing the moved laws by
+  number and nothing more — no summary of the change, no diff.
+- The builder reads the charter (`sed -n` ranges of about 250 lines from
+  its first call), the short README whole, the text of each law the
+  charter's *Foreign laws* section cites from the owning charter, and may
+  spawn at most one `Explore` with `model: "sonnet"` capped at about 5k
+  tokens — never about the target file or an earlier version of it. A
+  patch builder also reads the current target file. Nothing else; no
+  advisor; about eight tool calls.
+- An exact string the file needs that the charter does not give is never
+  invented: the builder writes `<gap: law N — what is missing>` or, when
+  its Explore found it verbatim, uses it and lists
+  `grounded: law N — <string> — <source>`; both come back in its handback.
 
-## 8. Derive: one fresh subagent per touched charter
-
-For each charter the pass edited, spawn one `general-purpose` subagent with
-a `name` (step 9 sends gaps back to it) and `run_in_background: false`. It
-writes every file that charter builds — a skill and its agent in one
-context. A multi-charter pass spawns all its builders in one message so they
-run side by side.
-
-Tier: `model: "fable"`. A *small* charter — under about 200 lines, building
-one file of under about 150 — may take `model: "opus"`; that is your call,
-named in the report.
-
-The brief is the text below, verbatim, with only the paths and the
-foreign-law lines filled — no summary of what changed, no diff, no paste of
-the old file. Use the bracketed alternative for a charter that builds more
-than one file, and the agent clause when a target is an agent:
+**Derive brief** — the bracketed alternative for a charter that builds
+more than one file, the agent clause when one target is an agent:
 
 ```
 Repo: <absolute repo path> (a shared checkout; do not commit, do not run
@@ -164,8 +187,10 @@ Of a foreign law, the file states only what this skill does with it, never
 the owning skill's side.
 
 The file's frontmatter is `name:` and `description:` as the charter's
-*Frontmatter* section states them. [Agent: and `model:` and `tools:` as
-the charter states them.] The body is steps only — the pipeline a fresh
+*Frontmatter* section states them, the description on one line as a
+single-quoted YAML scalar — `description: '<text>'`, each `'` inside the
+text doubled (`''`). [Agent: and `model:` and `tools:` as the charter
+states them.] The body is steps only — the pipeline a fresh
 session follows, with the exact briefs and orders it uses, taken from the
 charter — with one one-line pointer to the charter and nothing the
 charter's *What the skill file must not contain* section forbids (no
@@ -176,20 +201,7 @@ When done, report each path, the gap list (or "no gaps") and the
 grounded list (or "none") via SubagentHandback.
 ```
 
-### A small pass patches instead
-
-A charter whose file exists is *patched*, not rebuilt, when the pass moved
-about three laws or fewer (changed, added, retired) and changed no existing
-brief, order, report shape or step order — a new law with a new brief of its
-own is still additive. Everything else is a full rebuild as above: a first
-charter (step 2), a step-4 first read that lifted anything, a structural
-change, a patch that fails the step-9 check, or the owner asking for one.
-
-The patch builder is one fresh subagent per charter, as above — a `name`,
-`run_in_background: false`, the same foreign-law reads and the one capped
-Explore — but `model: "opus"` (Fable when a moved law is subtle; your call)
-and the brief below, verbatim, listing the moved laws by number and nothing
-more — no summary of the change, no diff:
+**Patch brief** — the same alternatives as the derive brief:
 
 ```
 Repo: <absolute repo path> (a shared checkout; do not commit, do not run
@@ -215,7 +227,8 @@ about eight tool calls.
 
 Edit only the lines that carry the listed laws — add, change or remove
 them — and the frontmatter if the charter's *Frontmatter* section no
-longer matches it. Leave every other line byte for byte. A listed law
+longer matches it or its description is not one single-quoted line
+(`description: '<text>'`, each `'` inside the text doubled). Leave every other line byte for byte. A listed law
 whose change reaches lines that carry an unlisted law is not patched:
 say so in your handback and stop.
 
@@ -229,62 +242,54 @@ When done, report each path, the laws patched, the gap list (or "no
 gaps") and the grounded list (or "none") via SubagentHandback.
 ```
 
-For a patch, step 9's law-by-law check runs on the moved laws and its
-mechanical greps on the whole file; step 10's diff read confirms the diff
-stays inside the moved laws. The report names which mode — rebuild or patch
-— each charter took.
+### 10. Check the build law by law; fix gaps through the builder
 
-## 9. Check the build law by law; fix gaps through the builder
+- Every numbered law has its line in the file; the file cites the charter
+  once; it holds no date, no issue number, no owner quote, no "was:". A
+  quote or a reasoning-behind is caught by the law-by-law read.
+- Mechanical greps on the whole file: `20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]`
+  and `#[0-9]{3,}` find only template placeholders; `^description: '.*'$`
+  finds exactly one line, in the frontmatter; `<gap: law` finds every gap
+  the builder marked (a template placeholder aside).
+- A derived file's `description:` is one single-quoted YAML scalar on one
+  line — `description: '<text>'`, each `'` inside the text doubled (`''`)
+  — never a plain scalar, and not a block (`>-`) or double-quoted one. A
+  patch re-quotes a description it finds in another form.
+- A gap is closed in the charter at its law, then sent back to the same
+  subagent by `SendMessage` naming the law and the charter lines to
+  re-read; never hand-patched. A law the subagent cannot place is a law
+  written unclearly — fix the charter and re-derive.
+- Each `grounded:` line is lifted into the charter at its law before the
+  commit; the file already holds the string, so no re-derive is needed.
+- For a patch, the law-by-law check runs on the moved laws, the greps on
+  the whole file.
 
-For each derived file:
+### 11. Read the diff as a loss list, then hygiene and one commit
 
-- Every numbered law of the charter has its line in the file.
-- The file cites the charter exactly once.
-- It holds no date, no issue number, no owner quote, no "was:". The
-  mechanical half: grep the file for `20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]`
-  and `#[0-9]{3,}` — only template placeholders may match. A quote or a
-  reasoning-behind is caught by the law-by-law read.
-- Grep for `<gap: law` — every hit (a template placeholder aside) is a gap
-  the builder marked.
+- Before the commit, every pass, read `git diff` of each derived file as a
+  loss list: each removed instruction is a law that moved on purpose, or a
+  gap closed as step 10 closes one — lifted into the charter, the builder
+  sent the lines to re-read — never re-added by hand. For a patch, confirm
+  the diff stays inside the moved laws.
+- `mise run rules-hygiene` adds no violation.
+- One commit holds every charter and derived file of the pass, plus the
+  README index when a charter is new: `docs(skill): <name> — <what moved>`
+  (`docs(agent):` for an agent; several names joined with `, ` for a
+  multi-charter pass). A charter and its file never commit apart.
 
-A gap is closed in the charter at its law, then sent back to the same
-builder by `SendMessage`, naming the law and the charter lines to re-read.
-Never hand-patch the file. A law the builder could not place is a law
-written unclearly — fix the charter and re-derive.
+### 12. Answer the folded posts through one Haiku clerk
 
-Each `grounded:` line the builder handed back is lifted into the charter at
-its law before the commit; the file already holds the string, so no
-re-derive is needed.
+After the commit: one `clerk` subagent, `model: "haiku"`, the **clerk
+order** below as its whole spawn prompt, written inline in the `Agent`
+call — no scratch file for the order. Per post: its comment id and the
+verdict, `folded in <sha>: <law or digest row>` or `rejected: <why>`. The
+order is replies only, one line per post. The clerk runs
+`feedback -- reply --resolve` and reports one line per post; check every
+post the pass folded or rejected has a line, and list one that does not
+under `Not done`. A multi-charter pass sends one clerk, the order carrying
+one block per board.
 
-## 10. Read the diff as a loss list
-
-Before the commit, every pass, read `git diff` of each derived file. Each
-removed instruction is either a law that moved on purpose, or a gap: closed
-as in step 9 — lifted into the charter, the builder sent the lines to
-re-read — never re-added by hand.
-
-## 11. Hygiene, then one commit
-
-`mise run rules-hygiene` must add no violation. Then one commit holds every
-charter and every derived file of the pass, plus the README index when a
-charter is new:
-
-```
-docs(skill): <name> — <what moved>
-```
-
-`docs(agent):` for an agent; several names joined with `, ` for a
-multi-charter pass. The declined advisor points go in the body. A charter
-and its file never commit apart.
-
-## 12. Answer the folded posts through one Haiku clerk
-
-After the commit, spawn one `clerk` subagent, `model: "haiku"`, with the
-order below as its whole prompt, written inline in the `Agent` call — no
-scratch file, no path, no turn spent writing it out first. The order is
-replies only, one line per post: its comment id and the verdict,
-`folded in <sha>: <law or digest row>` or `rejected: <why>`. A
-multi-charter pass sends one clerk, the order carrying one block per board.
+**Clerk order** — one block per board for a multi-charter pass:
 
 ```
 Reply to and resolve each feedback post below. For each: write the
@@ -297,24 +302,17 @@ line per post (comment id, verdict, done or the error).
 - <comment-id>: rejected: <why>
 ```
 
-The clerk reports one line per post. Check that every post the pass folded
-or rejected has a line; one that does not goes under `Not done`.
+### 13. Scope and report
 
-## 13. Scope
-
-The pass touches the charters, their derived files, the README (its protocol
-bullets are this skill's laws in prose and move with them; its index moves
-when a charter is new), and the foreign lines step 6 updates. Nothing else:
-a rule, a doc, a mise task or a code change the wish implies is named in the
-report, not made here. `.claude/rules/charters.md` is a rule and follows
-`writing-rules.md`.
-
-## 14. Report
-
-The session-report shape (`docs/domain/session-report.md`):
-
-- `Landed` — the commit sha and the laws that moved; the derive tier chosen
-  for each charter.
-- `Not done` — posts not answered, advisor points declined, a failed
-  `unanswered`, and each rule, doc, mise or code change the wish implies.
-- `Needs the owner` — a fork the wish opened and did not close.
+- Scope is the charters, their files, the README and the foreign lines
+  step 6 updates. The README's protocol bullets are this skill's laws in
+  prose and move with them; its index moves when a charter is new. A rule,
+  a doc, a mise task or a code change the wish implies is named in the
+  report, not made here; `.claude/rules/charters.md` is a rule and follows
+  `writing-rules.md`.
+- The report is the session-report shape (`docs/domain/session-report.md`):
+  `Landed` holds the sha, the laws that moved and the mode and tier each
+  charter took; `Not done` the posts not answered, the advisor points
+  declined, a failed `unanswered`, and each rule, doc, mise or code change
+  the wish implies; `Needs the owner` a fork the wish opened and did not
+  close.

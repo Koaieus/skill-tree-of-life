@@ -1,6 +1,6 @@
 ---
 name: warp
-description: Drive a full trunk-based issue cycle in an isolated git worktree — resolve a GitHub issue (by number or free-text query), spin up a worktree, implement, test, present for approval, fast-forward master, close the issue via commit message, and tear down. Use when the user says "warp #<n>", "warp this issue", "use warp to implement...", or asks for an isolated worktree-based implementation cycle instead of working directly on the current checkout.
+description: 'Drive a full trunk-based issue cycle in an isolated git worktree — resolve a GitHub issue (by number or free-text query), spin up a worktree, implement, test, present for approval, fast-forward master, close the issue via commit message, and tear down. Use when the user says "warp #<n>", "warp this issue", "use warp to implement...", or asks for an isolated worktree-based implementation cycle instead of working directly on the current checkout.'
 ---
 
 # Warp

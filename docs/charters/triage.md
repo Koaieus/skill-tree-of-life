@@ -92,11 +92,13 @@ reads no issue itself; its context is the scout reports and the answers.
    failed scout is noise once and a finding twice.
 4. **The scout's report is short and decision-shaped.** Per issue, at most
    eight lines: why it exists and what it fixes or adds; the cost (a size
-   and what it touches); any UX/DX downgrade or risk; whether it still holds
-   (already fixed, duplicate of #n, superseded); whether the body already
-   carries a drone-ready acceptance spec and a `drift-stamp` block; what
-   the filer set (the `Intended
-   lane:` line, milestone, priority — `issue-workflow.md` → *Filing* makes
+   and what it touches); any UX/DX downgrade or risk; what is in the code
+   now against that ask — absent, partly there (file), already fixed (sha),
+   duplicate of #n, superseded — which is also whether it still holds (law
+   9 serves it beside the ask); whether the body already carries a
+   drone-ready acceptance spec and a `drift-stamp` block; what the filer
+   set (the `Intended lane:` line, milestone, priority —
+   `issue-workflow.md` → *Filing* makes
    those the filer's hand-off to triage); and a recommended route plus any
    label/priority/milestone change. No design, no acceptance spec. *Why:*
    the question is built from this report alone, and the lead reads nothing
@@ -163,6 +165,41 @@ reads no issue itself; its context is the scout reports and the answers.
    clerk failures; `Needs the owner` for deferrals. *Why:* a deferred issue
    stays in `Intake` by design, so "empty lane" is the wrong end condition;
    and a report the owner reads on a phone must say what did not happen.
+9. **Verdicts are served, never typed for — rapid-fire, each with its
+   reasoning.** Every owner call in a run — each route, an `Other` that
+   asked something and is re-asked, nothing excepted — goes to the owner as
+   `AskUserQuestion`, up to four questions per call, the next call
+   following the moment its scout is back (law 3). The run never lays out
+   a prose list and asks the owner to reply with issue numbers, and never
+   asks the owner to name which issue to take next: the batch order is the
+   snapshot's (law 2). Each question serves the issue with its reasoning,
+   from the scout's report alone (law 4): **what the issue wants** (its ask,
+   from the body), **what is in the code** now against that ask, the cost
+   and any downside, and the **proposed verdict** — the recommended option
+   first, its description carrying the scout's one-line reason; every other
+   option's description names what it would apply. The tool supplies
+   `Other` itself; the lead never adds one (it would cost one of the four
+   slots and duplicate the free-text box). Owner, 2026-10-14 (the
+   founding wish above): *"AskUserQuestion for each one"*; re-typed in
+   three later sessions (89d7138a, f9337f70, a8c00e38): *"serve as
+   askuserquestion, faster instead of letting me write issue numbers"*,
+   *"Serve one by one via AskUserQuestion"*, *"rapid fire
+   Askuserquestion"*, and *"serve me them with their reasoning, like 'what
+   does issue want' (vs 'what is in code'?) vs proposed verdict"*. Owner,
+   2026-11-10, on the probe: *"needs fixing indeed"*. *Why:* an owner who
+   types issue numbers is doing the lead's bookkeeping in the slot the
+   pipeline exists to save; a softer wording ("`AskUserQuestion` when they
+   are clean choices") let sessions fall back to prose menus, and the
+   owner had to re-ask for the tool three times; the want-vs-code pair is
+   what lets the owner judge a verdict without opening the issue. The rule
+   had lived only in the owner's auto-memory, and repo docs win over
+   memory.
+
+## Frontmatter
+
+`name: triage`. `description:` (quoted by the builder per [charter](charter.md) law 17):
+
+Empty the board's `Intake` lane with the owner — background Sonnet scouts read four issues at a time while the owner answers rapid-fire AskUserQuestion calls, up to four verdicts per call, each carrying what the issue wants, what is in code and the proposed verdict (close, Backlog, Needs design, rarely Ready, plus retags), and a background clerk applies each answer with a dated comment. Routing only, never design. Use when the user says "triage", "intake", "go through Intake", "route the inbox", or asks what is waiting on them on the board. Needs the owner present.
 
 ## What the skill file must not contain
 
@@ -182,9 +219,20 @@ dates, incidents. It carries the steps and the scout brief.
 - `Intake` routinely holds more than ~30 issues at a run's start — filers
   are skipping the fix-before-filing rung (`session-report.md`), which is
   the bug to chase, not triage throughput.
+- The owner again answers by typing issue numbers or a prose list, or asks
+  for the reasoning behind a verdict (law 9) — some step is serving in
+  prose or the question has dropped the want-vs-code pair; find the step,
+  do not soften the law.
 
 ## Incident corpus
 
 | date | source | finding | laws |
 |---|---|---|---|
 | 2026-10-14 | `docs/corpus/2026-10-14-followup-issues-at-session-end.md` | 37 of 43 session-end follow-ups were small known fixes; 38% of the issues they produced were still waiting in `Backlog`/`Needs design`, and one flake was filed four times. The lane and the skill were born from it | all |
+| 2026-11-09 | board probe DC_kwDOOPLEw84BKZtd (sessions 89d7138a, f9337f70, a8c00e38) | the owner re-typed "serve via AskUserQuestion / rapid fire / no issue numbers" in three sessions and asked for each item served with what the issue wants vs what is in code vs a proposed verdict; the soft "when they are clean choices" wording and the owner's auto-memory were the only carriers. Owner 2026-11-10: *"needs fixing indeed"* | 4, 9 |
+
+## Fold digest
+
+| Date | Kind | Became |
+|---|---|---|
+| 2026-11-09 | probe (DC_kwDOOPLEw84BKZtd) | law 9: every verdict served via `AskUserQuestion`, up to four per call, rapid-fire, never typed issue numbers; each question carries what the issue wants / what is in code / the proposed verdict with its reason; law 4's report swaps *still holds?* for an *in code* line; a *Revisit when* entry |

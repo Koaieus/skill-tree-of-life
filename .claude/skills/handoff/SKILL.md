@@ -1,157 +1,122 @@
 ---
 name: handoff
-description: Close out a session durably — sweep every decision made in conversation into its permanent home (issue, design doc, rule file, code), commit, and only then decide whether a continuation file is warranted. Use when the user says "handoff", "wrap this up", "EOD", "persist this", "this session is getting heavy", or when a long session is about to be continued in a fresh context.
+description: 'Close out a session durably — sweep every decision made in conversation into its permanent home (issue, design doc, rule file, code), commit, and only then decide whether a continuation file is warranted; a continued session gets a one-line `/pickup <file>` resume prompt. Use when the user says "handoff", "wrap this up", "EOD", "persist this", "so i can resume this tomorrow", "this session is getting heavy", or when a long session is about to be continued in a fresh context.'
 ---
 
 # Handoff
 
-A long session accumulates decisions that exist **only in the transcript**.
-When the context window turns over, they are gone — and the next session
-re-litigates them, or worse, silently decides differently.
+Charter (the why behind each step): `docs/charters/handoff.md`.
 
-This skill's job is the **sweep**: every decision made in conversation gets
-routed to a durable home. Writing a handoff file is the *optional* second step,
-not the point.
+The sweep is the work; the continuation file is a maybe. Concluded work gets
+the sweep and no file.
 
-> **The sweep is the work. The file is a maybe.**
-> A handoff file exists for exactly one reason: to carry *unfinished* context
-> forward. If the work is concluded, there is nothing to carry — the sweep is
-> the whole job and no file gets written. That is the common case at EOD or when
-> an issue wraps up.
+## 0. Retiring mid-flight? Three turns, then stop
 
-## 0. Emergency path — retiring mid-flight under a stop or a blown budget
+If you were told to stop, or a context, turn or time budget is blown, skip
+everything below. Do exactly this:
 
-The sections below (1–5) are the **leisurely EOD sweep** — thorough, patient,
-and assumes you have room to do it right. If you are being retired *because*
-you blew a stop, a context budget, or a turn/time budget (see the `drone` agent's
-Retiring section), that sweep is the wrong tool. Loading it and then
-not following it — the `loot-offer` failure: `git status` twice, a file read,
-a grep, a `rebase --continue`, a second `mise run check` — is worse than
-skipping it, because it looks like compliance while burning exactly the
-turns you no longer have.
+1. Commit what exists — explicit paths only, a `wip(...)` commit whose
+   message states what is missing.
+2. Write the terse report:
+   ```
+   BRANCH: <branch>
+   FILES: <paths touched>
+   TESTS: <what ran, or not run>
+   DID: <what was done>
+   NOTES: <what is unfinished>
+   ```
+   Post at most one load-bearing line on the issue.
+3. Send the report to whoever is waiting, and stop.
 
-**The emergency path is three turns, no more:**
+No sweep, no routing, no file, no test run, no re-read. A stop outranks the
+plan: report the half-finished thing as unfinished.
 
-1. **Commit what exists.** `git add <owned paths>` (explicit paths, never
-   `-A`) and commit, even if the unit is incomplete. A `wip(...)` commit that
-   states plainly what's missing beats an uncommitted worktree, which is
-   lost work outright.
-2. **Write the report** — the same terse format the `drone` agent always uses
-   (`BRANCH:`/`FILES:`/`TESTS:`/`DID:`/`NOTES:`), with `NOTES:` stating
-   exactly what's unfinished. Skip the sweep, skip routing decisions (§2),
-   skip writing a handoff file. If one fact is genuinely load-bearing for
-   whoever picks this up, one line on the issue (`gh issue comment`) is
-   allowed — one line, not a sweep.
-3. **Send it and stop.** `SendMessage` (Claude Code) or your final report
-   (opencode) to whoever is waiting — the orchestrator that spawned you.
-   Do not keep working after it's sent.
+## 1. Sweep what exists only in the transcript
 
-That's the whole budget. If you find yourself running a test, editing a doc,
-or re-reading a file after deciding to retire, that is the `loot-offer`
-failure recurring — stop, go back to step 2, send what you have.
+Hunt the conversation for:
 
-## 1. Sweep — find what only exists in the transcript
+- forks the owner settled — the most valuable, the most often lost;
+- claims that turned out false — corrections are as durable-worthy as
+  decisions;
+- rejected branches, each with its reason;
+- gotchas that cost a debugging loop;
+- numbers derived mid-session.
 
-Walk the session and list every item that is (a) a decision, a discovered
-constraint, or a correction, and (b) **not yet written anywhere durable.**
-
-Hunt specifically for:
-
-- **Forks the user settled in conversation.** The highest-value and
-  most-frequently-lost category.
-- **Claims that turned out false.** "X is unbuilt" that was actually built two
-  commits ago; a previous agent's report of work it did not do. Corrections are
-  as durable-worthy as decisions.
-- **Rejected branches, with the reason.** A rejected option whose *reasoning* is
-  lost gets re-proposed next session. Record the why, not just the no.
-- **Gotchas hit while working.** Anything that cost you a debugging loop.
-- **Numbers derived mid-session** — arithmetic on pinned values, measured
-  timings, counts read off the code.
-
-If the item is already in a commit, an issue, a design doc, or a rule file:
-skip it. Do not restate what the repo already records.
+Skip anything a commit, issue, design doc or rule already holds. Record
+outcomes, not the path that led to them. A sweep that finds nothing says so
+and stops — that is a good result.
 
 ## 2. Route each item to its home
 
 | Item | Home |
 |---|---|
-| Game-design decision, settled fork | `docs/design/` — or a comment on the owning issue |
-| Design fork still *open* | Issue body/comment, with the fork written down as a fork |
-| Engineering gotcha, < ~200 tokens | Inline in the relevant `.claude/rules/<module>.md` |
-| Larger engineering context | `docs/domain/<topic>.md` (+ a breadcrule if it must be always-on) |
-| Work state, next steps, sequencing | The issue — that is what issues are for |
-| Anything that is code | A commit. Obviously — but say it, because it gets skipped |
-| Un-actioned discovery with no owner | **Fix it** — yourself or one subagent briefed from the hot context, budget or not. Only a real fork or a multi-unit job is **filed**, to `Intake` (`docs/domain/session-report.md` → *The follow-up rule*). An orphan thread in a doc is a thread that dies |
+| Settled game-design fork | `docs/design/` or the owning issue |
+| Open fork | the issue, written as a fork |
+| Engineering gotcha under ~200 tokens | inline in `.claude/rules/<module>.md` |
+| Larger engineering context | `docs/domain/<topic>.md` (+ a breadcrule if always-on) |
+| Work state and next steps | the issue |
+| Code | a commit — do not skip it |
+| Un-actioned discovery with no owner | fix it, yourself or via one subagent briefed from the hot context; file to `Intake` only a real fork or a multi-unit job (`docs/domain/session-report.md` → *The follow-up rule*) |
+| Change to a skill or agent file | `/charter`, never a direct edit |
 
-**Never let a decision live only in a handoff file.** A handoff file is a
-pointer and a task ledger; it is not a home. If deleting it would lose
-information, the sweep is not finished.
+- A rule the sweep invalidates is updated in this same pass.
+- A decision never lives only in a handoff file: if deleting the file would
+  lose information, the sweep is not finished.
+- A spent file found in `docs/handoffs/` (its delete condition met) is
+  deleted with `git rm` in the sweep's commit.
 
-Update `.claude/rules/*` in the same pass when the change invalidates one. A
-stale rule is worse than no rule.
+## 3. Commit the sweep — before anything else
 
-## 3. Commit
+Commit by the repo's conventions, explicit paths, `Closes #<n>` where an
+issue is resolved. Never commit scratch — scripts, work directories,
+non-`.md` work files go to the session's scratchpad.
 
-Commit the sweep before anything else. If the session dies mid-handoff, the
-durable writes must already be safe.
+## 4. Ask whether a file is warranted
 
-Use the repo's normal conventions — `Closes #<n>` where an issue is actually
-resolved.
+Ask explicitly: *"Is there unfinished work whose context a fresh session
+would need and cannot reconstruct from the issues alone?"*
 
-## 4. Decide: continuation file, or done?
+- **No** → stop and report what was swept where.
+- **Single-issue continuation** → it goes on the issue, not in a file.
+- **Yes** (the work spans several issues and their relationship — a dispatch
+  order, a coupling between forks, live numbers — would be lost) → exactly
+  one file, `docs/handoffs/<topic>.md`. One file per topic; never at the
+  repo root; never a directory of work files.
 
-Ask the question explicitly:
+Handoff is not a substitute for issue hygiene, not a transcript summary, and
+not automatic. A swarm still running is not handed off here: it is
+`relief`'s, read from the live `docs/handoffs/swarm-<date>-<HHMM>.md` ledger
+(`mise run ledger -- show`), which is gitignored and has its own lifecycle.
 
-**Is there unfinished work whose context a fresh session would need and cannot
-reconstruct from the issues alone?**
+## 5. Write the file
 
-- **No** → stop. Report what was swept and where it went. No file.
-- **Yes** → write exactly one file at **`docs/handoffs/<topic>.md`**.
-
-A continuation file earns its existence when the work spans several issues and
-the *relationship between them* is the thing that would be lost — a dispatch
-order, a coupling between two forks, a set of live numbers the next session
-needs in hand. A single-issue continuation almost never needs one; put it in
-the issue.
-
-## 5. Handoff file shape
-
-Location is `docs/handoffs/<topic>.md`, committed. Not the repo root — the two
-files that prompted this skill (`HANDOFF_spell_tests.md`,
-`SKILLNODE_EMBLEM_HANDOFF.md`) sat at the root, went stale, and one of them
-carried two open questions that were never filed for months.
-
-Keep it to:
+The file points; it does not hold. Sections, in order:
 
 - **State** — the commit it is written against, and what is authoritative
-  (usually: a design doc and the issues, not this file).
-- **Open forks, ordered by what is worth taking first**, each with its issue
-  number. Note couplings — "settling A forces reversing B" is the single most
-  valuable line in a handoff.
-- **Ready to dispatch** — what is already in `Ready`, and any sequencing facts.
-- **Live numbers** the next session needs in hand.
+  (usually a design doc and the issues).
+- **Open forks** — ordered by what to take first, each with its issue
+  number; name couplings ("settling A forces reversing B").
+- **Ready to dispatch** — issues ready to run.
+- **Live numbers** — numbers the next session needs.
+- **Resume** — when the work continues in a fresh session: the skill the
+  work runs under (a `swarmify` design talk, a `warp`), and an instruction
+  to scour the open issues the file names and the codebase before acting,
+  since the file may be stale or wrong.
+- **Delete condition** — the last line: when the file is spent. Whichever
+  session meets it deletes the file (`git rm`, in its commit).
 
-And the two rules that keep the file honest:
+`docs/handoffs/` tracks only `<topic>.md` continuation files and the
+swarm-train `whip-report-<date>.md` morning reports; `swarm-*.md`,
+`swarm-*.inbox/`, `whip-2*`, `archive/` and `.whip.lock` are gitignored.
 
-- **It points, it does not hold.** Every decision in it must also exist in its
-  real home. The file is an index.
-- **It says when to delete it.** End with the condition — "delete once #X and
-  #Y land". Then actually delete it when that is true; a spent handoff still in
-  the tree is a trap for the next agent.
+Commit the file.
 
-## What this is not
+## 6. Report
 
-- **Not a substitute for issue hygiene.** If a fork belongs on an issue, it goes
-  on the issue, and the handoff merely points at it.
-- **Not a transcript summary.** Nobody reads a narrative of the session. Record
-  outcomes, not the path to them.
-- **Not automatic.** If the sweep finds nothing un-persisted, say so and stop.
-  That is a good result, not a failed run.
-- **Not the entry half.** This skill is how a session closes out — including
-  a one-shot continuation file per §5. Picking up a swarm that is still
-  *running* — drones in flight, worktrees open, merges pending — is
-  `relief`'s job (`.claude/skills/relief/SKILL.md`). Relief reads a
-  *continuous* briefing kept live at `docs/handoffs/swarm-<date>-<HHMM>.md` (found by `mise run ledger -- show`),
-  updated by `swarm` on every dispatch/report/merge — not a one-shot file
-  written at the end. Same directory as §5, but gitignored and deleted at
-  the run's teardown — a different cadence and a different lifecycle.
+Say what was swept where, and the file if one was written. When the work
+continues in a fresh session, the report's last line is the resume prompt,
+exactly:
+
+```
+/pickup docs/handoffs/<topic>.md
+```

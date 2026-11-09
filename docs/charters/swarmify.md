@@ -176,7 +176,7 @@ Numbered so the skill can be checked against them law by law.
    speculative asides riding a decision, unstated acceptance, unowned
    surfaces (two plausible implementations landing on different modules means
    the *approach* is undecided), cross-issue dependencies. Enumerate them
-   numbered, in prose or `AskUserQuestion` when they are clean choices.
+   numbered; they reach the owner as law 40 says.
 6. **A second decision never rides a first.** Split it out — its own child,
    its own sibling, or a NOTES line — before promoting.
 7. **An unsettleable fork keeps the issue in `Needs design`.** "Still blocked,
@@ -213,7 +213,8 @@ Numbered so the skill can be checked against them law by law.
 
 24. **Not implementation** beyond spec's stubs. **Not a rubber stamp.**
     **Not a spawn** — the thinking runs in the session with the owner; only
-    law 3's lookup and the clerk are delegated.
+    law 3's lookup, the clerk, the close's filing subagent (law 39) and a
+    bench (law 43) are delegated.
 
 28. **An architectural fork is settled in the pass, not parked.** Two classes
     doing one job, a stage doing another's work, a mirror of logic that
@@ -402,11 +403,88 @@ Numbered so the skill can be checked against them law by law.
     pasted brief or walkthrough, not a closing report, so the owner had to
     ask what actually moved.
 
+**Design talk and the close**
+
+38. **A design-talk run is a swarmify pass with no `Ready` target.** The
+    owner opens `/swarmify` on a topic, a hub or a handoff file to brainstorm
+    and refine design, not to promote an issue: no code is touched, the
+    commits are docs (`docs/design/`, the issue, ADRs), and the outcome is
+    settled calls and filed issues, not a `Ready` move. Laws 1, 29–31 and
+    34 bind it as they bind any pass; a handoff file named in the prompt
+    is read and checked as [pickup](pickup.md) law 7 says before the pass
+    begins; law 39 closes it; law 35's report
+    names what was settled and filed in place of a lane move. Owner,
+    2026-11-10: *"lately when i put "swarmify" for such design sessions
+    it's just gonna mostly be a brainstorm session churning out and
+    refining design without touching code, mostly just commits to docs
+    result from it."* Why: the charter was written for the issue-to-Ready
+    pass; the run the owner now mostly opens fell between its laws, and
+    its close was typed by hand every time.
+39. **Every pass closes the same way, before its report.** In order:
+    (a) each call settled in the conversation is written down as the
+    owner's dated words in its home (the issue, `docs/design/`) — law 1;
+    (b) each settled item not yet on the board is filed as its own issue
+    through `spec` (law 33), at the lane and priority the owner names
+    (*"And file it, to Needs Design, P0"*; none named → one law 40 ask,
+    `Needs design` as the recommended lane), the bodies and docs written by
+    one subagent briefed from the hot context when there are several;
+    (c) each settled call is put through the `adr` skill's gate
+    ([adr](adr.md) law 1), and an ADR is written by that skill, never by
+    hand; (d) one `advisor` call reviews what the pass settled and filed;
+    (e) the law 35 report. When the work continues in a fresh session,
+    the resume half is handoff's ([handoff](handoff.md) law 11) and the
+    report's last line is its one-line resume prompt. Why: the owner typed
+    this ritual in 14 design sessions across two windows — *"File this so
+    far to lock it in or instruct a sub to do so, possibly an ADR too"*,
+    *"Handoff so i can resume this tomorrow with 1 good prompt"* — asked
+    *"ADRs needed? use Archivist subagent"* by hand in 7 sessions (the
+    `adr` skill ran in 1 of 4 that asked), and asked *"advisor pass?"* /
+    *"did you get an advisor pass in?"* in 4. Owner, 2026-11-10, on where
+    it lives: *"both swarmify and handoff i think. doesn't have to be that
+    long"*.
+40. **Forks reach the owner through `AskUserQuestion`, rapid-fire.** Up to
+    four questions per call, one call after another until the forks are
+    settled, each question carrying its law 30 scorecard and law 34
+    restatement; never a numbered prose list the owner answers by typing.
+    Prose is for the design beat (law 29) and for a fork whose options do
+    not fit four choices. Why: the old wording ("`AskUserQuestion` when
+    they are clean choices") left prose as an equal default and the owner
+    re-typed the ask — *"maybe rapid fire Askuserquestion speeds things
+    up"*, *"Serve one by one via AskUserQuestion"* (2026-11-05).
+41. **"Needs a design pass" means the `Needs design` lane.** Never
+    `Intake`. Owner (3328f3a1): *"'needs a design pass' = 'needs design'
+    not Intake lol"*. Why: agents read the phrase as "file it for
+    triage"; the correction recurs (3 sessions, 2026-10-16 → 10-31).
+42. **A design session runs to 200k context.** Any swarmify pass, a design
+    talk included, ignores the global context target until 200k and does
+    not hand off for size before it; at 200k it finishes cleanly through
+    law 39. Owner, 2026-10-19: *"Ignore ctx until 200k, holds for all
+    design sessions"* (held only in memory until now). Why: a design
+    conversation's value is its held context; a handoff mid-design costs
+    more than the tokens it saves.
+43. **A perf number in a fork is measured or marked an estimate.** A
+    number quoted to the owner in a fork message is either measured in the
+    pass or labelled an estimate — never an inferred floor. When a fork's
+    ranking turns on a number nobody measured at the range that matters
+    (law 4), a subagent bench runs before the `AskUserQuestion`, not after.
+    Why: in #1701 an inferred ~300 µs floor turned out ~15 µs once a
+    Sonnet subagent benched it in ~3 minutes, and the pick had to be
+    re-asked (board, 2026-10-19).
+
+## Foreign laws
+
+- [adr](adr.md) law 1 — law 39 puts each settled call through the gate.
+- [handoff](handoff.md) law 11 — law 39 hands the resume half to it.
+- [pickup](pickup.md) law 7 — law 38 checks a handoff file named in the
+  prompt the same way before the pass begins.
+- [charter](charter.md) law 17 — the *Frontmatter* description is stated
+  plain; the builder writes it single-quoted.
+
 ## Frontmatter
 
-`name: swarmify`. `description:`, verbatim:
+`name: swarmify`. `description:`, verbatim (the builder quotes it, [charter](charter.md) law 17):
 
-> Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "swarmify next issue" or another queue selector ("next P0 from Needs design", "… + closely related"), "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
+> Take one GitHub issue from "has open design forks" to Ready — remove blockers, read whether the open question is "what would be fun" (design it first, game-designer hat on, with the user) or "how to build it", surface every unresolved decision, research the code and think each fork through with the user, present options scored for cleanliness with the cleanest as the default, get them to settle it, write a crisp acceptance spec, split a hub into coherent children if needed, and move it to the `Ready` column; or run a design talk with no Ready target that settles calls into docs and filed issues. Every pass closes by filing what was settled, an ADR check and an advisor review. This is the design gate that feeds the `swarm` skill. Use when the user says "swarmify #<n>", "swarmify next issue" or another queue selector ("next P0 from Needs design", "… + closely related"), "swarmify <topic or handoff file>", "make #<n> ready/swarmable", "settle the design on #<n>", or asks to prep an issue/epic for autonomous work. Run as Opus — resolving forks is the thinking swarm cannot do.
 
 ## Incident corpus
 
@@ -415,6 +493,10 @@ have to carry them.
 
 | Date | Where | What happened | Law |
 |---|---|---|---|
+| 2026-11-10 | owner | "lately when i put "swarmify" for such design sessions it's just gonna mostly be a brainstorm session … mostly just commits to docs"; on the close: "both swarmify and handoff i think. doesn't have to be that long" | 38, 39 |
+| 2026-10-14 → 11-05 | scans `docs/corpus/2026-11-09-skill-candidates-{a,b,c}.md` | design-talk closing ritual typed by hand in 14 sessions (a: 6, b: 8 of ~15); "ADRs needed?" by hand in 7, `Skill:adr` used in 1 of 4; advisor pass asked by hand in 4; "needs a design pass" = Needs design corrected in 3; AskUserQuestion pacing re-asked in 3 | 39, 40, 41 |
+| 2026-10-19 | owner, 4b884bfb (memory only) | "Ignore ctx until 200k, holds for all design sessions" | 42 |
+| 2026-10-19 | #1701, board law-candidate | an inferred ~300 µs floor quoted in a fork was ~15 µs once a Sonnet subagent benched it (~3 min); the pick was re-asked | 43 |
 | 2026-10-17 | owner | "i feel like i should be able to oneshot this like 'next issue from needs design queue ordered by prio then by issue number; and if any closely related pick those up too'" and "(as in '/swarmify next issue …' + gotcha/guidance of how to find by P0 (agents often struggle then find 'P0 is not a label, ah'))". The Needs-design head that day was #256 (blade visuals) followed by aspect "× Addon" issues whose titles mention "blade" — keyword siblings, not related | 37 |
 | 2026-10-17 | owner, via AskUserQuestion | asked that the selector work for every skill that picks issues (warp, relay, swarm, triage), not just swarmify; settled SHAPE = "Board cmd" — a shared `gh-project next` + `gh-project related`, no new skill — and CLAIM = "Designing lane", a board column between Needs design and Ready | 37 |
 | 2026-10-14 | owner; scan `.claude/skills/swarmify/corpus/2026-10-14-research-cost-scan.md` (133 sessions) | owner: swarmify sessions "should upgrade their initial research … a Fable … exploring codebase rapidly bloating context possibly reading stuff they dont need", asked what to read, what to delegate, how many explorers and what return size. Scan: the research phase is 73% of a session's tool-result bytes (median 62k chars, max 195k); the session's own `cat`/`sed` reads are the largest bucket (3.0M total), issue reads second (2.1M), Explore returns smallest by 7x (0.4M, ~3.4k/agent). The two heaviest passes cat'ed whole source files and a whole review doc that the resulting specs never cite; one ran no Explore at all; 45 of 133 did not. Owner picked: Explore orients + session confirms, no Explore cap, "just a shape" | 3, 36 |
@@ -451,6 +533,25 @@ Transcript scans behind a law live in `.claude/skills/swarmify/corpus/` —
 a dated report plus the labelled rows, so a count can be re-checked rather
 than trusted. The skill never reads them. New scans go to `docs/corpus/`
 via the `archivist` agent; these stay where this charter cites them.
+
+## Revisit when
+
+- **Open fork — the 200k line (law 42).** The owner is contemplating
+  raising every context threshold by +50k (2026-11-10); if that lands, law
+  42's line moves with it (250k), and the global target with it.
+- Law 39's close is still typed by hand after the rebuild — the skill's
+  closing step is not being reached (a design talk that never loads
+  `/swarmify` is the likely cause; a handoff file that names the skill
+  fixes the resume side, [pickup](pickup.md) law 7).
+- The `adr` gate in law 39 routinely says "not an ADR" — drop (c) to a
+  one-line check.
+
+## Fold digest
+
+| Date | Kind | Became |
+|---|---|---|
+| 2026-10-19 | law-candidate (#1701 inferred perf floor) | law 43 |
+| 2026-11-09 | probe (closing ritual, advisor by hand, lane alias, ctx 200k) | laws 39 (close + advisor), 41, 42; law 38 from the owner's 2026-11-10 words |
 
 ## Open follow-ups
 

@@ -47,7 +47,7 @@ history, or the next rewrite re-learns it.
   but one home for both keeps the convention uniform.
 
 Charters so far: [charter](charter.md) (the skill that revises every other),
-[drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md).
+[drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md), [handoff](handoff.md), [pickup](pickup.md), [clean-git](clean-git.md).
 
 ## Feedback boards
 
@@ -91,7 +91,7 @@ cosmetic. The
 charter keeps a short *Fold digest* section (date · kind → what it became),
 so a repo grep still finds the substance without the board.
 
-A skill or agent with no charter yet (`handoff`, `manage-stats`, `pickup`)
+A skill or agent with no charter yet (`manage-stats`)
 gets its first one the first time `/charter` is asked to change it, written
 from the file's own imperatives ([charter.md](charter.md) law 9). The
 `adr-librarian` agent is covered by the `adr` charter, `swarm-lead` by

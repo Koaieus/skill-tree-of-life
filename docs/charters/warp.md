@@ -221,4 +221,4 @@ have to carry them.
 
 ## Open follow-ups
 
-- `handoff` has no charter yet.
+- None.
