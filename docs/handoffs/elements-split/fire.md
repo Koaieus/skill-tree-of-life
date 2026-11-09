@@ -15,7 +15,7 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 - Burn (pass picks, tentative): a step in #{flow}'s world-turn settle, reading the pre-diffusion snapshot. It lands through `DotTick.mint` on the node's combat host as TRUE damage with no record (the corruption-burst path), and lands nothing on an unallocated node. Amount = `burn_per_excess` × excess, carrying #1695's 0.5 per stack. Light radius: the farthest neighbour's centre distance plus that neighbour's radius.
 
 **Knobs** (tentative defaults, easy to change; tests assert ratios)
-- Fire's Burning band `.burn_per_excess` = 0.5 (`@export_range(0.0, 10.0)`).
+- Fire's Burning band `.burn_per_excess` = 1.0 (`@export_range(0.0, 10.0)`) — owner, 2026-11-10: *"butn 1 per stack"* (burn; read as per stack above T, since only Burning burns — pass reading).
 - Fire's Burning band `.light` = true. This is the band's light answer (#{defs}); the radius is derived, with no number.
 - Heat addon `.stacks` = 1. The authored innate Heat per vertex, on #{blade-elements}'s element addon base. Editor feedback: the melee sandbox.
 
@@ -37,7 +37,7 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 **Acceptance**
 1. `test/unit/elements/test_burning_burn.gd` (red first): one world turn burns an allocated Burning node by `burn_per_excess × excess` TRUE damage with no attack record. An unallocated Burning node takes nothing. The node's own camp does not matter. Heat ≤ T burns nothing.
 2. Same file: a holder's death, a dealloc and a retake leave `t` untouched, and the burn resumes for the next holder.
-3. `test/unit/systems/test_vision_sources.gd` (extend): a Burning node is a `BURNING` source for every viewer, including one owning nothing near it, with a radius reaching its farthest neighbour. It is gone once Heat drops to T. `sources_for` stays one pass over the nodes (`docs/domain/vision-system.md` § Cost model).
+3. `test/unit/systems/test_vision_sources.gd` (extend): a Burning node is a `BURNING` source for every viewer, including one owning nothing near it, with a radius of √power × node radius, the Burning disc's own size formula (owner, 2026-11-10: *"light radius same formula as explosion size would"*) — read from the same function #{burning}'s disc uses, never a second copy. It is gone once Heat drops to T. `sources_for` stays one pass over the nodes (`docs/domain/vision-system.md` § Cost model).
 4. `test/unit/attack/melee/test_burning_vertex.gd`: a vertex filled from a Burning source booms #{burning}'s disc at its contact node with power = copy − source T. The source node's Heat is unchanged after the swing. The copy is spent per node reached, and a later contact goes off only while the copy stays > T.
 5. Heat addon: its vertex lands `stacks` Heat on every contact it lands, that vertex only. A refused contact lands nothing (the Toxin pattern).
 6. Visible: a burn tick shows a damage number on the node; a Burning node is lit through fog with its neighbours; the Heat addon and a Burning vertex read as hot on the board and on the blade. Check it in the sandbox host; `mise run check` only.

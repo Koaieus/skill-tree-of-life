@@ -193,9 +193,15 @@ delete `docs/handoffs/elements-split/` and this file.
 - `pairs`: whether the arc released by breaking ice reads its power before
   or after the breaking hit lands (`elements.md:810-811` vs `:93-96`) is
   unsettled; the test passes under either. Owner call wanted.
-- Tentative numbers the owner has not seen: burn 0.5 per excess stack,
-  light radius to the farthest neighbour, overflow-band decay 2, a walk on a
-  Shocked node with 0 hops left still leaves.
+- Owner, 2026-11-10 (late): *"butn 1 per stack, light radius same formula
+  as explosion size would. overflow decay idk yet 2 or 3 or proportional"* —
+  burn is 1 per stack (applied in `fire.md`, read as per stack above T), the
+  Burning light radius is √power × node radius (applied in `fire.md`; any
+  other light-radius line there needs the same fix), overflow-band decay
+  stays a knob at 2, undecided (`defs.md`). Asked and not yet answered:
+  whether a spell walk arriving on a Shocked node with 0 hops left is
+  conducted onward (`lightning.md` Decisions + Acceptance 4 say yes,
+  tentative).
 - `ice-cast` is a `Needs design` menu (three forks); `quiver`, `burning`,
   `go-off-zero`, `catalyst-blade` are units the § 3 list never had.
 
