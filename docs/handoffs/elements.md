@@ -186,18 +186,31 @@ the next session"*):
    swing first and land afterwards? If the sim runs ahead, the ledger stays
    as the sim's working copy (only the spell-side `detonate_effect.gd`
    ledger goes) and `go-off-zero.md` is corrected before it is filed.
-2. **Settle Shocked conduction at 0 hops with the owner.** A spell walk
-   entering a Shocked node leaves without spending a hop, 1 Charge per
-   pass-through (`elements.md:855-858`) — owner, 2026-11-10: *"i forgot i
-   designed that as a feature. it's rather powerful, not spending a hop. but
-   might be just what it needs. or is the arcing already splash madness
-   enough?"* Open: does a walk that arrives with 0 hops left still leave
-   (`lightning.md` says yes, tentative), or does conduction only make a hop
-   free while one is left? The pass's arithmetic for the owner: an arrival
-   is also a hit, so the node arcs to every neighbour and pays 1 per node
-   reached plus 1 for the pass-through; at T = 2 x degree a degree-3 node
-   one stack past T is back under T after a single arrival, so a wire
-   carries roughly one spell before it has to be recharged.
+2. **Shocked conduction at 0 hops is settled: the walk still leaves.**
+   A spell walk entering a Shocked node leaves without spending a hop, 1
+   Charge per pass-through (`elements.md:855-858`), and that holds when the
+   walk arrives with 0 hops left — owner, 2026-11-10: *"i forgot i designed
+   that as a feature. it's rather powerful, not spending a hop. but might be
+   just what it needs"*, then on keeping it including the 0-hops case: *"i
+   agree with that lean."* Already applied in `lightning.md` Decisions; the
+   conduct cost is the knob if generator keystones (#1787) make wires
+   permanent.
+   **Parked owner idea, not decided, a NOTES line in `lightning.md`:** *"wires
+   might even be draining *too* fast, i think the fix would be to spread 1
+   Charge to each affected neighbor instead of voiding as many, but that
+   could complicate timings badly if not thought through perfectly"*. Pass
+   notes for when it is picked up: the timing is not the hard part — the
+   gather already commits every terrain change of a beat as one set of sums
+   from one snapshot, so a transfer is a +1 on the reached node in the same
+   commit as the -1 on the source, primed states are read pre-hit and the
+   once-per-node set bounds the cascade; nothing touches the C++ XPBD solver
+   (it is blade physics; terrain and the resolver are GDScript). The hard
+   part is balance: it makes Lightning's go-off a redistribution instead of
+   a cost, against the one spend law of ADR 0081 section 1 (an interior node
+   of a line wire would give 2, get 2 back and lose only the conduct cost
+   per spell, so only decay ends a wire). Shape if wanted: where the spent
+   Charge goes (void, or the reached node) as one exported choice on
+   Lightning's edge go-off, void by default.
 3. Then the cold review and the clerk order below.
 
 **Look at these first in the cold review** (the writers' own flags):
