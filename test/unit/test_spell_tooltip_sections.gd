@@ -125,8 +125,8 @@ func test_healing_beams_arrival_line_starts_with_heals() -> void:
 
 ## The D-32 wiring itself: Spark's single [DamageEffect] quotes the impact
 ## number ([method SpellResolver.impact_damage], no caster board here so the
-## default `spell_damage` (1.0) × `power` (1.0) = 1), never the old
-## number-free "Deals magic damage." fragment.
+## def's default `spell_damage` × `power` (1.0)), never the old number-free
+## "Deals magic damage." fragment.
 func test_on_arrival_line_names_the_impact_damage_number() -> void:
 	var spell := TestSpells.SPARK
 	var expected := SpellResolver.impact_damage(spell, null, null)

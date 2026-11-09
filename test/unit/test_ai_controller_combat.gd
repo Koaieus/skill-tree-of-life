@@ -40,11 +40,13 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	# The worked world these fixtures count shots in: 10-HP nodes, floor 3.
 	e.stat_board.node_health.base_value = 10.0
 	e.stat_board.min_damage_taken.base_value = 3.0
-	# ...and 1.5 raw per shot/contact (base 1 + 5/10 DEX or STR).
+	# ...and the fixture's own damage bases (base 1 + 5 DEX/STR through the
+	# board's ratio), not the board's innate +8 / +4 / +4.
 	e.stat_board.ranged_damage.base_value = 1.0
 	e.stat_board.blade_damage.base_value = 1.0
 	e.stat_board.dexterity.base_value = 5.0
 	e.stat_board.strength.base_value = 5.0
+	TestBoards.strip_innate_damage(e.stat_board)
 	# #957: a volley needs arrows; the default board's quiver starts empty.
 	e.stat_board.arrows.add(AmmoTypeRoster.BASE_ID, 40)
 	# Zero the board's 5 % baseline crit. Since #507 ranged rolls crits off a

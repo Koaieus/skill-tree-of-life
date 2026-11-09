@@ -48,13 +48,11 @@ header).
 
 ## Snapshot staleness — this is not #274's job
 
-`tools/balance/**` is not in #274's files-owned list. When #274 lands
-(`spell_damage` gets a real default, currently `0.0`/absent — every spell
-seed changes), the committed `snapshot.md` goes stale against the new spell
-numbers. **Refreshing it is a follow-up task, not #274's responsibility** —
-#274 must not widen its ownership to touch this directory. Re-run
-`mise run balance` and commit the new snapshot once #274 lands (and again
-after any future change to a formula this harness reads).
+`tools/balance/**` is not in #274's files-owned list. When #274 landed
+(`spell_damage` got a real default), the committed `snapshot.md` went stale
+against the new spell numbers; #1788 refreshed it alongside the base-damage
+retune. Re-run `mise run balance` and commit the new snapshot after any future
+change to a formula this harness reads.
 
 ## Assumptions worth knowing, not just reading in a code comment
 

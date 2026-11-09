@@ -52,6 +52,11 @@ func test_increased_damage_moves_every_damage_type_by_the_same_factor() -> void:
 	var b := _entity().stat_board
 	for id in _DAMAGE_CHILDREN:
 		b.get_stat(id).base_value = 50.0
+	# The board's attribute lines are continuous, so zero them to keep every
+	# pre-INCREASE read whole and the expected `floor(before * 1.2)` exact.
+	b.strength.base_value = 0.0
+	b.dexterity.base_value = 0.0
+	b.intelligence.base_value = 0.0
 	var before := _values(b, _DAMAGE_CHILDREN)
 	b.add_modifier(_mod(&"damage", StatModifier.Operation.INCREASE, 20.0))
 	for id in _DAMAGE_CHILDREN:

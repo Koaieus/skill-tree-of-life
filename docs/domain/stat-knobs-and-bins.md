@@ -449,17 +449,19 @@ Nothing is planted on a board; SET / MULTIPLY entries are refused at load.
 **The authored number is the stat's base when a flat in the stat's own unit is
 meaningless without it** — `+1` to a range *multiplier* is not a hop, so
 `cast_range_hops` is base 0 and the spell's `3` is the base every bin applies to.
-**A rate stat keeps identity base `1.0`, and an `ADD_BASE +X` on it is a rate
+**A rate stat keeps an identity base, and an `ADD_BASE +X` on it is a rate
 bonus** — the authored number stays with its consumer, which multiplies it by
-the composed rate. The premise that a flat bonus on spell damage "has nowhere to
-go" only holds if the flat is measured in damage points; owner (#1016): it is measured in multiples of the authored number (`+1 spell_damage`
-at INT 9 is +25% relative) — the arithmetic the code already runs. None of the
-rate stats below converts to an overlay base.
+the composed rate. For `spell_damage` that identity base is `5` since #1788
+(it was `1.0`); `healing_received` stays `1.0`. The premise that a flat bonus on
+spell damage "has nowhere to go" only holds if the flat is measured in damage
+points; owner (#1016): it is measured in multiples of the authored number — the
+arithmetic the code already runs. None of the rate stats below converts to an
+overlay base.
 
-| Rate stat (base 1.0) | × authored number | Consumer |
+| Rate stat (identity base) | × authored number | Consumer |
 |---|---|---|
-| `spell_damage` (√INT intrinsic on the board) | `SpellDef.power` | `SpellResolver.impact_damage` — `get_local_value(&"spell_damage") × power` |
-| `healing_received` | the heal amount | `NodeCombat.heal_damage` — every heal passes through it |
+| `spell_damage` (base 5 + √INT intrinsic on the board) | `SpellDef.power` | `SpellResolver.impact_damage` — `get_local_value(&"spell_damage") × power` |
+| `healing_received` (base 1.0) | the heal amount | `NodeCombat.heal_damage` — every heal passes through it |
 
 One-line test for the next audit: *would `+1` on this stat, in the stat's own
 unit, mean anything?* Hops, pixels, points → overlay base (§5). A multiple → rate

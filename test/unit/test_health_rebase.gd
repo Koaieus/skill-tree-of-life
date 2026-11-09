@@ -1,8 +1,9 @@
 extends GutTest
 
 ## The lv1 HP scale: one ~100 bar for cores and nodes, a floor that takes
-## ~20 hits to empty it, melee/ranged raw sitting just above the floor, magic
-## scaled with the pools and per-stack DoT values left where they were.
+## ~20 hits to empty it, melee killing a lv1 core in ~10 hits, ranged sitting
+## at the floor, magic scaled with the pools and per-stack DoT values left
+## where they were.
 ##
 ## Every number here is a fresh lv1 entity's START (innate attributes, no
 ## addons, no rolls) — level, rolls and statuses move them all run. So these
@@ -57,18 +58,86 @@ func test_a_pure_floor_kill_takes_about_twenty_hits() -> void:
 
 # ── Damage relative to the floor and the pools ──────────────────────────────
 
-func test_unarmored_melee_and_ranged_raw_sit_just_above_the_floor() -> void:
+func test_lv1_melee_kills_a_core_in_eight_to_twelve_hits_and_ranged_sits_above_the_floor() -> void:
 	var b := _lv1(BOARD)
+	var melee := _num(b, &"blade_damage")
+	var ranged := _num(b, &"ranged_damage")
 	var floor_v := _num(b, &"min_damage_taken")
-	for id in [&"blade_damage", &"ranged_damage"]:
-		assert_between(_num(b, id), floor_v, floor_v + 2.0,
-			"lv1 %s raw vs floor %s" % [id, floor_v])
+	var hits := _num(b, &"health") / melee
+	assert_between(hits, 8.0, 12.0, "lv1 melee hits to kill = %s" % hits)
+	assert_gte(ranged, floor_v, "lv1 ranged raw %s vs floor %s" % [ranged, floor_v])
+	assert_lt(ranged, melee, "lv1 ranged raw %s must stay below melee raw %s" % [ranged, melee])
 
 
-func test_a_power_one_spell_is_a_tenth_to_a_sixth_of_a_lv1_core() -> void:
+func test_a_power_one_spell_is_five_to_ten_percent_of_a_lv1_core_and_doubles_by_int_100() -> void:
 	var b := _lv1(BOARD)
 	var share := _num(b, &"spell_damage") * 1.0 / _num(b, &"health")
-	assert_between(share, 0.10, 0.16, "power-1 spell share of lv1 core = %s" % share)
+	assert_between(share, 0.05, 0.10, "power-1 spell share of lv1 core = %s" % share)
+
+	var at_zero := _lv1(BOARD)
+	at_zero.intelligence.base_value = 0.0
+	var at_hundred := _lv1(BOARD)
+	at_hundred.intelligence.base_value = 100.0
+	var ratio := _num(at_hundred, &"spell_damage") / _num(at_zero, &"spell_damage")
+	assert_between(ratio, 1.8, 2.2, "spell_damage at INT 100 / INT 0 = %s" % ratio)
+
+
+func test_every_board_carries_lootable_innate_base_damage() -> void:
+	var loot := LootSystem.new()
+	autofree(loot)
+	for src in [BOARD, BLOCKER_SMALL, BLOCKER_MEDIUM, BLOCKER_LARGE]:
+		for id in [&"blade_damage", &"ranged_damage", &"spell_damage"]:
+			var innate: StatModifier = null
+			for m in (src as EntityStatBoard).intrinsic_modifiers:
+				if m.stat_id == id and m.operation == StatModifier.Operation.ADD_BASE \
+						and m.formula == null:
+					innate = m
+					break
+			assert_not_null(innate,
+				"%s: no innate ADD_BASE for %s" % [src.resource_path, id])
+			if innate == null:
+				continue
+			assert_false(innate.resource_name.is_empty(),
+				"%s: %s innate needs a loot-picker name" % [src.resource_path, id])
+			for fraction in loot.loot_fraction_by_tier:
+				if fraction > 1.0:
+					continue
+				var scaled := innate.value * fraction
+				assert_almost_eq(scaled, roundf(scaled), 0.0001,
+					"%s: %s innate %s × tier fraction %s must stay whole"
+						% [src.resource_path, id, innate.value, fraction])
+
+
+func test_a_default_board_kill_offers_its_innate_blade_damage_at_the_tier_fraction() -> void:
+	var loot := LootSystem.new()
+	autofree(loot)
+	var victim := autofree(Entity.new()) as Entity
+	victim.stat_board = BOARD.duplicate(true) as EntityStatBoard
+	victim.entity_tier = 1
+
+	var innate: StatModifier = null
+	for m in victim.stat_board.intrinsic_modifiers:
+		if m.stat_id == &"blade_damage" and m.operation == StatModifier.Operation.ADD_BASE \
+				and m.formula == null:
+			innate = m
+			break
+	assert_not_null(innate, "fixture: the default board carries an innate blade-damage modifier")
+	if innate == null:
+		return
+
+	var fraction: float = loot.loot_fraction_by_tier[victim.entity_tier - 1]
+	var expected := innate.value * fraction
+	var draw := loot._draw_payload(victim)
+	var offered: StatModifier = null
+	for m in draw["candidates"]:
+		if m.stat_id == &"blade_damage" and m.operation == StatModifier.Operation.ADD_BASE \
+				and m.formula == null:
+			offered = m
+			break
+	assert_not_null(offered, "the kill payload offers the board's innate blade damage")
+	if offered != null:
+		assert_almost_eq(offered.value, expected, 0.0001,
+			"offered innate scales to the victim's tier fraction %s" % fraction)
 
 
 # ── Dormant Cores ───────────────────────────────────────────────────────────

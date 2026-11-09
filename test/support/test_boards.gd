@@ -27,3 +27,17 @@ static func flat_entity_board() -> EntityStatBoard:
 	board.mint_facets()
 	board.constitution.base_value = 0.0
 	return board
+
+
+## Strip the board's innate base-damage modifiers (the melee / ranged / spell
+## `+8` / `+4` / `+4` ADD_BASE lines) so a fixture that authors its own damage
+## bases reads exactly the numbers it wrote. Call after duplicating the
+## default board, before the entity applies its intrinsics.
+static func strip_innate_damage(board: EntityStatBoard) -> void:
+	var kept: Array[StatModifier] = []
+	for m in board.intrinsic_modifiers:
+		if m.formula == null and m.stat_id in [
+				&"blade_damage", &"ranged_damage", &"spell_damage"]:
+			continue
+		kept.append(m)
+	board.intrinsic_modifiers = kept

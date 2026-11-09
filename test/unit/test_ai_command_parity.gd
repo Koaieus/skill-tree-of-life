@@ -35,13 +35,15 @@ func _make_entity(ent_name: String, faction: Faction = null) -> Entity:
 	# Flat board (CON=0): tuned stats must not ride into the fixture's numbers.
 	e.stat_board = TestBoards.flat_entity_board()
 	# The worked world these numbers were scored in: 10-HP nodes behind a
-	# floor of 3, 1.5 raw per shot/contact (base 1 + 5/10 DEX or STR).
+	# floor of 3 and the fixture's own damage bases (base 1 + 5 DEX/STR through
+	# the board's ratio, not the board's innate +8 / +4 / +4).
 	e.stat_board.node_health.base_value = 10.0
 	e.stat_board.min_damage_taken.base_value = 3.0
 	e.stat_board.ranged_damage.base_value = 1.0
 	e.stat_board.blade_damage.base_value = 1.0
 	e.stat_board.dexterity.base_value = 5.0
 	e.stat_board.strength.base_value = 5.0
+	TestBoards.strip_innate_damage(e.stat_board)
 	# Zero the 5 % baseline crit: since #507 a ranged crit rolls off a fresh
 	# per-attack seed, and the ownership asserts cannot flake on a doubled shot.
 	e.stat_board.get_stat(&"crit_chance").base_value = 0.0

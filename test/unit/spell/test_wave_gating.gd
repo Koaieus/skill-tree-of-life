@@ -65,6 +65,9 @@ func _setup(lethal: bool) -> Dictionary:
 
 	var attacker := _make_entity(graph, "Attacker")
 	var defender := _make_entity(graph, "Defender")
+	# Pin the scaffold so `_LETHAL_POWER` clears it by one, independent of the
+	# board's own node_health baseline (the default board ships 100).
+	defender.stat_board.get_stat(&"node_health").base_value = 10.0
 	if not lethal:
 		# The control: same cast, same filter, nothing dies.
 		defender.stat_board.get_stat(&"node_health").base_value = 9999.0

@@ -77,7 +77,7 @@ func test_child_read_folds_the_entity_parent_increase() -> void:
 	var e := _world.add_entity("", TestBoards.flat_entity_board())
 	await get_tree().process_frame
 	_world.allocator().force_allocate(e, node)
-	node.add_local_modifier(_mod(&"blade_damage", StatModifier.Operation.ADD_BASE, 99.0))
+	node.add_local_modifier(_mod(&"blade_damage", StatModifier.Operation.ADD_BASE, 90.0))
 	var before := float(node.get_local_value(&"blade_damage"))
 	# INT stat: pick a base the +20% scales to a whole number (100 → 120).
 	assert_gt(before, 0.0, "arrangement: a local blade_damage to scale")

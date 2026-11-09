@@ -282,6 +282,9 @@ multiplied by `LootSystem.loot_fraction_by_tier[clampi(victim.entity_tier - 1,
 2026-09-13: *"1: 0.25 2: 0.5 3: 1 (4: 2? Maybe reserved for bosses)"*). Players
 and ordinary NPCs default to `entity_tier = 3` → the full 1.0 rate; removable
 blockers author 1 / 2 / 3 for small / medium / large → 0.25 / 0.5 / 1.0. The
+innate base-damage modifiers follow that ladder: the board's +8 blade / +4
+ranged / +4 spell land as +2 / +1 / +1 on a small blocker, +4 / +2 / +2 on a
+medium and +8 / +4 / +4 on a large. The
 scale is applied to the **duplicate** entering the loot pool, in `_draw_payload`
 — never to the victim's own modifier, which keeps computing at full strength
 for as long as the victim is alive (a dormant core's intrinsics still "work" by

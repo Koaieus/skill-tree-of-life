@@ -75,7 +75,7 @@ base_value = 5.0
 resource_name = "blade_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_damage")
-base_value = 5.0
+base_value = 2.0
 
 [sub_resource type="Resource" id="scalar_blade_size"]
 resource_name = "blade_size"
@@ -175,10 +175,10 @@ formula = SubResource("formula_wis_to_xp_pt")
 [sub_resource type="Resource" id="formula_str_to_blade_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"strength"
-divisor = 10.0
+divisor = 20.0
 
 [sub_resource type="Resource" id="mod_str_to_blade_damage"]
-resource_name = "+1 Blade Damage per 10 STR"
+resource_name = "+1 Blade Damage per 20 STR"
 script = ExtResource("12_3edt8")
 stat_id = &"blade_damage"
 formula = SubResource("formula_str_to_blade_damage")
@@ -231,10 +231,10 @@ formula = SubResource("formula_int_to_cast_range_hops")
 [sub_resource type="Resource" id="formula_dex_to_ranged_damage"]
 script = ExtResource("script_ratio")
 source_stat_id = &"dexterity"
-divisor = 10.0
+divisor = 40.0
 
 [sub_resource type="Resource" id="mod_dex_to_ranged_damage"]
-resource_name = "+1 Ranged Damage per 10 DEX"
+resource_name = "+1 Ranged Damage per 40 DEX"
 script = ExtResource("12_3edt8")
 stat_id = &"ranged_damage"
 formula = SubResource("formula_dex_to_ranged_damage")
@@ -245,11 +245,29 @@ source_stat_id = &"intelligence"
 divisor = 1.0
 
 [sub_resource type="Resource" id="mod_int_to_spell_damage"]
-resource_name = "+3 Spell Damage per √INT"
+resource_name = "+0.5 Spell Damage per √INT"
 script = ExtResource("12_3edt8")
-value = 3.0
+value = 0.5
 stat_id = &"spell_damage"
 formula = SubResource("formula_int_to_spell_damage")
+
+[sub_resource type="Resource" id="mod_innate_blade_damage"]
+resource_name = "+8 Blade Damage"
+script = ExtResource("12_3edt8")
+value = 8.0
+stat_id = &"blade_damage"
+
+[sub_resource type="Resource" id="mod_innate_ranged_damage"]
+resource_name = "+4 Ranged Damage"
+script = ExtResource("12_3edt8")
+value = 4.0
+stat_id = &"ranged_damage"
+
+[sub_resource type="Resource" id="mod_innate_spell_damage"]
+resource_name = "+4 Spell Damage"
+script = ExtResource("12_3edt8")
+value = 4.0
+stat_id = &"spell_damage"
 
 [sub_resource type="Resource" id="formula_con_to_node_health"]
 script = ExtResource("script_expr")
@@ -328,7 +346,7 @@ base_value = 400.0
 resource_name = "ranged_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_ranged_damage")
-base_value = 5.0
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_sensor_range"]
 resource_name = "sensor_range"
@@ -352,7 +370,7 @@ base_value = 2.0
 resource_name = "spell_damage"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_spell_damage")
-base_value = 4.0
+base_value = 1.0
 
 [sub_resource type="Resource" id="scalar_strength"]
 resource_name = "strength"
@@ -430,4 +448,4 @@ blade_damage = SubResource("scalar_blade_damage")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 sparse = true
-intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_level_to_con")])
+intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_level_to_con"), SubResource("mod_innate_blade_damage"), SubResource("mod_innate_ranged_damage"), SubResource("mod_innate_spell_damage")])
