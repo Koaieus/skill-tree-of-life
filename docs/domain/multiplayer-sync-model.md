@@ -102,8 +102,9 @@ stats are recomputed **locally on every peer** — nothing about `max_hp`, AP
 regen, or any board total rides a record. So the stat pipeline must produce
 identical results on every machine, and that obligation is real today.
 
-**The obligation reaches exactly one subsystem: the stat pipeline** — which is
-what makes it auditable with a grep.
+**The obligation reaches two subsystems: the stat pipeline and the world-turn
+settle** (terrain decay and diffusion, reproduced from the end-turn command as the
+DoT ticks are; ADR 0081) — each auditable with a grep, each roll-free.
 
 Two rules follow, the stat-pipeline analogue of the stable hitscan sort:
 

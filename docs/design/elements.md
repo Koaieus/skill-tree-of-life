@@ -570,8 +570,8 @@ leaves 4: it thaws for the *next* hit, never for itself. The same settle runs
 after every world-turn tick.
 
 **Two clocks, two sync shapes (pass write-back, 2026-11-09, of the owner's
-2026-11-05 call; stated to the owner, not objected to; the follow-up ADR
-records it).** The attack record (ADR 0077) carries what a *command's*
+2026-11-05 call; stated to the owner, not objected to; ADR 0081 records
+it).** The attack record (ADR 0077) carries what a *command's*
 resolution did, the go-offs its hits trigger included — the record's blast
 table (one mark, many copies) is already that shape. The world turn carries
 what *time* did — decay, diffusion, a no-parent go-off, Burning's burn — and
@@ -836,7 +836,7 @@ here.
     priming, the trade is the whole store at 1:1 with no slice. These
     supersede ADR 0072 §3 (*"Fire is wholly an element. Fuel is Fire's
     medium; no Explosive aspect survives"*) in part and ADR 0075 §6 (Fuel the
-    accelerant); the follow-up ADR records it. Master artifacts to RETAG
+    accelerant); ADR 0081 records it. Master artifacts to RETAG
     (explosive to catalyst), none deleted: `stats_system/defs/explosive_aspect.tres`,
     `effects/status/explosive.tres` (with its `charge` tag),
     `aspects/defs/explosive.tres`, `attack/ammo/types/explosive.tres`, the
@@ -907,12 +907,6 @@ here.
   `StatDef.Role` (`fire` is not `fire_aspect`); (f) **Charge** collides
   with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
   of the same id — coalescing is still #1741's open NOTE, not an owner call.
-- **Greed under the new vocabulary** (#1659, owner 2026-11-03: the "stacks
-  outlive the kill" direction is *"a lame exploit already on paper"* — kill
-  for the XP, the enemy retakes, kill again at the same count). Greed is an
-  aspect status, so sided; the cursed-gold feel needs a carrier. Shapes on
-  the table: the stacks jump to the killing node (hot potato), spent on kill
-  (as built), or ride the relic (#1662). Unpicked.
 - **Knobs** (§ The threshold model): T = 2 × degree, k, the hop ladder's
   L² × T, the disc's √power × node radius, the decay rates — tuned with
   #1733.
