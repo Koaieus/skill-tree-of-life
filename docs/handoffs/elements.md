@@ -93,6 +93,97 @@ Shocked; no `ArcEffect`; go-off zero's disc rides the Explosive `Aspect` def
 under the same field name until the retag — pass pick); **the applier drains an open
 worklist**, hits compiled through one stamping callable.
 
+## 0. Split pass 2026-11-10 (night) — state, supersedes § 3's child list where they differ
+
+**Owner calls, 2026-11-10 (verbatim):**
+- Pair rules are their own unit after Fire / Lightning / Ice: *"option 1. or
+  whichever fits a DAG."*
+- Visuals: small looks ride their mechanics unit, a large display surface is
+  its own unit: *"option 1"*, plus *"the drone may offload that work to a
+  sub-agent drone of their own … they work on the same thing anyway so they
+  can coordinate closely and share a worktree"* (a NOTES line in each spec
+  with a visual; a standing drone law would be a `/charter drone` pass).
+- Every child goes `Ready` now, with a spec-refresh issue blocking the later
+  ones: *"all children ready, but add 1 extra issue … make it be blocking
+  later ones. and that issue just tells to update the specs?"*
+- The inner-tree shape for elements and the card cadence: filed as its own
+  `Needs design` issue (sibling of the hub).
+- The count's stat id is `fire_element` / `ice_element` / `lightning_element`,
+  shown as "Fire attunement" (owner picked it over `fire_attunement` and a
+  bare `fire`).
+- Ice on a cast (the concentrate) is `Needs design`: *"yeah needs design that
+  one, just stub it as an unconditional ×1 until we fix it/decide on it"* —
+  an Ice load on a cast leaves hops alone and scales the seed ×1; the stub
+  line sits in the forge unit.
+
+**The split, as drafted** (handles; bodies are drafts in the session
+scratchpad, not yet on the board): spine `defs` → `terrain` → `flow` →
+(`applier`) → `resolver` → `catalyst` → `refresh`; `terrain-ui` after
+`flow`; then `blade-elements` → `fire` / `lightning` / `ice` in parallel →
+`pairs`, `forge` (+ `forge-ui`); `ice-cast` in `Needs design`. Pass picks:
+terrain substrate cut in three (node state, world-turn settle, display); Ice
+cut in two (node, cast); `blade-elements` as the shared base before the three
+elements (addons, vertex copy-on-fill, sweep speed) instead of "the first of
+6 / 7 / 8 to land"; `resolver` likely cut in two (the gather, then go-off
+zero); `catalyst` likely cut in two (retag + conversion + docs, then the
+blade-side explosive teardown). Frostbite #1444 stays its own issue, blocked
+by `ice`.
+
+**Pass rulings** (doc beats handoff): a planting hit is a hit and sets off a
+primed node (`elements.md:484-487`); the no-parent go-off has no caller and
+no unit builds it (`:498-503`) — § 3's "lands with 6 and 7" is stale; prime
+conversion of Catalyst is read inside the world-turn settle, never hooked on
+`terrain_band_changed` (display-only, `:842-848`); the next element ADR also
+owes corrections to 0061, 0062 and 0070 (code they describe dies in
+`catalyst`).
+
+**Forks held for the owner — not yet asked, none settled:**
+1. **World-turn rate.** The doc's `ceil(sqrt(N))` (tentative pass knob,
+   `elements.md:919-925`) contradicts ADR 0055 §1 (owner: every N played turn
+   ends, N = living carriers); `docs/domain/status-effects.md:43-46` and
+   `test/unit/systems/test_world_turn.gd` pin linear N. Options: keep linear
+   N and drop the knob; an exported mode with linear as default; sqrt as
+   default behind a superseding ADR.
+2. **The blast gap.** Go-off zero's disc rides the Explosive aspect "until
+   the retag deletes it" (`:719-721`), yet "the game keeps its blast until
+   Burning inherits it" (`:710-712`), and `catalyst` lands before `fire`.
+   Options: the disc survives the retag as a class with its tests on a
+   fixture (nothing in play blasts until Fire); Burning's disc lands inside
+   the retag; the disc stays on the Catalyst aspect until Fire takes it.
+3. **Firecracker's intake row.** It fuels `FuelBlastReach` from the Explosive
+   load (`attack/spell/defs/firecracker.tres:20-27`), but Catalyst is "not
+   fuel, not a reach" (`:985`). Options: pure retag to Catalyst; the row
+   names Fire; delete the row.
+4. **Charge decay.** On read (the doc's build note, `:929-931`, not an owner
+   call) needs a third node field plus a replicated count of world turns
+   elapsed (none exists: `systems/turn_manager.gd:98-109`) and never
+   announces a node leaving Shocked — against "two ints" (`:279-280`).
+   Alternative, the pass lean: Charge decays in the world-turn pass with
+   Heat and Cold.
+5. **Sweep speed on temperature** (`:45-49`). How it acts when a swing
+   touches several nodes: one warp on the swing clock from the summed t/T,
+   clamped once; a product of per-node clamps; a factor on each contact's
+   damage only — and whether merely cold (not Frozen) ground drags a swing.
+   `c` is "exported on the blade def" in the doc but no blade def exists
+   (pass pick: a ScalarStat beside `blade_speed_half`).
+6. **To confirm, not a fork yet:** a node reached by two reaches at once
+   takes its element riders once and the payload twice (`:646-655`);
+   Lightning's pass-through Charge is spent when the arriving wave is
+   gathered (keeps one terrain writer, `:667-669` vs `:858`); a vertex's
+   copied state reaches the gather as a "go-off source" argument.
+
+**Stale facts found, to fix when the bodies land:** `aspect_matrix.md:280`
+and its Glossary call Catalyst "side-less terrain" and name an element's
+"reach load"; `:535` calls resting Cold "Frost"; `elements.md:253` says the
+count is `fire`; `:624-625` says Pestilence concentrates "from 4 hops"
+(`pestilence.tres:40` is 6); the two seed prices for the concentrate
+(`:580-584` per-hop multiplier vs `:610-611` mass beyond the limit — ×3.5
+against ×61 for Pestilence 6 → 3) go to the `ice-cast` issue; five
+landing-to-hit stampers exist, not three (`haul_effect.gd:47-54`,
+`splash_effect.gd:128-146` are not folded); 25 test files name the role, not
+31; `blade_pop_resolver.gd:238` and `:421-423` are a declaration and an
+accessor, the spends are `:329-341` and `:410-418`.
+
 ## 1. Design beats still open
 
 None for the resolver. Spec-time anchors for child 4, verified on master
