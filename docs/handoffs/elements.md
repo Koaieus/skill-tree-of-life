@@ -62,9 +62,12 @@ read at fill, scaled by Cold excess at fill.
 
 ## 1. Design beats still open
 
-None blocking the split. One pass reading the owner has not confirmed, for
-the Ice child's spec: Thermal shock's "holds a different element" reads the
-*primed* state (Burning, Shocked, Frozen), not stray stacks under T.
+None blocking the split. The Cold spell is filed as **#1789** (Needs design;
+the owner wants to go over it again): its open list carries the unconfirmed
+pass reading that Thermal shock's "holds a different element" means the
+*primed* state (Burning, Shocked, Frozen), not stray stacks under T, plus
+the hop count, the Ice form as its own ice pick, and the Lightning form.
+Child 7 (Ice) takes the spell from #1789, not from this file.
 
 Seam facts for the picks above (2026-11-09 Explore): a contact hit is
 `vertex_damage[i]` × the speed curve (`attack/melee/sim/blade_damage_instance.gd`
