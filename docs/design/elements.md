@@ -263,9 +263,15 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
   *"option 1!"* (flow): a wall sheds a fringe around it, #1444's channels for
   free. The readability test: *if nobody owned this node, would it still make
   sense for this to be here?* Heat on an empty node, yes; Poison or Catalyst on
-  an empty node, no. Build note: today's `on_dealloc` has CLEAR and LINGER and a death
-  clears both; terrain needs a shape that survives death too — a seam for
-  spec time.
+  an empty node, no. **Terrain is node state, not a status row** (owner,
+  2026-11-09: *"these are actually just node state no? … imho it's a property
+  of a SkillNode"*, and *"if it is modified mid combat, the combat mirror
+  world might need to know about it"*): two ints on `NodeState` (the signed
+  `t`, and Charge). Every shadow world already clones `NodeState` on a node's
+  first touch, so previews and AI scoring see terrain for nothing, and no
+  `on_dealloc` path can clear what is not a row. Heat, Cold and Charge stay
+  `StatusDef`s for identity, facets and riders; landing one writes the node's
+  ints, never a host row.
 - **A state has no count.** It is a threshold on its terrain stack (primed
   at count > T), derived at every read, never saved: Frozen re-forms whenever
   Cold is back over T (owner, 2026-11-05: *"Yes, pure threshold"*).
@@ -315,7 +321,7 @@ own (§ The threshold model):
 | Entry | Shape | Lands as |
 |---|---|---|
 | **damage** | one number | HP loss |
-| **riders** | status id → stacks, one entry per id (#1733 R1) | statuses planted — aspect statuses and element statuses alike |
+| **riders** | status id → stacks, one summed entry per id per landing entry (#1733 R1; owner, 2026-11-09, picked the summed map) | statuses planted — aspect statuses and element statuses alike |
 
 A hit crits once, as its own fact, and its riders copy it (#1741, built
 2026-11-04), **and so does every go-off copy** (owner, 2026-11-09, picked *it
@@ -643,6 +649,25 @@ leaves 4: it thaws for the *next* hit, never for itself; a Cold *copy* onto a
 Frozen node lands nothing, so only a direct Cold hit deepens a freeze. The
 same terrain settle runs after every world-turn tick.
 
+**Build shape (2026-11-09).** Stage one runs when the hit *lands*, not where
+landings are compiled: ranged and blade compile every landing before the
+first one lands, and only the applier mutates the world (ADR 0079), so a
+compile-time resolver would need a ledger mirroring terrain. A gather owns
+the once-per-node set and the entry list; a gather hit at the head of the
+span is the only thing that touches terrain, and it records its terrain
+changes for peers to replay (ADR 0077). Stage two has no class: the existing
+compile-and-land path runs per entry. An element answers two questions and
+nothing else — *admits* (does an arriving copy land here: Ice) and *go off*
+(what is spent, which nodes are reached, at what share: Fire, Lightning).
+The owner picked one owner for the gather with an element callback
+(*"option 1 looks squeaky clean. possible advisor on top to confirm"*); the
+land-time correction is that independent review's, taken as the direction.
+**The gather's unit is one hit** (owner: *"landing arrow = 1 hit (+optional
+reach etc) / landing blade contact = 1 hit / 1 spell WAVE = 1..N hits.. these
+do NOT compare to the above … imho each branch of a spell may get varied
+payloads if spell so wants to author that"*): a wave is N gathers, never one
+summed payload. The forks this leaves are in `docs/handoffs/elements.md`.
+
 **Two clocks, two sync shapes (pass write-back, 2026-11-09, of the owner's
 2026-11-05 call; stated to the owner, not objected to; ADR 0081 records
 it).** The attack record (ADR 0077) carries what a *command's*
@@ -829,7 +854,9 @@ needs no tick: a flat decay of 1 per world turn is computable on read (stored
 count, minus world turns since it was last written, floored at 0). So Charge and Catalyst, which never flow, cost nothing per world turn. Only the Heat/Cold
 diffusion is a real pass: **one** pass over the signed `t`, over the
 temperature index (nodes holding Heat or Cold, the `_lingering` registry's
-shape), on packed arrays, never a walk of the graph. Worst case is a fully
+shape), on packed arrays, never a walk of the graph (the arrays are the
+pass's scratch, gathered from the indexed nodes' state and written back; the
+index is live-only, since no shadow world runs a world turn). Worst case is a fully
 hot 3k-node board at mean degree 3: ~9k integer edge updates once per world
 turn, not per frame. A GDExtension only if a profile says so. The native
 toolchain already exists (the XPBD solver is C++), so the cost is a C++
@@ -1021,18 +1048,30 @@ hit; the keystone grants its element while held.
   hoard — the knob is a multiplier on the type's own per-reload mint, pass
   default 2 (a quiver banks one spare reload), easy to change.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
-  the items that need an owner call before any element issue is `Ready`:
-  (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
-  one concept id, so two rows of one family (Cold and Frostbite, say) cannot both key on
-  `ice` — #1660's B2 (*"intake row names which of its aspect's statuses it
-  plants"*) is the fix and must be carried into the row design — with one
-  element per spell (§ The forge) the collision is moot on the spell path and
-  stays live for arrows, addons and a spell wanting two fire rows; (b) **facet
-  ids**: `<x>_stacks_per_hit` / `<x>_resistance` key per status (#1660 A1),
-  so a member keys on itself (`heat_`, `cold_`), while the count needs a new
-  `StatDef.Role` (`fire` is not `fire_aspect`); (f) **Charge** collides
-  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue; (h) a rider map keyed by id merges a BEFORE rider with an AFTER copy
-  of the same id — coalescing is still #1741's open NOTE, not an owner call.
+  items (a), (b) and (h) settled 2026-11-09.
+  (a) **Row keys**: a row names the status it plants (owner, #1660,
+  2026-10-18: *"B2: agreed"*), defaulting to its concept's only status. The
+  forge budget stays keyed by concept (the one `ice` count budgets both
+  rows) and everything else walks the rows instead of looking up a concept's
+  first row — pass pick; a shape row plants no status to key on.
+  (b) **The count's role**: one role for "this concept's count" —
+  `StatDef.Role.ASPECT` is renamed `COUNT`, so `poison_aspect` and
+  `fire_element` are the same facet of their concept and the forge budget and
+  the quiver mint branch on nothing (pass pick; nothing enumerates stats by
+  role). `Identity.Kind.ELEMENT` is added (owner: *"yes Kind.ELEMENT is
+  surely needed"*) and stays presentation-only: every reader of `Kind` is UI.
+  Facet ids key per status (#1660 A1), so a member keys on itself (`heat_`,
+  `cold_`). An element is authored as its own `Element` def beside `Aspect`
+  (owner: *"Elements as a class might be better for now, duck typing is also
+  still a thing, and we never enumerate the whole list i think"*). A shared
+  base (*"Concept with the addon/arrow/name whatever, Aspect and Element as
+  children that diverge but share the same roots? hmmm"*) is not taken now;
+  the shared fields keep `Aspect`'s names so it can be extracted later.
+  (h) **Rider coalescing**: one summed entry per status id per landing entry;
+  resistance and Greed fold once per id; a copy is its own entry, so a hit's
+  rider never merges with a copy's.
+  Still open: (f) **Charge** collides
+  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue.
 - **Knobs** (§ The threshold model): T = 2 × degree, k, the hop ladder's
   L² × T, the disc's √power × node radius, the decay rates — tuned with
   #1733.

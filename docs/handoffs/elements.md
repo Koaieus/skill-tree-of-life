@@ -60,9 +60,55 @@ node.** **The Frozen vertex's snap is a concentrate**: one contact hit, then
 the vertex pops; the bonus is an overlay on that vertex's `blade_damage`
 read at fill, scaled by Cold excess at fill.
 
+**Settled 2026-11-09, late pass — the five seams (owner quotes in the doc:
+the terrain bullet of § What an element is, § Order's build shape, § Open's
+adversarial items a/b/h):** **terrain is node state** — two ints on
+`NodeState` (signed `t`, Charge), cloned by every shadow world for free;
+Heat/Cold/Charge stay `StatusDef`s whose landing writes the node's ints; the
+diffusion pass gathers packed arrays as scratch over a live-only index.
+**Row keys**: a row names the status it plants (#1660 B2), the forge budget
+stays keyed by concept, everything else walks the rows. **The count's
+role**: `StatDef.Role.ASPECT` renamed `COUNT` (one role for a concept's
+count); `Identity.Kind.ELEMENT` added, presentation only; an element is its
+own `Element` def beside `Aspect`, a shared `Concept` base deferred (keep
+`Aspect`'s field names). **Riders**: one summed entry per status id per
+landing entry. **The resolver**: a land-time gather (not compile-time), unit
+= one hit (an arrow, a blade contact, one arrival of a spell wave — a wave is
+N gathers), a gather hit at span head is the only terrain writer, stage two
+is the existing compile-and-land path per entry, an element answers *admits*
+and *go off*.
+
 ## 1. Design beats still open
 
-None blocking the split. The Cold spell is filed as **#1789** (Needs design;
+**Forks for the resolver child (child 4), to settle at its spec** (owner,
+2026-11-09: *"put them into the elements handoff file so we will handle them
+eventually"*):
+
+1. **A spell's crit.** Spell hits each draw their own crit today (no
+   `paired`, `hit_instance.gd:323-324`); "a copy carries its parent's crit"
+   (ADR 0082) and the Frozen check need one crit per landing.
+2. **Order inside a wave.** The unit is one hit, so a wave is N gathers; open
+   is whether every arrival's terrain runs before any payload or arrival by
+   arrival, and whether two arrivals' gathers share a once-per-node set
+   (today's `detonated` is per wave, `spell_resolver.gd:297,336`).
+3. **What a share scales.** Splash scales stacks only
+   (`splash_effect.gd:51`); shrapnel is a separate fraction.
+4. **Explosive as go-off zero.** Whether today's `DetonateEffect` /
+   `BlastEffect` are ported first as a go-off reading status rows (proves the
+   contract on existing tests, deletes the `detonated` scope and both spend
+   ledgers: `detonate_effect.gd:38-40,109-111`, `blade_pop_resolver.gd:238,391`)
+   or die with the Catalyst retag (child 2).
+5. **The open hit list.** Copies are spliced in mid-apply:
+   `OutcomeApplier.apply` walks a pre-sorted snapshot (`outcome_applier.gd:30`)
+   and the spell lands a fixed index range (`spell_resolver.gd:373-374`); the
+   per-site post-compile stamps (`spell_resolver.gd:347-360`,
+   `ranged_damage.gd:104-105`, `swing_resolve.gd:524-527`) become one
+   callable. Three landing-to-hit stampers (`status_instance.gd:76-85`,
+   `detonate_effect.gd:166-177`, `paired_damage_effect.gd:50-51`) fold into
+   one before the gather adds a fourth. Unverified by the session: these are
+   an independent review's citations.
+
+Nothing else blocks the split. The Cold spell is filed as **#1789** (Needs design;
 the owner wants to go over it again): its open list carries the unconfirmed
 pass reading that Thermal shock's "holds a different element" means the
 *primed* state (Burning, Shocked, Frozen), not stray stacks under T, plus
@@ -75,7 +121,7 @@ Seam facts for the picks above (2026-11-09 Explore): a contact hit is
 fill with the swing's overlays (`attack/melee/blade_vertex_fill.gd:30-40,
 64-66`, `attack/plan/melee_attack_plan.gd:596` `overlays_for`); no overlay
 can attach to a single `HitInstance`; a vertex dies through
-`BladePopResolver.LiveGate._kill` (`blade_pop_resolver.gd:603`), and nothing
+`BladePopResolver.LiveGate._kill` (`attack/melee/sim/blade_pop_resolver.gd:603`), and nothing
 pops on first contact today, so "brittle" is a new per-vertex flag on
 `BladeState` beside `vertex_charges` (`blade_state.gd:91`). Spell crit
 conditions are `SpellDef.crit_conditions` (`spell_def.gd:141`), stamped in
@@ -86,9 +132,31 @@ element ammo type is the existing shape: `per_reload_stat_id`,
 (`stats_system/defs/explosive_aspect.tres:15`), so the Catalyst starter is a
 board value to add.
 
-## 2. Architectural seams — facts in hand (2026-11-09 Explore), to settle with scorecards
+## 2. Architectural seams — settled (above); the facts below are spec-time anchors (2026-11-09 Explores)
 
-- **A terrain row that survives death.** `on_dealloc` is exactly CLEAR |
+Added by the late pass: a shadow world clones a node lazily on first touch
+(`combat/entity_combat.gd:379` `shadow_for` → `combat/node_combat.gd:98-105`,
+which clones the `StatusHost` and `NodeState`); `SkillNode.state` is the
+`NodeState` (`skill_node/skill_node.gd:84`, `skill_node/node_state.gd:14-45`);
+`_lingering` is live-only (`combat_world.gd:191-193`); there is no dense
+stable node index (`stable_id` is sparse, `graph/graph.gd:88`); per-node
+replication is the `_R_*` slots of `network/graph_snapshot.gd:13-27` plus a
+save-version bump and a `command/world_fingerprint.gd:62-73` fold. No
+gameplay reads `Identity.kind` (`identity/identity.gd:10,15`; readers are
+`ui/identity_badge/`, `ui/concept_card/concept_card.gd:47`,
+`infusion_socket.gd:188`, two sandboxes). No code matches on `StatDef.Role`;
+`facet_def` callers are `attack/aspect_currency.gd:20`,
+`attack/ammo/ammo_type.gd:52`, `effects/status/status_def.gd:93`,
+`stats_system/stat_board.gd:168`; 31 test files name the role. `Aspect` is a
+flat bag (`aspects/aspect.gd:17-32`: identity, stat, status, ammo,
+addon_scene, spells, blast_layer) behind `AspectRoster`
+(`aspects/aspect_roster.gd:13-28`). Same-id riders merge today only at the
+host (`combat/status_host.gd:76-93`). The intake row is `AspectIntake`
+(`attack/spell/aspect_intake.gd:18-39`), 20 authored rows, none sharing a
+concept on one spell.
+
+- **A terrain row that survives death** (moot for terrain now it is node
+  state; kept for the stale-comment fix). `on_dealloc` is exactly CLEAR |
   LINGER (`effects/status/status_def.gd:31-45`). Voluntary dealloc keeps
   LINGER (`systems/allocation_system.gd:310` → `combat/status_host.gd:277-286`
   with `keep_lingering=true`); node death (`combat/entity_combat.gd:727,
@@ -97,9 +165,8 @@ board value to add.
   both. Core crack moves every row to the entity (`node_combat.gd:430`,
   `status_host.gd:260-268`). There is no retake strip: `force_allocate`
   (`allocation_system.gd:223-250`) keeps the previous rows. Stale comment:
-  `status_def.gd:16-19` says a bare force_deallocate keeps LINGER — false.
-  Options: a third mode (PERSIST), a side-less row kind the host never
-  clears, or terrain held off the `StatusHost` on the node. Catalyst is
+  the `OnDealloc.LINGER` doc block in `status_def.gd:31-45` says a bare
+  force_deallocate keeps LINGER — false. Catalyst is
   *not* in this seam any more (aspect status, CLEAR like Poison).
   `NodeStatus` records `camp_id` + `applier_id` of the latest applier
   (`effects/status/node_status.gd:18-19`, written `status_host.gd:153-155`).
@@ -149,15 +216,17 @@ board value to add.
 ## 3. Then the split of #1716 (needs board access)
 
 Proposed children (pass proposal, 2026-11-09), dependency-ordered; 1–3 are
-the substrate: **1** element counts on the board + member facets + the
-Aspect:Status 1:1 guard test (`manage-stats`); **2** Explosive → Catalyst
+the substrate: **1** element counts on the board (`Role.ASPECT` → `COUNT`,
+`Identity.Kind.ELEMENT`, the `Element` def + roster) + member facets + the
+Aspect:Status 1:1 guard test (`manage-stats`), and the intake row naming its
+status; **2** Explosive → Catalyst
 retag (list above; `charge` tag freed; land-phase conversion and the prime
 trigger; fate of `DetonateUse` / `DetonateEffect`, `vertex_charges` /
 `BladeVertexFill`, Firecracker's `FuelUse`; `docs/domain/explosive.md`
-rewritten) — Catalyst keeps CLEAR; **3** terrain substrate (the surviving
-row, T / k / cap / overflow, decay on read, the temperature index + integer
+rewritten) — Catalyst keeps CLEAR; **3** terrain substrate (two ints on
+`NodeState` + snapshot slot, save bump and fingerprint fold, T / k / cap / overflow, decay on read, the temperature index + integer
 Laplacian on the world turn, the capacity bar); **4** the two-stage landing
-resolver (ADR 0082; #1733 closes into it; shrapnel copies the hit's crit);
+resolver as a land-time gather (ADR 0082; § 1's five forks first; #1733 closes into it; shrapnel copies the hit's crit);
 **5** Fire (Heat ride row, Burning's disc go-off, burn, light source, the
 Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in); **6**
 Lightning (Charge, Shocked arcs to every neighbour, L² × T ladder,
