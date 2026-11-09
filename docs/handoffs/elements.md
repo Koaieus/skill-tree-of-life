@@ -173,6 +173,32 @@ pointing comment, post the split as a comment on #1716 and drop its `design`
 label, check the drift stamps, hygiene. Then fix the stale facts below,
 delete `docs/handoffs/elements-split/` and this file.
 
+**Look at these first in the cold review** (the writers' own flags):
+- `go-off-zero` deletes the blade's per-swing spend ledger `_node_spent` on
+  the reasoning that each contact lands at its own key — unverified; the
+  body tells the drone to stop and report a fork if a gate still needs an
+  unlanded spend. Its disc class must accept a power source other than the
+  old charge formula, or `burning` cannot reuse it.
+- `terrain` puts the one live index of terrain-holding nodes on
+  `CombatWorld` (shaped like `_lingering`); `flow` must read that index, not
+  build its own. `flow`'s Blocks line and `terrain-ui`'s power-line note
+  still say `fire` where they mean `burning`.
+- `forge` says the resolver reads the cast's `element_of`; `resolver` lands
+  long before `forge` and must not assume that accessor.
+- `catalyst` only re-points the blade's three explosive id literals, so
+  until `catalyst-blade` lands a swung vertex still spends Catalyst as
+  charges (tentative pass pick). `catalyst-blade` removes "a node's blast
+  pops plain blade pieces" (ADR 0062's node side) with nothing replacing it
+  — parked in its NOTES as a possible design issue.
+- `pairs`: whether the arc released by breaking ice reads its power before
+  or after the breaking hit lands (`elements.md:810-811` vs `:93-96`) is
+  unsettled; the test passes under either. Owner call wanted.
+- Tentative numbers the owner has not seen: burn 0.5 per excess stack,
+  light radius to the farthest neighbour, overflow-band decay 2, a walk on a
+  Shocked node with 0 hops left still leaves.
+- `ice-cast` is a `Needs design` menu (three forks); `quiver`, `burning`,
+  `go-off-zero`, `catalyst-blade` are units the § 3 list never had.
+
 **Pass rulings** (doc beats this file's § 3): a planting hit is a hit and
 sets off a primed node (`elements.md:484-487`); the no-parent go-off has no
 caller and no unit builds it (`:498-503`) — § 3's "lands with 6 and 7" is
