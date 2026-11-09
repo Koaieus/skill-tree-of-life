@@ -634,7 +634,8 @@ function of one snapshot (#1733 R4); nothing reacts mid-land.
    add); *settle* — the Heat × Cold netting, the power read post-land, the
    go-offs the read found spend their stacks and name the nodes they reach.
    Each reached node runs the same three steps on the copy's element riders
-   under the once-per-node-per-hit cap (per arrow, per wave), a Frozen node
+   under the once-per-node-per-hit cap (per arrow, per blade contact, per
+   arrival of a wave), a Frozen node
    absorbing an under-threshold copy whole; dual reaches concatenate (below).
    The result is the hit's whole target set with a share per entry — the
    attack record's blast table, one mark and its copies — before anything
@@ -666,7 +667,49 @@ land-time correction is that independent review's, taken as the direction.
 reach etc) / landing blade contact = 1 hit / 1 spell WAVE = 1..N hits.. these
 do NOT compare to the above … imho each branch of a spell may get varied
 payloads if spell so wants to author that"*): a wave is N gathers, never one
-summed payload. The forks this leaves are in `docs/handoffs/elements.md`.
+summed payload.
+
+**The resolver's five build calls (owner, 2026-11-09, night; each picked
+from scored options).**
+
+- **A spell's crit is per arrival, decided at the head of its gather**
+  (owner: *"option 1. does it then also do the CritCondition?"* — yes). The
+  spell's crit conditions and the stat roll are both evaluated there, once,
+  against the node as it was before this hit: a condition reading terrain
+  (Thermal shock) would read stale terrain if stamped at compile, as
+  `SpellDef.crit_conditions` are today. Every copy and shrapnel points at the
+  head through the existing `paired` link and copies its crit; a copy never
+  re-evaluates a condition, so only a direct arrival crits by Thermal shock.
+- **Each hit owns its once-per-node set; hits of one beat settle terrain
+  from one snapshot** (owner: *"option 1. and can we make it order
+  independent somehow?"*, then picked *one snapshot per beat*). All hits
+  landing on the same beat (one wave's arrivals) read the same pre-beat
+  terrain; their element riders land as sums; the go-offs that read found
+  are computed from it and their spends committed together, summed and
+  clamped at 0; the nodes reached form the next generation, settled the same
+  way. The result never depends on the walk's order, and the routine is the
+  one the world-turn tick needs, whose go-offs have no order at all. The
+  per-wave `detonated` scope goes. Known consequence: several same-beat
+  go-offs each read a deep store at full power before the clamp.
+- **One share scales the whole payload** — damage and every rider's stacks,
+  rounded up per rider (§ The reach rule's *"at one share"*, taken as
+  settled by the pass). Today's stacks-only splash scale and the separate
+  shrapnel fraction collapse into one knob per go-off, default 0.5.
+- **Today's explosive detonation is ported first, as go-off zero** (owner:
+  *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared
+  base class between these?"*). The resolver lands with detonation re-hosted
+  on the go-off contract, proving it on the shipped tests and deleting both
+  spend ledgers; the game keeps its blast until Burning inherits it. The
+  contract is one small `GoOff` resource on the status that primes (pass
+  pick, stated to the owner): a disc subclass (go-off zero, then Burning
+  unchanged with another power source) and an edge subclass (Shocked);
+  `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc
+  subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it.
+- **The applier drains an open worklist** (owner picked it over the head
+  landing its own copies). Landing a gather head appends its entries' hits
+  to the applier's queue, compiled through one stamping callable the landing
+  site hands in (replacing the spell and ranged post-compile stamps); the
+  three landing-to-hit stampers fold into one.
 
 **Two clocks, two sync shapes (pass write-back, 2026-11-09, of the owner's
 2026-11-05 call; stated to the owner, not objected to; ADR 0081 records

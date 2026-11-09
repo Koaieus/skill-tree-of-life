@@ -78,35 +78,45 @@ N gathers), a gather hit at span head is the only terrain writer, stage two
 is the existing compile-and-land path per entry, an element answers *admits*
 and *go off*.
 
+**Settled 2026-11-09, resolver pass (owner quotes in the doc: § Landing
+resolution's "The resolver's five build calls"):** a spell's **crit is per
+arrival, decided at the head of its gather**, crit conditions included
+(evaluated against the pre-hit node; a copy never re-evaluates); **each hit
+owns its once-per-node set and hits of one beat settle terrain from one
+snapshot** (generation by generation, sums committed together and clamped at
+0 — the same routine the world-turn tick uses; the per-wave `detonated` scope
+goes); **one share scales the whole payload** (damage and every rider's
+stacks, ceil per rider; one knob per go-off, default 0.5); **today's
+detonation is ported first as go-off zero** on a `GoOff` resource hanging on
+the priming status (disc subclass, later an edge subclass for Shocked; no
+`ArcEffect`; pass pick for the home); **the applier drains an open
+worklist**, hits compiled through one stamping callable.
+
 ## 1. Design beats still open
 
-**Forks for the resolver child (child 4), to settle at its spec** (owner,
-2026-11-09: *"put them into the elements handoff file so we will handle them
-eventually"*):
+None for the resolver. Spec-time anchors for child 4, verified on master
+2026-11-09 (night Explore): `draws_own_crit` is `paired == null`
+(`attack/outcome/hit_instance.gd:323-324`; cure and cleanse-price override
+it false), read only by `CritRoll.decide` (`crit_roll.gd:59`); spell crit
+conditions are stamped at compile (`spell_resolver.gd:551-560`); `detonated`
+is per wave (`spell_resolver.gd:297,336`), per landing elsewhere
+(`hit_landing.gd:85`); splash scales stacks only (`splash_effect.gd:51`),
+the shrapnel fraction is `paired_damage_effect.gd:19`; the spend ledgers are
+`detonate_effect.gd:38-40,110-111` and `blade_pop_resolver.gd:238,391`;
+`OutcomeApplier.apply` sorts a fresh copy at entry (`outcome_applier.gd:30,
+170-181`) and the spell lands a fixed index range through `land_one`
+(`spell_resolver.gd:373-374`); the post-compile stamps are two, not three
+(`spell_resolver.gd:347-360`, `ranged_damage.gd:104-105`;
+`swing_resolve.gd:524-527` only appends sub-outcome hits); the three
+landing-to-hit stampers are `status_instance.gd:76-85`,
+`detonate_effect.gd:166-177`, `paired_damage_effect.gd:43-51`. Detonation's
+tests: `test_explosive_charges.gd` (27), `test_paired_damage_effect.gd`
+(12), `test_blast_mark.gd` (6), `test_blast_effect.gd` (5),
+`test_heal_spell_blast.gd` (2). **ADR 0082's Context is wrong about today's
+code** (it says spell shrapnel's `draws_own_crit()` is false; shrapnel rolls
+its own crit) — carry the correction into the next element ADR with 0081
+§6's.
 
-1. **A spell's crit.** Spell hits each draw their own crit today (no
-   `paired`, `hit_instance.gd:323-324`); "a copy carries its parent's crit"
-   (ADR 0082) and the Frozen check need one crit per landing.
-2. **Order inside a wave.** The unit is one hit, so a wave is N gathers; open
-   is whether every arrival's terrain runs before any payload or arrival by
-   arrival, and whether two arrivals' gathers share a once-per-node set
-   (today's `detonated` is per wave, `spell_resolver.gd:297,336`).
-3. **What a share scales.** Splash scales stacks only
-   (`splash_effect.gd:51`); shrapnel is a separate fraction.
-4. **Explosive as go-off zero.** Whether today's `DetonateEffect` /
-   `BlastEffect` are ported first as a go-off reading status rows (proves the
-   contract on existing tests, deletes the `detonated` scope and both spend
-   ledgers: `detonate_effect.gd:38-40,109-111`, `blade_pop_resolver.gd:238,391`)
-   or die with the Catalyst retag (child 2).
-5. **The open hit list.** Copies are spliced in mid-apply:
-   `OutcomeApplier.apply` walks a pre-sorted snapshot (`outcome_applier.gd:30`)
-   and the spell lands a fixed index range (`spell_resolver.gd:373-374`); the
-   per-site post-compile stamps (`spell_resolver.gd:347-360`,
-   `ranged_damage.gd:104-105`, `swing_resolve.gd:524-527`) become one
-   callable. Three landing-to-hit stampers (`status_instance.gd:76-85`,
-   `detonate_effect.gd:166-177`, `paired_damage_effect.gd:50-51`) fold into
-   one before the gather adds a fourth. Unverified by the session: these are
-   an independent review's citations.
 
 Nothing else blocks the split. The Cold spell is filed as **#1789** (Needs design;
 the owner wants to go over it again): its open list carries the unconfirmed
@@ -226,7 +236,7 @@ trigger; fate of `DetonateUse` / `DetonateEffect`, `vertex_charges` /
 rewritten) — Catalyst keeps CLEAR; **3** terrain substrate (two ints on
 `NodeState` + snapshot slot, save bump and fingerprint fold, T / k / cap / overflow, decay on read, the temperature index + integer
 Laplacian on the world turn, the capacity bar); **4** the two-stage landing
-resolver as a land-time gather (ADR 0082; § 1's five forks first; #1733 closes into it; shrapnel copies the hit's crit);
+resolver as a land-time gather (ADR 0082; the five build calls above, detonation ported as go-off zero; #1733 closes into it; shrapnel copies the hit's crit);
 **5** Fire (Heat ride row, Burning's disc go-off, burn, light source, the
 Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in); **6**
 Lightning (Charge, Shocked arcs to every neighbour, L² × T ladder,
@@ -237,7 +247,7 @@ use, the Cold addon, the new Cold spell with Thermal shock); **8** forge and
 quiver (one element field per cast, 3 int:int units, the three element ammo
 types with their 1:1 mint + stock cap, starter counts incl. Catalyst 1;
 #1765 closes).
-4 before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
+4 before 2 (go-off zero is ported before the retag) and before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
 #1787 generator keystones; #1786 melee crit condition (P0, independent).
 
 Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
