@@ -263,14 +263,116 @@ order:
    three element ammo types with their 1:1 mint + stock cap, starter counts
    incl. Catalyst 1; #1765 closes.
 
-Order: 1 → 2 → 3 → 4 → 5, then 6 / 7 / 8 in parallel; 9 any time after 1.
+Order: 1 → 2 → 3 → 4 → 5, then 6 / 7 / 8 in parallel, then 9.
 A go-off with no parent hit (a node priming on the world tick) lands with 6
 and 7. Later, blocked on these: #1787 generator keystones; #1786 melee crit
 condition (P0, independent).
 
-Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
-child 4. Parked: "a wire evens itself out"; the arc mirror (child 6); the
-spike-pop docs-vs-code check (child 7).
+Spec-time, not forks: adversarial (a) row keys → child 1 (the row names its
+status) and 9 (the forge budget stays keyed by concept), (b) → child 1, (h)
+summed riders → child 4. Parked: "a wire evens itself out"; the arc mirror
+(child 7); the spike-pop docs-vs-code check (child 8).
+
+### Coverage audit (2026-11-09 night, five Sonnet readers over the doc and ADRs 0072/0075/0081/0082) — fold into each child's spec
+
+Owner: *"maybe add some visual items in there to fill any gaps in UI or
+representation and let a bunch of sonnets verify the proposed split covers
+the design"*. Assignments below are pass picks.
+
+**Order corrections.** Child 9 lands **after 5 and 6–8** (element arrows
+plant rows those build; the Catalyst starter needs the retag), not "any time
+after 1". Child 4 deletes the per-*wave* scope only: the once-per-node-per-hit
+guard survives as the gather's set. "Decay on read" (child 2) against the
+doc's world-turn decay is checked at child 2's spec. The doc's "nothing
+triggers a terrain hit yet … no caller" passage (§ The reach rule) against
+"a no-parent go-off lands with 6 and 7" is settled at child 6's spec.
+
+**Proposed child 10 — pair rules** (not yet nodded): what needs two elements
+at once and so cannot sit in 6 / 7 / 8 while they run in parallel — Frozen
+mutes a node's own go-offs and the breaking hit releases the trapped Charge,
+Frozen ends an arc, dual reach concatenated with its dedupe knob, a Heat hit
+thawing harder, Heat never touching a Frostbite pack. After 6–8.
+
+**Mechanics no child named.**
+- Child 1: `cold_resistance` / `charge_resistance` beside `heat_resistance`;
+  the Heat / Cold / Charge `StatusDef`s themselves (identity, facets); the
+  band's other answers (travel verb, decay rate, light); the element's
+  school field and its pool roll in that school's pool; the Element Matrix
+  (`Ammo : Addon : Spell : Infusion`) and the matrix Glossary / vocabulary
+  guard ("Volatile" adopted or declined; "Face", "Payload" wording).
+- Child 2: the world-turn clock itself (`ceil(sqrt(N))` played turn ends,
+  exported; turnless hosts and lingering rows move with it); the diffusion
+  pass as the *only* implementation (packed arrays, no GDScript mirror),
+  roll-free and inside the transcendental ban; the blade sweep-speed curve
+  on signed `t`; the Heat × Cold netting and the shared settle routine
+  (child 4 calls it per beat); the sync-model doc line widened to the
+  world-turn settle.
+- Child 4: the go-off spend law for every element (1 per node reached, no
+  other node reached → no go-off, digs under T); a hit carries 0 or 1
+  element and a copy carries its root's; summed riders per status id and
+  the rider order (element riders, other statuses, damage); the terrain hit
+  (damage only, no riders, no crit, attacker = latest applier); the Frozen
+  check's seat at the gather head (child 8 supplies *admits*); `PlantUse`'s
+  "a planting hit does not trip its medium"; Greed never multiplies Heat /
+  Cold / Charge; #1735 closes with #1733.
+- Child 5: Catalyst's own cap k × T and slow decay; conversion hooked on
+  `terrain_band_changed` for the "primes by any route" trigger; a goo arrow
+  on an already-primed node; the item-15 orphans § 2 misses
+  (`aspects/defs/explosive.tres` + roster entry, `identity/defs/explosive.tres`,
+  `stats_system/defs/explosive_aspect.tres`, `explosive_stacks_per_hit.tres`,
+  `attack/ammo/types/explosive.tres`, `entity/ring/aspect_ring.tscn`, the
+  matrix's Explosive rows, `.claude/rules/explosive.md`,
+  `attack/spell/propagation/reach/fuel_blast_reach.gd`,
+  `addons/sandbox_host/tabs/71_blast_panel.gd` + `71_blast_tab.tscn`,
+  `test_blade_explosive.gd`, `test_explosive_charges.gd`,
+  `test_explosive_barrel_addon.gd`); ADR 0062's two-reservoir blade formula
+  and `use_for_status` / `default_face`.
+- Child 6: #1660's "death blasts first" is **dropped**, not built (a
+  holder's death changes nothing).
+- Children 6 / 7 / 8: the generic vertex copy-on-fill (a vertex copies its
+  source node's primed state; a go-off spends the copy, never the source)
+  lands with the first of them and is reused; the addon budget by element
+  count likewise.
+- Child 8: deep freeze (the shatter spends the overflow for bonus damage);
+  the Ice pricing of existing spells (Venom Burst 2:1, Pestilence 4:1, the
+  per-hop multiplier, "refuses Ice until priced by hand").
+- Child 9: element bins sit beside the plain pool, not inside its capacity;
+  the int:int seam on `AmmoType` and addons.
+- Next element ADR (no child): 0081 §5–§7 are stale (Catalyst is an aspect
+  status clearing with its holder; an arrow is a subtype *or* an element),
+  0082's Context (shrapnel crit), 0081 §9's ADR 0079 scoping.
+- No owner yet: which inner-tree shape holds the elements and the card
+  offer's cadence; Greed's own spec.
+
+**Visual items, per child** (the doc specifies almost none of these looks).
+- Child 1: icon and colour per element (`Identity.Kind.ELEMENT`); the
+  element count readout and ring slots.
+- Child 2: the bar's full shape (one block = degree stacks, 2 inert +
+  2(k − 1) primed blocks, shared red / blue bar, the Charge bar with
+  sparkles, flickering overflow blocks), on unowned nodes too; the tooltip
+  (excess, power, travel verb); the node glow per band; labels for Frozen
+  and Shocked and the blaze / inferno display names; trapped Charge readable
+  under ice; a cue for heat spreading on the world turn; a cue for a blade
+  speeding or dragging.
+- Child 4: the blast rendered from the record's blast table; stagger for a
+  cascade; a damage number per copy.
+- Child 5: the crystal layer under the bars (violet, taking the landing
+  element's colour, with a conversion pulse); the Catalyst status icon, goo
+  arrow and barrel restyled (`ui/vfx/blast_vfx.*`, `blast_visual.*`,
+  `rider_blast_layer.*`, `ui/vfx/projectile/visual/arrows/explosive_arrow.tscn`,
+  `skill_node/addons/visuals/explosive_barrel_visual.gd`,
+  `assets/icons/aspects/explosive.png`).
+- Child 6: the Burning disc VFX sized √power; the burn tick; the Heat addon
+  and Burning vertex looks.
+- Child 7: the arc VFX per hop; wire conduction and the Charge spent per
+  pass-through; the Charge addon and Shocked vertex looks.
+- Child 8: the Frozen node look; feedback for an absorbed copy or an ended
+  path; shatter, snap and deep-freeze VFX; the Thermal shock crit read; the
+  Cold addon and Frozen vertex looks; the concentrate preview ("4 hops → 0,
+  seed × N").
+- Child 9: element arrow art, quiver bins and stock cap in the HUD; the
+  forge's element field (innate element, add or replace, the units, why a
+  spell refuses Ice, the hop change on swap).
 
 Knobs so far (tentative pass picks unless marked owner): T = 2 × degree
 (owner); k = 2 + stake_level (owner); shatter fraction 1%/stack; shatter
