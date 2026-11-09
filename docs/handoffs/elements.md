@@ -5,99 +5,145 @@ names is on master; nothing lives only in a transcript.
 
 ---
 
-Continue the elements design pass (#1716 is the hub). **Read nothing in full.**
-`docs/design/elements.md` is ~950 dense lines and the handoffs are long; a
-session that reads them whole spends a third of its context before the first
-fork (2026-11-09 pass: ~150k at minute two). Instead, open with **one
-`Explore(model: haiku)`** carrying two lists and read only the ranges it
-returns:
+Continue the elements design pass (#1716 is the hub). **Read nothing in
+full** — `docs/design/elements.md` is ~950 dense lines; a session that reads
+it whole is at 150k before the first fork (it happened twice, 2026-11-09).
+Open with one `Explore(model: haiku)` that returns, per item below, the doc
+section + line range and the owner quote verbatim with its date, and read
+only those ranges. The seam facts are already in § 2 here: do not re-grep.
 
-- **Doc ranges**: for each fork below, the section and line range of
-  `docs/design/elements.md` that carries it, plus the owner quote verbatim
-  with its date; the same for ADR 0081 and 0082 (`docs/adr/`), one line each.
-- **Seam grep** (code, against master): `on_dealloc` and its CLEAR / LINGER
-  handling on death; `NodeStatus` and `StatusHost` (is a node's status row
-  sided, where does `applier_id` live); `Infusion.load_of` / `use_of` /
-  `StatusRoster.by_concept` keying; `StatDef.Role` and `EntityStatBoard`'s
-  minting; `HitLanding.place` / `detonated`; `PairedDamageInstance.draws_own_crit`;
-  `AmmoType.per_reload_stat_id`; `procgen/pools/*.tres` aspect rolls; the
-  world-turn hook (`_end_world_turn`, ADR 0055). One `file:line` fact each.
-
-The design is **settled**: owner calls 2026-11-03 → 11-09 are in the doc,
-and the decisions in ADR 0072, 0075, **0081** (go-off cost, shatter,
-breakers, frozen solid, death, Catalyst, one element per cast, the count as
-access, the world-turn scope line) and **0082** (two-stage hit resolution,
-Frozen absorbs under-threshold copies, a copy carries its parent's crit,
-Catalyst colours on hit or prime). Work `AskUserQuestion` case by case,
+The design is **settled** (ADR 0072, 0075, 0081, 0082 — 0082 reached master
+2026-11-09 evening, 895e9c06). Work `AskUserQuestion` case by case,
 recommended first; write each verdict into the doc with quote and date;
 commit, push. **Local session: commit on master, no PR; pull/rebase onto
 origin/master before editing and before every push.** Cloud session: a
 docs-only PR (auto-merge takes `docs/design/` and `docs/handoffs/`, never
-`docs/adr/`); **the board (`mise gh-project`) is GraphQL and unreachable from
-a cloud session**, so the split (step 3) needs a local one. `mise run
-docs-hygiene` after a design doc, `adr-hygiene` after an ADR. `gh issue view`
-is blocked; use `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and
-`/comments`.
+`docs/adr/`); the board (`mise gh-project`) is GraphQL, so the split needs a
+local session. `mise run docs-hygiene` after a design doc, `adr-hygiene`
+after an ADR. `gh issue view` is blocked; use `gh api
+repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
 
-## 1. Forks still open — content and acquisition (owner, design hat)
+**Settled 2026-11-09, evening pass (owner quotes in the doc):** acquisition
+— v1 sources are the aspect sources (school pool roll, inner tree, found and
+stolen mods); starter count **1 in every element for now, 3 each for the dev
+sandbox Player**; later 0 with gains from the inner tree / core class /
+metagame / board keystones. **Generator keystones** filed as #1787 (Needs
+design; +2 stacks per world tick, not a hit so no go-off, Charge piles to
+~4T). **Catalyst is an aspect status on allocated nodes only**, clearing with
+its holder like Poison — not terrain (owner lean taken as settled: it is
+exactly the Explosive status's shape today). **A blade's element is an addon
+per element**, rider only, no stat. **A blade vertex copies its source
+node's primed state** (Burning vertex booms, Shocked vertex arcs, Frozen
+vertex is brittle; a damage bonus for Frozen is open) — spec-time in the
+element children: what the vertex go-off spends. **v1 spells:**
+`lightning_bolt` carries Charge; a **new single-target Cold spell** whose
+innate Ice row concentrates it to 0 hops, swap the element at the forge and
+hops return. **Melee crit condition** filed as #1786 (Needs design, P0; crits
+shatter Frozen). Doc fact fixed: spell shrapnel rolls its *own* crit today
+(`paired` null → `draws_own_crit()` true), it does not draw none.
 
-Nothing is playable until a count exists and something carries an element.
-§ Acquisition says *"nothing picked"*; § The forge leaves the arrow tag and
-the blade's element unstated.
+## 1. Design beats still open (owner, design hat — diverge first, no seams)
 
-- **How a player gains `fire` / `ice` / `lightning`.** Procgen pool rolls
-  like today's `explosive_aspect` in `dexterity.tres` (an element roll in
-  the STR / DEX / INT pools, so Fire sits in STR's pool with melee); the
-  inner-tree third ring or three-spoke tree; a periodic card offer; a
-  keystone (the Hearth). Which ship in v1, and is there a starter count of 1
-  (the access shape of ADR 0081 §7 assumes one)?
-- **Which content carries an element in v1.** Spells: `lightning_bolt.tres`
-  renamed not reshaped (#1716 r1); Firecracker's row (Heat ride? Catalyst?);
-  a Frost Nova (Cold ride) vs a Pestilence concentrate — which shipped spells
-  get an Ice row at all. Ammo: the element-tagged arrows per reload. Addons:
-  the Catalyst barrel; is there a Heat or Cold addon for blades?
-- **How a blade gets its element** (§ The forge: *"a blade has its addons
-  and an element"*): an addon, the count directly, or none in v1.
-- **Which arrows of a reload take the element tag** (count mints N): the
-  first N fired, N of the player's choosing, or every arrow while N > 0 and
-  a tagged arrow spends one.
+- **The Cold spell's bonus.** Owner: *"it should have some bonus effect that
+  would be cool to port onto a fire/lightning setup (by tossing the ice load
+  and putting fire or lightning in at the Forge). or has a clever crit
+  condition."* Bring 3–4 candidate mechanics, each with the fantasy it
+  serves, what it does with its hops restored under Fire or Lightning, and
+  which existing system it leans on.
+- **Which arrows of a reload take the element tag** (owner: *"explore this
+  concept"*). Facts: `Entity.reload()` (`entity/entity.gd:~735-750`) mints
+  per type via `reload_yield()` (`:708`); specials read the flat
+  `per_reload_stat_id` on the entity board (`:725-727`); `max_stock` default
+  999 (`stats_system/quiver.gd:35`); the plain-arrow bin is capped by pool
+  capacity, not per type. Options so far: the first N fired; N of the
+  player's choosing; every arrow while a tagged stock lasts, a tagged arrow
+  spending one. Do the step 6 arithmetic at fire 1 and fire 50 against the
+  reload size first.
+- **Frozen blade vertex**: a damage bonus to even out brittleness, or none
+  (owner: *"maybe"*). A knob-sized question once the shape is picked.
 
-## 2. Architectural seams to settle in the pass (swarmify step 9, after the Explore)
+## 2. Architectural seams — facts in hand (2026-11-09 Explore), to settle with scorecards
 
-- **A terrain row that survives death.** `on_dealloc` CLEAR and LINGER both
-  clear on death; options: a third mode (PERSIST), a side-less row kind the
-  host never clears, or terrain held off the StatusHost on the node. Cost
-  and smell per option; the applier_id of the latest Heat still wanted.
-- **Row keys.** `Infusion.load_of` keys one concept id; one element per
-  spell makes the collision moot on casts, live for arrows, addons and a
-  spell wanting two rows of one family. #1660 B2 (the row names the status it
-  plants) — rekey by planted status id, or by row.
-- **The element count's `StatDef.Role`** (a new ELEMENT role vs ASPECT with
-  a tag), and members keying their own facets (`heat_resistance`).
-- **Rider coalescing** (#1741's NOTE): an id-keyed map merges a BEFORE rider
-  with an AFTER copy of the same id — now the stage-two landing list of ADR
-  0082; coalesce per entry or never.
-- **The two-stage resolver's home**: a gather step producing the record's
-  blast table (`attack/`), with `HitLanding.place` applying stage two.
+- **A terrain row that survives death.** `on_dealloc` is exactly CLEAR |
+  LINGER (`effects/status/status_def.gd:31-45`). Voluntary dealloc keeps
+  LINGER (`systems/allocation_system.gd:310` → `combat/status_host.gd:277-286`
+  with `keep_lingering=true`); node death (`combat/entity_combat.gd:727,
+  970-975`), force-deallocate (`allocation_system.gd:337-338`, CAUSE_DEATH)
+  and entity death (`entity/entity.gd:1050`, `entity_combat.gd:773`) clear
+  both. Core crack moves every row to the entity (`node_combat.gd:430`,
+  `status_host.gd:260-268`). There is no retake strip: `force_allocate`
+  (`allocation_system.gd:223-250`) keeps the previous rows. Stale comment:
+  `status_def.gd:16-19` says a bare force_deallocate keeps LINGER — false.
+  Options: a third mode (PERSIST), a side-less row kind the host never
+  clears, or terrain held off the `StatusHost` on the node. Catalyst is
+  *not* in this seam any more (aspect status, CLEAR like Poison).
+  `NodeStatus` records `camp_id` + `applier_id` of the latest applier
+  (`effects/status/node_status.gd:18-19`, written `status_host.gd:153-155`).
+- **Row keys.** `Infusion.load_of` / `use_of` key on the concept id
+  (`attack/spell/infusion.gd:90,115`; `intake_of` `:50` takes the first row);
+  `StatusRoster.by_concept` is a first-match scan on `identity.id`
+  (`effects/status_roster.gd:26-34`); `StatusDef._facet_id` =
+  `StatRegistry.facet_def(concept, role)` (`status_def.gd:91-94`). Callers of
+  `by_concept`: `aspect_intake.gd:57`, `infusion.gd:119`,
+  `ai_infusion_picker.gd:28`, `readout_lines.gd:113`. #1660 B2 (the row names
+  the status it plants) — rekey by planted status id, or by row.
+- **The count's `StatDef.Role`.** Role = {NONE, ASPECT, STACKS_PER_HIT,
+  RESISTANCE} (`stats_system/stat_def.gd:14`); the mint loop is
+  `EntityStatBoard.mint_facets` (`entity_stat_board.gd:233-238`, sparse
+  boards skip); `AmmoType.per_reload_stat_id` falls back to the ASPECT facet
+  (`attack/ammo/ammo_type.gd:46-52`). New ELEMENT role vs ASPECT + tag; a
+  member keys its own facets (`heat_resistance`).
+- **Rider coalescing** (#1741's NOTE): `HitLanding.place` orders BEFORE
+  riders, the landing's own block, PRIMARY, rest (`attack/outcome/
+  hit_landing.gd:137-156`); `detonated` is a per-node dedupe scope, fresh per
+  spell wave (`spell_resolver.gd:297`) and per riding landing
+  (`hit_landing.gd:98`), chained blasts share the parent's (`detonate_effect.gd:94`).
+- **The two-stage resolver's home.** The blast table is `AttackRecord`
+  (`attack/outcome/attack_record.gd:211-217`, rows are `BlastMark`s deduped
+  `:700-713`); `CritRoll.decide` (`attack/outcome/crit_roll.gd:53-59`) is the
+  one reader of `draws_own_crit`; copies also come from `status_instance.gd:84`,
+  `splash_effect.gd:139`, `detonate_effect.gd:175`. `world_turn_ended`
+  (`systems/turn_manager.gd:30`, emitted `:408` inside `end_turn`) has **no
+  production subscriber**; `_lingering` (`combat/combat_world.gd:187-217`)
+  ticks from `turn_manager.gd:406`. `DotTick.mint` (`effects/status/
+  dot_tick.gd:24-48`) lands TRUE damage with no record; `CorruptionStatus`
+  bursts through it (`effects/status/corruption.gd:27-28`).
+- **Explosive artifacts** (retag targets, all verified on master):
+  `LoadUse` set = `PlantUse`, `DetonateUse`, `CleanseUse`, `FuelUse`
+  (`attack/spell/load_use/`); `DetonateEffect.arm` skips when an effect
+  already lands explosive (`detonate_effect.gd:47-58, 69`), blasts via
+  `ExplosiveSpread.blast_for` (`:98`; also `blade_pop_resolver.gd:421-423`);
+  `BladeVertexFill.fill` copies node charges into `state.vertex_charges`
+  (`attack/melee/blade_vertex_fill.gd:42-49`), the barrel adds a stack
+  (`explosive_barrel_addon.gd:59-61`); `firecracker.tres:20-27` carries the
+  `FuelUse`; `explosive.tres:20` carries tag `charge`; `dexterity.tres:239-271`
+  rolls `explosive_aspect`; barrels placed by `first_level/content.tres:17`
+  and `coop_versus/content.tres:16`; `explosive_face.tres` preloaded at
+  `procgen/modules/blockers.gd:152`. No test guards Aspect:Status 1:1
+  (`test/unit/aspects/test_aspect_roster.gd:32` counts 13 only).
 
 ## 3. Then the split of #1716 (needs board access)
 
 Proposed children (pass proposal, 2026-11-09), dependency-ordered; 1–3 are
 the substrate: **1** element counts on the board + member facets + the
 Aspect:Status 1:1 guard test (`manage-stats`); **2** Explosive → Catalyst
-retag (artifact list in the doc's § Open; `charge` tag freed; land-phase
-conversion; fate of `DetonateUse` / `DetonateEffect`, blade `vertex_charges`
-/ `BladeVertexFill`; `docs/domain/explosive.md` rewritten); **3** terrain
-substrate (the surviving row, T / k / cap / overflow, decay on read, the
-temperature index + integer Laplacian on the world turn, the capacity bar);
-**4** the two-stage landing resolver (ADR 0082; #1733 closes into it);
-**5** Fire (Heat ride row, Burning's disc go-off, burn, light source; #1660 /
-#1695 / #1696 fold in); **6** Lightning (Charge, Shocked arcs to every
-neighbour, L² × T ladder, conduction; `lightning_bolt` renamed); **7** Ice
-(Cold, absorption, breakers + corruption-path burst, blade snap, Frostbite
-#1444, concentrate `shape` use); **8** forge and quiver (one element field
-per cast, 3 int:int units, per-reload mint + stock cap; #1765 closes).
-4 before 5–7; 1 before 8; 2 with or before 5.
+retag (list above; `charge` tag freed; land-phase conversion and the prime
+trigger; fate of `DetonateUse` / `DetonateEffect`, `vertex_charges` /
+`BladeVertexFill`, Firecracker's `FuelUse`; `docs/domain/explosive.md`
+rewritten) — Catalyst keeps CLEAR; **3** terrain substrate (the surviving
+row, T / k / cap / overflow, decay on read, the temperature index + integer
+Laplacian on the world turn, the capacity bar); **4** the two-stage landing
+resolver (ADR 0082; #1733 closes into it; shrapnel copies the hit's crit);
+**5** Fire (Heat ride row, Burning's disc go-off, burn, light source, the
+Heat blade addon, a Burning vertex; #1660 / #1695 / #1696 fold in); **6**
+Lightning (Charge, Shocked arcs to every neighbour, L² × T ladder,
+conduction, the Charge addon, a Shocked vertex; `lightning_bolt` renamed);
+**7** Ice (Cold, absorption, breakers + corruption-path burst, blade snap and
+the Frozen vertex, Frostbite #1444, concentrate `shape` use, the Cold addon,
+the new Cold spell); **8** forge and quiver (one element field per cast, 3
+int:int units, per-reload mint + stock cap, starter counts; #1765 closes).
+4 before 5–7; 1 before 8; 2 with or before 5. Later, blocked on these:
+#1787 generator keystones; #1786 melee crit condition (P0, independent).
 
 Spec-time, not forks: adversarial (a) → child 4 or 8, (b) → child 1, (h) →
 child 4. Parked: "a wire evens itself out"; the arc mirror (child 6); the
@@ -109,7 +155,9 @@ spend fraction 1.0; ice break threshold 10% max HP; blade sweep-speed
 clamp(1 + c·t/T, 1−c, 1+c), c = 0.5; Catalyst ratio 1:1, cap k × T, slow
 decay; hop ladder L² × T (owner); disc radius √power × node radius (owner);
 decay 1 per world turn; world turn every ceil(sqrt(N)) played turn ends;
-element ammo stock cap 2 × the per-reload mint.
+element ammo stock cap 2 × the per-reload mint; starter count 1 each, dev
+sandbox Player 3 each (owner); generator +2 per world tick, Charge ceiling
+~4T (owner, tentative).
 
 Delete this file once #1716 is split into children and they are `Ready`.
 `docs/handoffs/fuel-to-catalyst-arc.md` is cited by ADR 0081 and stays.

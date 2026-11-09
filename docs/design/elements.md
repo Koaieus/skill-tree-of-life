@@ -117,9 +117,14 @@ sat: *"so my relevation yesterday was: maybe we should move Fuel OUT of Fire,
 and turn it into smth like "Catalyst" instead, and let it act on any incoming
 elemental-terrain status (Heat, Cold, Charge)"*, and on the trade: *"like "3
 Catalyst" has incoming hit of "2 Heat" and it turns it into "5 Heat" doing a
-1:1 Catalyst→{incoming element} trade."* Pass reading: Catalyst is one
-side-less terrain status, inert and colourless: it never counts toward T,
-never primes, never goes off and has no derived state. When a hit whose
+1:1 Catalyst→{incoming element} trade."* Catalyst is one **aspect status**,
+inert and colourless: it never counts toward T, never primes, never goes off
+and has no derived state, and it lives on allocated nodes only, clearing with
+its holder as Poison does (owner, 2026-11-09: *"i think catalyst only sits on
+allocated nodes like most/all Aspect statuses (but we can always make an
+exception and make it owner-agnostic)"* — taken as settled: it is exactly the
+shape the Explosive status already has, so the retag changes no lifecycle,
+and a blast's copies land on hostile allocated nodes anyway). When a hit whose
 payload carries exactly one element rider (Heat, Cold or Charge) lands on a
 node holding Catalyst, the node's whole Catalyst store converts 1:1 into that
 element (ratio 1:1 a knob), so 3 Catalyst plus an incoming 2 Heat is 5 Heat on
@@ -156,7 +161,8 @@ Greed multiplies aspect stacks, and Greed must not (owner, 2026-11-09: *"in
 essence this is almost like what Greed is for Aspect Statuses, but for
 Elements (i think Greed shouldn't multiply incoming Heat/Cold/Charge stacks,
 but Catalyst may?)"*). Catalyst stays put (no flow) and decays slowly (knob);
-the map's barrels are Catalyst terrain the map lays. **Catalyst is an
+the map's barrels are the Catalyst addon on map nodes, as the Explosive
+barrel addon is today. **Catalyst is an
 aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
 option 1. w/visually like purple crystals or smth instead of black goo"*; the
 line behind it: *"Aspects do anything else"*): one status, side-less terrain,
@@ -241,7 +247,7 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
 - **The count never ticks on anyone.** A mover is an ordinary sided status
   that clears with its owner like Poison does; terrain hurts only through its
   primed state (a blast, Burning's burn).
-- **Terrain is side-less.** A terrain stack, and Catalyst, rests on a node
+- **Terrain is side-less.** A terrain stack rests on a node
   regardless of owner, survives kills, retakes and deallocs, and leaves by
   being *spent* (a go-off spends its own node's stacks), by decay (per-def,
   ADR 0048; § The threshold model's cooling) or by a cleanse. **A holder's
@@ -249,14 +255,15 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
   (owner, 2026-11-08, picked *nothing — terrain persists* over a terrain hit
   per primed node; #1660's "death blasts first" is pre-threshold history).
   The battlefield a fight built stays dangerous for whoever retakes it. Heat and Cold
-  flow as one signed `t` (§ Temperature) and rest on unallocated ground; Catalyst
-  and Charge stay put. Owner, 2026-11-05, on a capped wall beside bare
+  flow as one signed `t` (§ Temperature) and rest on unallocated ground; Charge
+  stays put. Catalyst is not terrain: an aspect status, allocated nodes only
+  (§ The threshold model). Owner, 2026-11-05, on a capped wall beside bare
   neighbours: *"something doesn't quite feel right of a 100 Cold node with
   neighbors of 0 Cold … just sits there as if perfectly isolated"*, then
   *"option 1!"* (flow): a wall sheds a fringe around it, #1444's channels for
   free. The readability test: *if nobody owned this node, would it still make
-  sense for this to be here?* Catalyst on an empty node, yes; Poison on an empty
-  node, no. Build note: today's `on_dealloc` has CLEAR and LINGER and a death
+  sense for this to be here?* Heat on an empty node, yes; Poison or Catalyst on
+  an empty node, no. Build note: today's `on_dealloc` has CLEAR and LINGER and a death
   clears both; terrain needs a shape that survives death too — a seam for
   spec time.
 - **A state has no count.** It is a threshold on its terrain stack (primed
@@ -312,10 +319,11 @@ own (§ The threshold model):
 
 A hit crits once, as its own fact, and its riders copy it (#1741, built
 2026-11-04), **and so does every go-off copy** (owner, 2026-11-09, picked *it
-rides* over flat copies; ADR 0082): a spell blast's shrapnel draws no crit
-today (`PairedDamageInstance.draws_own_crit()` is false, so `CritRoll` skips
-it) and must come to copy the hit's crit as a melee blast's copies and riding
-landings already do. #1741's owner line
+rides* over flat copies; ADR 0082): a spell blast's shrapnel rolls its *own*
+crit today (its `paired` is null, so `draws_own_crit()` is true and
+`CritRoll.decide` rolls afresh — 2026-11-09 code check; the earlier "draws no
+crit" was wrong) and must come to copy the hit's crit as a melee blast's
+copies and riding landings already do. #1741's owner line
 also fixes an order inside a hit — *"elemental riders first … then other
 status(es), then damage(s)"* — which § Landing resolution must keep.
 
@@ -382,6 +390,25 @@ the elements so far:
   an *authored* innate load. A count-scaled load on every arrow would be the
   per-hit load this doc rejects. There is no int:int rate seam on an ammo type
   or an addon today; whether one is wanted is a spec-time call.
+- **A blade's element is an addon per element** (owner, 2026-11-09: *"an
+  addon per element"*): Heat, Cold and Charge addons beside Clamp and the
+  Catalyst barrel, each vertex carrying an authored innate load, how many a
+  build affords budgeted by the element count. The addon grants the rider and
+  nothing else — the owner asked *"what stats? e.g. +1 fire_element sounds
+  *too strong*"*, and the answer from § The count is supply is none: the count
+  is the only element stat and supply never rides an addon.
+- **A blade vertex copies its source node's primed state** (owner,
+  2026-11-09: *"copy a burning node and you get a burning blade node (booms).
+  copy frozen node -> frozen blade node (detrimental so far, makes blade node
+  fragile, but maybe we do add a damage increase to even it out?). copy
+  shocked node -> get shocked blade node (zaps/arcs)"*): `BladeVertexFill`
+  reads the state at fill as it reads stats; a Burning vertex blasts a disc
+  where it touches, a Shocked vertex arcs from the node it touches, a Frozen
+  vertex is brittle and snaps on first contact (a damage bonus to even that
+  out is open). Your terrain travels with your blade. Spec-time (the Fire,
+  Lightning and Ice children): what a vertex go-off spends and reads — the
+  source node's excess at fill is the natural power, and whether the touch
+  spends the source node's stacks or the copy's is the fork to settle there.
 
 ## The reach rule (owner's atomics, 2026-11-04)
 
@@ -423,8 +450,10 @@ is built (#1735's finding), so #1735 closes with a doc line.
 
 **A go-off with no parent hit** is a **terrain hit** (owner, 2026-11-05:
 *"option 1"*): its copies carry only the blast's own damage (∝ power), no
-riders, no crit, side-blind. Nothing in v1 triggers one; whatever earns it
-later (a keystone emitting Heat, say) burns your own nodes too.
+riders, no crit, side-blind. Nothing triggers one yet: a generator keystone's
+minting is not a hit (owner, 2026-11-09: *"just adding those isn't a hit so
+also triggers no go-off"*), so the terrain hit is a defined shape with no
+caller until something earns it.
 **The attacker is the sided party in the reaction**: the Heat's latest
 applier (a `NodeStatus` already records `applier_id`). No new fact lands on
 side-less terrain. **Sync by determinism**: a terrain cascade has no crit and
@@ -794,7 +823,7 @@ different rows share the old word, on every facet alike:
 |---|---|---|---|
 | "infuse Explosive to make it AoE" | a Heat **ride** row (or a bespoke shape use) | the hit plants Heat; once its node is past T, later hits there blast | Heat |
 | "goo arrow" | a Catalyst **ride** row | Catalyst is added to the landing node, inert until a hit's element lands | Catalyst |
-| "a catalysed node" | terrain on the node | colourless until a hit carrying one element lands; then its store becomes that element 1:1, same landing | — |
+| "a catalysed node" | Catalyst on the node (an aspect status) | colourless until a hit carrying one element lands; then its store becomes that element 1:1, same landing | — |
 
 Poison has the second and a third of its own ("poison on a node ticks");
 the only novelty is that primed terrain reacts to *landings* where a mover
@@ -818,22 +847,37 @@ that reaches, so the words are pinned here and in the matrix Glossary:
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
 | **Member** | A status of an element, whatever its role: Heat is a member of Fire, Frostbite of Ice; Catalyst is nobody's member; an Element Matrix row is a member row; a member keys its own facets (`heat_resistance`) (owner, 2026-11-05: *"member"*) | a facet (arrow / blade / spell) or a role |
-| **Catalyst** | inert, colourless terrain that becomes an element 1:1 when a hit carrying it lands or its node primes: the element analogue of Greed | fuel, a family member, a reach, a go-off |
+| **Catalyst** | inert, colourless aspect status (allocated nodes only) that becomes an element 1:1 when a hit carrying it lands or its node primes: the element analogue of Greed | fuel, a family member, a reach, a go-off |
 | **Volatile** | a word the owner floated for the states that go off, Burning and Shocked (owner, 2026-11-09: *"`volatile` is a better fit to describe Burning *and* Shocked"*) — not Frozen, which denies | a status |
 | **Fire / Heat / Burning** | The element (its count) / its terrain stack / Heat past T | three names for one thing |
 
-## Acquisition (owner sketches, 2026-11-03/04; nothing picked)
+## Acquisition (owner, 2026-11-09)
 
-Both sources every stat already has: **permanent, slow** (an inner-tree ring
-or sector — owner, 2026-11-04: the inner-core mini skill tree as *"one of the
-primary sources of adding +1..N modifiers"* — a periodic *"+1 to <element of
-choice | choose 1 el out of 3 cards>"* offer, map-found modifiers, mods stolen
-from slain enemies) and **board-temporary** (a keystone: *"a fire keystone
-that also supplies heat or fire stacks"* — the Hearth of #1716 round 2,
-emitting Heat each world turn and granting fire while held).
-`apex_inner_tree.md` is six schools × two aspects today; elements would be a
-third ring or a three-spoke tree. Filed against the element hub, not settled
-here.
+**v1 sources are the aspect sources.** An element count *"is the same
+sentence an aspect count already says"* (§ The count is supply), so it takes
+the sources an aspect count has: a pool roll in its school's pool (Fire in
+STR's, Ice in DEX's, Lightning in INT's — the reach triad; today
+`procgen/pools/dexterity.tres` rolls `explosive_aspect` the same way), the
+inner tree, found and stolen modifiers. **Starter count: 1 in every element
+for now, 3 each for the dev sandbox's Player** (owner, 2026-11-09: *"1 in
+each for now, 3 each for the dev_sandbox's Player (for instant testing)"*), a
+knob. The direction after that, owner's words: *"later i think all should
+start at 0 and gains be linked to "core skilltree / inner skilltree" or core
+class, or some starting modifier passed from metagame, and still some found
+on the board (e.g. a bespoke skillnode inherited scene [== a Keystone] such as
+one that gives "+1 Fire | but also generates 2 Heat / turn"), that kinda
+content"*. `apex_inner_tree.md` is six schools × two aspects today; elements
+would be a third ring or a three-spoke tree — filed against the hub.
+
+**Generator keystones** (owner, 2026-11-09; filed as their own issue, not in
+the first build): one per element, *"virtually identical in setup (analogous
+fire/ice/lightning generator keystones). like they all mint e.g. +2 {element}
+stacks each world tick, these also spread, and just adding those isn't a hit
+so also triggers no go-off."* Heat and Cold spread by the shared flow; Charge
+*"piles up, to some extent. maybe to 4T (4 × the critical threshold such that
+it arcs for 2 hops …)"* — a standing Shocked trap on the keystone's node,
+Charge still staying put. Minting is not a hit, so no go-off and no terrain
+hit; the keystone grants its element while held.
 
 ## Open
 
@@ -866,6 +910,23 @@ here.
 - **Ice pricing, per spell**: the authored per-hop multiplier is confirmed as
   a lean (§ Ice on a cast); each spell's per-hop worths and the affinity
   ratios are spec-time numbers, with #1444.
+- **v1 spell content** (owner, 2026-11-09): `lightning_bolt` carries Charge
+  (renamed, not reshaped, a Charge ride row as its innate element), and **a
+  new single-target Cold spell** — *"one single target ice spell that is only
+  single target (0 hops) because of its ice element load. and replacing that
+  load with another element restores some hops and drastically alters the
+  spell"*: its innate Ice row is the concentrate (§ Ice on a cast) eating its
+  hops to 0; swap the element at the forge (ADR 0081 §7) and the hops come
+  back. **Open design beat**: its bonus — *"it should have some bonus effect
+  that would be cool to port onto a fire/lightning setup (by tossing the ice
+  load and putting fire or lightning in at the Forge). or has a clever crit
+  condition. crit conditions are now even stronger and more important to get
+  right: they shatter Frozen!"* Nothing else carries an innate element in v1.
+- **Which arrows of a reload take the element tag** (open; the owner's
+  *"explore this concept"* ask): the count mints N per reload through
+  `Entity.reload()` → `reload_yield()` and `per_reload_stat_id`; the first N
+  fired, N of the player's choosing, or every arrow while a tagged stock
+  lasts — a design beat before the quiver child is spec'd.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
   run of Shocked nodes shares its Charge each world turn — the one flow
   Charge could have beside staying put.
