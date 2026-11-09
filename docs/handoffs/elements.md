@@ -5,7 +5,16 @@ names is on master; nothing lives only in a transcript.
 
 ---
 
-Continue the elements design pass (#1716 is the hub). Read, in order:
+Continue the elements design pass (#1716 is the hub). **Open the session
+with a quick rundown and game analysis, then re-propose** (owner, 2026-11-09,
+EOD: *"next sesh should repropose these, starting with a quick rundown and
+game analysis like this"*): the rundown is § Open's "Fuel's place on the
+element axis" item in `docs/design/elements.md` — the orthogonal element
+axis, the three Fuel shapes, the generic-catalyst analysis (power vs shape,
+the three faces, the cap arithmetic, the Frozen 60 % number, the
+amplifier-alone note) — restated in a screen for an owner who has read the
+title only; then the four drafted forks (supply, fuse, residual, name and
+kind) as one `AskUserQuestion`, recommended first. Read, in order:
 
 1. `docs/design/elements.md` — every owner call to date, quoted and dated
    (2026-11-03 to 11-08); pass proposals are marked as such. The doc reads as
@@ -30,6 +39,23 @@ push**; other sessions land commits mid-pass). Cloud session: a docs-only PR
 `mise run docs-hygiene` after a design doc, `adr-hygiene` after an ADR.
 `gh issue view` is blocked (GraphQL); use
 `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` and `/comments`.
+
+Settled 2026-11-09, late pass (in the doc with quotes): **the element is an
+axis orthogonal to the subtype** on arrows (owner, *"explore this concept"*),
+generalised by the pass to casts and blades — it dissolves #1765's "one
+budget vs each type minting" and reads the Element Matrix columns as the
+three places the axis is set; **a spell carries at most one element, the
+forge adds to it (same element, synergy) or replaces it for the cast**
+(owner, verbatim in § The forge) — the elemental slot is one element field,
+not a slot count; **the ADR 0077/0079 terrain-path tension is closed by a
+scope line** (§ Landing resolution: the record carries what a command did,
+go-offs included; the world turn carries what time did, reproduced from the
+end-turn command as DoT ticks are today; the settle is roll-free) — stated
+to the owner, not objected to, awaiting the follow-up ADR. Rejected: Fuel as
+the keg subtype parallel to Frostbite (owner: a keg is AoE-linked, hence
+fiery); per-element Fuel counterparts (pass + advisor: grid-filling, three
+rules and supplies, anchored to nothing). #1765's access shape was asked and
+redirected into the axis idea — unanswered, the pass's pick is in the doc.
 
 Settled 2026-11-08, evening pass (all in the doc with quotes; commits
 0769a0f1..e0b838af): **a go-off pays 1 per node it reaches** (one law:
@@ -58,29 +84,34 @@ Greed/#1659 was closed not planned by a parallel session and is off the list.
 
 Still open, in this order:
 
+- **Fuel's place: the generic catalyst** (doc § Open, first item) — the
+  four drafted forks: supply (own count, recommended; found only; any
+  element count), fuse (any primed catalyst node self-triggers, recommended;
+  Burning only), residual (of the spending element, recommended; Heat only;
+  none), name and kind (Catalyst / Fuel / Volatile — the owner's word).
+  Couplings: "own count" partly reverses ADR 0072 and turns finding 15's
+  orphans into retags; it also moves #1765's parity question onto the
+  catalyst; the per-element catalyst worth is a knob (Frozen lower).
+- **#1765 — the access shape**: re-ask after the catalyst settles (the
+  pass's pick, "the count is the access", is in the doc with the two
+  alternatives scored); the stock cap is a knob (multiplier on the per-reload
+  mint, default 2).
 - **Follow-up ADR**: ADR 0075's "not decided here" is now almost all decided
   (go-off cost, shatter shape, ice breakers, trapped charge, death, Fuel's
-  cap, the Ice pricing lean). Write the ADR recording them (`/adr`), and in
-  it or beside it resolve the **ADR 0077/0079 terrain-path tension** (doc
-  § Open, librarian pass 2026-11-08): terrain cascades sync by determinism
-  with "never a host-minted record" (owner, 2026-11-05) vs 0077's "peers
-  never re-derive a number" and 0079's "the world is mutated only by
-  `OutcomeApplier` landing a rebuilt record"; 0077 is also silent on whether
-  an attack's record carries its go-off copies' landings. Needs an owner
-  call on scope (a terrain-path carve-out vs widening the record).
-- **The forge elemental slot**: the owner's lean is recorded (doc § Open);
-  open: the slot's shape and how many elements one cast may carry.
-- **#1765 — ranged's access to Fuel / the Element Matrix**: availability
-  parity with Clamp, one budget per element vs each ammo type minting, the
-  per-type stock cap (doc § Open carries the quotes).
+  cap, the Ice pricing lean), plus tonight's axis, one-element-per-spell and
+  the 0077/0079 scope line (§ Landing resolution). Write it with `/adr`
+  after the catalyst settles so its supply (the 0072 partial reversal) goes
+  in the same ADR; fix the sync model's "exactly one subsystem" sentence in
+  the same pass.
 - **Explosive artifacts**: every orphan in finding 15 (below) needs a
-  destination or a supersession before any element issue goes `Ready` —
-  mostly spec-time facts (`explosive` → `fuel` rename, `DetonateUse`/
-  `DetonateEffect` retired by Burning-ignites + the `ReachUse` seam, the
-  barrel addon → the Fire::Fuel addon cell, `docs/domain/explosive.md`
-  rewritten at build).
-- **Element count as a stat**: `fire` / `ice` / `lightning` on the StatBoard
-  (manage-stats), a new `StatDef.Role`; a member keys its own facets.
+  destination or a supersession before any element issue goes `Ready` — if
+  the catalyst takes its own count, most are retags (`explosive` → the
+  catalyst's name), else spec-time deletions (`DetonateUse`/
+  `DetonateEffect` retired by Burning-ignites + the `ReachUse` seam,
+  `docs/domain/explosive.md` rewritten at build).
+- **Element count as a stat**: `fire` / `ice` / `lightning` (and the
+  catalyst's count, if own) on the StatBoard (manage-stats), a new
+  `StatDef.Role`; a member keys its own facets.
 - Remaining adversarial items in § Open: (a) row keys (#1660 B2), (b) facet
   ids, (f) the `charge` tag → `fuel` retag in the first Fire issue, (h) rider
   coalescing (#1741's open NOTE).

@@ -303,6 +303,28 @@ the elements so far:
 - **No use gives a hit reach.** A shape use may reshape the cast (Ice trades
   hops for seed payload before it leaves), but reach at a landing is read off
   the node alone.
+- **A spell carries at most one element, and the forge adds to it or swaps
+  it** (owner, 2026-11-09: *"the spell should carry at most one Element
+  (fire/cold/lightning) and if a spell already has one, forge can add to it
+  (synergy) or replace it for the cast (original cleared, your choice put
+  in)"*). So the forge's elemental slot is one element field per cast, not a
+  slot count: the same element as the spell's innate one adds load, a
+  different one replaces it for the cast. The aspect slots are untouched. The
+  owner's own caveat in the same breath: the slot loads Heat, Cold or Charge,
+  *"not really things like Fuel"* — Fuel's place is § Open.
+- **The element is an axis orthogonal to the subtype** (owner, 2026-11-09, on
+  arrows: *"what if the element of each arrow is orthogonal to its subtype?
+  (where subtype often just adds riders for e.g. aspects status stacks?)
+  explore this concept"*; the pass generalises it to casts and blades): an
+  arrow has a subtype (base, goo … — the aspect riders) and, separately, at
+  most one element; a spell has its aspect rows and, separately, its one
+  element; a blade has its addons and an element. The Element Matrix's
+  columns (Ammo : Addon : Spell : Infusion) stop being cells to find and
+  become the three places that axis is set — the quiver, the forge, the
+  blade. It also dissolves "one budget per element vs each ammo type
+  minting" (#1765 Q2): there is one element axis, so the count mints one
+  budget of element-tagged arrows per reload, whatever their subtype; which
+  arrows of a reload take the tag is spec-time.
 - For arrows and blades the count is supply the way an aspect count is:
   it sets how many element arrows a reload mints (`AmmoType.per_reload_stat_id`)
   or how much element addon a build affords, and each arrow or vertex carries
@@ -497,6 +519,22 @@ a rider *reacting* mid-land, not an order:
 A hit carrying +1 Heat onto a 5-Cold node is read against 5, lands, and
 leaves 4: it thaws for the *next* hit, never for itself. The same settle runs
 after every world-turn tick.
+
+**Two clocks, two sync shapes (pass write-back, 2026-11-09, of the owner's
+2026-11-05 call; stated to the owner, not objected to; the follow-up ADR
+records it).** The attack record (ADR 0077) carries what a *command's*
+resolution did, the go-offs its hits trigger included — the record's blast
+table (one mark, many copies) is already that shape. The world turn carries
+what *time* did — decay, diffusion, a no-parent go-off, Burning's burn — and
+every peer reproduces it from the end-turn command, as the damage-over-time
+ticks already land HP on the world turn today with no record (ADR 0055's
+`_end_world_turn` runs inside `end_turn`). ADR 0079's "mutated only by
+`OutcomeApplier`" is scoped to attack resolution and never claimed the world
+turn. The constraint that makes this safe: the settle is roll-free (the
+temperature step is the integer Laplacian, `floor((t_i − t_j) /
+(max(d_i, d_j) + 1))`) and obeys the transcendental ban. The sync model's
+"the obligation reaches exactly one subsystem: the stat pipeline" is stale
+already and widens to the stat pipeline plus the world-turn settle.
 
 **Dual reach** resolves by the read phase alone: every primed state present
 at read fires, each spending its own stacks, so a node both Burning and
@@ -735,21 +773,60 @@ here.
 
 ## Open
 
-- **Element rows in the forge**: the owner's lean (2026-11-08, § Ice on a
-  cast) is a dedicated elemental slot — 3 units of int:int, one per element,
-  spent from elemental attunement (`fire_element`) — rather than the aspect
-  slots; how many elements one cast may carry, and the slot's shape, are
-  still open.
+- **Fuel's place on the element axis** (owner, 2026-11-09, open). With the
+  element an orthogonal axis (§ The forge), Heat, Cold and Charge are what it
+  plants; Fuel is not. Three shapes were put up: Fuel as Fire's second form
+  (a fire unit plants Heat or Fuel by its authored use), Fuel as the Fire
+  family's *subtype* member the way Frostbite is Ice's (the keg subtype, any
+  element rides it), Fuel as world terrain only (barrels, never loaded). The
+  owner on the keg-subtype shape: *"the "keg" is very much linked to AoE
+  hence in that sense very "fiery" though. unless we also add a shock and
+  lightning counterpart? or change fuel to be an aspect instead -- an
+  element-generic catalyst for any incoming terrain stack, cold/heat/charge."*
+  **Pass + advisor analysis (2026-11-09), for the owner:** the generic
+  catalyst has the game sense; per-element counterparts are grid-filling
+  (three rules, three supplies, the Ice and Lightning ones anchored to
+  neither a concept nor a wanted feel). The move that answers "a keg is
+  fiery": separate *power* from *shape*. The catalyst adds power to whatever
+  go-off spends it — ADR 0075 §6's law (*"consume all fuel stacks too add
+  them to the explosive power"*) with "Fire" struck out — and only Fire's
+  go-off turns power into area. Each face is the element's existing go-off,
+  louder: Burning + catalyst a bigger disc; Shocked + catalyst a harder pulse
+  to every neighbour (reach is topology, so power is damage or Charge laid —
+  a wire-layer, not area); Frozen + catalyst a bigger inward shatter on the
+  holder, nothing on bare ground — a single-target trap, the opposite of
+  AoE, free. Scaling at the settled cap k × T (degree 3: 12–30 per node):
+  Burning a disc of ~6–8 node radii, bounded by the cap and the 1-per-node
+  spend; Frozen is the one to see coming — excess + catalyst ≈ 60 stacks at
+  1 %/stack is a 60 % max-HP true hit from one node, so the catalyst's worth
+  per go-off wants a per-element knob (default 1 for Burning, lower for
+  Frozen); count 1 vs 100: a late archer lays a 100-node minefield, the
+  per-node cap bounds each blast and the count bounds the turn, area ×
+  intensity linear. Designer note: a pure amplifier does nothing alone — a
+  catalyst-only build is dead until an element primes something (own, an
+  ally's, the map's); correct for a catalyst, and exactly what separates it
+  from the retired Explosive aspect that blew up by itself, but it must be
+  visible at acquisition (the card offer pairs it or says so). Never give
+  kegs a standalone go-off to fix that — it is Explosive back under a new
+  name. **Proposed resolutions, drafted, not owner calls** (asked 2026-11-09,
+  session ended before an answer): (1) **supply** — its own count on the
+  StatBoard, a fourth attunement (the demolitionist; a solo build pays two
+  counts where Clamp pays one, so #1765's parity question moves onto the
+  catalyst; partly reverses ADR 0072 — the explosive count returns as the
+  catalyst count, side-less terrain, never an aspect; finding 15's orphans
+  get homes by retag, not deletion); alternatives: found only (barrels and
+  loot — a rare play by design), or any element count feeds it (a split
+  rule). (2) **fuse** — any primed node holding catalyst goes off at the
+  world turn (one rule; frozen and charged kegs become timed traps; rides
+  the terrain-hit path); alternative Burning-only. (3) **residual** — of the
+  spending element (Heat re-primes, Cold is a feedable freeze lock to watch,
+  Charge stays Shocked; one knob N per element, same default); alternatives
+  Heat only, or none. (4) **name and kind** — side-less terrain with its own
+  count, a kind that does not exist yet; "Fuel" is a fiery word for a generic
+  thing; candidates Catalyst, Fuel, Volatile — the owner's word.
 - **Ice pricing, per spell**: the authored per-hop multiplier is confirmed as
   a lean (§ Ice on a cast); each spell's per-hop worths and the affinity
   ratios are spec-time numbers, with #1444.
-- **ADR 0077/0079 vs the terrain path** (librarian pass, 2026-11-08): the
-  world-turn terrain settle and terrain hits sync by determinism, *"never a
-  host-minted record"* (owner, 2026-11-05), while ADR 0077 has peers *"never
-  re-derive a number"* and ADR 0079 mutates the world only through
-  `OutcomeApplier` landing a record; 0077 is also silent on whether an
-  attack's record carries its go-off copies' landings. A scope line, or a
-  widening, in a follow-up ADR is needed before the Fire/Lightning spec.
 - **A wire evens itself out** (pass idea, parked, not picked): a connected
   run of Shocked nodes shares its Charge each world turn — the one flow
   Charge could have beside staying put.
@@ -777,12 +854,29 @@ here.
   easily obtainable fashion … can we somehow arrange something like this for
   ranged?"* — tracked as #1765 (the access shape, one budget per element
   across its ammo types vs each type minting the count, the stock cap).
+  **Pass state, 2026-11-09:** the budget question is dissolved by the
+  orthogonal axis (§ The forge). The access shape was put to the owner and
+  redirected into the axis idea, unanswered; the pass's recommended shape is
+  **the count is the access** — fire ≥ 1 unlocks the element axis in the
+  quiver and every reload mints `fire` element-tagged arrows, no action,
+  nothing to find or buy (routes through `AmmoType.per_reload_stat_id`; the
+  starter grant is count 1); the alternatives (a temp quiver addon bought
+  with a ranged resource that does not exist yet; a starter type with a
+  fixed grant, two sources of one supply) scored lower. If Fuel becomes a
+  generic catalyst with its own count, the parity question moves onto the
+  catalyst. **Stock cap arithmetic (pass):** the count mints that many
+  element arrows per reload (1 at fire 1, 100 at fire 100), so a flat cap
+  serves one end only — 50 halves a late archer's every reload, 999 is the
+  hoard — the knob is a multiplier on the type's own per-reload mint, pass
+  default 2 (a quiver banks one spare reload), easy to change.
 - **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
   the items that need an owner call before any element issue is `Ready`:
   (a) **row keys**: `Infusion.load_of` and `StatusRoster.by_concept` key on
   one concept id, so a Fuel ride row and a Heat ride row cannot both key on
   `fire` — #1660's B2 (*"intake row names which of its aspect's statuses it
-  plants"*) is the fix and must be carried into the row design; (b) **facet
+  plants"*) is the fix and must be carried into the row design — with one
+  element per spell (§ The forge) the collision is moot on the spell path and
+  stays live for arrows, addons and a spell wanting two fire rows; (b) **facet
   ids**: `<x>_stacks_per_hit` / `<x>_resistance` key per status (#1660 A1),
   so a member keys on itself (`fuel_`, `heat_`), while the count needs a new
   `StatDef.Role` (`fire` is not `fire_aspect`); (f) **Charge** collides
