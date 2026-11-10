@@ -72,3 +72,12 @@ Next, in order:
 - An arrival that shatters: *"Arrival shattering sounds like it should no longer be blocked tbh. But might be sensitive to race conditions e.g. during many nodes being hit  simultaneously during a magic spell's Wave (beat)."* → the walk continues past a shatter (reverses ice's tentative reading).
 - The other GAPS.md readings: *"Reask all others with some more context (doubling frozen shatter? What?)"*.
 - Re-post: *"Let a clerk update it. Best we keep the new gh issues as source of truth now they exist"* → a clerk re-posts all 24 bodies now; after it reads back, the GitHub issues are the source of truth and the body files here are deleted; every later fix edits the issue.
+
+### Clerk re-post — done (22:10)
+All 24 bodies are on their issues (#1793-#1816), placeholders resolved, read back clean (from HEAD 201bdcae). From here the GitHub issues are the source of truth: every later edit goes to the issue (`gh issue view <n> --json body -q .body` → edit → `gh issue edit <n> --body-file`). The body files in this folder are stale copies and get deleted.
+
+### Owner batch 2, answered 23:30 (verbatim)
+- Go-off zero: *"Tbf i don't care anything about intermediate state so long it's all as it should be when all issues are done, I've not opened the editor in a good while anyway, will do so when all this is in"* → lead keeps the carried reading (exempt until the retag via `GoOff.lands_on_own_node`); intermediate states are the lead's call from here on.
+- Frozen's shatter vs the doubling: *"Break counts as a channel (or more radical: 2, more concentrated single target vibes) sounds like a fitting unification"* → breaking the ice counts as a channel: the shattered node takes one more payload (plus the burst). The extra count is a knob, default 1; the owner floated 2.
+- Absorbed copies: *"How i see it: terrain sits at the tip of each hit, and lands no matter what. It can thaw a freeze? Or prime a node as it hits? (Or that last one might be a little intense but still kinda valid?)"* → Heat / Cold / Charge riders land on every arrival, absorbed or not; Frozen's admit gates damage and aspect riders only. A Heat rider on an absorbed copy can thaw the ice; a tipping rider primes the node as it hits (riders-first, already 0083 §1). Amends ADR 0083 §2 ("an absorbed copy lands no riders").
+- ADRs: *"Multiple ADRs also fine, if they differ in topic"* → new ADRs by topic (landing counts / whole-hit; terrain at the tip of every hit; the blade weight gate); adr-fixes keeps the 0081 §1 and §7 corrections.
