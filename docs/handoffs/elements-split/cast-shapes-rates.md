@@ -32,8 +32,9 @@ Design research, 2026-11-10; nothing here is decided. Tags: **[M]** measured in 
 - No test or doc states "power p reaches n nodes"; `test_explosive_charges.gd:43-64` pins ratios only.
 
 **Simulation [S]**: a Python port of the Bridson sampler and the Delaunay / MST + 25% extras prune
-(`poisson_disk_sampler.gd:13`, `procgen_topology.gd:84-146`), rebuilt on 2026-11-10 from those sources
-because the first script was not kept; 10 maps of 800 nodes in an auto-sized circular mask, 300
+(`poisson_disk_sampler.gd:13`, `procgen_topology.gd:84-146`), rebuilt on 2026-11-10 from those sources and kept
+as `tools/disc_reach.py` (a CLI: `--a 3 --b 0 --powers 1,2,3,4,6,8,10 --hops` reproduces both checks
+below; `--per-point 3 --fit-ladder` prices a ladder against Lightning B); 10 maps of 800 nodes in an auto-sized circular mask, 300
 sources each, whole graph, min spacing 150 px, every radius 32 px. Check against the measured table:
 its hop-ball counts are 3.0 / 7.8 / 14.5 / 23.0 unique nodes at L = 1..4 against the measured 3.0 / 7.9 /
 14.5 / 23.1, and its ×3 disc row (0 / 1.2 / 2.6 / 3.6 / 5.2 / 6.9 / 8.4 at power 1 / 2 / 3 / 4 / 6 / 8 / 10)
@@ -112,6 +113,9 @@ lower):
 | A=2.5 B=0.5 | 2 (94%; 15%) | 2 (94%; 15%) | 3 (98%; 37%) |
 | A=2 B=0.84375 | 2 (88%; 0%) | 3 (98%; 88%) | 4 (98%; 66%) |
 | A=3 B=0.229 | 2 (95%; 0%) | 2 (95%; 0%) | 3 (99%; 47%) |
+| A=2 B=2 | 1 (100%) | 1 (100%) | 1 (99%) |
+| A=1 B=3 | 1 (55%) | 3 (93%; 84%) | 6 (96%; 74%) |
+| A=1 B=4 | 1 (96%) | 1 (96%) | 2 (93%; 52%) |
 
 A=2 B=1 against ×3: the two radii are equal at power 4 (192 px, 3.6 nodes each). Below it A=2 B=1 is
 larger (128 / 155 / 175 px against 96 / 136 / 166 at power 1 / 2 / 3), above it smaller (256 against
@@ -119,6 +123,69 @@ larger (128 / 155 / 175 px against 96 / 136 / 166 at power 1 / 2 / 3), above it 
 and its linear slope past power 12 is about 0.40 nodes per power against 0.84. What the offset does to
 Burning's go-off at excess 1 / 2 / 3: A=2 B=1 reaches 0.7 / 2.1 / 3.0 nodes and hits nothing in 45% /
 5% / 1% of casts, against 0 / 1.2 / 2.6 and 100% / 24% / 2% at ×3 and 0 / 0 / 0 and 100% at ×2.
+
+**Large offsets, and pricing Fire 1:1 with Lightning [S].** The owner's idea: Lightning's shape is
+levels (level N gathers every node within N hops, level L costs 1 + 2 + … + L points, so 1 / 3 / 6 / 10
+points give 3 / 8 / 15 / 23 nodes), and Burning *"if we do it right with the A and B might work as is
+1:1, as if it is Shock Arc's level already"*, i.e. 1 point = 1 blast power. Three more shapes in the
+same four rows (A=2 B=2, and A=1 with B = 3 and 4):
+
+| p | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 12 | 15 | 20 | 30 | 40 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| radius px, A=2 B=2 | 192 | 219 | 239 | 256 | 271 | 285 | 309 | 320 | 330 | 350 | 376 | 414 | 479 | 533 |
+| nodes hit | 3.6 | 4.5 | 5.4 | 6.1 | 6.9 | 7.5 | 8.7 | 9.3 | 9.9 | 11.1 | 12.8 | 15.6 | 20.3 | 24.8 |
+| hits nothing | 0.2% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 99% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=1 B=3 | 128 | 141 | 151 | 160 | 168 | 174 | 187 | 192 | 197 | 207 | 220 | 239 | 271 | 298 |
+| nodes hit | 0.7 | 1.5 | 2.0 | 2.4 | 2.7 | 3.0 | 3.4 | 3.6 | 3.8 | 4.1 | 4.6 | 5.4 | 6.9 | 8.2 |
+| hits nothing | 45% | 16% | 7% | 4% | 2% | 1% | 0.4% | 0.2% | 0.2% | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 5% | 18% | 34% | 52% | 74% | 96% | 99% | 99% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=1 B=4 | 160 | 173 | 183 | 192 | 200 | 206 | 219 | 224 | 229 | 239 | 252 | 271 | 303 | 330 |
+| nodes hit | 2.4 | 2.9 | 3.3 | 3.6 | 3.9 | 4.1 | 4.5 | 4.8 | 5.0 | 5.4 | 5.9 | 6.9 | 8.4 | 9.9 |
+| hits nothing | 4% | 1% | 0.5% | 0.2% | 0.1% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 52% | 93% | 99% | 99% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+
+The same thresholds are in the threshold table above. Nodes hit at power 1 / 3 / 6 / 10 with **1 power
+per point** (no multiplier), against Lightning B's 3 / 8 / 15 / 23, with the rms error:
+
+| shape | nodes at 1 / 3 / 6 / 10 points | rms |
+|---|---|---|
+| A=2 B=2 | 3.6 / 5.4 / 7.5 / 9.9 | 7.65 |
+| A=1 B=3 | 0.7 / 2.0 / 3.0 / 3.8 | 11.79 |
+| A=1 B=4 | 2.4 / 3.3 / 4.1 / 5.0 | 10.81 |
+| A=2 B=1 | 0.7 / 3.0 / 4.6 / 6.7 | 10.05 |
+| A=3 B=0 (×3) | 0 / 2.6 / 5.2 / 8.4 | 9.31 |
+
+No shape here tracks the ladder at 1 power per point: all five fall 13 to 19 nodes behind it at
+10 points, because nodes hit grow linearly in power (0.4 to 0.8 per power) while the ladder gives
+about 2.3 per point. A grid search over A = 1 to 6 and B = 0 to 4, both in steps of 0.25, for the
+best 1:1 fit (nodes at power 1 / 3 / 6 / 10; the top five by rms):
+
+| rank | A | B | nodes at 1 / 3 / 6 / 10 points | rms | radius px |
+|---|---|---|---|---|---|
+| 1 | 4.75 | 0.25 | 3.5 / 8.3 / 15.3 / 23.6 | 0.45 | 152 · (√p + 0.25) |
+| 2 | 5.0 | 0 | 2.4 / 7.1 / 13.9 / 22.5 | 0.80 | 160 · √p |
+| 3 | 4.25 | 0.5 | 4.0 / 8.4 / 14.6 / 21.9 | 0.80 | 136 · (√p + 0.5) |
+| 4 | 5.25 | 0 | 2.7 / 7.8 / 15.4 / 24.7 | 0.88 | 168 · √p |
+| 5 | 4.5 | 0.25 | 3.1 / 7.5 / 13.7 / 21.4 | 1.08 | 144 · (√p + 0.25) |
+
+With B forced to 0 the best is A=5.0 (rank 2, rms 0.80). With A forced to 2 the best is B=3.75
+(8.5 / 11.2 / 14.3 / 17.6, rms 4.17, so it overshoots at 1 point and undershoots at 10); with A forced
+to 3 it is B=1.75 (rms 2.64). The back-of-envelope guess, A about 5 and B about 0 (radius about √p ×
+mean edge, 175 px, which is A = 5.5), is confirmed to within a quarter step: A = 5.5 B = 0 is outside the
+top five, A = 5.0 is the best plain multiplier, and a small offset (B = 0.25) improves it. What that
+radius does to Burning's go-off at excess 1 / 2 / 3 (radius px, nodes hit, share hitting nothing,
+share covering every neighbour):
+
+| shape | excess 1 | excess 2 | excess 3 |
+|---|---|---|---|
+| best fit A=4.75 B=0.25 | 190 px, 3.5, 0%, 99% | 253 px, 6.0, 0%, 100% | 301 px, 8.3, 0%, 100% |
+| A=5.0 B=0 | 160 px, 2.4, 4%, 52% | 226 px, 4.9, 0%, 100% | 277 px, 7.2, 0%, 100% |
+| A=2 B=2 | 192 px, 3.6, 0.2%, 99% | 219 px, 4.5, 0%, 100% | 239 px, 5.4, 0%, 100% |
+
+So the 1:1 best fit makes Burning's first stack hit the whole neighbourhood (3.5 nodes against 3.0
+neighbours) and the third hit 8 nodes, 3.2 times the ×3 disc (2.6 at excess 3); A=2
+B=2 gives the same first hit (3.6 nodes, radius 192 px) but only 5.4 at excess 3.
 
 **The disc in units of the map's spacing [S].** The radius rides on procgen spacing, which will be
 tuned, so the same disc as radius / min spacing (×2 is 0.43 · √p, ×3 is 0.64 · √p at 150 px). Cells are
@@ -267,6 +334,10 @@ price depends on it.
   rms 1.83) and 2.75 (3.2 / 8.1 / 15.4 / 24.2, rms 0.63). Plain ×3 at 3 is rms 0.66, ×2 at 7 is 1.08
   and at 6.5 is 0.51. With A=2 B=1 the price per point that tracks B is 5 (4 per point is rms 2.05,
   3 per point 4.5), and it makes 1 point a 100% neighbour cast with 4.1 nodes against B's 3.
+  At 1 power per point (Fire priced 1:1 with a Shock Arc level) the owner's shapes miss B by rms 7.7
+  (A=2 B=2), 10.8 (A=1 B=4), 11.8 (A=1 B=3), 10.1 (A=2 B=1) and 9.3 (×3); the best fit on a grid is
+  A=4.75 B=0.25 at rms 0.45 (3.5 / 8.3 / 15.3 / 23.6), and A=5 with no offset at rms 0.80. As Burning's
+  go-off that radius is 190 / 253 / 301 px at excess 1 / 2 / 3, i.e. 3.5 / 6.0 / 8.3 nodes.
 - Lightning: the seed becomes a hop ball; ring n costs n points. The thresholds are one exported array,
   so D's 1 / 3 / 5 / 8 / 12 is a retune and not a redesign.
 - Why: both give about 3 / 8 / 15 / 23 nodes at 1 / 3 / 6 / 10 points. Neither is dead at 1 point,
