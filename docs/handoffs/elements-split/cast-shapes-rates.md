@@ -8,7 +8,10 @@ Design research, 2026-11-10; nothing here is decided. Tags: **[M]** measured in 
 > we cost lightning?"* The ×2 form is *"i was actually thinking ×2. like twice the node radius = 1
 > node diameter"*, one radius for Burning's go-off, its light and the Fire shape. Both multipliers are
 > simulated below [S] and priced side by side. What a point of Fire shape costs is, in the owner's
-> words, *"very much up to debate"*.
+> words, *"very much up to debate"*. The owner's framing (owner, 2026-11-10): *"we are not here to
+> settle on a shape based on the procgen settings, we just want to set a good feel of an explosion
+> size, and if we change procgen node spacing settings later we might or might not tune the explosion
+> size with it"*.
 
 ## 1. What the maps look like
 
@@ -65,6 +68,57 @@ at 30, 14.9 at 40), and the ×3 disc about **0.84**: the same ratio as the areas
 disc holds 3.6 nodes against 3.0 graph neighbours (power 9 at ×2, power 4 at ×3, both radius 192 px):
 it also catches near nodes that share no edge. The owner's "2~3 to hit all your neighbors" is 3 to 4
 power at ×3 and 8 to 9 at ×2.
+
+**Offset form [S].** The owner's proposal, with the reason *"edge hops have no min distance.
+euclidean has. so this might help?"*: radius = A × (√p + B) × node radius (32 px here), so B = 0 is the
+plain multiplier. Same four rows for A = 2, B = 1 (the owner's example) and some other variants. The
+smallest B at which power 1 reaches the 118 px that a 32 px node at 150 px spacing needs is
+**B = 0.84375 for A = 2** (118 / 64 − 1) and **B = 0.229 for A = 3** (118 / 96 − 1); both reach a node
+in 0% of power-1 casts, since 118 px is only the nearest possible node, and the first nodes appear
+just above it.
+
+| p | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 9 | 10 | 12 | 15 | 20 | 30 | 40 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| radius px, A=2 B=1 | 128 | 155 | 175 | 192 | 207 | 221 | 245 | 256 | 266 | 286 | 312 | 350 | 415 | 469 |
+| nodes hit | 0.7 | 2.1 | 3.0 | 3.6 | 4.1 | 4.6 | 5.6 | 6.2 | 6.7 | 7.5 | 8.9 | 11.1 | 15.6 | 19.6 |
+| hits nothing | 45% | 5% | 1% | 0.2% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 5% | 40% | 96% | 99% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=2 B=0.5 | 96 | 123 | 143 | 160 | 175 | 189 | 213 | 224 | 234 | 254 | 280 | 318 | 383 | 437 |
+| nodes hit | 0 | 0.4 | 1.6 | 2.4 | 3.0 | 3.5 | 4.3 | 4.8 | 5.2 | 6.0 | 7.3 | 9.3 | 13.3 | 17.2 |
+| hits nothing | 100% | 69% | 14% | 4% | 1% | 0.3% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 0 | 1% | 20% | 52% | 96% | 99% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=2.5 B=0.5 | 120 | 153 | 179 | 200 | 219 | 236 | 266 | 280 | 293 | 317 | 350 | 398 | 478 | 546 |
+| nodes hit | 0.2 | 2.1 | 3.1 | 3.9 | 4.6 | 5.3 | 6.7 | 7.3 | 7.9 | 9.2 | 11.1 | 14.3 | 20.3 | 26.0 |
+| hits nothing | 85% | 6% | 0.8% | 0.1% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 0 | 38% | 98% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=2 B=0.84375 | 118 | 145 | 165 | 182 | 197 | 211 | 235 | 246 | 256 | 276 | 302 | 340 | 405 | 459 |
+| nodes hit | 0 | 1.7 | 2.6 | 3.2 | 3.8 | 4.3 | 5.2 | 5.7 | 6.2 | 7.1 | 8.3 | 10.5 | 14.8 | 18.8 |
+| hits nothing | 100% | 12% | 2% | 0.6% | 0.2% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 0 | 22% | 66% | 98% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+| radius px, A=3 B=0.229 | 118 | 158 | 188 | 214 | 237 | 257 | 294 | 310 | 326 | 355 | 394 | 451 | 548 | 629 |
+| nodes hit | 0 | 2.3 | 3.5 | 4.4 | 5.3 | 6.2 | 7.9 | 8.8 | 9.7 | 11.4 | 14.1 | 18.2 | 26.1 | 33.9 |
+| hits nothing | 100% | 5% | 0.3% | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour | 0 | 47% | 99% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% | 100% |
+
+Threshold powers (whole powers, uniform 32 px; the share at the threshold, then the share one power
+lower):
+
+| radius | ≥50% hit something | ≥90% hit something | ≥90% cover every neighbour |
+|---|---|---|---|
+| ×2 | 4 (55%; 0%) | 6 (95%; 86%) | 8 (98%; 81%) |
+| ×3 | 2 (76%; 0%) | 3 (98%; 76%) | 4 (99%; 70%) |
+| A=2 B=1 | 1 (55%) | 2 (95%; 55%) | 3 (96%; 40%) |
+| A=2 B=0.5 | 3 (86%; 32%) | 4 (96%; 86%) | 5 (96%; 52%) |
+| A=2.5 B=0.5 | 2 (94%; 15%) | 2 (94%; 15%) | 3 (98%; 37%) |
+| A=2 B=0.84375 | 2 (88%; 0%) | 3 (98%; 88%) | 4 (98%; 66%) |
+| A=3 B=0.229 | 2 (95%; 0%) | 2 (95%; 0%) | 3 (99%; 47%) |
+
+A=2 B=1 against ×3: the two radii are equal at power 4 (192 px, 3.6 nodes each). Below it A=2 B=1 is
+larger (128 / 155 / 175 px against 96 / 136 / 166 at power 1 / 2 / 3), above it smaller (256 against
+288 px at power 9, 350 against 429 at 20, 469 against 607 at 40; 19.6 nodes against 31.7 at power 40),
+and its linear slope past power 12 is about 0.40 nodes per power against 0.84. What the offset does to
+Burning's go-off at excess 1 / 2 / 3: A=2 B=1 reaches 0.7 / 2.1 / 3.0 nodes and hits nothing in 45% /
+5% / 1% of casts, against 0 / 1.2 / 2.6 and 100% / 24% / 2% at ×3 and 0 / 0 / 0 and 100% at ×2.
 
 **The disc in units of the map's spacing [S].** The radius rides on procgen spacing, which will be
 tuned, so the same disc as radius / min spacing (×2 is 0.43 · √p, ×3 is 0.64 · √p at 150 px). Cells are
@@ -142,6 +196,10 @@ Nodes reached at 1 / 2 / 3 / 5 / 10 points:
 | A3 | same, ×3 | 2.6 | 5.2 | 7.6 | 12.5 | 24.2 |
 | A4 | Fire, 1 point = 4 blast power, ×2 | 0.7 | 3.2 | 4.7 | 7.6 | 14.9 |
 | A4 | same, ×3 (1 point is the neighbour disc) | 3.6 | 6.9 | 10.1 | 16.7 | 31.7 |
+| A1 | same, A=2 B=1 | 0.7 | 2.1 | 3.0 | 4.1 | 6.7 |
+| A2 | same, A=2 B=1 | 2.1 | 3.6 | 4.6 | 6.7 | 11.1 |
+| A3 | same, A=2 B=1 | 3.0 | 4.6 | 6.1 | 8.9 | 15.6 |
+| A4 | same, A=2 B=1 | 3.6 | 5.6 | 7.5 | 11.1 | 19.6 |
 | A5 | Fire, 1 point = 5 blast power, ×2 (1 point is about 1 node) | 1.6 | 4.0 | 5.8 | 9.3 | 18.3 |
 | A6 | Fire, 1 point = 6 blast power, ×2 (1 point hits something in 95% of casts) | 2.2 | 4.7 | 6.9 | 11.2 | 21.7 |
 | A7 | Fire, 1 point = 8 blast power, ×2 (1 point is the neighbour disc) | 3.2 | 6.2 | 9.0 | 14.9 | 28.4 |
@@ -200,6 +258,15 @@ price depends on it.
   something in 98% of casts and every neighbour in 70%; the ×2 price in 98% and 81%. So the cost of ×2
   against ×3 is not a different curve but a price 7 / 3 = 2.3 times higher per point, and a 1-point
   cast that always covers every neighbour needs 4 power per point at ×3 and 8 at ×2.
+  The offset variants, same fit to B (best whole price, then best price in steps of 0.25, each as
+  nodes at 1 / 3 / 6 / 10 points and rms error against 3 / 8 / 15 / 23): A=2 B=1 at 5 per point
+  (4.1 / 8.9 / 15.6 / 23.4, rms 0.80) and 4.75 (4.0 / 8.5 / 14.9 / 22.5, rms 0.63); A=2 B=0.5 at 6
+  (3.5 / 8.4 / 15.7 / 24.4, rms 0.83) and 5.75 (3.4 / 8.1 / 15.1 / 23.5, rms 0.31); A=2.5 B=0.5 at 3
+  (3.1 / 7.3 / 13.0 / 20.3, rms 1.72; 4 gives 1.90) and 3.5 (3.5 / 8.2 / 15.0 / 23.1, rms 0.28);
+  A=2 B=0.84375 at 5 (3.8 / 8.3 / 14.8 / 22.6, rms 0.48); A=3 B=0.229 at 3 (3.5 / 8.8 / 16.7 / 26.1,
+  rms 1.83) and 2.75 (3.2 / 8.1 / 15.4 / 24.2, rms 0.63). Plain ×3 at 3 is rms 0.66, ×2 at 7 is 1.08
+  and at 6.5 is 0.51. With A=2 B=1 the price per point that tracks B is 5 (4 per point is rms 2.05,
+  3 per point 4.5), and it makes 1 point a 100% neighbour cast with 4.1 nodes against B's 3.
 - Lightning: the seed becomes a hop ball; ring n costs n points. The thresholds are one exported array,
   so D's 1 / 3 / 5 / 8 / 12 is a retune and not a redesign.
 - Why: both give about 3 / 8 / 15 / 23 nodes at 1 / 3 / 6 / 10 points. Neither is dead at 1 point,

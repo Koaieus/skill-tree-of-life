@@ -103,15 +103,34 @@ sit `ORDER.md` (the clerk work order), `inner-tree.md` and `adr-fixes.md`
 (the two sibling bodies), `split-comment.md` (the hub comment) and
 `close-<n>.md` (six closing comments).
 
-**Explored, not decided (2026-11-10; quotes in the doc, § The threshold
-model, "Size"):** the disc's multiplier — ×2 (*"twice the node radius = 1
-node diameter"*) and ×3 (today's Explosive disc) are both contenders, and it
-*"depends on how we cost lightning"*. Owner on Lightning's shape: *"the
-proposed "1 for ring 1, 3 for rings 1+2, etc" sounds pretty good"* (a lean).
-One radius serves Burning's go-off, its light and a Fire shape on a cast.
-The owner flags the radius as fragile, tied to a procgen spacing value. The
-bodies keep their current size lines (`burning.md` knob 1.0, a knob either
-way). `cast-shapes-rates.md` carries simulated tables for both multipliers.
+**START HERE — two design questions the owner wants settled, in this order
+(2026-11-10, nothing decided):**
+1. **The disc's size formula**, one radius for Burning's go-off, its light
+   and a Fire shape on a cast. Contenders: ×3 (today's Explosive disc; owner:
+   *"×3 sounds like the better deal here"*, *"the ×3 lining up so nicely for
+   parity does look good"*) and an offset form the owner proposed, *"`r(p) =
+   A*(sqrt(p) + B) * node_radius` with e.g. A=2 and to offset: B = 1 — edge
+   hops have no min distance. euclidean has. so this might help?"*. Frame
+   (owner): *"we are not here to settle on a shape based on the procgen
+   settings, we just want to set a good feel of an explosion size … here to
+   settle a good starter shape that lets us move forward"*. Simulated, in
+   `elements-split/cast-shapes-rates.md`: both give the neighbour disc at
+   power 4 (192 px); the offset form is live at power 1 (0.7 nodes, 55% of
+   casts hit something; ×3 hits nothing) and smaller above 4 (19.6 nodes at
+   power 40 against 31.7). Against Lightning's ring ladder (owner lean: *"1
+   for ring 1, 3 for rings 1+2, etc sounds pretty good"*; 3 / 8 / 15 / 23
+   nodes at 1 / 3 / 6 / 10 points): ×3 tracks it at 3 power per point (rms
+   0.66), A=2 B=1 at 5 per point (rms 0.80). The doc's "Size" paragraph
+   (§ The threshold model) says the multiplier is open and names only ×2 and
+   ×3: write the outcome there.
+2. **Mixing**, owner's words: *"how do we mix e.g. `N Burning|Shocked|Frozen`
+   on node with incoming `M Fire/Ice/Lightning` in the cast (besides `O
+   Heat/Cold/Charge` stacks added as regular riders)"*. Not opened yet. The
+   cast-shapes menu (`elements-split/ice-cast.md`, fork 5) has a tentative
+   pass reading; the doc's § Shape and ride and § Pair rules are the read.
+
+The bodies keep their current size lines (`burning.md` knob 1.0, a knob
+either way) until question 1 is settled.
 
 **Owner on how this pass must run** (2026-11-10): *"a session that mainly
 first should read the bare minimum of getting a full grip of what is to be
