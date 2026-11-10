@@ -38,3 +38,8 @@ Do, as step 0 of "Left" (before the review round, so each writer does both in on
 - Bodies it touches: `resolver.md`, `go-off-zero.md`, `burning.md`, `lightning.md`, `pairs.md`, `cast-shapes.md`, and any Ice combo arithmetic in `ice.md` / `ice-cast.md` (a ×4 concentrated seed now copies at ×4, twice on the seed node). Give these writers the call together with their `REVIEW.md` findings. It also bears on rulings F2 (GoOff's four returns) and F4 / F6 (dedupe, dual reach).
 - OPEN, do not decide in a body, add to the owner batch: (1) whether a cast's shape alone, on an unprimed node, counts as a channel for the seed (every shaped cast would then land twice on it); (2) Frozen's shatter tuned to match the doubling.
 - The owner wants to hear what this does to the units: which acceptance items move, anything it breaks. Have each of those writers report exactly that, and put it in the report to the owner.
+
+### Follow-up to the whole-hit call (relayed 21:08)
+Open item (1) is ANSWERED by the owner: **a cast's shape alone is not a channel for the seed.** A Fire- or Lightning-shaped cast on an unprimed node lands once on its seed; the extra landing on the hit node comes only from a primed node going off. Written at the end of "Every landing is a whole hit" in `docs/design/elements.md` § Landing resolution (master commit "a cast's shape alone is not a channel for the seed"). Drop (1) from the owner batch.
+Tentative, the fork session's reading and not the owner's: a shape added into a primed node's go-off of the same element counts as that node's one channel, so the seed takes 2. Carry it as tentative in `cast-shapes.md`.
+Still open for the owner: Frozen's shatter tuned to match the doubling.
