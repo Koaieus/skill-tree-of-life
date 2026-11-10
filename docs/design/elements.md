@@ -107,19 +107,22 @@ stacks included, chained links flat (owner, 2026-11-08: *"everything rides
 yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
 the cap and decay are the brakes.
 
-**Size.** Burning's disc is Euclidean, radius ≈ √power × node radius × a
-multiplier, power = the excess (owner, 2026-11-08: *"size(N) ≈
-sqrt(N)×node_radius so chances are power 1 doesn't hit any node, but that's
-tuning"*). It is one radius with three readers (owner, 2026-11-10:
-*"burning's go-off would be the same AoE radius here, as burning's light
-source, as well as the proposed "Fire reach" part of a spell"*): the go-off's
-disc, Burning's light, and a Fire shape on a cast (§ Shape and ride). **The
-multiplier is not settled** (owner, 2026-11-10: *"so far no calls made, just
-still exploring. 2× sounds like a good contender, 3× might be too, depends on
-how we cost lightning?"*; ×2 is *"twice the node radius = 1 node diameter"*,
-×3 is today's Explosive disc). Open with it: the radius is tied to a procgen
-value (owner: *"this *is* somewhat fragile: basing the euclidean distance on
-a procgen param that will surely be tweaked in the future"*).
+**Size.** Burning's disc is Euclidean, radius = A × (√power + B) × node
+radius with A = 2 and B = 1, power = the excess (owner, 2026-11-10, picked
+A=2, B=1 over today's ×3, A=2 B=2 and a 1:1 fit; the form is the owner's:
+*"`r(p) = A*(sqrt(p) + B) * node_radius` … edge hops have no min distance.
+euclidean has. so this might help?"*). The offset keeps a small blast alive:
+on 150 px spacing power 1 / 2 / 3 / 4 reaches 0.7 / 2.1 / 3.0 / 3.6 other
+nodes and covers every neighbour from power 3 (`tools/disc_reach.py`). It is
+one radius with three readers (owner: *"burning's go-off would be the same
+AoE radius here, as burning's light source, as well as the proposed "Fire
+reach" part of a spell"*): the go-off's disc, Burning's light, and a Fire
+shape on a cast (§ Shape and ride). A and B are knobs, a starter feel and not
+a fit to the map (owner: *"we are not here to settle on a shape based on the
+procgen settings, we just want to set a good feel of an explosion size, and
+if we change procgen node spacing settings later we might or might not tune
+the explosion size with it"*). Today's Explosive disc keeps its ×3 until the
+retag deletes it.
 Shocked's hops: level
 L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
 
@@ -597,11 +600,28 @@ a spell talks in *level*, where level N gathers up to N hops from target.
 level 1 -> ring 1; 2->ring 2. cost: {level} aka 1, +2 (3), +3 (6), etc"*). So
 the seed lands on every node within N hops, level N costs 1 + 2 + … + N
 points, and the walk's own `max_hops` is untouched — this replaces "lengthens
-the walk by whole hops" in the table above. Fire's shape is meant to cost the
-same way, one point as one blast power (owner: *"burning if we do it right
-with the A and B might work as is 1:1, as if it is Shock Arc's "level"
-already"*), which is a condition on the disc's size formula (§ The threshold
-model, "Size"), not yet met or settled.
+the walk by whole hops" in the table above. Fire's shape feeds the disc's one size
+formula (§ The threshold model, "Size") with points × a multiplier (owner,
+2026-11-10: *"same shape, with multiplier. and the fit neednt be precise, the
+ballpark should feel right"*); the multiplier is a knob, 5 as the tentative
+default (at A=2, B=1 it gives 4.1 / 8.9 / 15.6 / 23.4 nodes at 1 / 3 / 6 / 10
+points against Lightning's 3 / 8 / 15 / 23).
+
+**A shape and a primed node of the same element add up** (owner, 2026-11-10,
+picked over two independent go-offs and over the shape replacing the node's:
+*"such that effective powers of local + incoming stay invariant basically. N
+lightning shape hitting level M Shocked node creates N+M level arc (e.g.
+1+1=2, 2 hops out)"*). One go-off, not two. A different element stays
+independent: the shape lands its hits and the node goes off by its own rule.
+Tentative reading for Fire: the shape's blast power (points × the multiplier)
+is added to the node's excess, one disc. Open: what the node spends for the
+combined go-off.
+
+**A landing a shape adds carries what a go-off copy carries** (owner,
+2026-11-10: *"same as what would happen if the cast had no reach but the node
+was Burning/Shocked"*): the go-off's share of the seed's damage and riders,
+the seed's crit, and it is a copy to a Frozen node. The seed itself lands in
+full.
 
 ## Ice on a cast: concentrate (owner, 2026-11-04/05/08/10)
 
@@ -1260,7 +1280,7 @@ hit; the keystone grants its element while held.
   Still open: (f) **Charge** collides
   with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue.
 - **Knobs** (§ The threshold model): T = 2 × degree, k, the hop ladder's
-  L² × T, the disc's √power × node radius × its multiplier, the decay rates — tuned with
+  L² × T, the disc's A and B, the decay rates — tuned with
   #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops
