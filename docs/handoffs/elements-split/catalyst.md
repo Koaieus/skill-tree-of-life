@@ -98,7 +98,6 @@ docs/design/elements.md:929-931 — Catalyst keeps its own decay
 docs/design/elements.md:950-987 — the three "explosive"s; the vocabulary guard
 docs/design/elements.md:1023-1048 — the retag list
 docs/design/elements.md:1148-1152 — the `charge` tag freed for Lightning
-docs/handoffs/elements.md:318-329 — the child-5 orphan checklist
 docs/handoffs/fuel-to-catalyst-arc.md:128-149 — every Explosive artifact and its history
 docs/domain/explosive.md:1-190 — what is today, to rewrite
 attack/spell/aspect_intake.gd:44-75 — the default-face map that dies
