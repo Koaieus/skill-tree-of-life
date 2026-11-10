@@ -74,7 +74,7 @@ no rule of its own:
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
-| **Frozen** | denies: a copy under the break threshold is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) if the node is still Frozen after those riders; a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
+| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) if the node is still Frozen after those riders; a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
 across the triad: a trigger pays 1 stack per target its reach touches —
@@ -116,7 +116,11 @@ nodes and covers every neighbour from power 3 (`tools/disc_reach.py`). It is
 one radius with three readers (owner: *"burning's go-off would be the same
 AoE radius here, as burning's light source, as well as the proposed "Fire
 reach" part of a spell"*): the go-off's disc, Burning's light, and a Fire
-shape on a cast (§ Shape and ride). A and B are knobs, a starter feel and not
+shape on a cast (§ Shape and ride). **Every disc is sized by the node it
+originates from** (owner, 2026-11-11: *"Fire disc and burning disc are
+basically one and the same. Each disk originating from a node uses that
+node's radius for sizing"*): a go-off's by its own node's radius, a Fire
+shape's by its seed node's. A and B are knobs, a starter feel and not
 a fit to the map (owner: *"we are not here to settle on a shape based on the
 procgen settings, we just want to set a good feel of an explosion size, and
 if we change procgen node spacing settings later we might or might not tune
@@ -137,24 +141,26 @@ its holder as Poison does (owner, 2026-11-09: *"i think catalyst only sits on
 allocated nodes like most/all Aspect statuses (but we can always make an
 exception and make it owner-agnostic)"* — taken as settled: it is exactly the
 shape the Explosive status already has, so the retag changes no lifecycle,
-and a blast's copies land on hostile allocated nodes anyway). When a hit whose
-payload carries exactly one element rider (Heat, Cold or Charge) lands on a
-node holding Catalyst, the node's whole Catalyst store converts 1:1 into that
-element (ratio 1:1 a knob), so 3 Catalyst plus an incoming 2 Heat is 5 Heat on
-the node. The conversion happens in the **land** phase, the rider's stacks
-amplified as they are added, so § Landing resolution's order stands: the
-converted stacks count toward this hit's primed-ness and power. **Colouring** (owner, 2026-11-09: *"option 1. or: also when "igniting"? in
+and a blast's copies land on hostile allocated nodes anyway). When a hit with
+a **primary element** (below) lands on a node holding Catalyst, the node's
+whole Catalyst store converts 1:1 into that element's terrain stack (Heat,
+Cold or Charge; ratio 1:1 a knob), so 3 Catalyst plus an incoming 2 Heat is 5
+Heat on the node. The converted stacks join whatever rider of that stack the
+hit carries, possibly none: a Fire-shaped cast riding Charge turns the store
+into Heat and lands its Charge beside it. The conversion happens in the
+**land** phase, so § Landing resolution's order stands: the converted stacks
+count toward this hit's primed-ness and power. **Colouring** (owner, 2026-11-09: *"option 1. or: also when "igniting"? in
 the broadest sense like when enough Heat turns into Burning (through flow,
 hits already covered), or when Cold turns into Frozen, or when Charge turns
 into Shocked? still element-symmetric right?"*). Owner call, 2026-11-09,
 picked *hits and priming*: the whole store converts into an element in
-exactly two cases, (a) a hit carrying that
-element's rider lands on its node (land phase), (b) the node primes, its
+exactly two cases, (a) a hit whose primary is that
+element lands on its node (land phase), (b) the node primes, its
 stack crossing T into Burning, Frozen or Shocked by any route, read at
 settle. Flow below T never colours it. The rule is symmetric; in practice only
 temperature reaches T without a hit, since Charge never flows and an arc's
 copy is a hit, which is Charge's "stays put" character, not a rule. A goo
-arrow landing on an already-primed node carries no element and flips nothing:
+arrow landing on an already-primed node has no primary and flips nothing:
 it is an ordinary trigger, the blast goes off at the node's current excess
 and its copies carry the Catalyst rider over the disc (barrels laid where the
 blast reached), while the Catalyst on the node itself waits for the next
@@ -164,22 +170,31 @@ option 1 sounds best for now. option 2 is more like the Greed's "slice"
 mechanics but that was mostly needed to make multi-status payloads play nice.
 and iff we decide a hit can have at 0 or 1 Element associated with it then we
 don't need the "slice" part and can just consume all"*): the whole store, 1:1,
-no slice. A hit carries 0 or 1 element (§ The forge's one element per cast,
-generalised to every hit; copies carry the root hit's one element). A copy is
-a hit, so a blast's or arc's copies carrying
-an element rider colour the Catalyst on every node they reach. It is the
+no slice. **A hit carries 0 or 1 primary element** (owner, 2026-11-11: *"And
+i think hits carry 1 or 0 primary elements, additional riders don't count
+towards that. A spell with Fire reach on it is a fire spell and if it had
+Charge or Cold riders besides that it's still a fire spell."*): a cast's
+shape element when it has one (§ Shape and ride), whatever element riders
+ride beside it; with no shape, the element of its one element rider (a fire
+arrow is Fire). Copies carry the root hit's primary. A copy is a hit, so a
+blast's or arc's copies colour the Catalyst on every node they reach with
+the root hit's primary. A hit with two element riders is open (§ Open). It is the
 element analogue of Greed: Catalyst multiplies incoming element stacks the way
 Greed multiplies aspect stacks, and Greed must not (owner, 2026-11-09: *"in
 essence this is almost like what Greed is for Aspect Statuses, but for
 Elements (i think Greed shouldn't multiply incoming Heat/Cold/Charge stacks,
-but Catalyst may?)"*). Catalyst stays put (no flow) and decays slowly (knob);
+but Catalyst may?)"*). Catalyst stays put (no flow) and decays slowly, per
+world turn (owner, 2026-11-11, accepted when asked; the rate a knob);
 the map's barrels are the Catalyst addon on map nodes, as the Explosive
 barrel addon is today. **Catalyst is an
 aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
 option 1. w/visually like purple crystals or smth instead of black goo"*; the
 line behind it: *"Aspects do anything else"*): one status, side-less terrain,
 count `catalyst_aspect`, school DEX (where Explosive sits), facets
-`catalyst_stacks_per_hit` / `catalyst_resistance`; the goo arrow plants it. Two volley shapes: Heat arrows
+`catalyst_stacks_per_hit` / `catalyst_resistance`. The goo arrow plants it, a
+plain arrow with a Catalyst rider (owner, 2026-11-11: *"Catalyst arrow is
+just a regularly hitting arrow with catalyst rider. It plants catalyst
+stack(s). Not much different from a poison arrow."*). Two volley shapes: Heat arrows
 sustain, each landing adding its own stacks; Catalyst-then-Heat makes the
 first Heat landing a big one (3 Catalyst plus 1 Heat on a leaf, T 2, is
 Burning at once with excess 2). No node holds Catalyst at a go-off that
@@ -229,7 +244,11 @@ crit hit landing on the node**, and **any damage at or above a flat
 threshold** — a knob, default 10% of the holder's max HP, deliberately *not*
 scaling with excess (owner: *"a flat amount not scaling with excess. else it
 would mean that a deep-frozen node would require more damage to shatter
-right? and that doesn't sound good"*). Each triggers the shatter.
+right? and that doesn't sound good"*). Each triggers the shatter. **A Frozen
+node with no holder has no flat breaker** (owner, 2026-11-11, accepted when
+asked): there is no max HP to measure against, so a copy that does not crit
+is absorbed whatever its damage, and the ice breaks only by a crit or a
+blade touch (the burst is nothing there); Heat and decay still end it.
 **Breaking the ice counts as a channel** (owner, 2026-11-10, night: *"Break
 counts as a channel (or more radical: 2, more concentrated single target
 vibes) sounds like a fitting unification"*), Frozen's match for the whole hit
@@ -275,7 +294,10 @@ per hit.
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
 make each node lose e.g. at least 1 heat/cold (towards net 0) per tick, it
-should eventually cool off"*), Charge likewise, Catalyst slowly — knobs. The
+should eventually cool off"*), Charge likewise. That 1 is the element's rate
+below its first band (owner, 2026-11-11, accepted when asked); each band
+above it answers its own rate (§ Derived states), the overflow's fast.
+Catalyst decays per world turn too, slowly, its rate a knob. The
 Metropolis step is the discrete graph-Laplacian step; its integer floor is a
 dead band, and the decay clears it. Every warm node loses one, so spread heat
 cools faster than a lump: no board-wide budget is needed.
@@ -441,7 +463,7 @@ the elements so far:
 | **shape** (bespoke, per spell) | spell-specific: Firecracker's blast waves, Ice concentrate (§ Ice on a cast) | whichever count it names |
 
 - **No use gives a hit reach.** A shape use may reshape the cast (Ice trades
-  hops for seed payload before it leaves), but reach at a landing is read off
+  hops for payload before it leaves), but reach at a landing is read off
   the node alone.
 - **A spell carries at most one element, and the forge adds to it or swaps
   it** (owner, 2026-11-09: *"the spell should carry at most one Element
@@ -464,18 +486,29 @@ the elements so far:
   knobs base 10 (*"maybe 10 is a better starting cap"*, after a first 15)
   and 5 per degree. **The loadout gates the caster** (owner, picked over
   sorting casters by degree and over clamping the loadout to today's pick):
-  a loadout of P points is a higher `min_degree`, so only nodes that can
-  carry it are sources, targets light up for those alone, and among them the
-  pick stays the highest node-local `spell_damage`. A heavier loadout
-  reaches fewer targets, the reach tax `min_degree` already is. Adding a
-  point after the target is picked re-picks the source among those that can
-  carry it, or the socket refuses the point. The forge needs a target-first
-  way back (owner: *"an intuitive way to scale loadout back to cap at 0
-  overqualification so the targets are there again. and some helpful text
-  like "no qualified casters for this loadout | there are {n} targets hidden
-  because of this [reset to cap]" but snappier"*), and once a target is
-  picked it shows the real cap, the best capacity among the casters that
-  reach it. #744's heatmap is the neighbouring display.
+  a loadout of P points is a higher `min_degree` for the source, and among
+  the casters that can carry it the pick stays the highest node-local
+  `spell_damage`. **It never hides a target** (owner, 2026-11-11: *"hiding
+  casters also hides targets and *those* we don't wanna hide. But we do want
+  to indicate potential to overclock it."*): every node the spell's eligible
+  casters reach stays a target whatever the loadout, and the forge indicates
+  the overclock potential instead (how, § Open). This amends ADR 0085 §4
+  (*"targets light up for those alone"*) and its consequence that a heavier
+  loadout reaches fewer targets; the next ADR on the forge records it. Once a
+  target is picked the forge shows the real cap, the best capacity among the
+  casters that reach it. **A point past the source's cap**: a non-aimed spell
+  re-picks its source among the casters that reach the target and can carry
+  it, or the socket refuses the point (owner, 2026-11-11: *"most spells use
+  no aiming step and repicking is non invasive (they weren't hand picking the
+  source anyway)"*); an aimed spell refuses it, since its aim picked the
+  source (owner, 2026-11-11: *"aiming does implicitly confirm the
+  source"*). Owner idea, 2026-11-11, not built: *"Non aimed spells don't
+  confirm it as visually as they should perhaps an initial trajectory hint
+  line like slightly curved upward dashes moving forward etc could help"*.
+  **The way back** (owner, 2026-11-10: *"an intuitive way to scale loadout
+  back to cap at 0 overqualification"*) is a one-shot trim to the base cap
+  (owner, 2026-11-11, accepted when asked): the next socket write walks
+  against the cap in force again. #744's heatmap is the neighbouring display.
 - **An element arrow is its own ammo type, one per element** (owner,
   2026-11-09: *"arrow pools are *per type* given Fuel is now an Aspect called
   Catalyst, we can reintroduce plain fire arrows that simply add heat stacks.
@@ -612,7 +645,7 @@ without a decay**, and its rate is the knob that tunes buildup. Rejected: a
 copy carrying every rider except the stack its go-off spent.
 
 **A copy lands raw.** `ceil(r × s)` of the hit's payload *as cast* — after a
-cast-time shape (an Ice concentrate) put its mass on the seed, before any
+cast-time shape (an Ice concentrate) put its mass on the cast, before any
 per-landing fold — so `stacks_per_hit` never multiplies with reach (#1733
 R2). A hit's copies take the hit's own target mask (the shipped bolt filters
 to hostile); only a terrain hit is side-blind, so terrain is side-less but a
@@ -656,19 +689,21 @@ reach)"*):
 |---|---|
 | Fire | widens the seed into a disc |
 | Lightning | the seed gathers every node within N hops (level N) |
-| Ice | shortens the walk and pays the seed (§ Ice on a cast) |
+| Ice | shortens the walk and pays what is left of it (§ Ice on a cast) |
 
 Owner on this table: *"that's exactly what i'd been trying to convey all this
 time"*. A spell authors a default for each (or none) and the forge lets the
-caster replace or add to either, beside the aspect slots. The build is its
+caster replace or add to either, beside the aspect slots. A cast with several
+seeds shapes every seed (owner, 2026-11-11, accepted when asked). The build is its
 own design issue, and until it lands an element on a cast is a ride only.
 
 **Three kinds of slot at the forge** (owner, 2026-11-10: *"one slot
 determines the color of the crystal in your wand {= reach}, another slot for
 elemental payload {at most 1}, and 'regular' slots besides that"*). The one
 element field (§ The forge) is the **shape**; a second field holds the
-**ride**, one terrain element at most, so a hit still carries 0 or 1 element;
-the aspect slots stay aspects. Shape and ride may be different elements,
+**ride**, one terrain element at most; the aspect slots stay aspects. A hit
+still carries 0 or 1 primary element, the shape's when the cast has one
+(§ The threshold model, Catalyst). Shape and ride may be different elements,
 each drawing its own count; the same element splits one count between them
 (owner: *"say you got 3 Fire … you can spend 1 there and 2 on Heat for 2 Heat
 stack riders"*), and the spell's authored baseline is free on top. The ride
@@ -698,13 +733,20 @@ points against Lightning's 3 / 8 / 15 / 23).
 picked over two independent go-offs and over the shape replacing the node's:
 *"such that effective powers of local + incoming stay invariant basically. N
 lightning shape hitting level M Shocked node creates N+M level arc (e.g.
-1+1=2, 2 hops out)"*). One go-off, not two. A different element stays
+1+1=2, 2 hops out)"*). One go-off, not two. **On a Frozen node a Fire or
+Lightning shape runs alone** (owner, 2026-11-11, accepted when asked):
+Frozen mutes the node's own go-off (§ Pair rules), never the cast's shape,
+so the shape lands as on an unprimed node; once the hit breaks the ice, a
+shape of the released go-off's element adds into it and a different one runs
+beside it (§ Landing resolution, "Dual reach"). (Ice's own case is the
+shatter, § Ice on a cast.) A different element stays
 independent: the shape lands its hits and the node goes off by its own rule,
 the two reaches concatenated (§ Landing resolution, "Dual reach").
 
 **Fire adds the roots** (owner, 2026-11-10, picked over adding the powers
 and over excess counting as points): r = A × (√(points × multiplier) +
-√excess + B) × node radius. Shocked's level is √(count / T), so Lightning's
+√excess + B) × the seed node's radius (§ The threshold model, "Size").
+Shocked's level is √(count / T), so Lightning's
 N + M already adds in the reach domain, and this is its mirror. A 3-point
 shape reaches about 9 nodes alone and about 17 on a node of excess 4. Both
 elements are superadditive in area by this choice.
@@ -735,7 +777,7 @@ lays Heat at share over its whole disc in one cast.
 
 Burning and Shocked add copies at a landing. Ice concentrate does the
 opposite **at cast time**: an Ice load rewrites the spell's own hops down and
-pays the seed payload up (owner, 2026-11-08: *"ice concentration should i
+pays up the payload of the walk that is left (owner, 2026-11-08: *"ice concentration should i
 think still be a thing just not sure how"*). It reads the cast, not the node,
 because the only copies it can remove are the cast's own walk; an arrow or a
 blade has no walk, so their Ice faces are Cold ride rows. Owner: *"a 4-hop
@@ -754,12 +796,17 @@ plain Cold ride): a `LoadUse` subclass (ADR 0070's open set), the shape the
 owner sketched on 2026-11-05 (*"some resource? like most spells -> just
 reduce hops. some others -> maybe reduce max visits. something that takes the
 ice-suppression value and uses it to alter the cast spell?"*). At cast it
-spends the row's load as a hop cut and writes a seed multiplier; the resolver
-reads both once. A variant that cuts `max_visits` is a second subclass, built
-when a spell needs it. A spell with nothing to cut (0 hops, or unbounded
-hops) authors no gain on its Ice row and so refuses Ice.
+spends the row's load as a hop cut and writes a multiplier on the cast's
+payload; the resolver reads both once. **The multiplier rides the whole
+shortened walk** (owner, 2026-11-11, accepted when asked): every landing of
+the walk that is left carries it, the seed's and each later hop's. A variant
+that cuts `max_visits` is a second subclass, built when a spell needs it. A
+spell with nothing to cut (0 hops, or unbounded hops) authors no gain on its
+Ice row and so refuses Ice. A spell with no authored Ice row concentrates at
+the defaults below when Ice is forged into its shape field (owner,
+2026-11-11, accepted when asked); a Cold ride still plants Cold.
 
-**The price is one number per spell, default +50% of the seed per hop
+**The price is one number per spell, default +50% of the payload per hop
 removed** (owner, 2026-11-10, picked *one number per spell, default 0.5* over
 a small named set and a per-hop ladder; the worry it answers: *"a +50% per
 hop lost is decent, but very rough. might need +100% in some cases, or +25%
@@ -767,8 +814,9 @@ in others.. like not sure but i think this is gonna bite us"*; the lean:
 *"L is (very) roughly quadratic, but we dont want to cncentrate ALL that,
 there's benefit to having things concentrated at all, even if it'd be, say,
 a.. +50% boost for each hop removed. e.g. from 6->3 hops = -3 = +150%
-damage"*). Seed × (1 + bonus × hops removed), the bonus one exported knob on
-the use, default 0.5: Pestilence 6 → 3 lands its seed at ×2.5, 6 → 0 at ×4.
+damage"*). Payload × (1 + bonus × hops removed), the bonus one exported knob
+on the use, default 0.5: Pestilence 6 → 3 lands every landing of its 3-hop
+walk at ×2.5, 6 → 0 its one seed landing at ×4.
 The walk it gives up is worth far more than that (the table below), and that
 is the point: focus is the purchase, not a refund of the area. Rejected: the
 seed multiplied by the measured landings it gave up (L(H) / L(h), ~84× for
@@ -832,6 +880,15 @@ and one spell may carry both as two rows, since rows key on the status or use
 they run, never on the bare element (#1660 B2), while the one `ice_element` count
 budgets both.
 
+Owner idea, 2026-11-11, not decided: *"It almost feels like the ice row (by
+which you mean the field/slot on the spell to specify it's behavior of Ice
+being added right?) is one of three fields: how does it react to: adding
+fire adding lightning adding ice. Tho fire and lightning are always the same
+so far: "produce some AoE or hops spread". Possibly for Firecracker the fire
+behavior may be overridden?"* So the Ice row may become one of three
+per-spell shape-reaction fields, Fire and Lightning defaulting to the
+standard shape and overridable per spell.
+
 **A concentrated seed on a primed node is a combo**, not an exploit to rule
 out. The seed lands with its concentrated payload and a Burning or Shocked
 node copies it at share like any payload (owner, 2026-11-05: *"hitting
@@ -840,7 +897,8 @@ but on the defender's side (incoming hit proliferates via hops or AoE boom)
 instead of on the attacker's side … and ice + fuel sounds like a combo why
 not?"*). The per-hop bonus bounds it: Pestilence concentrated from 6 hops to
 0 carries ×4 a landing's payload, and at share 1 every disc node takes that
-×4, the seed node twice.
+×4, the seed node twice. The multiplier rides the walk, so a later hop that
+lands on a primed node is the same combo at that node.
 
 ## Landing resolution (owner, 2026-11-05)
 
@@ -1033,9 +1091,9 @@ hit node's landings (Dual reach, above). **A cast's shape alone is not a
 channel for the seed** (owner, 2026-11-10: *"the shape for
 spells hmmm i think that one shouldn't count"*): a shaped cast on an
 unprimed node lands once on its seed, and the extra landing comes only from
-a primed node going off. Pass reading, tentative: a shape added into a
-primed node's go-off of the same element is that node's go-off, one
-channel, so the seed takes 2.
+a primed node going off. A shape added into a primed node's go-off of the
+same element is that node's go-off, one channel, so the seed takes 2 (owner,
+2026-11-11, accepted when asked).
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -1083,14 +1141,15 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold is absorbed (its terrain riders still land) and the path ends if the node is still Frozen after them; a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, breaking it only if at least as heavy as the node | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends if the node is still Frozen after them; a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, breaking it only if at least as heavy as the node | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
 asked for, *trapped until broken*): a node both Frozen and Shocked does not
 arc — the Charge sits trapped under the ice, and Charge an arrival lands joins
 it — and the hit that breaks the ice sets off the Shocked state in the same
-settle: crack the ice, release the storm, plus the shatter burst. Freezing a wire cuts it and stakes
+settle: crack the ice, release the storm, plus the shatter burst. A cast's
+shape is not muted (§ Shape and ride). Freezing a wire cuts it and stakes
 the trapped Charge as a visible bomb. One compound read, never a
 re-evaluation: the breaking hit's crit and damage are its own facts, both
 states are read after the hit's riders land, and the read says "Frozen mutes
@@ -1166,10 +1225,12 @@ portion either triggers some collapse / expunge trading it for damage (or
 nothing if unallocated) or it spreads out, or gets chunked for bonus damage
 next incoming hit … or a mix of all of these, each fitting to the status
 effect"*). The cap k × T is **soft**: stacks past it are the overflow, decay
-fast (a per-def rate, knob) and are only stacks above a threshold, so a state
-still remembers nothing. The owner's ladder (*"ramping up fire der states to
-blaze to inferno"*) is Burning's power growing with the excess, so Fire and
-Lightning need no overflow verb. Ice keeps one, **deep freeze** (owner:
+fast (the overflow band's own rate, knob) and are only stacks above a
+threshold, so a state still remembers nothing. The owner's ladder (*"ramping
+up fire der states to blaze to inferno"*) is Burning's power growing with the
+excess, so Fire and Lightning need no overflow verb: for them the overflow
+band keeps the primed band's go-off and travel verb, and only its decay
+differs. Ice keeps one, **deep freeze** (owner:
 *"deep-freeze stacks dealing bonus damage on breaking ice and get removed
 along with it"*): the shatter spends the overflow with the rest of the excess
 (§ The threshold model). "Chunked for the next incoming hit" is lawful only
@@ -1239,7 +1300,7 @@ staggered clocks (the one-snapshot Metropolis rule needs one snapshot).
 
 **Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
 needs no tick: a flat decay of 1 per world turn is computable on read (stored
-count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it keeps its own decay rule). Only the Heat/Cold
+count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it decays per world turn at its own slow rate). Only the Heat/Cold
 diffusion is a real pass: **one** pass over the signed `t`, over the
 temperature index (nodes holding Heat or Cold, the `_lingering` registry's
 shape), on packed arrays, never a walk of the graph (the arrays are the
@@ -1269,7 +1330,7 @@ different rows share the old word, on every facet alike:
 |---|---|---|---|
 | "infuse Explosive to make it AoE" | a Heat **ride** row (or a bespoke shape use) | the hit plants Heat; once its node is past T, later hits there blast | Heat |
 | "goo arrow" | a Catalyst **ride** row | Catalyst is added to the landing node, inert until a hit's element lands | Catalyst |
-| "a catalysed node" | Catalyst on the node (an aspect status) | colourless until a hit carrying one element lands; then its store becomes that element 1:1, same landing | — |
+| "a catalysed node" | Catalyst on the node (an aspect status) | colourless until a hit with a primary element lands; then its store becomes that element's terrain stack 1:1, same landing | — |
 
 Poison has the second and a third of its own ("poison on a node ticks");
 the only novelty is that primed terrain reacts to *landings* where a mover
@@ -1293,7 +1354,7 @@ that reaches, so the words are pinned here and in the matrix Glossary:
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
 | **Member** | A status of an element, whatever its role: Heat is a member of Fire, Frostbite of Ice; Catalyst is nobody's member; an Element Matrix row is a member row; a member keys its own facets (`heat_resistance`) (owner, 2026-11-05: *"member"*) | a facet (arrow / blade / spell) or a role |
-| **Catalyst** | inert, colourless aspect status (allocated nodes only) that becomes an element 1:1 when a hit carrying it lands or its node primes: the element analogue of Greed | fuel, a family member, a reach, a go-off |
+| **Catalyst** | inert, colourless aspect status (allocated nodes only) that becomes an element 1:1 when a hit with that primary element lands or its node primes: the element analogue of Greed | fuel, a family member, a reach, a go-off |
 | **Volatile** | a word the owner floated for the states that go off, Burning and Shocked (owner, 2026-11-09: *"`volatile` is a better fit to describe Burning *and* Shocked"*) — not Frozen, which denies | a status |
 | **Fire / Heat / Burning** | The element (its count) / its terrain stack / Heat past T | three names for one thing |
 
@@ -1356,7 +1417,24 @@ hit; the keystone grants its element while held.
     `FuelUse`.
   - **For Greed's spec:** Greed must not multiply element stacks (owner's
     lean, quoted in § The threshold model).
-  - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow.
+  - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow, per world
+    turn.
+  - **A hit with two element riders** (owner, 2026-11-11: *"Though maybe for
+    catalyzed nodes being hit with 2 elemental riders it should be split (
+    pro rata ? Rounding up? If riders are 1 heat and 2 charge is that a 1:2
+    split? Or what would be nice here"*). Settled: the store converts to the
+    hit's primary (§ The threshold model). Open: whether a hit carrying two
+    element riders splits the store between them instead. Pass proposal,
+    tentative, to confirm with the owner: pro rata by the riders' stacks
+    (1 Heat + 2 Charge → 1:2), largest-remainder rounding so the parts sum to
+    the store exactly (rounding each part up would mint stacks).
+- **Overqualified casting, open** (§ The forge). How the forge shows the
+  overclock potential, since the loadout hides no target (owner,
+  2026-11-11, quoted there), and what picking a target none of whose casters
+  can carry the current loadout does. The AI's fill policy, by difficulty
+  (owner, 2026-11-11: *"AI idk yet how to model it. Tough AI should spend
+  most points use all their budgets etc, easy AI might underspend or leave
+  slots open idk"*).
 - **v1 spell content** (owner, 2026-11-09): `lightning_bolt` carries Charge
   (renamed, not reshaped, a Charge ride row as its innate element), and **a
   new single-target Cold spell** — *"one single target ice spell that is only
