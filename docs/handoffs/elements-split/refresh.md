@@ -1,19 +1,19 @@
-Re-cut the specs of the eight late element children once the spine (#{defs} → #{catalyst-blade}) has landed. No code lands: this unit is a board pass that makes every late issue true against the new master before a drone picks it up. Parent hub #1716; design home `docs/design/elements.md`.
+Re-cut the specs of the late element children (every unit this one blocks, directly or through another; the list is in Composition) once the spine (#{defs} → #{catalyst-blade}) has landed. No code lands: this unit is a board pass that makes every late issue true against the new master before a drone picks it up. Parent hub #1716; design home `docs/design/elements.md`.
 
 Blocked by: #{catalyst-blade}
-Blocks: #{blade-elements} (the other seven late units are blocked through it)
+Blocks: #{blade-elements} (every other late unit is blocked through it)
 
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-10)
 - *"all children ready, but add 1 extra issue … make it be blocking later ones. and that issue just tells to update the specs?"* — this issue is that one (owner, 2026-11-10).
-- Pair rules are their own unit after Fire / Lightning / Ice: *"option 1. or whichever fits a DAG."* (owner, 2026-11-10) — so #{pairs} is one of the eight, not folded into #{fire}/#{lightning}/#{ice}.
+- Pair rules are their own unit after Fire / Lightning / Ice: *"option 1. or whichever fits a DAG."* (owner, 2026-11-10) — so #{pairs} is one of the late units, not folded into #{fire}/#{lightning}/#{ice}.
 - A late spec that turns out to need a *design* decision is not guessed at here: it moves to `Needs design` with the fork written as a menu (pass ruling, 2026-11-10, from the spec fence: "You write what was decided; you never decide a design fork").
 
 **Knobs** — none (written call: no code, no tunables).
 
 **Composition**
-The eight late issues each carry an `## Acceptance spec` and a `drift-stamp bd800181` block cut before the spine landed. `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of eight issue texts. Order of the pass: #{blade-elements} first (the other seven build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}. #{ice-cast} is `Needs design` and is not re-cut here.
+The late set is named by rule: every unit this one blocks, directly or through another. Each carries an `## Acceptance spec` and a drift-stamp block cut before the spine landed (a unit with no stamp, such as a `Needs design` menu, has nothing to re-cut). `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of the late issue texts. The set, by placeholder: #{blade-elements}, #{fire}, #{lightning}, #{ice}, #{pairs}, #{forge}, #{quiver}, #{forge-ui}, and, if filed behind this unit (blocked by it directly or through #{forge} / #{forge-ui}), the cast shapes spec #{ice-cast} (what each element's shape does on a cast) and #{overqualified-casting}. Check the board for what this unit blocks when the pass starts, and re-cut that set; a unit not filed behind this one is not part of the pass. Order of the pass: #{blade-elements} first (the rest build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}, then the cast shapes and overqualified casting specs if they are in the set.
 
 Per issue, the pass is:
 1. `mise run issue-drift -- <n>` (add `--json` for the per-entry `{path, start, end, drifted, reason, ins, del, hunk}` list). Silent + exit 0 means no stamped entry was touched; one line per drifted entry otherwise. `missing-at-stamp` = a typo or a never-built path; `created-since-stamp` = a file a spine unit built (real information: the spec may now cite it).
@@ -38,14 +38,15 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 6. #{forge}: same as 1; its Catalyst starter line names the status id #{catalyst} landed.
 7. #{quiver}: same as 1.
 8. #{forge-ui}: same as 1.
-9. Any issue that hit step 7 is in `Needs design` with its menu comment, and is reported as such instead of a stamp URL.
-10. Deliverable, as the final report: one line per issue — `#<n> — <comment URL> — clean | corrected (<k> sentences) | Needs design (<fork in five words>)`.
+9. If filed behind this unit: #{ice-cast} and #{overqualified-casting}: same as 1 (a `Needs design` one with no stamp follows NOTES instead).
+10. Any issue that hit step 7 is in `Needs design` with its menu comment, and is reported as such instead of a stamp URL.
+11. Deliverable, as the final report: one line per issue — `#<n> — <comment URL> — clean | corrected (<k> sentences) | Needs design (<fork in five words>)`.
 
 **NOTES**
 - No code, no commit, no stub. A defect found in spine code is a new issue linking back to the spine unit, never a fix here.
 - Do not re-scope a late unit (move work between them) — that is a design call; write it as step 7's menu.
-- #{ice-cast} is a `Needs design` menu, not a spec: it carries no stamp to re-cut. If a spine rename touches its menu text, correct the sentence in a comment, nothing more.
-- Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §5-§7 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
+- #{ice-cast} is the cast shapes spec (what each element's shape does on a cast). If it is filed behind this unit and carries a stamp, re-cut it like any late unit; if it is still a `Needs design` menu with no stamp, there is nothing to re-cut, and a spine rename that touches its text is corrected in a comment, nothing more.
+- Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §5, §6 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
 - Lane rules for the move to `Needs design`: `docs/domain/issue-workflow.md`.
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.

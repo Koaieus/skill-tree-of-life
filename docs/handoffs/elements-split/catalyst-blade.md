@@ -40,7 +40,7 @@ Blocks: #{refresh}
 **NOTES**
 - Reading list and seam map were cut before #{resolver} and #{go-off-zero} landed. #{go-off-zero} moved these lines. The dispatching lead re-checks `mise run issue-drift`; if it still flags this issue, stop and say so.
 - Parked, not decided by the owner (pass call): the behaviour that leaves with no replacement in the design, a node's blast popping plain blade pieces (ADR 0062's node side). If play misses it, that is a new design issue for the owner, not this unit.
-- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5-§7 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
+- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5, §6 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
 - The `.claude/rules/blade-budget-and-clamps.md` budget for temp addons is untouched: a temp barrel still costs its slot until the element addons arrive.
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.

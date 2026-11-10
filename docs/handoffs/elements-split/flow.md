@@ -80,7 +80,7 @@ Blocks: #{terrain-ui}, #{resolver}
 - A per-node "terrain hit" (the no-parent go-off) is a defined shape with no caller (pass ruling 5). Burning's burn is #{fire}'s. Neither rides this unit.
 - Performance: the doc's worst case is ~9k integer edge updates per world turn. The drone reports one headless timing on a 3k-node hot board in its report. A C++ port only if a profile says so, and it then *replaces* this pass.
 - All terrain decay is this unit's. #{terrain} writes no decay code and keeps no world-turn counter (owner, 2026-11-10).
-- The next element ADR's corrections (0081 §5-§7, §9) are a sibling issue, not this unit.
+- The next element ADR's corrections (0081 §5, §6, §9; §7 is carried by ADR 0085) are a sibling issue, not this unit.
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
 

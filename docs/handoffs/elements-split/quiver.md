@@ -1,4 +1,4 @@
-Element arrows: one ammo type per element, minted 1:1 from the element count into its own bin beside the plain pool, and a stock cap scaled by the mint. Child of hub #1716; design home `docs/design/elements.md` § The forge and § Acquisition. Its sibling `forge` is the cast half of child 9 and owns the element field, the units and the starter counts (the counts' default of 1 and the dev sandbox's 3); the two share no file. Closes #1765.
+Element arrows: one ammo type per element, minted 1:1 from the element count into its own bin beside the plain pool, and a stock cap scaled by the mint. Child of hub #1716; design home `docs/design/elements.md` § The forge and § Acquisition. Its sibling `forge` is the cast half of child 9 and owns the forge's shape field, ride field and aspect slots (ADR 0085 §1) and the starter counts (the counts' default of 1 and the dev sandbox's 3); the two share no file. An arrow is a ride only: it plants its terrain status on a hit and has no shape (`elements.md` § Shape and ride: "arrows and blades have only this"). Closes #1765.
 
 Blocked by: #{fire}, #{lightning}, #{ice}
 Blocks: #{forge-ui}

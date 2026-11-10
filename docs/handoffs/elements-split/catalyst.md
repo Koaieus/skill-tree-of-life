@@ -30,9 +30,9 @@ Blocks: #{catalyst-blade}
 - **Retag.** `explosive` becomes `catalyst` on every artifact in the stamp: the id, file, class, `display_name`, tag and identity.
   - `effects/status/catalyst.gd` (`CatalystStatus extends StatusDef`, the `poison.gd` pattern) owns the ratio, the cap, and one static `converted(store) -> int`.
   - `catalyst_resistance` is new. No `explosive_resistance.tres` exists, so mint it the way the other facets are minted (`manage-stats`).
-- **Land conversion.** It happens in #{resolver}'s gather land step (`:661-666`). When a hit's element rider lands on a node holding Catalyst, the store converts via `converted()` into that rider's stacks before the terrain write, and the row is cleared. Primed-ness still reads pre-hit. Copies are hits, so they convert too.
+- **Land conversion.** It happens in #{resolver}'s gather land step (`:661-666`). When a hit's element rider lands on a node holding Catalyst, the store converts via `converted()` into that rider's stacks before the terrain write, and the row is cleared. The converted stacks count toward this hit's own primed-ness and power: both are read after the hit's element riders land (ADR 0083; `:93-95`). Copies are hits, so they convert too.
 - **Prime conversion.** The seat #{flow}'s settle routine exposes (per beat and per world turn) reads the node's Catalyst row whenever a band crosses from inert to primed, and converts the row into that element.
-- **Go-off zero's disc goes.** The `GoOff` field leaves the Catalyst `Aspect` def. Burning's disc (#{burning}) is the only blast. Detonation tests that #{go-off-zero} pinned on the Explosive disc re-point to the Burning band, with Heat excess as the power source.
+- **Go-off zero's disc goes.** The `GoOff` field leaves the Catalyst `Aspect` def. Burning's disc (#{burning}) is the only blast; it replaces the old ×3 disc with `disc_radius(power, node_radius)`, r = 2 × (√power + 1) × node radius (ADR 0084 §2), and this unit adds no radius of its own. Detonation tests that #{go-off-zero} pinned on the Explosive disc re-point to the Burning band, with Heat excess as the power source.
 - **Firecracker.** Its intake row names Fire with the default `PlantUse`, so a landing plants Heat. `FuelUse`, `FuelBlastReach` and the `fuel_blast_reach` propagation sub-resource are deleted. The spell walks with its config's remaining reach (pass reading, tentative). Its blasts now come from the Burning nodes it primes. The description is rewritten to match.
 - **Dies:**
   - `DetonateUse`.
@@ -52,7 +52,7 @@ Blocks: #{catalyst-blade}
 **Acceptance**
 1. `test/unit/effects/test_catalyst_conversion.gd` (new, red first, `docs/domain/red-green.md`) covers these cases:
    - 3 Catalyst plus a 2-Heat hit gives 5 Heat, and the row ends at 0.
-   - The hit reads primed-ness pre-hit.
+   - The converted stacks count toward this hit's own primed-ness and power: a node at T-4 with 3 Catalyst, hit by 2 Heat, ends at T+1 and sets off within the same hit (read after the riders land, ADR 0083). The same hit with no Catalyst stays under T and does not.
    - Cold and Charge behave the same way.
    - A hit with no element leaves Catalyst alone.
    - The ratio scales the result.
@@ -81,7 +81,7 @@ Blocks: #{catalyst-blade}
 - Reading list and seam map were cut before #{resolver}, #{go-off-zero} and #{burning} landed. #{go-off-zero} moved these lines. The dispatching lead re-checks `mise run issue-drift`; if it still flags this issue, stop and say so.
 - The look may be handed to a sub-agent working in this same worktree, once the hook it draws from (signal, record field, scene stub) exists. The unit's drone stays the owner and reviewer of the result.
 - Firecracker needs a retune knob pass (`innate`, `power`, `max_hops`) once Fire plays. That pass is not this unit. Owner aside, 2026-11-10: *"btw infusing Firecracker with Catalyst naturally makes it more effective!"*. That combo is intended and needs nothing built.
-- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5-§7 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
+- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5, §6 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
 - Out of scope here: the starter count → #{forge}; the Greed guard → #{resolver}.
 - Left untouched on purpose: history (`docs/adr/*`, `docs/corpus/*`, `docs/handoffs/*`, `docs/design/archive/*`), and `explosiveness` particle properties (`pop_burst.tscn`, `dust_puff.tscn`, `leafblower_rebound.tscn`, `arrow_impact_emitter.*`).
 

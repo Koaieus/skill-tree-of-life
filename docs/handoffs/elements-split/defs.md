@@ -19,7 +19,7 @@ Blocks: #{terrain}, #{resolver}
 - Schools: Fire is in STR's pool, Ice in DEX's, Lightning in INT's. Element counts come from the aspect sources (owner, 2026-11-09; `elements.md:1044-1049`).
 - Vocabulary guard (owner, 2026-11-04): *"stay mindful of concepts drifting"*. "Volatile" is adopted for Burning and Shocked (owner, 2026-11-09): *"`volatile` is a better fit to describe Burning *and* Shocked"* (`elements.md:1021-1040`).
 - The Element Matrix has one row per family status, with columns `Ammo : Addon : Spell : Infusion` (owner, 2026-11-04): *"option 1 sounds good"* (`elements.md:1142-1145`).
-- The count stat ids are `fire_element`, `ice_element` and `lightning_element`, with display names "Fire attunement", "Ice attunement" and "Lightning attunement" (owner, 2026-11-10, picked `fire_element`, shown as "Fire attunement", over `fire_attunement` and a bare `fire`; the picks are recorded in `docs/handoffs/elements.md` § 0, not as a quoted sentence). The suffix follows the kind, as `_aspect` does. `elements.md:253`'s bare `fire` is corrected here.
+- The count stat ids are `fire_element`, `ice_element` and `lightning_element`, with display names "Fire attunement", "Ice attunement" and "Lightning attunement" (owner, 2026-11-10, picked `fire_element`, shown as "Fire attunement", over `fire_attunement` and a bare `fire`; the picks are recorded in `docs/handoffs/elements.md` § 0, not as a quoted sentence). The suffix follows the kind, as `_aspect` does.
 
 **Knobs**: none. The band multiples and decay rates are authored data on the `.tres` (below), not tuning exports. T, k and the cap belong to #{terrain}.
 - `ElementBand.decay_per_world_turn` (int ≥ 0). Primed bands default to 1, the pass default "decay 1 per world turn". Overflow bands default to 2, **undecided** (owner, 2026-11-10: *"overflow decay idk yet 2 or 3 or proportional"*); the doc says "decay fast" but gives no number. Keep it a knob. Only #{flow} reads the rates; all terrain decay happens in its world-turn pass.
@@ -61,13 +61,13 @@ Blocks: #{terrain}, #{resolver}
   - Add Volatile.
   - Widen Face to "one aspect or member in one facet".
 
-  Add an `## Element Matrix` section with rows Heat, Cold, Charge and Frostbite. Each cell names the unit or issue that fills it: arrows #{quiver}, addons #{blade-elements}, the spell `lightning_bolt` #{forge}, the Cold spell #1789. Fix the Catalyst Matrix row's "side-less terrain" (`aspect_matrix.md:280`). Point `elements.md:253` at the chosen count ids. `docs/domain/aspect-cell-authoring.md:21` follows the rename.
+  Add an `## Element Matrix` section with rows Heat, Cold, Charge and Frostbite. Each cell names the unit or issue that fills it: arrows #{quiver}, addons #{blade-elements}, the spell `lightning_bolt` #{forge}, the Cold spell #1789. `docs/domain/aspect-cell-authoring.md:21` follows the rename.
 
 **Files touched**
 - New: `elements/element.gd`, `elements/element_band.gd`, `elements/go_off.gd`, `elements/admits.gd`, `elements/element_roster.gd`, `elements/element_roster.tres`, `elements/defs/{fire,ice,lightning}.tres`.
 - New: `identity/defs/{fire,ice,lightning,heat,cold,charge,burning,frozen,shocked,deep_freeze}.tres`, `effects/status/{heat,cold,charge}.tres`, `stats_system/defs/{fire,ice,lightning}_element.tres`, `stats_system/defs/{heat,cold,charge}_resistance.tres`.
 - Edited: `identity/identity.gd`, `identity/identity_roster.tres`, `stats_system/stat_def.gd`, `stats_system/stat_def_roster.tres`, `effects/status_roster.tres`, `attack/ammo/ammo_type.gd`, `attack/aspect_currency.gd`, `attack/spell/aspect_intake.gd`, `ui/identity_badge/badge_frames.tres`, `procgen/pools/{strength,dexterity,intelligence}.tres`.
-- Docs: `docs/design/aspect_matrix.md`, `docs/design/elements.md`, `docs/domain/aspect-cell-authoring.md`.
+- Docs: `docs/design/aspect_matrix.md`, `docs/domain/aspect-cell-authoring.md`.
 - Tests: the 25 `Role.ASPECT` test files.
 
 **Acceptance**
@@ -91,7 +91,7 @@ Blocks: #{terrain}, #{resolver}
 - `*_stacks_per_hit` facets for the members are not named by the design. They are parked: a member without one lands its authored power as-is (`status_def.gd:85-90`).
 - The starter count (1 for every entity, through the stat's default value; owner, 2026-11-10) belongs to #{forge}, which sets `StatDef.default_value` = 1 on these defs. The element ammo types and their stock cap belong to #{quiver}. Here the COUNT defs keep `default_value` 0.
 - `effects/status/explosive.tres:20` carries the tag `charge`. No code reads it. #{catalyst} frees it. The new status id `charge` does not collide with it.
-- Not here: the next element ADR's corrections (ADR 0081 §5-§7 and §9, and ADR 0082's Context) are a sibling issue. `stats_system/defs/aspects.tres`'s description says "eight" `<concept>_aspect` stats, but 13 exist. Fix it if you touch the file.
+- Not here: the next element ADR's corrections (ADR 0081 §5, §6 and §9, and ADR 0082's Context) are a sibling issue. `stats_system/defs/aspects.tres`'s description says "eight" `<concept>_aspect` stats, but 13 exist. Fix it if you touch the file.
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
