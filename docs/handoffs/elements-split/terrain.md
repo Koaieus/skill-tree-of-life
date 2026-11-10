@@ -13,7 +13,7 @@ Blocks: #{flow}, #{terrain-ui}, #{resolver}
 - A state is pure threshold (owner, 2026-11-05): *"Yes, pure threshold"*. It is derived at every read and never saved (`elements.md:285-287`).
 - Heat and Cold net as one signed `t` (owner, 2026-11-05): *"option 1, 100%. hell yeah"* (`elements.md:893-901`). Charge stays put (owner, 2026-11-08): *"charge staying put sounds good"* (`elements.md:911-912`).
 - A holder's death changes nothing (owner, 2026-11-08, picked *terrain persists*; `elements.md:263-266`).
-- Charge decays in the world-turn pass with Heat and Cold (owner, 2026-11-10, picked *"In the world-turn pass, with Heat/Cold"*):
+- Charge decays in the world-turn pass with Heat and Cold (owner, 2026-11-10, picked the world-turn pass over decay on read):
   - Terrain stays exactly two ints.
   - There is no write-turn field and no world-turn counter.
   - One live index holds the nodes that carry any terrain.

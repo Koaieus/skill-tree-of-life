@@ -9,7 +9,7 @@ Blocks: #{refresh}
 - Catalyst is *"one aspect status, inert and colourless: it never counts toward T, never primes, never goes off and has no derived state"*. That is the doc's statement of the owner's call: *"yeahhh exactly option 1. w/visually like purple crystals or smth instead of black goo"* (owner, 2026-11-09; `:120-122`, `:166-170`).
 - *"copy a burning node and you get a burning blade node (booms). copy frozen node -> frozen blade node … copy shocked node -> get shocked blade node (zaps/arcs)"* (owner, 2026-11-09; `:425-433`). A vertex carries its node's primed state. Charges are not that state, and Catalyst has none.
 - The blade-side teardown is its own unit after the retag (owner, 2026-11-10, on the blast-gap split: *"option 1 but spare no drones, split if needed"*).
-- The handoff's child-5 list puts the deletion of ADR 0062's two-reservoir blade formula here (`docs/handoffs/elements.md:318-329`). It is a pass assignment, taken as settled.
+- The deletion of ADR 0062's two-reservoir blade formula sits here. It is a pass assignment from the split, taken as settled.
 
 **Knobs** — none survive. `BladePopResolver.LiveGate.warhead_reach` and `shrapnel_fraction` are deleted with the path they tune (written call).
 
@@ -48,7 +48,6 @@ Blocks: #{refresh}
 ```drift-stamp bd800181
 docs/design/elements.md:115-174 — Catalyst never goes off
 docs/design/elements.md:418-458 — the blade's element addon and the vertex copy rule #{blade-elements} builds
-docs/handoffs/elements.md:318-329 — the child-5 list naming ADR 0062's formula
 docs/domain/explosive.md:123-158 — the two-sided contact being removed
 docs/domain/melee-blade-sim.md:724-740 — the passage to delete
 attack/melee/sim/blade_pop_resolver.gd:224-240 — LiveGate knobs and ledgers

@@ -14,7 +14,7 @@ Blocks: #{catalyst}
 - The disc is the `GoOff` disc subclass on the `Element` def (owner, 2026-11-09: *"i think it should sit on Element def, going off is just about their thing"*), "go-off zero, then Burning unchanged with another power source" (`:708-721`).
 - **Burning is what ignites** (owner, 2026-11-05: *"Burning ignites"*, picked over "any Heat ignites") (`:903-906`).
 - Copies carry everything (owner, 2026-11-08: *"everything rides yeah, LET IT RIDE! can change that later if it becomes too much"*) (`:105-108`), so a Heat rider on a copy chains.
-- Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node holding Explosive charges and Burning sets off both discs, and a node inside both gets two entries, each landing everything at its share. Pass reading (tentative, unconfirmed): each go-off fires at most once per hit (the once-per-node set).
+- Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node holding Explosive charges and Burning sets off both discs, and a node inside both gets two entries, each landing everything at its share. Each go-off fires once per hit (owner, 2026-11-10), through the once-per-node set. The disc takes every node inside it, allocated or not, at every size (owner, 2026-11-10: *"so far just keep it shape blind always"*; `elements.md:532-542`).
 - A ride row plants its named status: Heat rides "exactly as Poison rides" (the doc's rule, `:346-360`; the owner's 2026-11-04 line behind it is at `:354-357`).
 
 **Knobs** (tentative defaults, easy to change; tests assert ratios, never the literal)

@@ -13,7 +13,7 @@ Blocks: #{blade-elements} (the other seven late units are blocked through it)
 **Knobs** — none (written call: no code, no tunables).
 
 **Composition**
-The eight late issues each carry an `## Acceptance spec` and a `drift-stamp bd800181` block cut before the spine landed. `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of eight issue texts. Order of the pass: #{blade-elements} first (the other seven build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}. #{ice-cast} is `Needs design` and is not re-cut here.
+The nine late issues each carry an `## Acceptance spec` and a `drift-stamp bd800181` block cut before the spine landed. `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of eight issue texts. Order of the pass: #{blade-elements} first (the other seven build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}. #{ice-cast} is `Needs design` and is not re-cut here.
 
 Per issue, the pass is:
 1. `mise run issue-drift -- <n>` (add `--json` for the per-entry `{path, start, end, drifted, reason, ins, del, hunk}` list). Silent + exit 0 means no stamped entry was touched; one line per drifted entry otherwise. `missing-at-stamp` = a typo or a never-built path; `created-since-stamp` = a file a spine unit built (real information: the spec may now cite it).
@@ -25,7 +25,7 @@ Per issue, the pass is:
 7. If step 4 finds a sentence that cannot be corrected without choosing between two shapes (the spine built something the late spec did not foresee), stop on that issue: write the fork as a menu (title names the fork, problem in two lines, each option described by what it *is*, your tentative pick marked) as a comment, and move the issue to `Needs design`. Do not stamp it.
 
 Symbols to grep for in each late body (all renamed or deleted by the spine; confirm against master, the spine's merged commits are the truth):
-`Role.ASPECT` / `_aspect` facet naming (→ `COUNT`, #{defs}) · `SPENT_KEY`, `_node_spent` (both spend ledgers, deleted by #{go-off-zero}) · `detonated` per-wave scope, `HitLanding.detonated` (#{go-off-zero}) · `stamp_landing`, `DetonateEffect._spend`, `PairedDamageEffect` stamping (the three stampers, folded by #{applier}) · `DetonateEffect`, `DetonateUse`, `detonate_load`, `default_face`, `use_for_status` (#{go-off-zero} / #{catalyst}) · `ExplosiveSpread`, `explosive`, `explosive_aspect`, `explosive_stacks_per_hit`, the `charge` tag, `ExplosiveBarrelAddon` (#{catalyst}) · `vertex_charges`, `piece_charges`, `BladeChargeBand`, `_admit_explosive` (#{catalyst-blade}) · `FuelUse`, `FuelBlastReach` (deleted by #{catalyst}; Firecracker now plants Heat) · the world-turn period `_note_played_turn_end` (#{flow}).
+`Role.ASPECT` / `_aspect` facet naming (→ `COUNT`, #{defs}) · `SPENT_KEY`, `_node_spent` (both spend ledgers, deleted by #{go-off-zero}) · `detonated` per-wave scope, `HitLanding.detonated` (#{go-off-zero}) · `stamp_landing`, `DetonateEffect._spend`, `PairedDamageEffect` stamping (three of the five landing-to-hit stampers, the ones #{applier} folds; `haul_effect.gd:47-54` and `splash_effect.gd:128-146` are not folded) · `DetonateEffect`, `DetonateUse`, `detonate_load`, `default_face`, `use_for_status` (#{go-off-zero} / #{catalyst}) · `ExplosiveSpread`, `explosive`, `explosive_aspect`, `explosive_stacks_per_hit`, the `charge` tag, `ExplosiveBarrelAddon` (#{catalyst}) · `vertex_charges`, `piece_charges`, `BladeChargeBand`, `_admit_explosive` (#{catalyst-blade}) · `FuelUse`, `FuelBlastReach` (deleted by #{catalyst}; Firecracker now plants Heat) · the world-turn period `_note_played_turn_end` (#{flow}).
 
 **Files touched** — none (board only).
 
@@ -38,13 +38,14 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 6. #{forge}: same as 1; its Catalyst starter line names the status id #{catalyst} landed.
 7. #{quiver}: same as 1.
 8. #{forge-ui}: same as 1.
+8b. #{ice-cast}: same as 1.
 9. Any issue that hit step 7 is in `Needs design` with its menu comment, and is reported as such instead of a stamp URL.
 10. Deliverable, as the final report: one line per issue — `#<n> — <comment URL> — clean | corrected (<k> sentences) | Needs design (<fork in five words>)`.
 
 **NOTES**
 - No code, no commit, no stub. A defect found in spine code is a new issue linking back to the spine unit, never a fix here.
 - Do not re-scope a late unit (move work between them) — that is a design call; write it as step 7's menu.
-- #{ice-cast} is a `Needs design` menu, not a spec: it carries no stamp to re-cut. If a spine rename touches its menu text, correct the sentence in a comment, nothing more.
+- #{ice-cast} is a late spec like the others (its forks were settled 2026-11-10): re-cut its stamp with the rest.
 - Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §5-§7 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
 - Lane rules for the move to `Needs design`: `docs/domain/issue-workflow.md`.
 
@@ -54,8 +55,6 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 .mise/tasks/issue-drift:1-40 — the command, the last-stamp-wins rule, drift rules per entry, the flags
 .claude/skills/spec/SKILL.md:82-104 — what a reading list, seam map and drift stamp must hold
 .claude/skills/spec/SKILL.md:26-34 — the Needs design menu shape for an unresolvable fork
-docs/handoffs/elements.md:227-275 — the child list and order the late units come from
-docs/handoffs/elements.md:276-386 — the coverage audit and knobs each late spec folded in
 docs/design/elements.md:682-726 — the resolver's five build calls: the spine's renames and deletions in the doc's words
 docs/design/elements.md:1021-1048 — the Catalyst retag list the late specs were cut against
 docs/domain/issue-workflow.md — lanes and the Needs design move

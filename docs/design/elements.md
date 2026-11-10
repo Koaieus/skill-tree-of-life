@@ -529,30 +529,78 @@ R2). A hit's copies take the hit's own target mask (the shipped bolt filters
 to hostile); only a terrain hit is side-blind, so terrain is side-less but a
 landing's copies are not. A copy carries its parent's crit (§ The hit).
 
+**A go-off picks its nodes by shape alone, at every level** (owner,
+2026-11-10: *"option 1"*, then *"so far just keep it shape blind always"*):
+Burning's disc takes every node inside it and a Shocked arc every node within
+its L hops, allocated or not, whoever holds them; the hit's mask then decides
+who the copies hurt. So an arc's transferred Charge (§ Order) lands on empty
+ground too, and a wire can be laid across it. Kept as a backup, not built
+(same answer: *"if we so want later we can define it like "allocated only at
+lv1, whole graph at lv 2+" for both fire and lightning, could make
+interesting gameplay"*): if it is ever wanted it is one rule for Fire and
+Lightning together, never Lightning alone.
+
 **Damage type: none.** Elements change reach (through the terrain they lay),
 aspects change payload, damage stays one number. Movers get
 `<mover>_resistance` as any status does. If a fourth type ever earns its
 place it is one word, "elemental" (owner, 2026-11-04: *"if it gets one, its
 just 'elemental' (opposing physical or magic or true)"*).
 
-## Ice on a cast: concentrate (owner, 2026-11-04/05/08)
+## Ice on a cast: concentrate (owner, 2026-11-04/05/08/10)
 
 Burning and Shocked add copies at a landing. Ice concentrate does the
 opposite **at cast time**: an Ice load rewrites the spell's own hops down and
-pays the seed payload up. It stays under terrain-only reach (owner,
-2026-11-08: *"ice concentration should i think still be a thing just not sure
-how"*); what follows is the pass's best shape, a bespoke `shape` use
-(§ The forge), unconfirmed. It reads the cast, not the node, because the only
-copies it can remove are the cast's own walk; an arrow or a blade has no
-walk, so their Ice faces are Cold ride rows. Owner: *"a 4-hop spell could be
-shrunk to a 1 hop spell at more damage (or statuses?) for the one hop. or
-reduced to 0 hops even for 1 pinpoint hit. as balance against AoE euclidean
-or hop based proliferation being almost strictly "more", frost could reduce
-hops yet still achieve "more" somehow"*. The price must be something the
-cast knows before it lands — `max_hops` and the seed load — never the
-realized landing count (*"a spell beforehand doesnt know how many hits a
-4-hop spell would do"*). Pure hop reduction with no bonus is out: *"a pure
-nerf if it just reduces hops"*.
+pays the seed payload up (owner, 2026-11-08: *"ice concentration should i
+think still be a thing just not sure how"*). It reads the cast, not the node,
+because the only copies it can remove are the cast's own walk; an arrow or a
+blade has no walk, so their Ice faces are Cold ride rows. Owner: *"a 4-hop
+spell could be shrunk to a 1 hop spell at more damage (or statuses?) for the
+one hop. or reduced to 0 hops even for 1 pinpoint hit. as balance against AoE
+euclidean or hop based proliferation being almost strictly "more", frost
+could reduce hops yet still achieve "more" somehow"*. The price must be
+something the cast knows before it lands, never the realized landing count
+(*"a spell beforehand doesnt know how many hits a 4-hop spell would do"*).
+Pure hop reduction with no bonus is out: *"a pure nerf if it just reduces
+hops"*.
+
+**It is a `ConcentrateUse` on the spell's Ice intake row** (owner,
+2026-11-10, picked over a spell-level field and over keeping Ice on a cast a
+plain Cold ride): a `LoadUse` subclass (ADR 0070's open set), the shape the
+owner sketched on 2026-11-05 (*"some resource? like most spells -> just
+reduce hops. some others -> maybe reduce max visits. something that takes the
+ice-suppression value and uses it to alter the cast spell?"*). At cast it
+spends the row's load as a hop cut and writes a seed multiplier; the resolver
+reads both once. A variant that cuts `max_visits` is a second subclass, built
+when a spell needs it. A spell with nothing to cut (0 hops, or unbounded
+hops) authors no gain on its Ice row and so refuses Ice.
+
+**The price is flat: +50% of the seed per hop removed** (owner, 2026-11-10:
+*"L is (very) roughly quadratic, but we dont want to cncentrate ALL that,
+there's benefit to having things concentrated at all, even if it'd be, say,
+a.. +50% boost for each hop removed. e.g. from 6->3 hops = -3 = +150%
+damage"*). Seed × (1 + bonus × hops removed), the bonus one exported knob on
+the use, default 0.5: Pestilence 6 → 3 lands its seed at ×2.5, 6 → 0 at ×4.
+The walk it gives up is worth far more than that (the table below), and that
+is the point: focus is the purchase, not a refund of the area. Rejected: the
+seed multiplied by the measured landings it gave up (L(H) / L(h), ~84× for
+Pestilence at 0 hops), and the conserving form 1 + L(H) − L(h); no spell
+authors a hop ladder.
+
+**The bonus scales damage and aspect riders, never element stacks** (owner,
+2026-11-10: *"whole payload but.. does that mean also a Cold stacks elemental
+rider gets boosted? self-boosting ice?"*, then picked *never scales element
+stacks* over *scales everything* and *one Ice row per spell*): Poison, Bleed
+and the rest scale with the damage, ceil per rider, as a go-off's share does;
+Heat, Cold and Charge land at their cast value, the rule Greed already
+follows. A spell carrying both a Cold ride row and the concentrate does not
+freeze harder for concentrating.
+
+**One Ice is one hop** (owner, 2026-11-10, picked *1 Ice = 1 hop, authorable
+per spell*; on the range: *"counts of 20-50 are a bit much, leaning towards
+having `x_element` counts be 0..5 or maybe 0..10 at best"*). The Ice row's
+int:int affinity (ADR 0060) turns the count into load and the use spends 1
+load per hop; the default is 1:1, and a short, strong spell may author a
+dearer rate on its row (1:2). Surplus Ice beyond the spell's hops is wasted.
 
 What a hop is worth, measured (2026-11-04, 10 procgen maps of 800 nodes,
 mean degree 3.1, 300 seed nodes, whole graph; enemy territory is a subset so
@@ -567,52 +615,26 @@ real numbers sit lower):
 | 5 | 34.2 | 60.8 | 84.0 | 105 | 669 |
 | 6 | 46.1 | 84.6 | 119 | 151 | 1525 |
 
+
 Coverage grows sub-quadratically with hops on these planar maps (exponent
 about 1.65 between 4 and 8 hops; paths re-merge, the map has edges), never
 exponentially. The exponential lives in `max_visits`: unbounded, walks grow
 like mean degree to the power of the hops (measured ×3.6 per hop), and a
-visit cap k clamps landings near k × coverage. So an Ice price reads both `max_hops` and `max_visits`, both
-known at cast. Hop reach is absolute, not relative: 8 hops is ~75 nodes on
-an 800-map and about the same on the aimed 2–4k map, so the number to
-reason against is reach versus the *target's territory*, which grows over a
-run (an entity holding 100 nodes is covered by a 6-hop fan). The first hops
-are worth the most: a flat bonus per hop
-removed overpays long spells and underpays short ones. **The pricing (owner,
-2026-11-08: *"leaning 1"*):** the Ice row's int:int affinity converts count
-to hops per spell (Venom Burst 2:1, Pestilence 4:1 — the ADR 0060 mechanism,
-which also absorbs counts of 20–50), and each hop removed multiplies the seed
-payload by a per-spell knob near the measured ratio of the hop it removes.
-Surplus Ice beyond the spell's hops is wasted; a 0-hop spell has nothing to
-trade. The affinity may live on a dedicated **elemental slot** in the forge
-(owner, 2026-11-08: *"spells could use a separate elemental affinity (3 units
-of int:int, for fire/ice/lightning, befitting the forge's elemental slot that
-players can spend their elemental attunement on (how much "fire" they are,
-`fire_element`)"* — settled 2026-11-09 as one element field per cast, § The forge).
+visit cap k clamps landings near k × coverage. Hop reach is absolute, not
+relative: 8 hops is ~75 nodes on an 800-map and about the same on the aimed
+2–4k map, so the number to reason against is reach versus the *target's
+territory*, which grows over a run (an entity holding 100 nodes is covered by
+a 6-hop fan).
 
 **"Ice alters the spell" and "Ice adds Cold riders" are one mechanism, two
 uses** (owner asked, 2026-11-08: *"seems both should be made possible, or are
 they one and the same?"*): an intake row is identity + rates + a swappable
 use (ADR 0070), so a Cold *ride* row plants riders and the concentrate is a
-bespoke *shape* use on the same row type. Which one a spell's Ice row runs is
+*shape* use on the same row type. Which one a spell's Ice row runs is
 authored per spell — a Frost Nova plants Cold, a Pestilence concentrates —
 and one spell may carry both as two rows, since rows key on the status or use
 they run, never on the bare element (#1660 B2), while the one `ice` count
 budgets both.
-
-**The price is an authored mass per spell, spent by a swappable use** (owner,
-2026-11-05: *"option 1 but possibly even in this authoring one could set up
-*how* it triggers exactly. some resource? like most spells -> just reduce
-hops. some others -> maybe reduce max visits. something that takes the
-ice-suppression value and uses it to alter the cast spell?"*). Each spell
-authors what its walk is worth beyond each hop (an int per hop, or a total
-with a decay), guided by the measured ladder and tuned by hand; nothing is
-computed from the graph at cast. **How** the Ice load alters the cast is a
-`LoadUse`-shaped resource on the Ice row (ADR 0070's open set): the common
-one rewrites `max_hops` down and pays the mass beyond the new limit onto the
-seed, another rewrites `max_visits`, and a spell that authors neither
-(infinite hops, unbounded visits) refuses Ice until priced by hand. Rejected:
-one global hops-to-multiplier curve (overpays decaying walks, underpays dense
-ones), a flat per-hop addition (the first hops are worth the most).
 
 **A concentrated seed on a primed node is a combo**, not an exploit to rule
 out. The seed lands with its concentrated payload and a Burning or Shocked
@@ -620,10 +642,9 @@ node copies it at share like any payload (owner, 2026-11-05: *"hitting
 Charged/Fueled nodes with ice load just proliferates whatever the ice would do
 but on the defender's side (incoming hit proliferates via hops or AoE boom)
 instead of on the attacker's side … and ice + fuel sounds like a combo why
-not?"*). The magnitude is therefore the pricing knob's to bound: under the
-ladder lean above, Pestilence concentrated from 4 hops to 0 carries ~84× a
-landing's payload, and a 0.5 share of that is 42 poison per disc node, so the
-knob is priced with this combo in view.
+not?"*). The per-hop bonus bounds it: Pestilence concentrated from 6 hops to
+0 carries ×4 a landing's payload, and a 0.5 share of that is twice a plain
+landing on every disc node.
 
 ## Landing resolution (owner, 2026-11-05)
 
@@ -700,7 +721,12 @@ from scored options).**
   way. The result never depends on the walk's order, and the routine is the
   one the world-turn tick needs, whose go-offs have no order at all. The
   per-wave `detonated` scope goes. Known consequence: several same-beat
-  go-offs each read a deep store at full power before the clamp.
+  go-offs each read a deep store at full power before the clamp. **A blade
+  follows the same rule** (owner, 2026-11-10, picked *one snapshot* over
+  *sequential, as today*): two contacts of one sample on one node are hits of
+  one beat, both read the pre-beat store and their spends are summed, so the
+  swing keeps no spend ledger; contacts of different samples read the world,
+  which already carries the earlier spend.
 - **One share scales the whole payload** — damage and every rider's stacks,
   rounded up per rider (§ The reach rule's *"at one share"*, taken as
   settled by the pass). Today's stacks-only splash scale and the separate
@@ -1073,9 +1099,6 @@ hit; the keystone grants its element while held.
   - **For Greed's spec:** Greed must not multiply element stacks (owner's
     lean, quoted in § The threshold model).
   - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow.
-- **Ice pricing, per spell**: the authored per-hop multiplier is confirmed as
-  a lean (§ Ice on a cast); each spell's per-hop worths and the affinity
-  ratios are spec-time numbers, with #1444.
 - **v1 spell content** (owner, 2026-11-09): `lightning_bolt` carries Charge
   (renamed, not reshaped, a Charge ride row as its innate element), and **a
   new single-target Cold spell** — *"one single target ice spell that is only

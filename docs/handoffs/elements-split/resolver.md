@@ -16,7 +16,7 @@ Blocks: #{go-off-zero}
 - Chains are flat, `damage × s` and riders `ceil(r × s)`, never `s^k` (2026-11-05, `:489-496`). A copy lands raw (#1733 R2, `:525-530`). A copy carries its parent's crit (ADR 0082 §4).
 - Riders are one summed entry per status id per landing entry (`:334`). In-hit order is *"elemental riders first … then other status(es), then damage(s)"* (`:342-344`). A hit carries 0 or 1 element (`:155-157`).
 - Greed: *"i think Greed shouldn't multiply incoming Heat/Cold/Charge stacks"* (`:159-163`). Only this guard ships here.
-- Dual reach (owner, 2026-11-10): *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*. A node gathered by two reaches is two entries, and each entry lands every rider and the damage at its share. Pass reading (tentative): the node's own go-off still fires at most once per hit, through the once-per-node set, and the dedupe stays a one-line switch (`:744-753`).
+- Dual reach (owner, 2026-11-10): *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*. A node gathered by two reaches is two entries, and each entry lands every rider and the damage at its share. On the same call: the node's own go-off fires once per hit (owner, 2026-11-10, picked over once per gathered entry), through the once-per-node set, and the dedupe stays a one-line switch (`:770-781`). A go-off picks its nodes by shape alone, allocated or not, at every level (owner, 2026-11-10: *"so far just keep it shape blind always"*; `:532-542`); the hit's mask decides who the copies hurt.
 
 **Knobs** (tentative, easy to change)
 - `GoOff.share` = 0.5, `@export_range(0.0, 1.0, 0.05)` on the `GoOff` base. It is the share for that go-off's copies: damage × s and riders ceil(r × s).
@@ -43,7 +43,7 @@ Blocks: #{go-off-zero}
 2. Same file: the default law. Spend equals nodes reached; a go-off reaching no other node spends nothing; a spend past the store digs under T.
 3. Same file: two arrivals of one beat on the same primed node both read the pre-beat store and both go off. Their spends are summed and clamped at 0. Swapping their order changes nothing.
 4. Same file: a node reached twice through one go-off's chain lands once per hit (the once-per-node set). Two hits each land it.
-5. Same file, dual reach: a node holding two primed test bands fires each once per hit (the pass reading, tentative). A neighbour reached by both is two entries and takes every rider and the damage twice. With the dedupe switch on it takes one.
+5. Same file, dual reach: a node holding two primed test bands fires each once per hit (owner, 2026-11-10). A neighbour reached by both is two entries and takes every rider and the damage twice. With the dedupe switch on it takes one.
 6. Same file: a spell arrival draws one crit (count the stream draws). A node-reading crit condition is evaluated once at the head, pre-hit, and every copy carries the head's `crit_tier`.
 7. Same file: summed riders give one entry per status id per entry. Order is element riders, then other statuses, then damage. A copy's rider never merges with the hit's own.
 8. `test/unit/test_greed_landing.gd`: a Greed holder taking a Heat rider of r gets r, and its Greed row is unchanged. `test_outcome_fixture_replay.gd` and the `world_fingerprint` replays stay green, except a fixture whose spell crit sequence moved, which is re-recorded and named in the report.

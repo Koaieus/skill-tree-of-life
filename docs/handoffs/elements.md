@@ -93,102 +93,60 @@ Shocked; no `ArcEffect`; go-off zero's disc rides the Explosive `Aspect` def
 under the same field name until the retag — pass pick); **the applier drains an open
 worklist**, hits compiled through one stamping callable.
 
-## 00. Pickup pass 2026-11-10 (after midnight) — READ THIS FIRST; it supersedes § 0 where they differ
+## 00. Fork pass 2026-11-10 (cloud session) — READ THIS FIRST; it supersedes § 0 where they differ
 
-**State.** Nothing is on the board yet. The 21 bodies in
-`docs/handoffs/elements-split/` were cold-reviewed (four Sonnet readers, fixes
-applied in place and committed with this file). "Before filing" items 1 and 2
-of § 0 are done. What remains: three unanswered forks, three owner calls to
-carry into the bodies, a few reviewer leftovers, then the clerk order of § 0.
+**State.** Nothing is on the board yet (a cloud session has no board access).
+Every fork is answered and carried into `docs/design/elements.md` and the 21
+bodies in `docs/handoffs/elements-split/`; the reviewer leftovers are fixed.
+What remains is board work for a local session: the clerk order of § 0's
+"Where the pass stopped", then the stale facts, then deleting the bodies and
+this file.
 
-**Read list for the next session (nothing else in full):** this section;
-§ 0's "The split, final" paragraph and "Where the pass stopped" (the clerk
-order); `.claude/skills/spec/SKILL.md` § 3; `docs/design/elements.md` only at
-the passages named here (grep the bold lead-ins; line numbers after `:803`
-moved by ~30): **Frozen mutes the node's own go-offs**, **Dual reach**, **An
-arc moves its Charge**, the spend law at `:79-96`. Bodies: open only the ones
-a to-do below names.
+**Owner calls, 2026-11-10 (quotes in the doc at the bold lead-ins named):**
+- **A go-off picks its nodes by shape alone, at every level** — Burning's
+  disc and a Shocked arc reach unallocated nodes too. Backup, not built:
+  allocated-only at level 1 and whole graph at 2+, for Fire and Lightning
+  together. In `resolver.md`, `burning.md`, `lightning.md`.
+- **A blade follows the same rule** (one snapshot): two contacts of one
+  sample on one node read the pre-beat store, spends summed; the blade ledger
+  dies. In `go-off-zero.md`.
+- **Ice on a cast is settled** (§ Ice on a cast, rewritten): a
+  `ConcentrateUse` on the Ice row; seed × (1 + 0.5 × hops removed), the 0.5 a
+  knob; damage and aspect riders scale, Heat / Cold / Charge stacks never;
+  1 Ice = 1 hop through the row's affinity, authorable per spell; element
+  counts are meant to run 0..5, 10 at most. The measured-ladder pricing and
+  "Venom Burst 2:1, Pestilence 4:1" are deleted. `ice-cast.md` is now a
+  `Ready` spec, **blocked by `forge` and `forge-ui`**, re-cut by `refresh`
+  like the other late units; this replaces "`ice-cast` — `Needs design`" in
+  § 0's split and in the clerk order. Its two pass picks (Pestilence as the
+  proving spell; the bonus on the seed arrival only) are tentative.
+- Earlier the same day, already in the doc: the arc released by breaking ice
+  reads its power after the breaking hit lands; a node's own go-off fires
+  once per hit; an arc transfers its Charge (knob, transfer by default). All
+  three are now in `pairs.md`, `resolver.md`, `burning.md`, `lightning.md`.
 
-**Blade ledger, verified in code (item 1 of § 0, done).** The swing lands as
-it simulates, one sample's contacts per batch (`attack/melee/swing_resolve.gd:228-240`
-→ `_land_batch` `:442-529`); every gate read is live inside `land_on` →
-`LiveGate.admit`; the sim never runs ahead of the landings. But a spend is
-deferred to the end of its batch (`_flush_spends` `:393`, called `:529`, as
-`CureInstance`s), so `_node_spent` exists only for two contacts of one sample
-on one node. The writer's reason ("each contact lands at its own key") was
-wrong; the conclusion (the ledger dies once spends are land-time) holds.
-`go-off-zero.md` is corrected: its blade bullet, Acceptance 2(e), and the
-Dies list (`take_spends`, `_spends`, `Spend`, `_append_spends`,
-`_flush_spends`).
+**The ADR-corrections sibling issue's list** is now: 0081 §1 (transfer for
+arcs), §5-§7, §8 (the concentrate's price is a flat per-hop bonus, not the
+multiplicative ladder), §9; 0082's Context; 0061, 0062, 0070. The bodies'
+NOTES still cite the shorter list; the sibling issue's own body is written at
+the clerk order from this line.
 
-**Owner calls, 2026-11-10 late (in `docs/design/elements.md`, quotes there):**
-- The arc released by breaking ice reads its power **after the breaking hit
-  lands** (primed-ness and the Frozen check stay pre-hit).
-- Dual reach: a primed node gathered by two reaches takes two entries but its
-  own go-off fires **once per hit**. No longer a pass reading.
-- **An arc transfers its Charge** to the nodes it reaches instead of voiding
-  it: one exported choice on Lightning's edge go-off, *"knob, transfer by
-  default"*. Reverses ADR 0081's rejected "radiating transfer" for arcs only:
-  add ADR 0081 §1 to the ADR-corrections sibling issue's list.
+**Still open, none blocks filing:** overflow-band decay 2 / 3 / proportional
+(a knob in `defs.md`, owner: *"idk yet"*). Tentative pass picks: the vertex's
+copied state as a "go-off source" argument; the pass-through Charge spent at
+the arriving wave's gather head; no int:int seam on `AmmoType`; the catalyst
+/ catalyst-blade interim; the three transfer readings in `lightning.md`.
 
-**To carry into the bodies before filing (not yet done):**
-- `pairs.md`: Decisions bullet "Awaiting an owner call, tentative pick
-  pre-hit" (~`:14`), Composition (~`:20`) and Acceptance 2 → post-land, owner;
-  add a test where the breaker carries Charge. Dual-reach "Pass reading" →
-  owner call.
-- `resolver.md` (Decisions ~`:19`, Acceptance 5), `burning.md`, `lightning.md`:
-  "once per hit" is now the owner's, drop "tentative / unconfirmed".
-- `lightning.md`: the parked Charge-transfer NOTES line becomes a Decision, a
-  knob (`spent Charge goes to: reached node | void`, default reached node) and
-  an Acceptance line (source -N, each reached node +1, one commit; an interior
-  wire node nets 0); the three pass readings from the doc as tentative.
-- The ADR-corrections sibling issue's list gains 0081 §1 (transfer for arcs).
+**Blade ledger, verified in code.** The swing lands as it simulates, one
+sample's contacts per batch (`attack/melee/swing_resolve.gd:228-240` →
+`_land_batch` `:442-529`); a spend is deferred to the end of its batch
+(`_flush_spends` `:393`), so `_node_spent` exists only for two contacts of
+one sample on one node.
 
-**Open forks — ask these first, `AskUserQuestion`, in this order:**
-1. **Arc reach and allocation.** The facts the owner asked for: every go-off
-   picks nodes by shape, blind to owner and allocation (the disc: every node
-   inside it; a level-1 arc: every graph neighbour), then the hit's copies
-   land only where the hit's own target mask allows (`elements.md:524-529`),
-   so Burning is already "whole graph" at every size. With transfer the
-   default it matters more: every reached node gets +1 Charge, empty ground
-   included. Owner so far, 2026-11-10: *"option 1"* (whole graph, side-less)
-   and then *"does this imply that at level 1 it also does this? or: that it
-   uses allocated-only at level 1 and switches to "whole graph" at 2+? latter
-   sounds good tbh. also: does this mean Burning AoE explosions get a similar
-   "whole graph" level (or default)?"* Options: shape-blind at every level
-   (one rule for the triad; pass recommendation) · level 1 allocated-only, 2+
-   whole graph (the owner's lean; a second rule and a step at 4T) · allocated
-   only at every level. Asked once with those facts; the dialog closed
-   unanswered.
-2. **Two blade contacts of one sample on one charged node.** One snapshot
-   like spell waves (both read the pre-beat charges, spends summed; the
-   ledger dies; what `go-off-zero.md` now says, as a pass reading) or
-   sequential as today (the blade becomes the exception to the snapshot rule
-   and needs a fixed order between same-instant contacts). Unanswered.
-3. **Ice on a cast**: file `ice-cast` as `Needs design` (the owner's
-   2026-11-10 call, the default if unanswered) or settle its three forks now.
-4. Still a knob, undecided: overflow-band decay 2 / 3 / proportional
-   (`defs.md`, owner: *"idk yet"*). Still tentative pass picks: the vertex's
-   copied state as a "go-off source" argument; the pass-through Charge spent
-   at the arriving wave's gather head; no int:int seam on `AmmoType`; the
-   catalyst / catalyst-blade interim.
-
-**Reviewer leftovers (mechanical, fix before the clerk order):**
-- Starter counts belong to `forge` (moved out of `quiver`; `defs.md` re-pointed
-  to match). Grep the bodies once for a stray "starter" under `quiver`.
-- `refresh.md:28` says "the three stampers"; five exist (§ 0 stale facts) —
-  reconcile with `applier.md`.
-- Stamp entries citing `docs/handoffs/elements.md` (`refresh.md:57-58`,
-  `catalyst-blade.md:51`, `catalyst.md:98`) point at a file this pass deletes:
-  drop them or re-point at the design doc before filing.
-- Two "owner quotes" no source backs verbatim: *"In the world-turn pass, with
-  Heat/Cold"* (`terrain.md`, `lightning.md`) and *"(a) Keep the name
-  lightning_bolt for now"* (`lightning.md`, BRIEF) — they were option labels
-  the owner picked; write them as "owner picked …", not as sentences.
-- `catalyst-blade.md`'s Dies list overlaps what `go-off-zero` already deletes
-  (`arm_blasts`); it now says grep first.
-- `burning.md:21-22` authors two knobs on the disc subclass `go-off-zero`
-  builds; fine, the drone adds them.
+**Not done here:** `BRIEF.md` and the two `anchors-*.md` files still describe
+`ice-cast` as a menu and cite this file's old line ranges; they are the
+writers' brief, deleted with the folder, never filed. `docs-hygiene` ran green
+on this pass.
 
 ## 0. Split pass 2026-11-10 (night) — state, supersedes § 3's child list where they differ
 
@@ -251,7 +209,7 @@ go-off-zero · `catalyst` (retag, conversion, Firecracker, docs) — burning ·
 (addons, vertex copy-on-fill, sweep speed) — refresh · `fire` (burn, light,
 addon, vertex) / `lightning` / `ice` — blade-elements · `pairs`, `forge`,
 `quiver` (closes #1765) — fire, lightning, ice · `forge-ui` — forge, quiver,
-terrain-ui · `ice-cast` — `Needs design`, a written menu. Siblings of the
+terrain-ui · `ice-cast` — forge, forge-ui. Siblings of the
 hub, not children: the inner-tree shape + card cadence (`Needs design`); the
 element ADR corrections (0081 §5-§7 and §9, 0082's Context, 0061, 0062,
 0070). Frostbite #1444 stays its own issue, blocked by `ice`. #1660 / #1695

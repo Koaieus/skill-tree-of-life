@@ -1,7 +1,7 @@
 The display for the forge and the quiver: the forge's element field in the magic HUD (innate element, add or replace, the units, why a spell refuses an element) and the element arrows in the ranged HUD (arrow looks, bins, stock cap). Child of hub #1716; design home `docs/design/elements.md` § The forge. Display only — every number it shows is read from the units below, never derived again.
 
 Blocked by: #{forge}, #{quiver}, #{terrain-ui} (the last for one shared element icon and colour, not for any mechanic)
-Blocks: none
+Blocks: #{ice-cast}
 
 ## Acceptance spec
 
@@ -41,7 +41,7 @@ Blocks: none
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
 - The doc specifies almost no looks: the required reads are above, the art is the drone's.
 - Terrain display on the node (bars, label, glow) is #{terrain-ui}'s; use its element colour and icon, never a second palette.
-- The concentrate preview ("4 hops → 0, seed × N") moved to #{ice-cast} (Needs design); an Ice cast is a ×1 stub (#{forge}), so there is no hop change to show. The Cold spell (#1789) and its Thermal shock read are not here either.
+- The concentrate preview ("4 hops → 0, seed × N") is #{ice-cast}'s, which lands after this unit and draws it in this unit's element field; until then an Ice cast is a ×1 stub (#{forge}), so there is no hop change to show. The Cold spell (#1789) and its Thermal shock read are not here either.
 - The AI forges no element (#{forge} NOTES); nothing here for AI.
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
