@@ -102,3 +102,11 @@ The GitHub issues #1793-#1816 are the source of truth (re-posted 22:10, read bac
 4. Restamp pass on the issues (re-place every `elements.md` line range by content, stamp at the then-current master), docs-hygiene.
 5. Clerk phase 2 per `ORDER.md`: show the owner ORDER's summary first; statuses from `designing` to what ORDER names (#1814 stays out of Ready until step 2 is done), the F8 blockers (#1806 and #1808 behind #1796), `split-comment.md` on #1716 and drop its design label, #1444 behind #1807, the six closes with their comments, the stamp check, hygiene.
 6. After the owner's go: delete this folder and `docs/handoffs/elements.md` (grep for citations of `cast-shapes-rates.md` first).
+
+### Corrections to the steps above (lead, after the advisor's check)
+0. **First thing:** review the two `elements.md` commits (`git log --oneline -2 -- docs/design/elements.md`) against the verbatim owner answers above before writing any ADR. The lead committed both without reading the diffs, and the second also touched "Vocabulary guard", "Build note", "Open" and "Overflow".
+- Step 1: these are lead or pass readings with no owner sentence behind them. Keep them out of an ADR, or mark them tentative there: the centre copy is not asked of `admits` (the owner left it unticked); the overflow band keeps the primed go-off; Catalyst's two-rider pro-rata split; an absorbed copy's path ends only if the node is still Frozen after its riders (doc writer's reading); go-off zero's exemption.
+- Step 2 (#1814) also gets the doc writer's open rule: a picked target where no caster that reaches it can carry the loadout has no rule yet, now that targets are not hidden.
+- Step 3, #1813 ice-cast: its carried "Frozen has no go-off, so a concentrated seed lands on it once" is superseded by "break counts as a channel". When the hit breaks the ice, the seed takes ×m twice (plus the burst).
+- Step 5: ORDER.md's "body <name>.md" clauses are dead (the files are deleted, the issues hold the bodies). Write the phase-2 work order fresh from ORDER's statuses, relations and closes, with no body clause.
+- `GAPS.md` predates the three batches and is superseded: do not hand it to a fix writer.
