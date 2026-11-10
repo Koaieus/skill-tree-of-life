@@ -159,6 +159,16 @@ a light vertex's contact that crits or would deal threshold damage still
 breaks it. Carried into `elements-split/ice.md` (Decisions, Composition,
 acceptance 8 / 8b).
 
+**ADRs filed 2026-11-10 evening:** 0083 (riders first; 0082 §1 in part), 0084
+(shape and ride, the disc formula, same-element add-up, solo cost,
+concatenate, shape-blind reach, arc transfer, the Ice concentrate and its
+price; 0081 §1 and §8 in part), 0085 (three forge slots, ride points under
+`infusion_capacity`, overqualified casting; 0081 §7 in part). The
+ADR-corrections sibling shrinks to what they do not cover: 0081 §5, §6
+(Catalyst is an aspect status, not terrain), §9; 0082's Context; 0061, 0062,
+0070 — rewrite `adr-fixes.md` from this line. The bodies cite 0081 / 0082
+for calls these three now carry; fix in the body pass.
+
 **Open after it, none blocks the split:** whether shape points count against
 the capacity too; the knob for hops cut → shatter; the Fire multiplier (5,
 tentative); the min-1 pass pick above. `ice-cast.md` (the cast-shapes menu)
