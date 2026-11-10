@@ -811,8 +811,8 @@ Charged/Fueled nodes with ice load just proliferates whatever the ice would do
 but on the defender's side (incoming hit proliferates via hops or AoE boom)
 instead of on the attacker's side … and ice + fuel sounds like a combo why
 not?"*). The per-hop bonus bounds it: Pestilence concentrated from 6 hops to
-0 carries ×4 a landing's payload, and a 0.5 share of that is twice a plain
-landing on every disc node.
+0 carries ×4 a landing's payload, and at share 1 every disc node takes that
+×4, the seed node twice.
 
 ## Landing resolution (owner, 2026-11-05)
 
@@ -906,7 +906,9 @@ from scored options).**
 - **One share scales the whole payload** — damage and every rider's stacks,
   rounded up per rider (§ The reach rule's *"at one share"*, taken as
   settled by the pass). Today's stacks-only splash scale and the separate
-  shrapnel fraction collapse into one knob per go-off, default 0.5.
+  shrapnel fraction collapse into one knob per go-off, default 1 since
+  2026-11-10 ("Every landing is a whole hit", below), so the round-up is
+  idle at the default.
 - **Today's explosive detonation is ported first, as go-off zero** (owner:
   *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared
   base class between these?"*). The resolver lands with detonation re-hosted
@@ -964,6 +966,25 @@ doubt behind it: *"its close nbs might get hit twice (once by fire once by
 lghtng)"*): the seed node takes the seed once, in full, and a node inside
 both the shape's reach and the go-off's takes one copy per reach. The one
 dedupe switch covers both cases.
+
+**Every landing is a whole hit, and a go-off lands on its own node too**
+(owner, 2026-11-10, night, picked over share ½ with the centre excluded and
+over share 1 with the centre excluded: *"the hit hits *and* the blast hits,
+and the arc hits, and share 1 means no rounding for rider stacks"*). The
+share's default is 1, and each channel that goes off lands one more payload
+on the node it goes off from: the hit node takes 1 + 1 per channel, a node
+one channel reaches takes 1, a node both reach takes 2 — so the target is
+never hit less than its bystanders (2 against 1, 3 against 2). Owner on the
+result: *"damage doubles or triples, neat. Frozen should match that but we
+can tune it to do so i guess. and crits can stack on top of that"*, and on
+where it leads: *"nodes with HP in the 1000s to be taken down — iff you
+debuff them properly first"*. Terrain riders still land once per node per
+hit (stage one's cap), so the extra landings carry damage and aspect riders
+only and a fire does not feed itself. "No other node reached, no go-off"
+stands as worded: the centre landing happens only when the go-off does. The
+share stays a knob per go-off and the dedupe a switch. Open: whether a
+cast's shape alone, on an unprimed node, is a channel for the seed (every
+shaped cast would land twice on it); Frozen's shatter tuned to match.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 

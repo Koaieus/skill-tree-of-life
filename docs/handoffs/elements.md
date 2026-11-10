@@ -169,6 +169,17 @@ ADR-corrections sibling shrinks to what they do not cover: 0081 §5, §6
 0070 — rewrite `adr-fixes.md` from this line. The bodies cite 0081 / 0082
 for calls these three now carry; fix in the body pass.
 
+**Settled 2026-11-10, night, after the ADRs (owner quote in the doc:
+§ Landing resolution, "Every landing is a whole hit"):** the share's default
+is 1, not 0.5, and each channel that goes off also lands on its own node —
+hit node 1 + 1 per channel, a reached node 1 per channel. Terrain riders
+still once per node per hit. **This changes ADR 0082's share default and
+ADR 0084's "the seed node takes the seed once"** (decision 5): one more
+record, or the corrections sibling. Bodies touched: `resolver.md`,
+`go-off-zero.md`, `burning.md`, `lightning.md`, `pairs.md`, the cast-shapes
+body, and the Ice combo arithmetic (×4 seed now copies at ×4). Open: a
+shape alone as a channel for the seed; Frozen's shatter tuned to match.
+
 **Open after it, none blocks the split:** whether shape points count against
 the capacity too; the knob for hops cut → shatter; the Fire multiplier (5,
 tentative); the min-1 pass pick above. `ice-cast.md` (the cast-shapes menu)
