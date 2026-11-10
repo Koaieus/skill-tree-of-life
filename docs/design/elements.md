@@ -74,7 +74,7 @@ no rule of its own:
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
-| **Frozen** | denies: a copy under the break threshold is absorbed whole (no damage, no riders), a path ends (0D); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*) | a blade snaps on it (below) |
+| **Frozen** | denies: a copy under the break threshold is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) if the node is still Frozen after those riders; a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
 across the triad: a trigger pays 1 stack per target its reach touches —
@@ -229,8 +229,18 @@ crit hit landing on the node**, and **any damage at or above a flat
 threshold** — a knob, default 10% of the holder's max HP, deliberately *not*
 scaling with excess (owner: *"a flat amount not scaling with excess. else it
 would mean that a deep-frozen node would require more damage to shatter
-right? and that doesn't sound good"*). Each triggers the shatter. The
-threshold applies to direct hits and arriving copies alike — the glass
+right? and that doesn't sound good"*). Each triggers the shatter.
+**Breaking the ice counts as a channel** (owner, 2026-11-10, night: *"Break
+counts as a channel (or more radical: 2, more concentrated single target
+vibes) sounds like a fitting unification"*), Frozen's match for the whole hit
+(§ Landing resolution) and the 0D case turned inward (above): the shattered
+node takes one more payload of the hit that breaks it, on top of that hit's
+own landing, plus the burst. The extra landing carries damage and aspect
+riders only, as every extra landing does; how many it is, is a knob, default
+1. That is stated for a hit or a copy that breaks it; a blade touch that
+breaks it adds the burst, and whether it also adds the channel's payload,
+when the spike pop refused the contact's own, is open. The threshold applies to direct hits and arriving copies
+alike — the glass
 ceiling of 2026-11-05 unified with the *"a hit that deals X amount of % max
 health"* breaker: a copy that breaks through also lands — so deep freeze
 raises the burst's stakes, never the wall's strength. Heat and decay still
@@ -238,11 +248,29 @@ end Frozen without a shatter. No re-evaluation anywhere: a hit's crit and
 damage are its own facts. **Frozen reads at two points** (owner, 2026-11-10,
 picked *admit on arrival, the rest after riders* over all of Frozen reading
 pre-hit): whether an arriving copy is absorbed is checked against the node as
-it arrives, since an absorbed copy lands no riders; the path-end and the
-break check read after the hit's element riders land, as Burning and Shocked
-do. So a hit that freezes a node ends its own walk there, a crit or heavy hit
-that freezes it shatters it at once, and a Heat hit that thaws it passes
-through without a shatter.
+it arrives; the path-end and the break check read after the hit's element
+riders land, as Burning and Shocked do. **The admit gates a copy's damage and
+aspect riders only; terrain lands at the tip of every hit** (owner,
+2026-11-10, night: *"How i see it: terrain sits at the tip of each hit, and
+lands no matter what. It can thaw a freeze? Or prime a node as it hits? (Or
+that last one might be a little intense but still kinda valid?)"*). An
+absorbed copy's Heat, Cold and Charge land all the same, once per node per
+hit: Heat on an absorbed copy can thaw the ice, and a tipping rider primes
+the node as it hits (riders first, ADR 0083 §1). An arc's transferred Charge
+lands too: it moves with the spend, before the next node's admit. The next
+element ADR records this as an amendment to ADR 0083 §2. So a hit that
+freezes a node ends its own walk there, a crit or heavy hit that freezes it
+shatters it at once, and a Heat hit that thaws it passes through without a
+shatter. **An arrival that breaks the ice walks on**
+(owner, 2026-11-10, night: *"Arrival shattering sounds like it should no
+longer be blocked tbh. But might be sensitive to race conditions e.g. during
+many nodes being hit simultaneously during a magic spell's Wave (beat)."*):
+it lands, and its path goes on past the shattered node. The race the owner
+flags cannot arise: the hits of one beat all start from the pre-beat store
+(one snapshot per beat, § Landing resolution), so no arrival's absorb, break
+or walk depends on which one landed first, and the break check sits in stage
+one's read, which runs once per node per hit, so a node breaks at most once
+per hit.
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -831,16 +859,20 @@ function of one snapshot (#1733 R4); nothing reacts mid-land.
    riders as separate things: *"first resolve terrain riders (only:
    heat/cold/charge) - then resolve hit reach + local reach"*. At the node
    the hit lands on: *admit* — an arriving copy is checked against Frozen as
-   the node stands (§ What breaks the ice); *land* the element riders
-   (Catalyst converting as they add) and net Heat × Cold; *read* the node's
+   the node stands (§ What breaks the ice), and the answer gates only its
+   damage and aspect riders, what stage two lands; a centre copy (below) is
+   never asked (pass reading, tentative: the owner left the option to ask it
+   unticked); *land* the element riders, absorbed or not (Catalyst
+   converting as they add) and net Heat × Cold; *read* the node's
    primed states and their power from the result — together with the cast's
    shape they are the reach (§ Shape and ride), and the Frozen path-end and
    break check are here, against the hit's own crit and damage facts; the
    go-offs spend their stacks and name the nodes they reach.
    Each reached node runs the same three steps on the copy's element riders
    under the once-per-node-per-hit cap (per arrow, per blade contact, per
-   arrival of a wave), a Frozen node
-   absorbing an under-threshold copy whole; dual reaches concatenate (below).
+   arrival of a wave), a Frozen node absorbing an under-threshold copy's
+   damage and aspect riders while its element riders land; dual reaches
+   concatenate (below).
    The result is the hit's whole target set with a share per entry — the
    attack record's blast table, one mark and its copies — before anything
    else lands.
@@ -851,8 +883,9 @@ function of one snapshot (#1733 R4); nothing reacts mid-land.
 
 A hit carrying +1 Heat onto a 5-Cold node lands it, leaves 4, and is read
 against 4: it thaws for itself. A hit carrying +1 Charge onto a node one
-short of Shocked arcs from it. A Cold *copy* onto a Frozen node lands
-nothing, so only a direct Cold hit deepens a freeze. The order per target in
+short of Shocked arcs from it. A Cold *copy* onto a Frozen node is absorbed
+but lands its Cold, so a copy deepens a freeze as a direct hit does. The
+order per target in
 stage two is unchanged (owner, 2026-11-10, asked whether damage now lands
 before the aspect riders: *keep riders before damage*). The same terrain
 settle runs after every world-turn tick.
@@ -922,7 +955,10 @@ from scored options).**
   subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it, on
   the `Element` def too. Explosive is not an element, so go-off zero's disc
   rides the Explosive `Aspect` def under the same field name until the
-  Catalyst retag deletes it (pass pick, tentative).
+  Catalyst retag deletes it (pass pick, tentative). Go-off zero keeps
+  today's numbers until that retag, share 0.5 and no centre copy (owner,
+  2026-11-10, night: *"Tbf i don't care anything about intermediate state so
+  long it's all as it should be when all issues are done"*).
 - **The applier drains an open worklist** (owner picked it over the head
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing
@@ -954,41 +990,52 @@ might be a feature! tentative option 2, where union is kept as an easily
 switched to option if we change our minds. after all it's just a "do you
 dedupe the list or not" after gathering each reach medium's additional
 targets"*. Tentative: the dedupe is one switch at the gather step, so the
-build keeps it as a knob rather than a structure. A node gathered by two
-reaches is two entries, each landing every rider and the damage (owner,
-2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like
-a dangerous concept"*), but if that node is itself primed its own go-off
+build keeps it as a knob rather than a structure. **The switch acts on
+collateral nodes only** (owner, 2026-11-10, night: *"Deduping: central target
+takes 1 + (channels) loads, other nodes besides central take
+(share\*channels) total load. Central always more than the collaterals
+(reached nodes through a channel)."*): switched on, it merges a reached
+node's entries and never the hit node's, so the hit node takes 1 + 1 per
+channel either way (below) and always more than any collateral. A node
+gathered by two reaches is two entries, each landing the aspect riders and
+the damage (owner, 2026-11-10: *"riders twice, payload twice. charged
+burning nodes sounds like a dangerous concept"*; its terrain riders land
+once, stage one's cap), but if that node is itself primed its own go-off
 fires **once per hit**, not once per entry (owner, 2026-11-10, picked *once
 per hit*): the once-per-node set bounds every cascade by node count. **A
 cast's shape and a go-off of another element are two reaches under the same
 rule** (owner, 2026-11-10, picked *same as dual reach: concatenate*; the
 doubt behind it: *"its close nbs might get hit twice (once by fire once by
-lghtng)"*): the seed node takes the seed once, in full, and a node inside
-both the shape's reach and the go-off's takes one copy per reach. The one
-dedupe switch covers both cases.
+lghtng)"*): the seed node takes the seed once, in full, plus the go-off's
+centre copy (below), and a node inside both the shape's reach and the
+go-off's takes one copy per reach. The one dedupe switch covers both cases.
 
 **Every landing is a whole hit, and a go-off lands on its own node too**
 (owner, 2026-11-10, night, picked over share ½ with the centre excluded and
 over share 1 with the centre excluded: *"the hit hits *and* the blast hits,
 and the arc hits, and share 1 means no rounding for rider stacks"*). The
 share's default is 1, and each channel that goes off lands one more payload
-on the node it goes off from: the hit node takes 1 + 1 per channel, a node
-one channel reaches takes 1, a node both reach takes 2 — so the target is
-never hit less than its bystanders (2 against 1, 3 against 2). Owner on the
-result: *"damage doubles or triples, neat. Frozen should match that but we
-can tune it to do so i guess. and crits can stack on top of that"*, and on
-where it leads: *"nodes with HP in the 1000s to be taken down — iff you
-debuff them properly first"*. Terrain riders still land once per node per
-hit (stage one's cap), so the extra landings carry damage and aspect riders
-only and a fire does not feed itself. "No other node reached, no go-off"
+on the node it goes off from, its centre copy: the hit node takes 1 + 1 per
+channel, a node one channel reaches takes 1, a node both reach takes 2 — so
+the target is never hit less than its bystanders (2 against 1, 3 against 2).
+A centre copy carries the go-off's own damage as well as the payload, as a
+reached node's copy does (owner, 2026-11-10, night, accepted when asked).
+Owner on the result: *"damage doubles or triples, neat. Frozen should match
+that but we can tune it to do so i guess. and crits can stack on top of
+that"*, and on where it leads: *"nodes with HP in the 1000s to be taken
+down — iff you debuff them properly first"*. Frozen matches by counting its
+break as a channel (§ What breaks the ice). Terrain riders still land once
+per node per hit (stage one's cap), so the extra landings carry damage and
+aspect riders only and a fire does not feed itself. "No other node reached, no go-off"
 stands as worded: the centre landing happens only when the go-off does. The
-share stays a knob per go-off and the dedupe a switch. **A cast's shape
-alone is not a channel for the seed** (owner, 2026-11-10: *"the shape for
+share stays a knob per go-off and the dedupe a switch that never merges the
+hit node's landings (Dual reach, above). **A cast's shape alone is not a
+channel for the seed** (owner, 2026-11-10: *"the shape for
 spells hmmm i think that one shouldn't count"*): a shaped cast on an
 unprimed node lands once on its seed, and the extra landing comes only from
 a primed node going off. Pass reading, tentative: a shape added into a
 primed node's go-off of the same element is that node's go-off, one
-channel, so the seed takes 2. Open: Frozen's shatter tuned to match.
+channel, so the seed takes 2.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -1034,16 +1081,16 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | On the node ↓ / arriving → | a hit (a copy and a blade vertex included) | the opposite temperature (rider or flow) | a Frostbite pack |
 |---|---|---|---|
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
-| **Burning** | explodes (§ The threshold model) | nets: Cold cools it, for the next landing | |
+| **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold is absorbed whole and the path ends; a breaking copy lands; a blade vertex snaps, breaking it only if at least as heavy as the node | nets: Heat thaws it, for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold is absorbed (its terrain riders still land) and the path ends if the node is still Frozen after them; a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, breaking it only if at least as heavy as the node | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
-asked for, *trapped until broken*): a node both Frozen and Shocked neither
-receives nor emits — the Charge sits trapped under the ice — and the hit that
-breaks the ice sets off the Shocked state in the same settle: crack the ice,
-release the storm, plus the shatter burst. Freezing a wire cuts it and stakes
+asked for, *trapped until broken*): a node both Frozen and Shocked does not
+arc — the Charge sits trapped under the ice, and Charge an arrival lands joins
+it — and the hit that breaks the ice sets off the Shocked state in the same
+settle: crack the ice, release the storm, plus the shatter burst. Freezing a wire cuts it and stakes
 the trapped Charge as a visible bomb. One compound read, never a
 re-evaluation: the breaking hit's crit and damage are its own facts, both
 states are read after the hit's riders land, and the read says "Frozen mutes
@@ -1095,7 +1142,7 @@ native reach made terrain, and its state is that reach's verb on travel:
 
 | State | Dimension | Travel verb | Spends |
 |---|---|---|---|
-| **Frozen** | 0D, a point | a path **ends**: hops, chains and arcs stop here (a Frostbite pack, #1444, is the one exception: cold passage) | nothing |
+| **Frozen** | 0D, a point | a path **ends**: hops, chains and arcs stop here, unless the arrival breaks the ice (a Frostbite pack, #1444, is the one other exception: cold passage) | nothing |
 | **Shocked** | 1D, a line | a path **conducts**: a spell walk entering a Shocked node leaves it without spending a hop — a line of Shocked nodes is a wire for anyone's magic | one Charge per pass-through |
 | **Burning** | 2D, a disc | a disc **spreads**: a blast's copy landing on a Burning node sets it off in turn (the trigger) | what a go-off pays (§ The threshold model) |
 
@@ -1156,7 +1203,11 @@ tick. if more charge is at play, more things can happen, chain effects,
 priming mid hit or after, all reads as *very* STATIC DISCHARGE i must
 say"*). A Shocked go-off still pays 1 per node reached, but each spent stack
 lands on the node it reached (+1 there, in the same commit as the -1 on the
-source: the beat's one set of sums, so no timing is added). Where the spent
+source: the beat's one set of sums, so no timing is added). It lands on a
+Frozen node too, where the arc's copy is absorbed: it moves with the spend,
+before that node's admit (owner, 2026-11-10, night: *"it resolves before
+right? The charge before the frozen check? Should be good so it still applies
+any terrain stacks (cold heat charge)"*). Where the spent
 Charge goes — the reached node, or the void — is one exported choice on
 Lightning's edge go-off, transfer by default. It is Lightning's exception to
 the one spend law (ADR 0081 §1, whose rejected "radiating transfer" was
@@ -1201,8 +1252,8 @@ implementation that must stay the **only** implementation (never a GDScript
 mirror), not a new build.
 
 Everything else coexists. Catalyst and Cold coexist: Catalyst under a Frozen
-node is colourless until a hit's element lands; a direct Cold hit deepens the
-freeze (a Cold copy is absorbed), a Heat hit thaws harder. Heat never touches a Frostbite
+node is colourless until a hit's element lands; a Cold hit or copy deepens the
+freeze (an absorbed copy's Cold still lands), a Heat hit thaws harder. Heat never touches a Frostbite
 pack (owner, 2026-11-04: *"Heat & Cold don't make sense together. frostBITE
 is an ailment"*). Charge has no opposite. Rejected: Catalyst damped by Cold
 (terrain fighting terrain with nobody acting).
