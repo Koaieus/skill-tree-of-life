@@ -1,7 +1,7 @@
 Re-cut the specs of the eight late element children once the spine (#{defs} → #{catalyst-blade}) has landed. No code lands: this unit is a board pass that makes every late issue true against the new master before a drone picks it up. Parent hub #1716; design home `docs/design/elements.md`.
 
 Blocked by: #{catalyst-blade}
-Blocks: #{blade-elements}, #{fire}, #{lightning}, #{ice}, #{pairs}, #{forge}, #{quiver}, #{forge-ui}
+Blocks: #{blade-elements} (the other seven late units are blocked through it)
 
 ## Acceptance spec
 

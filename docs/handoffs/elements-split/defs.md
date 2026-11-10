@@ -19,10 +19,10 @@ Blocks: #{terrain}, #{resolver}
 - Schools: Fire is in STR's pool, Ice in DEX's, Lightning in INT's. Element counts come from the aspect sources (owner, 2026-11-09; `elements.md:991-996`).
 - Vocabulary guard (owner, 2026-11-04): *"stay mindful of concepts drifting"*. "Volatile" is adopted for Burning and Shocked (owner, 2026-11-09): *"`volatile` is a better fit to describe Burning *and* Shocked"* (`elements.md:968-987`).
 - The Element Matrix has one row per family status, with columns `Ammo : Addon : Spell : Infusion` (owner, 2026-11-04): *"option 1 sounds good"* (`elements.md:1092-1095`).
-- The count stat ids are `fire_element`, `ice_element` and `lightning_element`, with display names "Fire attunement", "Ice attunement" and "Lightning attunement" (owner, 2026-11-10, picked *"fire_element, shown as "Fire attunement""* over `fire_attunement` and bare `fire`). The suffix follows the kind, as `_aspect` does. `elements.md:253`'s bare `fire` is corrected here.
+- The count stat ids are `fire_element`, `ice_element` and `lightning_element`, with display names "Fire attunement", "Ice attunement" and "Lightning attunement" (owner, 2026-11-10, picked `fire_element`, shown as "Fire attunement", over `fire_attunement` and a bare `fire`; the picks are recorded in `docs/handoffs/elements.md` § 0, not as a quoted sentence). The suffix follows the kind, as `_aspect` does. `elements.md:253`'s bare `fire` is corrected here.
 
 **Knobs**: none. The band multiples and decay rates are authored data on the `.tres` (below), not tuning exports. T, k and the cap belong to #{terrain}.
-- `ElementBand.decay_per_world_turn` (int ≥ 0). Primed bands default to 1, the pass default "decay 1 per world turn". Overflow bands default to 2 (spec pick, tentative: the doc says "decay fast" but gives no number). Only #{flow} reads the rates; all terrain decay happens in its world-turn pass.
+- `ElementBand.decay_per_world_turn` (int ≥ 0). Primed bands default to 1, the pass default "decay 1 per world turn". Overflow bands default to 2, **undecided** (owner, 2026-11-10: *"overflow decay idk yet 2 or 3 or proportional"*); the doc says "decay fast" but gives no number. Keep it a knob. Only #{flow} reads the rates; all terrain decay happens in its world-turn pass.
 
 **Composition**
 - **`Element`** (`elements/element.gd`, `class_name Element`, Resource, `@tool`). Its fields keep `Aspect`'s names: `identity`, `stat` (the COUNT facet), `ammo`, `addon_scene`, `spells` (the last three stay empty here). New fields:
@@ -84,12 +84,12 @@ Blocks: #{terrain}, #{resolver}
 5. `test/unit/spell/test_aspect_intake.gd` gets a new test. A row with `plants` set returns that def from `status()`. A row without it still returns `by_concept`'s def. The existing asserts pass unchanged.
 6. Characterization pins: the 25 files that named `Role.ASPECT` pass with only the symbol renamed (re-pointing is allowed, assertion changes are not). `test_identity_roster.gd`, `test_identity_badge.gd` and `test_status_roster.gd` stay green.
 7. Visual: in the identity sandbox, an element badge draws its own ELEMENT frame, not the hexagon fallback, tinted by its identity. The three element hues are distinct from one another and from STR red and Health crimson, and none is gold (`.claude/rules/ui-palette.md`). An icon is optional, since the letter fallback is fine.
-8. Visual: the three counts show on the entity's stat surface wherever `<x>_aspect` counts show today (`docs/domain/stat-surfaces.md`), tinted and badged. If that surface filters by Role or parent and so misses them, include them there. The readout must say "Fire attunement 1".
+8. Visual: the three counts show on the entity's stat surface wherever `<x>_aspect` counts show today (`docs/domain/stat-surfaces.md`), tinted and badged. If that surface filters by Role or parent and so misses them, include them there. The readout must say "Fire attunement" and the count (a default entity reads `default_value`; #{quiver} raises it to 1).
 
 **NOTES**
 - The audit's "ring slots" for elements is not in this unit. Which inner-tree shape holds the elements is a sibling issue in Needs design. `entity/ring/aspect_ring.tscn` is untouched.
 - `*_stacks_per_hit` facets for the members are not named by the design. They are parked: a member without one lands its authored power as-is (`status_def.gd:85-90`).
-- The starter count (1 for every entity, through the stat's default value; owner, 2026-11-10) belongs to #{forge}. The element ammo types and their stock cap belong to #{quiver}. Here the COUNT defs keep `default_value` 0.
+- The starter count (1 for every entity, through the stat's default value; owner, 2026-11-10) belongs to #{forge}, which sets `StatDef.default_value` = 1 on these defs. The element ammo types and their stock cap belong to #{quiver}. Here the COUNT defs keep `default_value` 0.
 - `effects/status/explosive.tres:20` carries the tag `charge`. No code reads it. #{catalyst} frees it. The new status id `charge` does not collide with it.
 - Not here: the next element ADR's corrections (ADR 0081 §5-§7 and §9, and ADR 0082's Context) are a sibling issue. `stats_system/defs/aspects.tres`'s description says "eight" `<concept>_aspect` stats, but 13 exist. Fix it if you touch the file.
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
@@ -99,6 +99,7 @@ Blocks: #{terrain}, #{resolver}
 ```drift-stamp bd800181
 docs/design/elements.md:13-33 — the two axes; Aspect:Status 1:1 is to be test-guarded
 docs/design/elements.md:245-256 — the roles table: count, terrain stack, mover, state
+docs/design/elements.md:713-726 — the GoOff resource sits on the Element def; the applier worklist call
 docs/design/elements.md:830-848 — bands on the Element def: threshold, identity, answers; nothing stores a band
 docs/design/elements.md:850-870 — travel verbs per state; Burning is a light source
 docs/design/elements.md:968-987 — vocabulary guard incl. Volatile, Member

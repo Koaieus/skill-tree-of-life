@@ -14,12 +14,12 @@ Blocks: #{refresh}
 **Knobs** — none survive. `BladePopResolver.LiveGate.warhead_reach` and `shrapnel_fraction` are deleted with the path they tune (written call).
 
 **Composition**
-- What remains is a contact that lands one hit. A primed struck node goes off through #{resolver}'s gather, as any hit does. Nothing on the blade holds or spends a charge, and no blast reaches blade pieces.
+- What remains is a contact that lands one hit. (The blast no longer popping plain blade pieces is a pass call, parked in NOTES.) A primed struck node goes off through #{resolver}'s gather, as any hit does. Nothing on the blade holds or spends a charge, and no blast reaches blade pieces.
 - **Dies:**
   - `BladeState.vertex_charges`, and its zero-fill in `build()`.
   - `BladeVertexFill`'s Catalyst read (the `EXPLOSIVE` const, lines 42-49). The fill keeps its stats and `vertex_shielded`.
   - From `BladePopResolver.LiveGate`: `_admit_explosive`, `_piece_pass`, `piece_charges`, `_spend_piece`, `_spend_node`, `explosive_def`, `arm_blasts`, the two knobs, and the explosive fields of `Contact` (`piece_reach`, both powers, the piece verdicts SPENT / SHRUG on charges). Read `Result.contacts` first: if it has no other user, it dies too.
-  - In `swing_resolve.gd`: the spent-charge handover (around 372-379), the piece's board blast arming (around 501-503), and the charge landing behind the batch (around 527).
+  - In `swing_resolve.gd`: whatever of the charged-piece path remains. #{go-off-zero} already deleted the node-spend handover (`_append_spends`, `_flush_spends` and their calls) and moved the board-blast arming (`arm_blasts`) onto the gather, so the line numbers here are cut before it; grep, and delete only what is left.
   - `BladeNode.charges`, the spend flare, the shrug sheen, and `ChargeBand` (`blade_charge_band.gd` and the `blade_node.tscn` node).
   - `BladeStyle.charge_band_width`, `charge_tier`, `charge_identity`, `charge_color`, and the sheen/ring colour that reads them.
   - `SkillBlade._build_charges`, `_snapshot_build_charges`, `_charges_at`, the spent-count helper, and the piece-blast rings.
@@ -39,7 +39,7 @@ Blocks: #{refresh}
 
 **NOTES**
 - Reading list and seam map were cut before #{resolver} and #{go-off-zero} landed. #{go-off-zero} moved these lines. The dispatching lead re-checks `mise run issue-drift`; if it still flags this issue, stop and say so.
-- Behaviour that leaves with no replacement in the design: a blast popping plain blade pieces (ADR 0062's node side). If play misses it, that is a new design issue, not this unit.
+- Parked, not decided by the owner (pass call): the behaviour that leaves with no replacement in the design, a node's blast popping plain blade pieces (ADR 0062's node side). If play misses it, that is a new design issue for the owner, not this unit.
 - ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5-§7 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
 - The `.claude/rules/blade-budget-and-clamps.md` budget for temp addons is untouched: a temp barrel still costs its slot until the element addons arrive.
 

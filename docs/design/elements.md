@@ -750,7 +750,12 @@ might be a feature! tentative option 2, where union is kept as an easily
 switched to option if we change our minds. after all it's just a "do you
 dedupe the list or not" after gathering each reach medium's additional
 targets"*. Tentative: the dedupe is one switch at the gather step, so the
-build keeps it as a knob rather than a structure.
+build keeps it as a knob rather than a structure. A node gathered by two
+reaches is two entries, each landing every rider and the damage (owner,
+2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like
+a dangerous concept"*), but if that node is itself primed its own go-off
+fires **once per hit**, not once per entry (owner, 2026-11-10, picked *once
+per hit*): the once-per-node set bounds every cascade by node count.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -808,8 +813,11 @@ breaks the ice sets off the Shocked state in the same settle: crack the ice,
 release the storm, plus the shatter burst. Freezing a wire cuts it and stakes
 the trapped Charge as a visible bomb. One compound read, never a
 re-evaluation: the breaking hit's crit and damage are its own facts, both
-stacks are read pre-hit, and the read says "Frozen mutes Shocked unless this
-hit shatters".
+states are read pre-hit, and the read says "Frozen mutes Shocked unless this
+hit shatters". The released arc's *power* follows the one power rule (§ The
+threshold model): it is read after the breaking hit's own riders land, so a
+Charge-carrying breaker feeds the storm it releases (owner, 2026-11-10,
+picked *after the hit lands* over the trapped Charge exactly as it sat).
 
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
@@ -907,6 +915,25 @@ leaf (T 2) lights at three Heat, a degree-5 hub needs eleven, so hubs are
 hard to blow and tips burn bright. The door the owner kept open (*"a bespoke
 twist or tweaked T value later for Burn. or extinguish mechanics"*) stays
 open.
+
+**An arc moves its Charge, it does not void it** (owner, 2026-11-10: *"knob,
+transfer by default"*, reasoning: *"decay is 1 per charged node. if it voids
+4, they are gone. if it spreads them to 0 charge nodes, they are gone by next
+tick. if more charge is at play, more things can happen, chain effects,
+priming mid hit or after, all reads as *very* STATIC DISCHARGE i must
+say"*). A Shocked go-off still pays 1 per node reached, but each spent stack
+lands on the node it reached (+1 there, in the same commit as the -1 on the
+source: the beat's one set of sums, so no timing is added). Where the spent
+Charge goes — the reached node, or the void — is one exported choice on
+Lightning's edge go-off, transfer by default. It is Lightning's exception to
+the one spend law (ADR 0081 §1, whose rejected "radiating transfer" was
+weighed for Burning's disc, where it mirrors diffusion; the next element ADR
+records the reversal for arcs). Consequence to tune against: an interior node
+of a wire gets back what it gives, so decay and the conduct cost are what end
+a wire. Pass readings, tentative: the conduct cost of a pass-through is still
+voided; a transferred stack is treated exactly like the Charge rider an arc
+copy lands (same commit, same primed-ness read); Burning and Frozen keep the
+void.
 
 **Charge stays put** (owner, 2026-11-08: *"charge staying put sounds
 good"*): static charge. Its travel is the arc it fires when hit, and since

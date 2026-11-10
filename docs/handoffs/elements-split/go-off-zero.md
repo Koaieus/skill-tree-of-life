@@ -6,12 +6,12 @@ Blocks: #{burning}
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-09 unless dated)
-- Go-off zero: *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared base class between these?"*. *"The resolver lands with detonation re-hosted on the go-off contract, proving it on the shipped tests and deleting both spend ledgers; the game keeps its blast until Burning inherits it."* The contract has a disc subclass, `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc, and no `ArcEffect` exists (`docs/design/elements.md:708-721`).
+- Go-off zero: *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared base class between these?"*. The doc's statement of that pick: *"The resolver lands with detonation re-hosted on the go-off contract, proving it on the shipped tests and deleting both spend ledgers; the game keeps its blast until Burning inherits it."* The contract has a disc subclass, `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc, and no `ArcEffect` exists (`docs/design/elements.md:708-721`).
 - `GoOff` sits on the `Element` def: *"i think it should sit on Element def, going off is just about their thing"*. Go-off zero's disc rides the Explosive `Aspect` def under the same field name until the Catalyst retag deletes it (pass pick, tentative) (`:713-721`).
-- Per-hit once-per-node set and one snapshot per beat. *"The per-wave `detonated` scope goes."* (`:693-703`).
-- One share: *"Today's stacks-only splash scale and the separate shrapnel fraction collapse into one knob per go-off, default 0.5"* (`:704-707`).
+- Per-hit once-per-node set and one snapshot per beat. The doc: *"The per-wave `detonated` scope goes."* (`:693-703`).
+- One share: The doc: *"Today's stacks-only splash scale and the separate shrapnel fraction collapse into one knob per go-off, default 0.5"* (`:704-707`).
 - A go-off copy carries its parent's crit (owner picked *it rides*; ADR 0082 §4). Spell shrapnel stops rolling its own (`:336-342`).
-- Chains are flat, `damage × s` and riders `ceil(r × s)`, never `s^k`: *"LET IT RIDE"* (2026-11-05, #1735 fork 1). *"That is how it is built (#1735's finding), so #1735 closes with a doc line"* (`:489-496`). A copy lands raw, so `stacks_per_hit` never multiplies with reach (#1733 R2, `:525-530`).
+- Chains are flat, `damage × s` and riders `ceil(r × s)`, never `s^k`: *"LET IT RIDE"* (2026-11-05, #1735 fork 1). The doc: *"That is how it is built (#1735's finding), so #1735 closes with a doc line"* (`:489-496`). A copy lands raw, so `stacks_per_hit` never multiplies with reach (#1733 R2, `:525-530`).
 - A planting hit is a hit (pass ruling, 2026-11-10, `:484-487`). Today's `DetonateEffect.arm` PlantUse skip survives only as go-off zero's ported behaviour, and #{catalyst} deletes it.
 
 **Knobs** (tentative, easy to change)
@@ -19,11 +19,11 @@ Blocks: #{burning}
 - `ExplosiveSpread`'s `resonance`, `reach_per_radius` and `charge_exponent` are unchanged. Tests assert the formula table and ratios, never the literals.
 
 **Composition**
-- **The disc** is a `GoOff` subclass (in `elements/`, beside the base). Go-off zero overrides spend and power with today's `spend_of` / `power_of` (`detonate_effect.gd:73-86`) and reach with `ExplosiveSpread.radius_for`. It reads the Explosive status row's power plus the hit's load: a spell's `DetonateUse` load (`LoadBag.detonate_load`), a blade piece's charges, and 0 for an arrow. A core with no charges reads and spends its owner's entity rows, as `_present` does today. #{burning} later reuses the disc with Heat's excess as power.
+- **The disc** is a `GoOff` subclass (in `elements/`, beside the base). Go-off zero overrides spend and power with today's `spend_of` / `power_of` (`detonate_effect.gd:73-86`) and reach with `ExplosiveSpread.radius_for`. It reads the Explosive status row's power plus the hit's load: a spell's `DetonateUse` load (`LoadBag.detonate_load`), a blade piece's charges, and 0 for an arrow. A core with no charges reads and spends its owner's entity rows, as `_present` does today. The power source must be swappable: the disc takes its power through one overridable read (an exported source or a single override point), with today's charge formula as go-off zero's instance of it, because #{burning} reuses the same disc class with Heat's excess as power and no second disc class. Do not hard-code the charge formula into the subclass.
 - **`Aspect.go_off`** is an `@export` with the same field name as the band's, authored only on `aspects/defs/explosive.tres`. The gather reads it beside the element bands.
 - **The record.** `BlastMark` stays the gather's output row, one mark and its copies (`attack_record.gd:211-217`, `_capture_blast` 700-713), and gains a generation index. `_announce_blast` is unchanged.
-- **The blade** (written call): the node-side piece pass (`_piece_pass`, pop or shrug) stays in the sim gate. The board blast `arm_blasts` builds today (`blade_pop_resolver.gd:437-470`) becomes the gather at the contact's landing. Each contact lands at its own `structural_key` (`swing_resolve.gd:485`), so the world carries every spend before the next admit, and `_node_spent` (238, 391) dies. If a gate decision still needs a spend not yet on the world, stop and report: that is a design fork, not a workaround.
-- **Dies:** `attack/spell/on_hit/detonate_effect.gd`, `attack/spell/on_hit/blast_effect.gd`, the `SPENT_KEY` ledger, `LiveGate._node_spent`, `HitLanding.detonated` and its copy in `SplashEffect._retargeted`, and the per-wave scope (`spell_resolver.gd:297,336`). The `arm` call sites (`spell_resolver.gd:146`, `ranged_damage.gd:99`, `blade_pop_resolver.gd:454`) go too. `ExplosiveSpread.blast_for` dies or returns the disc. `PairedDamageEffect` survives only if a non-blast `.tres` still authors it (grep; none did at `bd800181`), otherwise it folds into the share.
+- **The blade** (written call): the node-side piece pass (`_piece_pass`, pop or shrug) stays in the sim gate. The board blast `arm_blasts` builds today (`blade_pop_resolver.gd:437-470`) becomes the gather at the contact's landing. The swing lands as it simulates, one sample's contacts per batch (`swing_resolve.gd:228-240` → `_land_batch` 442-529), and every gate read is live inside `land_on` → `LiveGate.admit`; the sim never runs ahead of the landings. Today a spend is still deferred: the gate records it, and `_flush_spends` (393, called at 529) lands it as a `CureInstance` only after the whole batch, so `_node_spent` (238, 391, 402-418) exists to cover two contacts of one sample on one node. With spends land-time (Acceptance 2b) that gap closes and `_node_spent`, `take_spends`, `_append_spends` and `_flush_spends` die: contacts of different samples read the world, which already carries the earlier spend; contacts of one sample on one node are hits of one beat and follow the resolver's rule — both read the pre-beat store, spends summed and clamped at 0 (Acceptance 2e; pass reading of the owner's one-snapshot rule, a behaviour change from today's sequential in-sample spend). If a gate decision still needs a spend not yet on the world across samples, stop and report: that is a design fork, not a workaround.
+- **Dies:** `attack/spell/on_hit/detonate_effect.gd`, `attack/spell/on_hit/blast_effect.gd`, the `SPENT_KEY` ledger, `LiveGate._node_spent`, `LiveGate.take_spends` with its `_spends` list and `Spend` record, `SwingResolve._append_spends` and `_flush_spends` (and their calls at `swing_resolve.gd:331` and `:529`), `HitLanding.detonated` and its copy in `SplashEffect._retargeted`, and the per-wave scope (`spell_resolver.gd:297,336`). The `arm` call sites (`spell_resolver.gd:146`, `ranged_damage.gd:99`, `blade_pop_resolver.gd:454`) go too. `ExplosiveSpread.blast_for` dies or returns the disc. `PairedDamageEffect` survives only if a non-blast `.tres` still authors it (grep; none did at `bd800181`), otherwise it folds into the share.
 
 **Files touched**
 - `elements/` (the disc subclass), `aspects/aspect.gd`, `aspects/defs/explosive.tres`
@@ -40,6 +40,7 @@ Blocks: #{burning}
    - (b) Spends are land-time; no compile-time `CureInstance` and no ledger read is left.
    - (c) A blast copy lands damage × share and riders ceil(r × share). A second link is flat, never share².
    - (d) Shrapnel copies the head's `crit_tier`. In `test_paired_damage_effect.gd`, it used to roll its own.
+   - (e) Two blade contacts of one sample on one charged node both read the pre-beat charges; their spends are summed and clamped at 0. It used to be sequential through `_node_spent`.
 
    The drone lists every re-pointed assertion in its report. `test_blast_effect.gd` is retired or re-pointed with its class.
 3. A volley on a 5-charge node fires 5, 4, 3, 2, 1 with no ledger: the arrows land and spend on the world in turn.
@@ -60,6 +61,7 @@ Blocks: #{burning}
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
 ```drift-stamp bd800181
+docs/design/elements.md:336-342 — a go-off copy carries its parent's crit; shrapnel stops rolling its own
 docs/design/elements.md:484-530 — planting, chains flat, no-parent go-off, a copy lands raw
 docs/design/elements.md:693-721 — per-hit set, one share, go-off zero
 docs/domain/explosive.md:66-118 — spend, power, chains as built

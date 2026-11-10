@@ -14,8 +14,8 @@ Blocks: #{catalyst}
 - The disc is the `GoOff` disc subclass on the `Element` def (owner, 2026-11-09: *"i think it should sit on Element def, going off is just about their thing"*), "go-off zero, then Burning unchanged with another power source" (`:708-721`).
 - **Burning is what ignites** (owner, 2026-11-05: *"Burning ignites"*, picked over "any Heat ignites") (`:903-906`).
 - Copies carry everything (owner, 2026-11-08: *"everything rides yeah, LET IT RIDE! can change that later if it becomes too much"*) (`:105-108`), so a Heat rider on a copy chains.
-- Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node holding Explosive charges and Burning sets off both discs, and a node inside both gets two entries, each landing everything at its share. Pass reading: each go-off fires at most once per hit (the once-per-node set).
-- A ride row plants its named status: Heat rides "exactly as Poison rides" (owner, 2026-11-04, `:346-360`).
+- Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node holding Explosive charges and Burning sets off both discs, and a node inside both gets two entries, each landing everything at its share. Pass reading (tentative, unconfirmed): each go-off fires at most once per hit (the once-per-node set).
+- A ride row plants its named status: Heat rides "exactly as Poison rides" (the doc's rule, `:346-360`; the owner's 2026-11-04 line behind it is at `:354-357`).
 
 **Knobs** (tentative defaults, easy to change; tests assert ratios, never the literal)
 - Fire's disc `GoOff` `.radius_per_node_radius` = 1.0 (`@export_range(0.1, 5.0)`). This is the owner's √power × node radius. Editor feedback: the blast sandbox tab (`addons/sandbox_host/tabs/71_blast_panel.gd`) shows Fire's disc beside go-off zero's.

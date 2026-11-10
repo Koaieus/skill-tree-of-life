@@ -15,7 +15,7 @@ Blocks: #{catalyst-blade}
   - Facets `catalyst_stacks_per_hit` / `catalyst_resistance`.
   - The goo arrow plants it.
 - The blast gap (owner, 2026-11-10): *"option 1 but spare no drones, split if needed"*. Burning's disc lands first (#{burning}). This unit deletes go-off zero's disc, so master always has a blast.
-- Firecracker (owner, 2026-11-10): the owner picked "The row names Fire: it plants Heat". `FuelUse` and `FuelBlastReach` are deleted here.
+- Firecracker (owner, 2026-11-10, handoff § 0): its row names Fire and plants Heat. `FuelUse` and `FuelBlastReach` are deleted here.
 - Prime conversion is read inside #{flow}'s settle seat and never hooked on `terrain_band_changed` (pass pick, tentative, kept 2026-11-10). Doc `:842-848` keeps that signal for display.
 - A planting hit is a hit: on a primed node it sets it off (`:484-487`; pass ruling, 2026-11-10). A goo arrow on a primed node flips nothing (`:144-149`).
 - Catalyst caps at k × T (pass default, tentative; `:295-297`). It keeps its own `StatusDef` decay and decays slowly (`:163`, `:931`; pass ruling, 2026-11-10).
@@ -67,7 +67,7 @@ Blocks: #{catalyst-blade}
    - `test_ammo_type_roster`, `test_status_decay_slot`, `test_roll_pass`, `test_aspect_intake`.
    - `test_aspect_stats`, `test_dot_stack_stats`, `test_pool_scoping`, `test_status_sections`.
    - `test_explosive_barrel_addon`, renamed `test_catalyst_barrel_addon`.
-9. Detonation pins (`test_explosive_charges`, `test_blast_mark`, `test_blast_effect`, `test_paired_damage_effect`, `test_heal_spell_blast`) are re-pointed to the Burning band. Their spend, share and record assertions survive.
+9. Detonation pins (`test_explosive_charges`, `test_blast_mark`, `test_blast_effect` if #{go-off-zero} kept it, `test_paired_damage_effect`, `test_heal_spell_blast`) are re-pointed to the Burning band. Their spend, share and record assertions survive.
 10. `docs/domain/explosive.md` is `git mv`'d to `catalyst.md` and rewritten as what *is*: the status, the trade, both triggers, cap, decay, barrel, goo arrow and knobs, checked against `catalyst.tres`. The blade passage is left for #{catalyst-blade}.
 11. `.claude/rules/explosive.md` is rewritten. The PlantUse claim goes, and only its blade line remains, scoped to `blade_pop_resolver.gd`. `mise run rules-hygiene` and `mise run docs-hygiene` are clean.
 12. Explosive wording is fixed in the same pass: `aspect-cell-authoring`, `node-subtypes`, `stat-surfaces`, `status-effects`, and the `aspect_matrix.md` rows.
@@ -90,11 +90,14 @@ Blocks: #{catalyst-blade}
 ```drift-stamp bd800181
 docs/design/elements.md:115-174 — Catalyst: trade, both triggers, goo arrow, retag, decay
 docs/design/elements.md:295-298 — the k × T cap (pass default)
+docs/design/elements.md:484-487 — a planting hit is a hit
 docs/design/elements.md:640-656 — stage one: Catalyst converts in the land step
 docs/design/elements.md:708-721 — go-off zero's disc and its deletion at the retag
 docs/design/elements.md:842-848 — terrain_band_changed is display-only
+docs/design/elements.md:929-931 — Catalyst keeps its own decay
 docs/design/elements.md:950-987 — the three "explosive"s; the vocabulary guard
 docs/design/elements.md:1023-1048 — the retag list
+docs/design/elements.md:1148-1152 — the `charge` tag freed for Lightning
 docs/handoffs/elements.md:318-329 — the child-5 orphan checklist
 docs/handoffs/fuel-to-catalyst-arc.md:128-149 — every Explosive artifact and its history
 docs/domain/explosive.md:1-190 — what is today, to rewrite

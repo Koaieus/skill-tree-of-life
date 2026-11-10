@@ -1,6 +1,6 @@
 The display for the forge and the quiver: the forge's element field in the magic HUD (innate element, add or replace, the units, why a spell refuses an element) and the element arrows in the ranged HUD (arrow looks, bins, stock cap). Child of hub #1716; design home `docs/design/elements.md` § The forge. Display only — every number it shows is read from the units below, never derived again.
 
-Blocked by: #{refresh}, #{forge}, #{quiver}, #{terrain-ui} (the last for one shared element icon and colour, not for any mechanic)
+Blocked by: #{forge}, #{quiver}, #{terrain-ui} (the last for one shared element icon and colour, not for any mechanic)
 Blocks: none
 
 ## Acceptance spec

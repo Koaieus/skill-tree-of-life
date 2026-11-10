@@ -6,8 +6,8 @@ Blocks: #{resolver}
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-09)
-- *"The applier drains an open worklist"* (owner picked it over the head landing its own copies). *"Landing a gather head appends its entries' hits to the applier's queue, compiled through one stamping callable the landing site hands in (replacing the spell and ranged post-compile stamps); the three landing-to-hit stampers fold into one."* (`docs/design/elements.md:722-726`)
-- *"Applier refactor — `OutcomeApplier` drains an open worklist, one stamping callable replaces the spell and ranged post-compile stamps, the three landing-to-hit stampers fold into one; no behaviour change."* (`docs/handoffs/elements.md:242-244`) — reviewed, taken as settled.
+- The applier drains an open worklist (owner picked it over the head landing its own copies). The settled doc text: *"Landing a gather head appends its entries' hits to the applier's queue, compiled through one stamping callable the landing site hands in (replacing the spell and ranged post-compile stamps); the three landing-to-hit stampers fold into one."* (`docs/design/elements.md:722-726`)
+- *"Applier refactor — `OutcomeApplier` drains an open worklist, one stamping callable replaces the spell and ranged post-compile stamps, the three landing-to-hit stampers fold into one; no behaviour change."* (`docs/handoffs/elements.md:413-415`) — reviewed, taken as settled.
 - Land order is keyed on `(schedule_index, original index)`, never on `arrival_time` (#543 D2, `attack/outcome/outcome_applier.gd:143-169`) — existing law, kept.
 
 **Knobs** — none. A refactor with no numbers.
