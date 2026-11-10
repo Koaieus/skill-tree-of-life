@@ -250,9 +250,9 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
 
 | Element | Count (entity) | Terrain stack — side-less, inert up to T | Beside it | Primed state — past T, derived |
 |---|---|---|---|---|
-| Fire | `fire` | **Heat** | none; Catalyst (§ The threshold model) sits beside every element, in no family | **Burning** |
-| Ice | `ice` | **Cold** (owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*) | **Frostbite**, the mover: #1444's inward pack, sided, hurts | **Frozen** |
-| Lightning | `lightning` | **Charge** | none in v1 (owner, 2026-11-04: *"Fun but maybe start with just the 1"*) | **Shocked**, #1733 round 3's *critical Charge* under its name |
+| Fire | `fire_element` (shown "Fire attunement") | **Heat** | none; Catalyst (§ The threshold model) sits beside every element, in no family | **Burning** |
+| Ice | `ice_element` | **Cold** (owner, 2026-11-05: *"Cold i think. Frozen is a different effect, derived by Cold count (and degree) … frost sounds too "already being a DoT""*) | **Frostbite**, the mover: #1444's inward pack, sided, hurts | **Frozen** |
+| Lightning | `lightning_element` | **Charge** | none in v1 (owner, 2026-11-04: *"Fun but maybe start with just the 1"*) | **Shocked**, #1733 round 3's *critical Charge* under its name |
 
 - **The count never ticks on anyone.** A mover is an ordinary sided status
   that clears with its owner like Poison does; terrain hurts only through its
@@ -633,7 +633,7 @@ use (ADR 0070), so a Cold *ride* row plants riders and the concentrate is a
 *shape* use on the same row type. Which one a spell's Ice row runs is
 authored per spell — a Frost Nova plants Cold, a Pestilence concentrates —
 and one spell may carry both as two rows, since rows key on the status or use
-they run, never on the bare element (#1660 B2), while the one `ice` count
+they run, never on the bare element (#1660 B2), while the one `ice_element` count
 budgets both.
 
 **A concentrated seed on a primed node is a combo**, not an exploit to rule
@@ -749,7 +749,7 @@ from scored options).**
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing
   site hands in (replacing the spell and ranged post-compile stamps); the
-  three landing-to-hit stampers fold into one.
+  three status, detonate and paired-damage stampers fold into one.
 
 **Two clocks, two sync shapes (pass write-back, 2026-11-09, of the owner's
 2026-11-05 call; stated to the owner, not objected to; ADR 0081 records
@@ -1160,7 +1160,7 @@ hit; the keystone grants its element while held.
   **Settled 2026-11-09:** one ammo type per element answers the budget
   question (§ The forge). **The access shape is an owner call (2026-11-09,
   picked over a temp quiver addon and a starter element ammo type): the
-  count is the access** — every reload mints `fire` fire arrows into their
+  count is the access** — every reload mints `fire_element` fire arrows into their
   own bin, no action, nothing to find or buy (routes through
   `AmmoType.per_reload_stat_id`; the starter grant is count 1); the rejected
   alternatives: a temp quiver addon bought with a ranged resource that does
@@ -1178,7 +1178,7 @@ hit; the keystone grants its element while held.
   items (a), (b) and (h) settled 2026-11-09.
   (a) **Row keys**: a row names the status it plants (owner, #1660,
   2026-10-18: *"B2: agreed"*), defaulting to its concept's only status. The
-  forge budget stays keyed by concept (the one `ice` count budgets both
+  forge budget stays keyed by concept (the one `ice_element` count budgets both
   rows) and everything else walks the rows instead of looking up a concept's
   first row — pass pick; a shape row plants no status to key on.
   (b) **The count's role**: one role for "this concept's count" —
