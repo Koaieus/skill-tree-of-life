@@ -52,7 +52,7 @@ Step 0 done: A38 / A39 in `DELTA.md` Part A, the per-body addendum at its end, F
 
 ### Review round — done (21:36); handoff to the next lead
 All 17 writers reported; bodies committed in the commit after `041ea86a`. Every report, condensed, is in `ROUND-REPORTS.md` — read that instead of the bodies. Baseline for the re-review: `git diff --name-only 041ea86a HEAD -- docs/handoffs/elements-split/` (17 bodies).
-Owner, 21:34-21:36: "AskUserQuestion when the time comes" (ask, don't proceed on "unless you say otherwise") and "put them Designing in the meantime". A clerk was setting #1793-#1814 to Designing when this was written (#1815, #1816 left in Intake: ORDER sends them to Needs design / Backlog). Verify on the board; nothing else on GitHub changed this round.
+Owner, 21:34-21:36: "AskUserQuestion when the time comes" (ask, don't proceed on "unless you say otherwise") and "put them Designing in the meantime". #1793-#1814 are in Designing (clerk, read back 21:37); #1815, #1816 stay in Intake (ORDER sends them to Needs design / Backlog). Nothing else on GitHub changed this round.
 
 Next, in order:
 1. Re-review: ONE fresh reviewer over the 17 changed bodies only, findings to `REVIEW-2.md`, a short summary back. Named task: the whole-hit arithmetic must agree across resolver, burning, lightning, pairs, cast-shapes, ice-cast (hit node 1 + 1 per channel going off from it; bystander 1 / 2; terrain riders once per node per hit), and the contradictions the writers flagged (ROUND-REPORTS: burning, go-off-zero, lightning, pairs, resolver, catalyst, ice-cast, ice) — most were against pre-round committed copies and may already be gone. Then one writer per file with findings.
