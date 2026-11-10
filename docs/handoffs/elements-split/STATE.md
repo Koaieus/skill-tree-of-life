@@ -62,3 +62,13 @@ Next, in order:
    - Re-post the reviewed bodies onto #1793-#1816 now (bodies only) vs. all at once in phase 2.
    - The adr-fixes scope (keep 0081 §1 / §3 / §7 in adr-fixes vs. a new ADR for the weight gate), or "accept every remaining tentative reading as written" with a file listing them (write `GAPS.md` from the STATE gap list plus ROUND-REPORTS' gaps, and name it in the question).
 3. Then STATE's original steps 3-5 (restamp pass, clerk phase 2, delete the folder after the owner's go). Phase 2 now also moves the 22 children from Designing to the statuses ORDER names.
+
+### Owner batch 1, answered 22:05 (verbatim where quoted)
+- Go-off zero under whole-hit: owner asked *"What is go off zero? If it is "explode or arc at 0 power" then we should just not let it blast/arc at all"* — a misreading of the name (go-off zero = today's Explosive detonation ported first, not a 0-power go-off). Re-ask with that context.
+- Centre copy carries the go-off's own damage: ACCEPTED (ticked).
+- Dedupe: *"Deduping: central target takes 1 + (channels) loads, other nodes besides central take (share*channels) total load. Central always more than the collaterals (reached nodes through a channel)."* So the dedupe switch never merges the hit node's landings (resolver acc 8's tentative 3 → 2 is wrong).
+- Centre copy checked by Frozen's admit: left unticked → the alternative stands (the centre copy is never asked of `admits`; pairs' reading). Low stakes; flagged to the owner in the summary.
+- Absorbed Charge: *"it resolves before right? The charge before the frozen check? Should be good so it still applies any terrain stacks (cold heat charge)"* — transferred Charge commits with the spend, before the admit, so it lands even when the copy is absorbed (resolver's reading; pairs acc 4 changes). Whether "any terrain stacks" extends to the riders of an absorbed copy (that would reverse ADR 0083 §2) is being re-asked.
+- An arrival that shatters: *"Arrival shattering sounds like it should no longer be blocked tbh. But might be sensitive to race conditions e.g. during many nodes being hit  simultaneously during a magic spell's Wave (beat)."* → the walk continues past a shatter (reverses ice's tentative reading).
+- The other GAPS.md readings: *"Reask all others with some more context (doubling frozen shatter? What?)"*.
+- Re-post: *"Let a clerk update it. Best we keep the new gh issues as source of truth now they exist"* → a clerk re-posts all 24 bodies now; after it reads back, the GitHub issues are the source of truth and the body files here are deleted; every later fix edits the issue.
