@@ -24,7 +24,7 @@ Blocks: #{catalyst-blade}
 **Knobs** (tentative; tests assert ratios and invariants, never the literal)
 - `CatalystStatus.ratio_in` / `ratio_out` (`@export_range(1, 10, 1, "or_greater")`) = 1 / 1. This is the int:int trade rate. Editor feedback: the status sandbox tab.
 - `CatalystStatus.cap_k_times_t` (bool) = true. It caps the row at the node's k × T, read from #{terrain}'s cap function.
-- `catalyst.tres` decay = `FlatDecay.per_tick` 1.0, per holder turn end (today's value). The invariant to pin: Catalyst outlasts the same number of terrain stacks over one round.
+- `catalyst.tres` decay = `FlatDecay.per_tick` 1.0, per holder turn end (today's value). The invariant to pin (the doc says only "decays slowly (knob)"; the reading is tentative, not the owner's): over one **cycle**, Catalyst loses no more than a terrain stack does. A cycle is the span from one holder turn end to the next on a board with one living carrier, where #{flow}'s `PER_CARRIER` rule closes exactly one world turn, so the status decay runs once and #{flow}'s decay sweep runs once. The loss to compare is the Fire band's decay-rate answer (#{defs}), read from the def, never the literal.
 
 **Composition**
 - **Retag.** `explosive` becomes `catalyst` on every artifact in the stamp: the id, file, class, `display_name`, tag and identity.
@@ -32,20 +32,24 @@ Blocks: #{catalyst-blade}
   - `catalyst_resistance` is new. No `explosive_resistance.tres` exists, so mint it the way the other facets are minted (`manage-stats`).
 - **Land conversion.** It happens in #{resolver}'s gather land step (`:661-666`). When a hit's element rider lands on a node holding Catalyst, the store converts via `converted()` into that rider's stacks before the terrain write, and the row is cleared. The converted stacks count toward this hit's own primed-ness and power: both are read after the hit's element riders land (ADR 0083; `:93-95`). Copies are hits, so they convert too.
 - **Prime conversion.** The seat #{flow}'s settle routine exposes (per beat and per world turn) reads the node's Catalyst row whenever a band crosses from inert to primed, and converts the row into that element.
-- **Go-off zero's disc goes.** The `GoOff` field leaves the Catalyst `Aspect` def. Burning's disc (#{burning}) is the only blast; it replaces the old ×3 disc with `disc_radius(power, node_radius)`, r = 2 × (√power + 1) × node radius (ADR 0084 §2), and this unit adds no radius of its own. Detonation tests that #{go-off-zero} pinned on the Explosive disc re-point to the Burning band, with Heat excess as the power source.
-- **Firecracker.** Its intake row names Fire with the default `PlantUse`, so a landing plants Heat. `FuelUse`, `FuelBlastReach` and the `fuel_blast_reach` propagation sub-resource are deleted. The spell walks with its config's remaining reach (pass reading, tentative). Its blasts now come from the Burning nodes it primes. The description is rewritten to match.
+- **Go-off zero's disc goes.** The `GoOff` field leaves the Catalyst `Aspect` def. Burning's disc (#{burning}) is the only blast; it replaces the old ×3 disc with `disc_radius(power, node_radius)`, r = 2 × (√power + 1) × node radius (ADR 0084 §2), and this unit adds no radius of its own. Detonation tests that #{go-off-zero} pinned on the Explosive disc re-point to the Burning band, with Heat excess as the power source. This unit does the re-pointing (acceptance 9). Burning's disc lands a centre copy at share 1 (`elements.md` § Landing resolution, "Every landing is a whole hit"), and #{go-off-zero} tentatively lands none at share 0.5, so three of its pins do not survive the move and are re-pointed by this unit to the whole-hit rule: `test_explosive_charges` "never the centre", `test_blast_mark` "the centre's own hits carry no mark", and `test_heal_spell_blast`'s `[n[2]]`. If the owner rules that go-off zero follows the whole-hit rule, #{go-off-zero} has already re-pointed those three, and this unit only re-points them again if their numbers still read the old disc.
+- **Firecracker.** Its intake row names Fire with the default `PlantUse`, so a landing plants Heat. A row named by element resolves its status through the `Infusion.load_of` / `use_of` rekeying that #{burning} owns; this unit relies on it and adds none. `FuelUse`, `FuelBlastReach` and the `fuel_blast_reach` propagation sub-resource are deleted. The spell walks with its config's remaining reach (pass reading, tentative). Its blasts now come from the Burning nodes it primes. The description is rewritten to match.
 - **Dies:**
   - `DetonateUse`.
   - `LoadBag.detonate_load` and `Infusion.detonate_load`.
   - `StatusDef.default_face`, `AspectIntake.use_for_status` and `_DEFAULT_DETONATE_TAG`. Catalyst takes `PlantUse` by default.
   - Any `DetonateEffect` / `ExplosiveSpread` remnant.
+- **The blade in the interval.** #{go-off-zero} moved the blade's board blast onto the gather, hosted by the Explosive disc; deleting the disc therefore ends the board blast a charged contact arms. Between this unit and #{catalyst-blade} (tentative, not the owner's; #{catalyst-blade} still deletes the rest):
+  - A charged piece contact still spends Catalyst as charges and still pops or shrugs, as the node-side piece pass has it, and lands its one hit. It no longer arms a board blast of its own. A primed struck node goes off through Burning's disc as any hit does.
+  - `test_blade_explosive.gd` stays, edited. Its cases that assert a board blast from a charged contact (reached nodes, share, the blast mark) are deleted here, because their disc is gone. Its piece-side cases (spend, pop and shrug verdicts, the pre-beat read) are re-pointed to `catalyst` and stay green. #{catalyst-blade} deletes the file, with `test_blade_piece_charges.gd`.
+  - This unit does not touch the piece pass, `vertex_charges` or the barrel on a blade; those are #{catalyst-blade}'s.
 - **The blade side is #{catalyst-blade}'s.** Here, the blade's id literals only re-point to `catalyst`:
   - `BladeVertexFill.EXPLOSIVE`
   - `BladeStyle.charge_identity`
   - `BladePopResolver.LiveGate.explosive_def()`
 
-  That keeps the blade suite green. In the interval, a swung vertex still spends Catalyst as charges (pass pick, tentative).
-- **Replication.** The renamed ids reach `_R_STATUSES` and the fingerprint. Bump the save version (`network/save_file.gd:46-48`). The five rosters re-point.
+  That keeps the blade suite green, with the `test_blade_explosive.gd` edit above. In the interval, a swung vertex still spends Catalyst as charges (pass pick, tentative).
+- **Replication.** The renamed ids reach `_R_STATUSES` and the fingerprint. Bump `SaveFile.FORMAT_VERSION` and `MIN_FORMAT_VERSION` together (`network/save_file.gd:46-48`; 14 at the time of writing, the next free number if another unit bumped first), as the 11, 12 and 13 renames did: older files are refused (tentative, not the owner's: the doc says nothing on old saves, and a file's `explosive` id would otherwise name no status). The five rosters re-point.
 
 **Files touched** — the stamp's seam map, each entry with its destination. #{catalyst-blade} later owns the blade files listed there.
 
@@ -54,12 +58,16 @@ Blocks: #{catalyst-blade}
    - 3 Catalyst plus a 2-Heat hit gives 5 Heat, and the row ends at 0.
    - The converted stacks count toward this hit's own primed-ness and power: a node at T-4 with 3 Catalyst, hit by 2 Heat, ends at T+1 and sets off within the same hit (read after the riders land, ADR 0083). The same hit with no Catalyst stays under T and does not.
    - Cold and Charge behave the same way.
+   - A hit's centre landing converts nothing, and a copy's Heat rider on a reached node converts that node's Catalyst (copies are hits).
    - A hit with no element leaves Catalyst alone.
    - The ratio scales the result.
    - The converted stacks obey the element's k × T cap and overflow.
+   - A payload carrying no element rider, or more than one, converts nothing (the doc converts on a payload with *exactly one* element rider; the zero-or-two case is a reading, tentative, not the owner's).
 2. Same file: Heat raised past T by the settle routine alone converts Catalyst. Heat that flows in but stays at T or below does not.
-3. Same file: a goo arrow on a Burning node sets it off. Its copies carry Catalyst over the disc, and the node's own Catalyst is unchanged.
+3. Same file: a goo arrow on a Burning node sets it off. Its copies carry Catalyst over the disc. The node's own pre-hit Catalyst is not converted (no element rider lands, so its Burning band and its Heat do not move on that account) and is not lost. Under the whole-hit rule the arrow's own landing and the go-off's centre landing carry aspect riders, so each plants Catalyst on the hit node by the usual planting rules; the test asserts the row grew by exactly those landings' stacks and no more (tentative, not the owner's: the doc's "the Catalyst on the node itself waits for the next element" predates the whole-hit call; reported as a gap). The centre landing carries no terrain rider, so it converts nothing.
 4. Same file: Catalyst lands only on allocated nodes, clears on dealloc, caps at k × T, and decays by its own def.
+4b. Same file, the decay invariant (Knobs): on a one-carrier board, a node holding N Catalyst and N Heat (N above both rates) goes through one cycle, a holder turn end that closes one world turn. The Catalyst lost is at most the Heat lost, and the Catalyst lost equals `catalyst.tres`'s per-tick decay. Both numbers are read from the defs. It fails if the decay is raised above the Fire band's rate.
+4c. `test/unit/network/test_save_file.gd`: the bumped `FORMAT_VERSION` has its entry in `_ROW_LAYOUT_PINS`. The existing refusal case (`MIN_FORMAT_VERSION - 1`) now covers the previous version. A new case: a file written at the previous version, whose status rows carry the `explosive` id, loads as refused with the version message (`load_result` not OK, the world left at its empty default), never half-applied. Add the `## <n>:` comment line to the version history, as 11, 12 and 13 have it.
 5. `test/unit/spell/test_firecracker.gd` is re-pointed: a landing plants Heat, and a cast that primes a node blasts through Burning's disc. Its old fuel-radius asserts go.
 6. Gone from master: `DetonateUse`, `default_face`, `detonate_load`, `FuelUse`, `FuelBlastReach`, and the `"charge"` tag in `effects/`.
 7. Outside `attack/melee/`, `skill_node/addons/explosive_barrel_addon.gd`, `addons/melee_sandbox/`, history docs and `addons/at-icons`, `git grep -i explosive` returns nothing.
@@ -67,7 +75,14 @@ Blocks: #{catalyst-blade}
    - `test_ammo_type_roster`, `test_status_decay_slot`, `test_roll_pass`, `test_aspect_intake`.
    - `test_aspect_stats`, `test_dot_stack_stats`, `test_pool_scoping`, `test_status_sections`.
    - `test_explosive_barrel_addon`, renamed `test_catalyst_barrel_addon`.
-9. Detonation pins (`test_explosive_charges`, `test_blast_mark`, `test_blast_effect` if #{go-off-zero} kept it, `test_paired_damage_effect`, `test_heal_spell_blast`) are re-pointed to the Burning band. Their spend, share and record assertions survive.
+9. Detonation pins (`test_explosive_charges`, `test_blast_mark`, `test_blast_effect` if #{go-off-zero} kept it, `test_paired_damage_effect`, `test_heal_spell_blast`, `test_disc_go_off`) are re-pointed to the Burning band by this unit. Their death-burn, heal-under-mask, mask-excluded-no-chain and record assertions survive. What does not survive unchanged, and is re-pointed here:
+   - The three centre pins (Composition, "Go-off zero's disc goes"): "never the centre" becomes the hit node taking its centre landing (1 + 1 per channel); "the centre's own hits carry no mark" becomes the centre landing carrying the mark; `test_heal_spell_blast`'s `[n[2]]` becomes `[n[1], n[2]]`, the centre joining the heal.
+   - Charge-formula assertions (the spend/power table, radius 3 × √power) become Burning's: spend 1 Heat per node reached, power the Heat excess, radius `disc_radius`; they read the knobs.
+   - The share reads the disc's knob (default 1), never 0.5.
+   - `test_burning_go_off.gd`'s dual-reach case (#{burning} acceptance 5) loses its Explosive channel. It re-points to a second disc `GoOff` built in the test, so it still has two channels to concatenate.
+   - Any other test whose fixture authors the Explosive `Aspect`'s `go_off` is re-pointed to a Burning band or retired with it.
+
+   The drone lists every re-pointed assertion in its report.
 10. `docs/domain/explosive.md` is `git mv`'d to `catalyst.md` and rewritten as what *is*: the status, the trade, both triggers, cap, decay, barrel, goo arrow and knobs, checked against `catalyst.tres`. The blade passage is left for #{catalyst-blade}.
 11. `.claude/rules/explosive.md` is rewritten. The PlantUse claim goes, and only its blade line remains, scoped to `blade_pop_resolver.gd`. `mise run rules-hygiene` and `mise run docs-hygiene` are clean.
 12. Explosive wording is fixed in the same pass: `aspect-cell-authoring`, `node-subtypes`, `stat-surfaces`, `status-effects`, and the `aspect_matrix.md` rows.

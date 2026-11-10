@@ -19,16 +19,16 @@ Blocks: #{terrain-ui}, #{resolver}
 **Knobs** (tentative defaults, easy to change)
 - `TurnManager.world_clock` is an enum `{PER_CARRIER, CEIL_SQRT}`, default `PER_CARRIER` (owner). It sets the world-turn period. Editor feedback: none (a rule); `game_root.tscn` shows the node.
 - `TurnManager.terrain_steps_per_world_turn` is `@export_range(1, 8, 1, "or_greater")`, default 1 (`:972`). It is the number of diffusion steps per world turn, each from a fresh snapshot.
-- The decay amounts are not knobs here. Each is the band's decay-rate answer on the Fire / Ice / Lightning `Element` def (#{defs}), so the overflow band decays at its own fast rate.
+- The decay amounts are not knobs here. A node's rate is the decay-rate answer of its current band (`ElementBand.decay_per_world_turn`, #{defs}), so the overflow band decays at its own fast rate. A count at or below T has a null band (`Terrain.band_of`, #{terrain}), so its rate is the element's own `Element.decay_per_world_turn` ("the rate below the first band", #{defs}). The doc fixes only "decays 1 toward zero per world turn" (`docs/design/elements.md`, § Cooling), so that default of 1 is the tentative reading for the below-band rate (tentative, not the owner's); the authored values live in #{defs}.
 
 **Composition**
 - **The clock.** `TurnManager` owns it. `static func world_turn_period(n: int, clock) -> int` is pure. `PER_CARRIER` returns `maxi(1, n)`. `CEIL_SQRT` returns the smallest `s >= 1` with `s * s >= n`, found by an integer loop (`s = 1; while s * s < n: s += 1`, where n is the living-carrier count and stays small). The code never calls `sqrt`/`ceil` on floats, so the value is exact on every platform. `_note_played_turn_end` compares progress against this period, keeping its `>=`. Turnless hosts and lingering rows need no change: they already run inside `_end_world_turn`.
 - **The terrain index** is #{terrain}'s: the one live index on `CombatWorld`, shaped like `_lingering` (`combat_world.gd:185-218`), noted and forgotten by the terrain write door when a node has any terrain (`t != 0` or Charge `!= 0`), live-only, never saved, never sent, and rebuilt on decode. This unit reads that index and builds no second one, no second note/forget hook and no graph walk. (The `host != null` shadow guard, `node_combat.gd:768-775`, is the pattern #{terrain} follows.)
-- **The pass.** `CombatWorld.flow_temperature(steps)` is called from `TurnManager._end_world_turn` after `tick_lingering`, before `flush_removals`. Each step:
+- **The pass.** `CombatWorld.flow_temperature(steps)` is called from `TurnManager._end_world_turn` after `tick_lingering`, before `flush_removals`. This is the world-turn seam for world effects: #{fire}'s burn is its own step in `_end_world_turn` between `tick_lingering` and `flow_temperature` (so it reads the pre-diffusion `t`), and it is #{fire}'s, not this unit's. `TerrainSettle` and `SettleReader` stay pure and land no damage. Each step:
   - Gathers the indexed nodes with `t != 0`, plus their neighbours as receivers into a dense order of packed arrays (`t`, graph degree via `get_graph_degree` (the same degree T reads), edges once each).
   - Computes per edge `q = gap / (1 + max(deg_u, deg_v))`, where gap is the positive difference, flowing hot to cold. That is the doc's floor, computed once per edge, so Σt is conserved. Integer division of a positive gap equals floor. A self-loop moves nothing.
   - Commits the summed deltas through the settle routine.
-  After the steps, one decay sweep moves every indexed node's `t` toward zero, and its Charge down, each by its own band's decay rate. The rates are read from one snapshot, and the sweep commits through the same routine. Charge never flows, only decays. The result does not depend on the index's order.
+  After the steps, one decay sweep moves every indexed node's `t` toward zero, and its Charge down, each by its rate: its band's `decay_per_world_turn`, or `Element.decay_per_world_turn` when the count is ≤ T (null band). Heat and Cold read the Fire / Ice def by the sign of `t`. The rates are read from one snapshot, and the sweep commits through the same routine. Charge never flows, only decays. The result does not depend on the index's order.
 - **The settle routine** (`TerrainSettle`, pure, static) takes one batch of per-node sums computed against one snapshot:
   - `net_t` is signed: riders and flow, and it nets through zero.
   - `toward_zero_t >= 0` holds spends and decay, and never crosses zero.
@@ -49,7 +49,7 @@ Blocks: #{terrain-ui}, #{resolver}
 - `docs/domain/rounding.md`: two rows, the world-turn period (up, integer search, `TurnManager.world_turn_period`) and the temperature flow per edge (down, hot to cold, remainder stays on the sender, `CombatWorld.flow_temperature`).
 - `docs/domain/multiplayer-sync-model.md:105-107`: already widened. Name `TerrainSettle` as the auditable site, nothing more.
 - `docs/domain/status-effects.md:43-46` and `docs/domain/turn-manager.md`: add one clause naming the rate rule (default unchanged).
-- The domain doc #{terrain} wrote: a "Flow" section with the what-is above.
+- The elements domain doc (`docs/domain/elements.md`): appends to the doc #{defs} opens a "Flow" section with the what-is above.
 - `docs/adr/`: none. ADR 0055 stands (owner, 2026-11-10).
 - Tests: `test/unit/systems/test_world_turn.gd`, `test/unit/combat/test_temperature_flow.gd` (new), `test/unit/combat/test_terrain_settle.gd` (new).
 
@@ -63,7 +63,7 @@ Blocks: #{terrain-ui}, #{resolver}
    - A diffusion step conserves Σt and never raises Σt².
    - A gap ≤ `max deg` moves nothing (the dead band).
    - A +6 leaf beside a −6 leaf ends at 0/0.
-   - The decay sweep moves every node's `t` toward 0, and its Charge down, by each band's rate. Neither crosses 0, and Charge never flows to a neighbour.
+   - The decay sweep moves every node's `t` toward 0, and its Charge down, by that rate (band's rate; `Element.decay_per_world_turn` for a count ≤ T with a null band: a `t = +2` node with rate 1 reads 1 after one sweep). Neither crosses 0, and Charge never flows to a neighbour.
    - Two runs with the index filled in reverse order give identical ints.
    - `terrain_steps_per_world_turn = 2` equals two single steps.
 5. `test_temperature_flow.gd`: a shadow world never runs the pass. A Charge-only node is in #{terrain}'s index until its Charge decays out, and a node at `t = 0` with no Charge has left the index after the pass. A world restored from a `GraphSnapshot` gives the same ints as the source after one world turn.
@@ -77,7 +77,7 @@ Blocks: #{terrain-ui}, #{resolver}
 7. `mise run lint-transcendentals` and `mise run check` are clean. No RNG call in the new files. `mise run mp:e2e` reports 0 divergences.
 
 **NOTES**
-- A per-node "terrain hit" (the no-parent go-off) is a defined shape with no caller (pass ruling 5). Burning's burn is #{fire}'s. Neither rides this unit.
+- A per-node "terrain hit" (the no-parent go-off) is a defined shape with no caller (pass ruling 5). Burning's burn is #{fire}'s own `_end_world_turn` step, before `flow_temperature`. Neither rides this unit, and this unit adds no burn call.
 - Performance: the doc's worst case is ~9k integer edge updates per world turn. The drone reports one headless timing on a 3k-node hot board in its report. A C++ port only if a profile says so, and it then *replaces* this pass.
 - All terrain decay is this unit's. #{terrain} writes no decay code and keeps no world-turn counter (owner, 2026-11-10).
 - The next element ADR's corrections (0081 §1, §3, §5, §6, §7, §9; the forge-field half of §7 is carried by ADR 0085) are a sibling issue, not this unit.

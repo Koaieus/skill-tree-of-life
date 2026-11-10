@@ -49,3 +49,16 @@ All 24 issues exist: #1793–#1814 are the 22 children of #1716 (order of `ORDER
 
 ### Next lead, 21:15
 Step 0 done: A38 / A39 in `DELTA.md` Part A, the per-body addendum at its end, Frozen's shatter under "Still open". F8 is in `ORDER.md` (`{pairs}` and `{lightning}` also behind `{terrain-ui}`). Review round running: 17 writers (STATE's 15 plus go-off-zero and ice-cast for the whole-hit call), pool of 5. Re-review list after the round: `git diff --name-only` against the commit that added this paragraph.
+
+### Review round — done (21:36); handoff to the next lead
+All 17 writers reported; bodies committed in the commit after `041ea86a`. Every report, condensed, is in `ROUND-REPORTS.md` — read that instead of the bodies. Baseline for the re-review: `git diff --name-only 041ea86a HEAD -- docs/handoffs/elements-split/` (17 bodies).
+Owner, 21:34-21:36: "AskUserQuestion when the time comes" (ask, don't proceed on "unless you say otherwise") and "put them Designing in the meantime". A clerk was setting #1793-#1814 to Designing when this was written (#1815, #1816 left in Intake: ORDER sends them to Needs design / Backlog). Verify on the board; nothing else on GitHub changed this round.
+
+Next, in order:
+1. Re-review: ONE fresh reviewer over the 17 changed bodies only, findings to `REVIEW-2.md`, a short summary back. Named task: the whole-hit arithmetic must agree across resolver, burning, lightning, pairs, cast-shapes, ice-cast (hit node 1 + 1 per channel going off from it; bystander 1 / 2; terrain riders once per node per hit), and the contradictions the writers flagged (ROUND-REPORTS: burning, go-off-zero, lightning, pairs, resolver, catalyst, ice-cast, ice) — most were against pre-round committed copies and may already be gone. Then one writer per file with findings.
+2. The owner batch, as AskUserQuestion (owner asked for it), at most 4 questions. Put the whole-hit impact summary in the question text (owner asked to hear what it does to the units: per ROUND-REPORTS, numbers moved in resolver, burning, lightning, pairs, cast-shapes, ice-cast; nothing broke beyond the items below). Candidate questions:
+   - Go-off zero under whole-hit: exempt until the Catalyst retag (share 0.5, no centre copy, `GoOff.lands_on_own_node` = false; shipped tests green) — recommended, carried — vs. follow it now (re-points `test_explosive_charges` "never the centre", `test_blast_mark`, `test_heal_spell_blast`'s `[n[2]]`; bystander damage doubles).
+   - Frozen's shatter tuned to match the doubling: a knob tuned at playtest (carried) vs. something structural.
+   - Re-post the reviewed bodies onto #1793-#1816 now (bodies only) vs. all at once in phase 2.
+   - The adr-fixes scope (keep 0081 §1 / §3 / §7 in adr-fixes vs. a new ADR for the weight gate), or "accept every remaining tentative reading as written" with a file listing them (write `GAPS.md` from the STATE gap list plus ROUND-REPORTS' gaps, and name it in the question).
+3. Then STATE's original steps 3-5 (restamp pass, clerk phase 2, delete the folder after the owner's go). Phase 2 now also moves the 22 children from Designing to the statuses ORDER names.
