@@ -110,24 +110,28 @@ this file.
 - **A blade follows the same rule** (one snapshot): two contacts of one
   sample on one node read the pre-beat store, spends summed; the blade ledger
   dies. In `go-off-zero.md`.
-- **Ice on a cast is settled** (§ Ice on a cast, rewritten): a
-  `ConcentrateUse` on the Ice row; seed × (1 + 0.5 × hops removed), the 0.5 a
-  knob; damage and aspect riders scale, Heat / Cold / Charge stacks never;
-  1 Ice = 1 hop through the row's affinity, authorable per spell; element
-  counts are meant to run 0..5, 10 at most. The measured-ladder pricing and
-  "Venom Burst 2:1, Pestilence 4:1" are deleted. `ice-cast.md` is now a
-  `Ready` spec, **blocked by `forge` and `forge-ui`**, re-cut by `refresh`
-  like the other late units; this replaces "`ice-cast` — `Needs design`" in
-  § 0's split and in the clerk order. Its two pass picks (Pestilence as the
-  proving spell; the bonus on the seed arrival only) are tentative.
+- **Shape and ride are two things an element does on a cast** (doc § Shape
+  and ride): ride plants terrain (the whole split); shape reshapes the
+  cast's own walk at once and plants nothing — Fire widens the seed into a
+  disc, Lightning adds whole hops, Ice cuts hops and pays the seed. The
+  caster picks each independently. Direction only: `ice-cast.md` is the
+  `Needs design` menu for it ("Cast shapes"), four forks with tentative
+  picks, filed as a sibling of the hub as § 0 says. Settled inside it: Ice's
+  shape is a `ConcentrateUse` on the Ice row, its bonus never scales Heat /
+  Cold / Charge stacks, 1 Ice = 1 hop authorable per spell, counts run 0..5
+  (10 at most). **Not settled**: the price (+50% per hop is a lean the owner
+  doubts), one forge field or two, split or shared count, what a point buys
+  for Fire and Lightning. `forge` ships an element on a cast as a ride only.
+  ADR check done (librarian, 2026-11-10): ADR 0073 and 0075 reject reach on
+  a *hit*; a shape on the *walk* is what 0075 §2 allows.
 - Earlier the same day, already in the doc: the arc released by breaking ice
   reads its power after the breaking hit lands; a node's own go-off fires
   once per hit; an arc transfers its Charge (knob, transfer by default). All
   three are now in `pairs.md`, `resolver.md`, `burning.md`, `lightning.md`.
 
 **The ADR-corrections sibling issue's list** is now: 0081 §1 (transfer for
-arcs), §5-§7, §8 (the concentrate's price is a flat per-hop bonus, not the
-multiplicative ladder), §9; 0082's Context; 0061, 0062, 0070. The bodies'
+arcs), §5-§7, §7 and §8 if the cast-shapes issue changes the one element
+field or the Ice price, §9; 0082's Context; 0061, 0062, 0070. The bodies'
 NOTES still cite the shorter list; the sibling issue's own body is written at
 the clerk order from this line.
 
@@ -209,7 +213,7 @@ go-off-zero · `catalyst` (retag, conversion, Firecracker, docs) — burning ·
 (addons, vertex copy-on-fill, sweep speed) — refresh · `fire` (burn, light,
 addon, vertex) / `lightning` / `ice` — blade-elements · `pairs`, `forge`,
 `quiver` (closes #1765) — fire, lightning, ice · `forge-ui` — forge, quiver,
-terrain-ui · `ice-cast` — forge, forge-ui. Siblings of the
+terrain-ui · `ice-cast` — `Needs design`, a written menu (cast shapes). Siblings of the
 hub, not children: the inner-tree shape + card cadence (`Needs design`); the
 element ADR corrections (0081 §5-§7 and §9, 0082's Context, 0061, 0062,
 0070). Frostbite #1444 stays its own issue, blocked by `ice`. #1660 / #1695

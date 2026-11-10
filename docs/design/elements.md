@@ -546,6 +546,41 @@ aspects change payload, damage stays one number. Movers get
 place it is one word, "elemental" (owner, 2026-11-04: *"if it gets one, its
 just 'elemental' (opposing physical or magic or true)"*).
 
+## Shape and ride: the two things an element does on a cast (owner, 2026-11-10)
+
+An element reaches a spell in two independent ways, and a caster picks each
+(owner: *"sometimes you'd want to set Fire as the reach element, sometimes
+you'd want to leave Fire stacks (Heat), sometimes you'd want both, or
+neither, or some other combination, all this *besides* other riders you
+might want to add -- poison, curse, greed, whatever (which don't modify
+reach)"*):
+
+- **Ride**: the cast's hits plant terrain (Heat, Cold, Charge), and a primed
+  node goes off when hit. This is everything above; arrows and blades have
+  only this.
+- **Shape**: the element count reshapes the cast's own walk, at once, and
+  plants nothing (owner, on the idea's first form: *"their responsibility is
+  reach and only reach"*). It acts on the walk, never on a hit, so a hit still
+  carries no reach of its own (ADR 0075) and no neighbour is ever chosen.
+
+| Element | Shape on a cast |
+|---|---|
+| Fire | widens the seed into a disc |
+| Lightning | lengthens the walk by whole hops |
+| Ice | shortens the walk and pays the seed (§ Ice on a cast) |
+
+Owner on this table: *"that's exactly what i'd been trying to convey all this
+time"*. A spell authors a default for each (or none) and the forge lets the
+caster replace or add to either, beside the aspect slots. Only the direction
+is settled; the build is its own design issue, and until it lands an element
+on a cast is a ride only. Open there: whether the forge's one element field
+(§ The forge) becomes two, a shape field and a ride field; whether one count
+feeding both is split between them or read by both; what one point buys for
+Fire and Lightning (the three shapes cost the same point, so they should be
+worth about the same, which is also what prices the Ice bonus); and whether
+a Lightning shape adding hops stands beside the ruling that `max_hops` takes
+no stat scaling (`docs/domain/spell-propagation.md`).
+
 ## Ice on a cast: concentrate (owner, 2026-11-04/05/08/10)
 
 Burning and Shocked add copies at a landing. Ice concentrate does the
@@ -574,7 +609,10 @@ reads both once. A variant that cuts `max_visits` is a second subclass, built
 when a spell needs it. A spell with nothing to cut (0 hops, or unbounded
 hops) authors no gain on its Ice row and so refuses Ice.
 
-**The price is flat: +50% of the seed per hop removed** (owner, 2026-11-10:
+**The price leans flat, +50% of the seed per hop removed, and is not
+settled** (owner, 2026-11-10, later the same day: *"a +50% per hop lost is
+decent, but very rough. might need +100% in some cases, or +25% in others..
+like not sure but i think this is gonna bite us"*; the lean itself:
 *"L is (very) roughly quadratic, but we dont want to cncentrate ALL that,
 there's benefit to having things concentrated at all, even if it'd be, say,
 a.. +50% boost for each hop removed. e.g. from 6->3 hops = -3 = +150%

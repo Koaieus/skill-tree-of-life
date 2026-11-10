@@ -13,7 +13,7 @@ Blocks: #{blade-elements} (the other seven late units are blocked through it)
 **Knobs** — none (written call: no code, no tunables).
 
 **Composition**
-The nine late issues each carry an `## Acceptance spec` and a `drift-stamp bd800181` block cut before the spine landed. `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of eight issue texts. Order of the pass: #{blade-elements} first (the other seven build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}. #{ice-cast} is `Needs design` and is not re-cut here.
+The eight late issues each carry an `## Acceptance spec` and a `drift-stamp bd800181` block cut before the spine landed. `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of eight issue texts. Order of the pass: #{blade-elements} first (the other seven build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}. #{ice-cast} is `Needs design` and is not re-cut here.
 
 Per issue, the pass is:
 1. `mise run issue-drift -- <n>` (add `--json` for the per-entry `{path, start, end, drifted, reason, ins, del, hunk}` list). Silent + exit 0 means no stamped entry was touched; one line per drifted entry otherwise. `missing-at-stamp` = a typo or a never-built path; `created-since-stamp` = a file a spine unit built (real information: the spec may now cite it).
@@ -38,14 +38,13 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 6. #{forge}: same as 1; its Catalyst starter line names the status id #{catalyst} landed.
 7. #{quiver}: same as 1.
 8. #{forge-ui}: same as 1.
-8b. #{ice-cast}: same as 1.
 9. Any issue that hit step 7 is in `Needs design` with its menu comment, and is reported as such instead of a stamp URL.
 10. Deliverable, as the final report: one line per issue — `#<n> — <comment URL> — clean | corrected (<k> sentences) | Needs design (<fork in five words>)`.
 
 **NOTES**
 - No code, no commit, no stub. A defect found in spine code is a new issue linking back to the spine unit, never a fix here.
 - Do not re-scope a late unit (move work between them) — that is a design call; write it as step 7's menu.
-- #{ice-cast} is a late spec like the others (its forks were settled 2026-11-10): re-cut its stamp with the rest.
+- #{ice-cast} is a `Needs design` menu, not a spec: it carries no stamp to re-cut. If a spine rename touches its menu text, correct the sentence in a comment, nothing more.
 - Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §5-§7 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
 - Lane rules for the move to `Needs design`: `docs/domain/issue-workflow.md`.
 
