@@ -107,18 +107,19 @@ stacks included, chained links flat (owner, 2026-11-08: *"everything rides
 yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
 the cap and decay are the brakes.
 
-**Size.** Burning's disc is Euclidean, radius = √power × node diameter (2 ×
-node radius), power = the excess (owner, 2026-11-10: *"i was actually
-thinking ×2. like twice the node radius = 1 node diameter"*; first form,
-2026-11-08: *"size(N) ≈ sqrt(N)×node_radius so chances are power 1 doesn't
-hit any node, but that's tuning"*). It is one formula with three readers
-(owner, 2026-11-10: *"burning's go-off would be the same AoE radius here, as
-burning's light source, as well as the proposed "Fire reach" part of a
-spell"*): the go-off's disc, Burning's light radius, and a Fire shape on a
-cast (§ Shape and ride; what a point of that shape is worth is open). On
-150 px spacing a ×2 disc first touches a neighbour near power 4 and covers
-every neighbour near power 9 (rescaled from a simulation of the ×3 disc, not
-re-run). Today's Explosive disc keeps its 3.0 until the retag deletes it.
+**Size.** Burning's disc is Euclidean, radius ≈ √power × node radius × a
+multiplier, power = the excess (owner, 2026-11-08: *"size(N) ≈
+sqrt(N)×node_radius so chances are power 1 doesn't hit any node, but that's
+tuning"*). It is one radius with three readers (owner, 2026-11-10:
+*"burning's go-off would be the same AoE radius here, as burning's light
+source, as well as the proposed "Fire reach" part of a spell"*): the go-off's
+disc, Burning's light, and a Fire shape on a cast (§ Shape and ride). **The
+multiplier is not settled** (owner, 2026-11-10: *"so far no calls made, just
+still exploring. 2× sounds like a good contender, 3× might be too, depends on
+how we cost lightning?"*; ×2 is *"twice the node radius = 1 node diameter"*,
+×3 is today's Explosive disc). Open with it: the radius is tied to a procgen
+value (owner: *"this *is* somewhat fragile: basing the euclidean distance on
+a procgen param that will surely be tweaked in the future"*).
 Shocked's hops: level
 L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
 
@@ -1248,7 +1249,7 @@ hit; the keystone grants its element while held.
   Still open: (f) **Charge** collides
   with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue.
 - **Knobs** (§ The threshold model): T = 2 × degree, k, the hop ladder's
-  L² × T, the disc's √power × node diameter, the decay rates — tuned with
+  L² × T, the disc's √power × node radius × its multiplier, the decay rates — tuned with
   #1733.
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops

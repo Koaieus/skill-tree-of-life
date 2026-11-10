@@ -103,13 +103,15 @@ sit `ORDER.md` (the clerk work order), `inner-tree.md` and `adr-fixes.md`
 (the two sibling bodies), `split-comment.md` (the hub comment) and
 `close-<n>.md` (six closing comments).
 
-**Owner call, 2026-11-10 (quote in the doc, § The threshold model, "Size"):**
-the disc is √power × node **diameter** (×2), one formula for Burning's
-go-off, Burning's light and a Fire shape on a cast. Today's Explosive 3.0
-stays on the ported disc until the retag. Not yet carried into the bodies:
-`burning.md` (Decisions' size line and the knob `radius_per_node_radius`,
-1.0 → 2.0) and `fire.md` (the light-radius acceptance line). The rates
-report's Fire tables are for ×3 (note at its top).
+**Explored, not decided (2026-11-10; quotes in the doc, § The threshold
+model, "Size"):** the disc's multiplier — ×2 (*"twice the node radius = 1
+node diameter"*) and ×3 (today's Explosive disc) are both contenders, and it
+*"depends on how we cost lightning"*. Owner on Lightning's shape: *"the
+proposed "1 for ring 1, 3 for rings 1+2, etc" sounds pretty good"* (a lean).
+One radius serves Burning's go-off, its light and a Fire shape on a cast.
+The owner flags the radius as fragile, tied to a procgen spacing value. The
+bodies keep their current size lines (`burning.md` knob 1.0, a knob either
+way). `cast-shapes-rates.md` carries simulated tables for both multipliers.
 
 **Owner on how this pass must run** (2026-11-10): *"a session that mainly
 first should read the bare minimum of getting a full grip of what is to be
@@ -124,7 +126,7 @@ and stamps as the very last step before the clerk. Worth a law in the `spec`
 **Before the clerk runs, in this order:**
 1. Any design talk the owner still wants (cast shapes is its own `Needs
    design` issue and blocks nothing).
-2. Bodies: the ×2 lines above; `ORDER.md` still files `{ice-cast}` as a
+2. Bodies: `ORDER.md` still files `{ice-cast}` as a
    `Ready` child blocked by forge and forge-ui — it is the "Cast shapes"
    `Needs design` menu now, a sibling with no parent and no blockers, its
    title on the body's first line (strip that line and the lane line from
