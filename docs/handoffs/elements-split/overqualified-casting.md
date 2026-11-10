@@ -38,7 +38,7 @@ Blocks: none
 - `attack/spell/spell_def.gd` — default 10.0, `infusion_capacity_per_degree`, `capacity_at`.
 - `entity/spell_book.gd` — `capacity_of`.
 - `attack/targeting/spell_target_union.gd` — the points parameter and the source filter.
-- `attack/plan/magic_attack_plan.gd` — `capacity`, the dirty mark, the re-pick, the overrun term, `hidden_target_count`, `reset_to_base_capacity` (#{forge} and cast shapes #{ice-cast} land on this file too).
+- `attack/plan/magic_attack_plan.gd` — `capacity`, the dirty mark, the re-pick, the overrun term, `hidden_target_count`, `reset_to_base_capacity` (#{forge} and cast shapes #{cast-shapes} and #{ice-cast} land on this file too).
 - `systems/armed/armed_stack.gd` — `clamp_infusion`'s cap.
 - `entity/controller/ai_infusion_picker.gd`, `entity/controller/ai_controller.gd` — the cap per source.
 - `ui/hud/command_tray/bodies/magic_body.gd`, `infusion_choices.gd`, and the scene `magic_body.gd` is the script of — the cap read, the reset control, the hint (#{forge-ui} owns the tally and lands first).
@@ -65,7 +65,7 @@ Blocks: none
 - Still open (ADR 0085 revisit-when): whether shape points also count against the capacity. Tentative: they do not. This unit reads one total from #{forge}, so the answer changes no code here.
 - Still open for the owner: the fill rule with no target (Decisions, tentative), and whether a reset should stick (here it is a one-shot trim). Today a socket has no per-point control: socketing an aspect fills it to the most it can carry, so a held count above the cap overqualifies on the first pick.
 - #744 (heatmap of enemy nodes by best available caster power, Needs design) is the neighbouring display: it paints over the same union, so it reads the loadout-gated sources for free. Nothing of it lands here.
-- The forge's sockets and the tally itself are #{forge-ui}'s; the ride field and what counts are #{forge}'s; what a shape does on a cast is #{ice-cast}'s (cast shapes).
+- The forge's sockets and the tally itself are #{forge-ui}'s; the ride field and what counts are #{forge}'s; what a shape does on a cast is #{cast-shapes}'s and #{ice-cast}'s.
 - The union's loop order is its cost (`spell_target_union.gd:116-124`). The gate filters sources before the gather; `hidden_target_count` must not add a gather per hover or per frame. `test/perf/bench_ai_turn.gd` is the AI-side bench.
 - ADR 0085's fallback if hidden targets read badly in play is clamping the loadout to today's pick. Not built here.
 

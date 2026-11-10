@@ -16,12 +16,14 @@ New issue {fire} "Elements: Fire — burn, light, the Heat addon, the Burning ve
 New issue {lightning} "Elements: Lightning — Shocked arcs, conduction, the Charge addon, the Shocked vertex": under #1716, body lightning.md, blocked by {blade-elements}, Ready.
 New issue {ice} "Elements: Ice — Frozen, the breakers, the shatter, the Cold addon, the Frozen vertex": under #1716, body ice.md, blocked by {blade-elements}, Ready.
 New issue {pairs} "Elements: pair rules — Frozen mutes and releases, dual reach, thaw": under #1716, body pairs.md, blocked by {fire}, {lightning} and {ice}, Ready.
-New issue {forge} "Elements: the forge's element field and the starter counts": under #1716, body forge.md, blocked by {fire}, {lightning} and {ice}, Ready.
+New issue {forge} "Elements: the forge's shape field and ride field, and the starter counts": under #1716, body forge.md, blocked by {fire}, {lightning} and {ice}, Ready.
 New issue {quiver} "Elements: element arrows — one ammo type per element": under #1716, body quiver.md, blocked by {fire}, {lightning} and {ice}, Ready.
 New issue {forge-ui} "Elements: forge and quiver display": under #1716, body forge-ui.md, label ui, blocked by {forge}, {quiver} and {terrain-ui}, Ready.
-New issue {ice-cast} "Elements: Ice on a cast — the concentrate": under #1716, body ice-cast.md, blocked by {forge} and {forge-ui}, Ready.
+New issue {cast-shapes} "Elements: cast shapes — Fire's disc and Lightning levels on a cast": under #1716, body cast-shapes.md, blocked by {forge}, {forge-ui} and {pairs}, Ready.
+New issue {ice-cast} "Elements: Ice on a cast — the concentrate": under #1716, body ice-cast.md, blocked by {forge}, {forge-ui} and {ice}, Ready.
+New issue {overqualified-casting} "Elements: overqualified casting — the point cap grows with the caster node's degree, the loadout gates the caster": under #1716, body overqualified-casting.md, blocked by {forge} and {forge-ui}, Ready.
 New issue {inner-tree} "Elements: which inner-tree shape holds them, and the card cadence": no parent, body inner-tree.md, label design, Needs design.
-New issue {adr-fixes} "Element ADR corrections: 0081 §1 and §5-§9, 0082's Context, 0061 / 0062 / 0070": no parent, body adr-fixes.md, label documentation, Backlog.
+New issue {adr-fixes} "Element ADR corrections: 0081 §1, §3, §5, §6, §7 and §9, 0082's Context, 0061 / 0062 / 0070": no parent, body adr-fixes.md, label documentation, Backlog.
 
 #1716: post split-comment.md as a comment; drop the design label. It is a hub — leave its status.
 #1444: blocked by {ice}.
@@ -32,4 +34,4 @@ New issue {adr-fixes} "Element ADR corrections: 0081 §1 and §5-§9, 0082's Con
 #1735: post close-1735.md as a comment, then close as completed.
 #1765: post close-1765.md as a comment, then close as completed.
 
-Check the drift stamps on the twenty children of #1716 before setting Ready. Then hygiene.
+Check the drift stamps on the twenty-two children of #1716 before setting Ready. Then hygiene.

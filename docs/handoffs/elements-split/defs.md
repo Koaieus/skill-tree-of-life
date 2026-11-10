@@ -91,7 +91,7 @@ Blocks: #{terrain}, #{resolver}
 - `*_stacks_per_hit` facets for the members are not named by the design. They are parked: a member without one lands its authored power as-is (`status_def.gd:85-90`).
 - The starter count (1 for every entity, through the stat's default value; owner, 2026-11-10) belongs to #{forge}, which sets `StatDef.default_value` = 1 on these defs. The element ammo types and their stock cap belong to #{quiver}. Here the COUNT defs keep `default_value` 0.
 - `effects/status/explosive.tres:20` carries the tag `charge`. No code reads it. #{catalyst} frees it. The new status id `charge` does not collide with it.
-- Not here: the next element ADR's corrections (ADR 0081 §5, §6 and §9, and ADR 0082's Context) are a sibling issue. `stats_system/defs/aspects.tres`'s description says "eight" `<concept>_aspect` stats, but 13 exist. Fix it if you touch the file.
+- Not here: the next element ADR's corrections (ADR 0081 §1, §3, §5, §6, §7 and §9, and ADR 0082's Context) are a sibling issue. `stats_system/defs/aspects.tres`'s description says "eight" `<concept>_aspect` stats, but 13 exist. Fix it if you touch the file.
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.

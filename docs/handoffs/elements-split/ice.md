@@ -1,4 +1,4 @@
-Ice on the node: the Frozen band's answers (a copy is absorbed, a path ends), the three breakers, the corruption-shaped shatter with deep freeze, a blade snapping on Frozen, the Frozen vertex's concentrate snap, and the Cold addon. Child of hub #1716 (late unit). Design home: `docs/design/elements.md`. Nothing about a cast: Ice on a spell is #{ice-cast} (Needs design; #{forge} stubs it at ×1).
+Ice on the node: the Frozen band's answers (a copy is absorbed, a path ends), the three breakers, the corruption-shaped shatter with deep freeze, a blade snapping on Frozen, the Frozen vertex's concentrate snap, and the Cold addon. Child of hub #1716 (late unit). Design home: `docs/design/elements.md`. Nothing about a cast: Ice on a spell is #{ice-cast} (the concentrate; #{forge} stubs it at ×1 until then).
 
 Blocked by: #{blade-elements} (and through it #{refresh}, #{defs}, #{terrain}, #{flow}, #{resolver}, #{go-off-zero}, #{burning}, #{catalyst}, #{catalyst-blade})
 Blocks: #{pairs}, #{forge}, #{quiver}
@@ -68,11 +68,11 @@ Tests assert ratios (a deep freeze bursts more than a shallow one; burst ∝ exc
 **NOTES**
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
 - Reading list and seam map were cut before #{defs}…#{catalyst-blade} landed; #{refresh} re-cuts the stamp. If `mise run issue-drift` still flags this issue at dispatch, stop and say so.
-- On a cast, the hops cut by the Ice shape add to the shatter's excess (ADR 0084 §8; the Ice seed is no breaker of its own) — built by the cast-shapes unit #{ice-cast}. This unit keeps the shatter's excess an input that can be added to (one number the burst and the spend read), and builds none of it.
+- On a cast, the hops cut by the Ice shape add to the shatter's excess (ADR 0084 §8; the Ice seed is no breaker of its own) — built by the Ice-concentrate unit #{ice-cast}. This unit keeps the shatter's excess an input that can be added to (one number the burst and the spend read), and builds none of it.
 - Not here: Frozen muting Shocked and the break releasing it, Frozen ending an arc, a Heat hit thawing harder, Heat never touching a Frostbite pack — #{pairs}. Frostbite #1444 (blocked by this). The Cold spell and Thermal shock — #1789 (Needs design). The cold arrow — #{forge}. Sweep speed on `t`, which acts per contact (owner, 2026-11-10: *"option 1 seems best"*) — #{blade-elements}; a Frozen vertex's snap reads that per-contact speed like any contact. The band glow and Frozen label — #{terrain-ui}. Melee crit condition #1786.
 - "Nothing severed" (:184) is read as "no other vertex dies": `_kill` still records the orphans as a coasting severance, which is the shipped spike pop the owner kept.
 - `docs/design/aspect_matrix.md:535` still calls resting Cold "**Frost**, Ice's medium"; the owner renamed it Cold (`elements.md:254`). Fix it if this unit touches the matrix; otherwise it rides the next element ADR's sibling issue.
-- Next element ADR corrections (0081 §5–§7, §9; 0082's Context) are a sibling issue, not this unit.
+- Next element ADR corrections (0081 §1, §3, §5, §6, §7, §9; 0082's Context) are a sibling issue, not this unit.
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 

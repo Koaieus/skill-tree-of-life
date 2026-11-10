@@ -81,7 +81,7 @@ Blocks: #{catalyst-blade}
 - Reading list and seam map were cut before #{resolver}, #{go-off-zero} and #{burning} landed. #{go-off-zero} moved these lines. The dispatching lead re-checks `mise run issue-drift`; if it still flags this issue, stop and say so.
 - The look may be handed to a sub-agent working in this same worktree, once the hook it draws from (signal, record field, scene stub) exists. The unit's drone stays the owner and reviewer of the result.
 - Firecracker needs a retune knob pass (`innate`, `power`, `max_hops`) once Fire plays. That pass is not this unit. Owner aside, 2026-11-10: *"btw infusing Firecracker with Catalyst naturally makes it more effective!"*. That combo is intended and needs nothing built.
-- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §5, §6 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
+- ADRs 0061, 0062 and 0070 (`DetonateUse` / `FuelUse`, the default face, the two-sided blade) join ADR 0081 §1, §3, §5, §6, §7 and §9 and ADR 0082's Context in the sibling issue for ADR corrections. Write no ADR here.
 - Out of scope here: the starter count → #{forge}; the Greed guard → #{resolver}.
 - Left untouched on purpose: history (`docs/adr/*`, `docs/corpus/*`, `docs/handoffs/*`, `docs/design/archive/*`), and `explosiveness` particle properties (`pop_burst.tscn`, `dust_puff.tscn`, `leafblower_rebound.tscn`, `arrow_impact_emitter.*`).
 

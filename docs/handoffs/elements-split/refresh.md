@@ -13,7 +13,7 @@ Blocks: #{blade-elements} (every other late unit is blocked through it)
 **Knobs** — none (written call: no code, no tunables).
 
 **Composition**
-The late set is named by rule: every unit this one blocks, directly or through another. Each carries an `## Acceptance spec` and a drift-stamp block cut before the spine landed (a unit with no stamp, such as a `Needs design` menu, has nothing to re-cut). `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of the late issue texts. The set, by placeholder: #{blade-elements}, #{fire}, #{lightning}, #{ice}, #{pairs}, #{forge}, #{quiver}, #{forge-ui}, and, if filed behind this unit (blocked by it directly or through #{forge} / #{forge-ui}), the cast shapes spec #{ice-cast} (what each element's shape does on a cast) and #{overqualified-casting}. Check the board for what this unit blocks when the pass starts, and re-cut that set; a unit not filed behind this one is not part of the pass. Order of the pass: #{blade-elements} first (the rest build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}, then the cast shapes and overqualified casting specs if they are in the set.
+The late set is named by rule: every unit this one blocks, directly or through another. Each carries an `## Acceptance spec` and a drift-stamp block cut before the spine landed (a unit with no stamp, such as a `Needs design` menu, has nothing to re-cut). `mise run issue-drift` reads the **last** stamp on an issue (body, then comments, in order), so a fresh stamp posted as a comment supersedes the old one without editing the body. This issue owns nothing in the tree; it owns the truth of the late issue texts. The set, by placeholder: #{blade-elements}, #{fire}, #{lightning}, #{ice}, #{pairs}, #{forge}, #{quiver}, #{forge-ui}, and, if filed behind this unit (blocked by it directly or through #{forge} / #{forge-ui}), the cast shapes spec #{cast-shapes} (Fire's disc and Lightning's levels on a cast), the Ice concentrate #{ice-cast} and #{overqualified-casting}. Check the board for what this unit blocks when the pass starts, and re-cut that set; a unit not filed behind this one is not part of the pass. Order of the pass: #{blade-elements} first (the rest build on it), then #{fire}, #{lightning}, #{ice}, then #{pairs}, #{forge}, #{quiver}, #{forge-ui}, then the cast shapes, Ice concentrate and overqualified casting specs if they are in the set.
 
 Per issue, the pass is:
 1. `mise run issue-drift -- <n>` (add `--json` for the per-entry `{path, start, end, drifted, reason, ins, del, hunk}` list). Silent + exit 0 means no stamped entry was touched; one line per drifted entry otherwise. `missing-at-stamp` = a typo or a never-built path; `created-since-stamp` = a file a spine unit built (real information: the spec may now cite it).
@@ -38,15 +38,15 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 6. #{forge}: same as 1; its Catalyst starter line names the status id #{catalyst} landed.
 7. #{quiver}: same as 1.
 8. #{forge-ui}: same as 1.
-9. If filed behind this unit: #{ice-cast} and #{overqualified-casting}: same as 1 (a `Needs design` one with no stamp follows NOTES instead).
+9. If filed behind this unit: #{cast-shapes}, #{ice-cast} and #{overqualified-casting}: same as 1 (a `Needs design` one with no stamp follows NOTES instead).
 10. Any issue that hit step 7 is in `Needs design` with its menu comment, and is reported as such instead of a stamp URL.
 11. Deliverable, as the final report: one line per issue — `#<n> — <comment URL> — clean | corrected (<k> sentences) | Needs design (<fork in five words>)`.
 
 **NOTES**
 - No code, no commit, no stub. A defect found in spine code is a new issue linking back to the spine unit, never a fix here.
 - Do not re-scope a late unit (move work between them) — that is a design call; write it as step 7's menu.
-- #{ice-cast} is the cast shapes spec (what each element's shape does on a cast). If it is filed behind this unit and carries a stamp, re-cut it like any late unit; if it is still a `Needs design` menu with no stamp, there is nothing to re-cut, and a spine rename that touches its text is corrected in a comment, nothing more.
-- Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §5, §6 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
+- #{cast-shapes} is the cast shapes spec (Fire and Lightning on a cast) and #{ice-cast} the Ice concentrate. If it is filed behind this unit and carries a stamp, re-cut it like any late unit; if it is still a `Needs design` menu with no stamp, there is nothing to re-cut, and a spine rename that touches its text is corrected in a comment, nothing more.
+- Not specced anywhere and not to be pulled in: the next element ADR's corrections (ADR 0081 §1, §3, §5, §6, §7 and §9, ADR 0082's Context), the inner-tree shape for elements, generator keystones #1787, melee crit condition #1786, the Cold spell #1789, Greed's own spec.
 - Lane rules for the move to `Needs design`: `docs/domain/issue-workflow.md`.
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
