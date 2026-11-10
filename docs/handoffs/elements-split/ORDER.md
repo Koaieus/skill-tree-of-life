@@ -13,9 +13,9 @@ New issue {catalyst-blade} "Elements: the blade's explosive path is removed": un
 New issue {refresh} "Elements: re-cut the late specs once the spine has landed (board only)": under #1716, body refresh.md, blocked by {catalyst-blade}, Ready.
 New issue {blade-elements} "Elements: blade base — element addons, vertex copy-on-fill, sweep speed": under #1716, body blade-elements.md, blocked by {refresh}, Ready.
 New issue {fire} "Elements: Fire — burn, light, the Heat addon, the Burning vertex": under #1716, body fire.md, blocked by {blade-elements}, Ready.
-New issue {lightning} "Elements: Lightning — Shocked arcs, conduction, the Charge addon, the Shocked vertex": under #1716, body lightning.md, blocked by {blade-elements}, Ready.
+New issue {lightning} "Elements: Lightning — Shocked arcs, conduction, the Charge addon, the Shocked vertex": under #1716, body lightning.md, blocked by {blade-elements} and {terrain-ui}, Ready.
 New issue {ice} "Elements: Ice — Frozen, the breakers, the shatter, the Cold addon, the Frozen vertex": under #1716, body ice.md, blocked by {blade-elements}, Ready.
-New issue {pairs} "Elements: pair rules — Frozen mutes and releases, dual reach, thaw": under #1716, body pairs.md, blocked by {fire}, {lightning} and {ice}, Ready.
+New issue {pairs} "Elements: pair rules — Frozen mutes and releases, dual reach, thaw": under #1716, body pairs.md, blocked by {fire}, {lightning}, {ice} and {terrain-ui}, Ready.
 New issue {forge} "Elements: the forge's shape field and ride field, and the starter counts": under #1716, body forge.md, blocked by {fire}, {lightning} and {ice}, Ready.
 New issue {quiver} "Elements: element arrows — one ammo type per element": under #1716, body quiver.md, blocked by {fire}, {lightning} and {ice}, Ready.
 New issue {forge-ui} "Elements: forge and quiver display": under #1716, body forge-ui.md, label ui, blocked by {forge}, {quiver} and {terrain-ui}, Ready.

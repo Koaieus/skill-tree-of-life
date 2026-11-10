@@ -46,3 +46,6 @@ Still open for the owner: Frozen's shatter tuned to match the doubling.
 
 ### Clerk phase 1 — done (21:08)
 All 24 issues exist: #1793–#1814 are the 22 children of #1716 (order of `ORDER.md`), #1815 inner-tree, #1816 adr-fixes; map in `NUMBERS.md`. Bodies are the pre-review, pre-whole-hit files with placeholders resolved. Parents, 37 blocked-by relations, labels and milestone set; every issue sits in Intake. Not done: statuses, the #1716 comment and label, #1444 blocked by ice, the six closes, stamp checks, hygiene — all phase 2. Never create these again; phase 2 edits bodies in place.
+
+### Next lead, 21:15
+Step 0 done: A38 / A39 in `DELTA.md` Part A, the per-body addendum at its end, Frozen's shatter under "Still open". F8 is in `ORDER.md` (`{pairs}` and `{lightning}` also behind `{terrain-ui}`). Review round running: 17 writers (STATE's 15 plus go-off-zero and ice-cast for the whole-hit call), pool of 5. Re-review list after the round: `git diff --name-only` against the commit that added this paragraph.

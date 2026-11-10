@@ -56,7 +56,12 @@ Format: call | `elements.md` heading (approximate line) | ADR.
 - A36. A lighter vertex still snaps and the ice holds. Fallback if melee is nerfed too much: it deflects off the ice like a defender plate (deals nothing, nothing breaks) | A blade on Frozen (l.209-211) | doc only
 - A37. Only the touch is gated: a light vertex's contact that crits or would deal threshold damage still breaks the ice | A blade on Frozen; What breaks the ice | doc only
 
+**Night, after the ADRs** (doc only, no ADR yet: bodies cite `elements.md` § Landing resolution, paragraph "Every landing is a whole hit, and a go-off lands on its own node too")
+- A38. Every landing is a whole hit. A go-off's share defaults to 1 (today's stacks-only splash scale and shrapnel fraction collapse into that one knob per go-off), and each channel that goes off also lands one more payload on the node it goes off from: the hit node takes 1 + 1 per channel that goes off from it (Burning's blast, Shocked's arc); a node one channel reaches takes 1; a node both reach takes 2. Terrain riders (Heat / Cold / Charge) still land once per node per hit (stage one's cap), so the extra landings carry damage and aspect riders only. "No other node reached, no go-off" stands as worded: the centre landing happens only when the go-off does. The share stays a knob per go-off and the dedupe a switch; at share 1 the round-up per rider is idle. Changes ADR 0082's share default and ADR 0084 §5's "the seed node takes the seed once" (A18) | Landing resolution, "Every landing is a whole hit" (l.~970) | doc only
+- A39. A cast's shape alone is not a channel for the seed: a Fire- or Lightning-shaped cast on an unprimed node lands once on its seed; the extra landing on the hit node comes only from a primed node going off. Pass reading, tentative (NOT the owner's): a shape added into a primed node's go-off of the same element is that node's go-off, one channel, so the seed takes 2 | same paragraph, last sentences | doc only
+
 **Still open (do not settle; none blocks the split)**
+- Frozen's shatter tuned to match the whole-hit doubling (A38; owner: "Frozen should match that but we can tune it to do so").
 - Whether shape points also count against the capacity (0085 revisit-when).
 - The knob name and value for hops cut → shatter.
 - The Fire multiplier (5, tentative).
@@ -91,3 +96,17 @@ Column 3 gives stale lines as file:line, with the stale phrase abbreviated.
 | applier.md, blade-elements.md, terrain.md, terrain-ui.md, inner-tree.md | – | untouched | untouched |
 | ORDER.md | – | `{ice-cast}` line (title "Ice on a cast — the concentrate", lane, blockers); `{forge}` title "the forge's element field"; `{adr-fixes}` title "0081 §1 and §5-§9"; "twenty children" count | After the writers report: `{ice-cast}` becomes the cast-shapes spec with the lane, parent and blockers its writer reports; add `{overqualified-casting}`; fix the forge and adr-fixes titles; fix the children count. Keep: the six closes as completed with a pointing comment, adr-fixes in `Backlog`, labels `ui` on the two display units and `tech-debt` on `applier` |
 | split-comment.md | – | :25 lists `#{ice-cast}` under the late units | Place cast shapes and overqualified casting where ORDER.md files them; update "ADR 0072, 0075, 0081, 0082" to add 0083-0085 |
+
+## Part B addendum — the whole-hit call (A38, A39), per body
+
+Each writer does this in the same visit as its `REVIEW.md` findings and reports which acceptance items moved and anything the call breaks. The hit-node arithmetic is one rule and every body states it the same way: the hit node takes 1 + 1 per channel that goes off from it; a bystander one channel reaches takes 1, one both reach takes 2; terrain riders land once per node per hit.
+
+| file | what A38 / A39 touch |
+|---|---|
+| resolver.md | The gather lands the centre copy (one per channel that goes off from the node) as an entry; the share's default is 1; the terrain-rider cap (once per node per hit) keeps the extra landings to damage and aspect riders. Bears on rulings F2 (the share `GoOff` returns), F4 / F6 (dedupe and dual reach counts) |
+| go-off-zero.md | The port is proved on the shipped tests. Share 1 plus a centre landing changes today's explosive numbers unless go-off zero's knob keeps today's values. The writer reports what the doc supports; if it is silent, that is an owner gap, not a body decision |
+| burning.md | The disc also lands on its own node; share 1 |
+| lightning.md | The arc go-off also lands on its own node; share 1 |
+| pairs.md | Dual reach counts (a Burning-and-Shocked node hit: 1 + 2); the Frozen mute and release against the extra landing |
+| cast-shapes.md | A39 (owner): a shape alone is not a channel. The same-element reading (seed takes 2) is carried as tentative, never as a Decision |
+| ice.md, ice-cast.md | Ice combo arithmetic: a ×4 concentrated seed now copies at ×4, twice on the seed node. Frozen's shatter tuned to match is open |
