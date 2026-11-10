@@ -577,7 +577,7 @@ reach)"*):
 | Element | Shape on a cast |
 |---|---|
 | Fire | widens the seed into a disc |
-| Lightning | lengthens the walk by whole hops |
+| Lightning | the seed gathers every node within N hops (level N) |
 | Ice | shortens the walk and pays the seed (§ Ice on a cast) |
 
 Owner on this table: *"that's exactly what i'd been trying to convey all this
@@ -591,6 +591,17 @@ Fire and Lightning (the three shapes cost the same point, so they should be
 worth about the same, which is also what prices the Ice bonus); and whether
 a Lightning shape adding hops stands beside the ruling that `max_hops` takes
 no stat scaling (`docs/domain/spell-propagation.md`).
+
+**Lightning's shape talks in levels** (owner, 2026-11-10: *"Lightning reach on
+a spell talks in *level*, where level N gathers up to N hops from target.
+level 1 -> ring 1; 2->ring 2. cost: {level} aka 1, +2 (3), +3 (6), etc"*). So
+the seed lands on every node within N hops, level N costs 1 + 2 + … + N
+points, and the walk's own `max_hops` is untouched — this replaces "lengthens
+the walk by whole hops" in the table above. Fire's shape is meant to cost the
+same way, one point as one blast power (owner: *"burning if we do it right
+with the A and B might work as is 1:1, as if it is Shock Arc's "level"
+already"*), which is a condition on the disc's size formula (§ The threshold
+model, "Size"), not yet met or settled.
 
 ## Ice on a cast: concentrate (owner, 2026-11-04/05/08/10)
 
