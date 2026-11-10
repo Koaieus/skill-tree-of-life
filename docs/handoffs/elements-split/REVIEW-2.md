@@ -101,3 +101,15 @@ R23. GAP (owner): does a centre copy carry the go-off's own damage? resolver.md:
 - Resolver has the shatter burst land in stage two, but no unit writes that line. Still holds (R1).
 - ice.md's "one number the burst and the spend read" vs ice-cast adding the hops cut to the burst only. Still holds (R13).
 - ice.md's "cold arrow" pointer: fixed (ice.md:83, "#{quiver}").
+
+## The eight smaller bodies (sub-reviewer, merged by the lead; S-numbers)
+- applier.md: none.
+- defs.md — S1 :15 "rekeying the forge budget belongs to #{forge}": forge.md:19 and burning.md:23 keep the budget keyed by concept; drop the pointer. S2 :24-25 "Knobs: none." then "Keep it a knob.": pick one. S3 :32 `Element.decay_per_world_turn` (below-band rate) has no authored value or test; author 1 (owner settled it, batch 3) and assert it in acceptance 2.
+- blade-elements.md — S4 :11 *"option 1 seems best"* and :50 *"also maybe easiest: tune the PBD weight?"* are not in `docs/design/elements.md` (only `docs/handoffs/elements.md:330-331`, which is deleted at the end): drop the quote marks, keep the rule.
+- fire.md — S5 :15, :40 restate the radius formula and worked numbers and never name `disc_radius`: call #{burning}'s `disc_radius(power, node_radius)`, keep only the ratio test. S6 :15, :18 *"butn 1 per stack"* is not in the design doc (handoff :433): drop the quote marks. S7 :25 vision recomputes only on `terrain_band_changed`, so the light goes stale while the excess changes inside Burning: name a refresh trigger on a lit node's excess change. S8 :35 "The elements domain doc gets the burn and the light": say "appends to the doc #{defs} opens" (F12). S9 :42 acceptance 5 names no test file.
+- flow.md — S10 :10 *"Same rule, linear default"*, :13 *"In the world-turn pass, with Heat/Cold"* are not in the design doc: drop the quote marks (the second as "picked …"). S11 :40 "#{resolver} calls it once per beat generation": resolver.md:30 commits through the settle routine twice per generation (rider land, then spends); state both.
+- forge.md — S12 :36 "Both are ungated here … #{overqualified-casting} adds the caster gate": overqualified-casting gates only `set_ride`; say only `set_ride` is gated later. S13 units written as `` `quiver` ``, `` `forge-ui` `` (no braces): write the issue numbers. S14 :64 acceptance 11 passes with `default_value` 0: assert each count's `default_value` > 0 (starter 1).
+- forge-ui.md — S15 :42 acceptance 3 tests refusal in the shape socket, which is #{cast-shapes}'s (after forge-ui): limit to the ride socket. S16 :25 stray comma after "#{overqualified-casting}'s".
+- quiver.md — S17 :1, :24, :31, :38, :43 units written as `` `forge` ``, `` `forge-ui` ``, `` `blade-elements` ``: write the issue numbers. S18 :11 "mints `fire` fire arrows": the count is `fire_element`.
+- terrain-ui.md — S19 :1, :3 say it blocks only #{forge-ui}; ORDER also puts #{lightning} and #{pairs} behind it (F8).
+- (S20, bare `{name}` placeholders in burning.md: fixed by the lead before the re-post.)
