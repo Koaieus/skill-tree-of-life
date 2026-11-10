@@ -114,13 +114,45 @@ level M node arcs N+M); a shape-added landing carries what a go-off copy
 carries. Probe: `tools/disc_reach.py`; tables in
 `elements-split/cast-shapes-rates.md`.
 
-**Open after it:** what the node spends for a combined go-off; the Fire
-reading of "add up" (shape power + excess, tentative); a shape on a node
-primed in another element beyond "independent"; how the O Heat / Cold /
-Charge riders interact with the above (the owner named them, not discussed);
-Ice's shape against Frozen; the forks left in the cast-shapes menu
-(`elements-split/ice-cast.md` — forks 3 and 5 are now largely answered and
-the menu has not been updated).
+**Settled 2026-11-10, evening (cloud session; owner quotes in the doc:
+§ The threshold model, § The forge "Overqualified casting", § Shape and ride,
+§ Ice on a cast, § Landing resolution):** every fork of the "Open after it"
+list is answered.
+- **Riders first.** A hit lands its terrain riders, *then* primed-ness and
+  power are read: the hit that tips a node over T sets it off. Frozen admits
+  a copy on arrival; its path-end and break check read after the riders.
+  Crit conditions still read before the riders. Per target, aspect riders
+  still land before damage. **This reverses ADR 0082's pre-hit read**: add
+  it to the ADR-corrections sibling's list, and `resolver.md`, `burning.md`,
+  `lightning.md`, `ice.md`, `pairs.md`, `go-off-zero.md` must be checked for
+  "pre-hit" wording.
+- **Fire adds the roots** (√(points × multiplier) + √excess); **the node
+  pays its solo cost** (pass pick: at least 1).
+- **A shape and a go-off of another element concatenate**, the dual-reach
+  rule, one dedupe switch.
+- **Ice on Frozen: hops cut add to the shatter** (× a knob), not a breaker.
+- **Ice hop price: one number per spell, default 0.5.**
+- **Forge: three kinds of slot** — the element field is the shape, a second
+  field is the ride (one terrain element at most, may differ from the
+  shape), aspect slots untouched; ride points count against the spell's
+  `infusion_capacity`.
+- **Overqualified casting** (new mechanic, needs its own issue): capacity =
+  base 10 + 5 per degree above `min_degree`; the loadout gates the caster
+  (the target union filters sources by it; the pick stays highest
+  `spell_damage`); UI asks: a reset-to-base control with a "n targets
+  hidden" hint, the real cap shown once a target is picked. Code anchors:
+  `attack/targeting/spell_target_union.gd:125-224` (sources, pick),
+  `attack/plan/magic_attack_plan.gd:759-770` (overrun check, launch only),
+  `attack/spell/spell_def.gd:79,135` (`min_degree`, `infusion_capacity`),
+  `systems/armed/armed_stack.gd:137` (clamp). #744 is the neighbour.
+  Stale: `stats_system/defs/infusion_slots.tres`'s description says 100 /
+  1000 / 10000, the board grants at 10 / 100 / 1000.
+
+**Open after it, none blocks the split:** whether shape points count against
+the capacity too; the knob for hops cut → shatter; the Fire multiplier (5,
+tentative); the min-1 pass pick above. `ice-cast.md` (the cast-shapes menu)
+is now almost wholly answered: rewrite it from the doc as a spec, or fold it
+into the forge units — a call for the body pass.
 
 **Owed in the bodies (do once, before the range pass):** `burning.md` — the
 size Decision and the knob (`radius_per_node_radius` 1.0 becomes the two
