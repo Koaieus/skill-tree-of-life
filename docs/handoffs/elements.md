@@ -93,6 +93,62 @@ Shocked; no `ArcEffect`; go-off zero's disc rides the Explosive `Aspect` def
 under the same field name until the retag — pass pick); **the applier drains an open
 worklist**, hits compiled through one stamping callable.
 
+## 000. Local session 2026-11-10 afternoon — READ THIS FIRST; it supersedes § 00 where they differ
+
+**State.** Nothing is on the board. On master: the stale facts of § 0 are
+fixed in `elements.md` and `aspect_matrix.md` (`efba0bc3`); the cloud
+session's three cast-shapes commits are cherry-picked (they had been left on
+`claude/eager-dijkstra-clrnfl`, unmerged); in `docs/handoffs/elements-split/`
+sit `ORDER.md` (the clerk work order), `inner-tree.md` and `adr-fixes.md`
+(the two sibling bodies), `split-comment.md` (the hub comment) and
+`close-<n>.md` (six closing comments).
+
+**Owner call, 2026-11-10 (quote in the doc, § The threshold model, "Size"):**
+the disc is √power × node **diameter** (×2), one formula for Burning's
+go-off, Burning's light and a Fire shape on a cast. Today's Explosive 3.0
+stays on the ported disc until the retag. Not yet carried into the bodies:
+`burning.md` (Decisions' size line and the knob `radius_per_node_radius`,
+1.0 → 2.0) and `fire.md` (the light-radius acceptance line). The rates
+report's Fire tables are for ×3 (note at its top).
+
+**Owner on how this pass must run** (2026-11-10): *"a session that mainly
+first should read the bare minimum of getting a full grip of what is to be
+settled, then settle it, think about it, see to it that it makes right, then
+update issue bodies, and lastly, right before filing them, we update them in
+terms of line numbers because this has just eaten an entire session for
+something that might gotten stale by the end of it and we hadnt even started
+the real discussion yet"*. So: discussion first, bodies once, line ranges
+and stamps as the very last step before the clerk. Worth a law in the `spec`
+/ `swarmify` charters (`/charter`).
+
+**Before the clerk runs, in this order:**
+1. Any design talk the owner still wants (cast shapes is its own `Needs
+   design` issue and blocks nothing).
+2. Bodies: the ×2 lines above; `ORDER.md` still files `{ice-cast}` as a
+   `Ready` child blocked by forge and forge-ui — it is the "Cast shapes"
+   `Needs design` menu now, a sibling with no parent and no blockers, its
+   title on the body's first line (strip that line and the lane line from
+   the body); `split-comment.md` lists it under the late units — move it to
+   the siblings; `adr-fixes.md`'s §8 line states the flat price as settled —
+   it is a lean (§ 00); `refresh.md` says "eight" and names a
+   `drift-stamp bd800181` in prose; `forge.md:11,73` cite a "3 units of
+   int:int" quote the doc no longer holds; `defs.md:64` asks for two doc
+   fixes that are already done.
+3. Last: every `elements.md` range in the 20 bodies was verified at
+   `efba0bc3`, but `forge.md` and `ice-cast.md` were then replaced by the
+   cherry-pick, and the doc has since grown (+35 lines at § Shape and ride,
+   +3 in § Ice on a cast, +8 at "Size"). One Sonnet pass re-places the ranges
+   by content and restamps at the then-current master sha. Then the clerk
+   with `ORDER.md`, then delete `docs/handoffs/elements-split/` and this
+   file. `cast-shapes-rates.md` is cited by the cast-shapes menu: move it
+   somewhere that survives (or inline its numbers) before deleting the folder.
+
+**Pass picks in the order, the owner has not seen them:** #1733 / #1735 /
+#1765 / #1660 / #1695 / #1696 close now as completed with a pointing comment
+(`go-off-zero.md` still says #1733 closes when it lands); the ADR-corrections
+sibling goes to `Backlog`; labels `ui` on the two display units, `tech-debt`
+on `applier`.
+
 ## 00. Fork pass 2026-11-10 (cloud session) — READ THIS FIRST; it supersedes § 0 where they differ
 
 **State.** Nothing is on the board yet (a cloud session has no board access).

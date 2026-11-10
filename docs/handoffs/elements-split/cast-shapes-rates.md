@@ -3,6 +3,13 @@
 Design research, 2026-11-10; nothing here is decided. Tags: **[M]** measured in the design doc,
 **[C]** code or `.tres` constant, **[S]** simulated for this note (method below), **[E]** estimate.
 
+> **Owner, 2026-11-10, after reading this: the disc multiplier is ×2, not ×3** — *"i was actually
+> thinking ×2. like twice the node radius = 1 node diameter"*, one radius for Burning's go-off, its
+> light and the Fire shape. Every Fire number below is for ×3. A ×2 disc at power p has the radius of
+> a ×3 disc at 4p/9: read the Fire row at 4/9 of the power (about 1 node at power 4, every neighbour
+> at 9), so schemes A1 to A4 need re-pricing (one neighbourhood per point is about 9 power). What a
+> point of Fire shape costs is, in the owner's words, *"very much up to debate"*.
+
 ## 1. What the maps look like
 
 - Spacing **[C]**: `min_dist = 2 · max_node_radius() + node_padding` (`procgen/modules/topology.gd:53-58`,
