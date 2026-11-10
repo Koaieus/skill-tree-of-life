@@ -148,6 +148,17 @@ list is answered.
   Stale: `stats_system/defs/infusion_slots.tres`'s description says 100 /
   1000 / 10000, the board grants at 10 / 100 / 1000.
 
+**Settled 2026-11-10, night (owner quotes in the doc: § A blade on Frozen,
+§ What breaks the ice):** **a blade vertex's touch breaks the ice only if
+the vertex is at least as heavy as the node** — weight is the sim mass
+`(radius / 32)²`, Bunker's `blade_mass` counts, nothing per-contact (Cold
+drag) does, a tie breaks. A lighter vertex still snaps and the ice holds;
+fallback if that nerfs melee too much: the vertex deflects off the ice like
+a defender plate (deals nothing, nothing breaks). Only the touch is gated:
+a light vertex's contact that crits or would deal threshold damage still
+breaks it. Carried into `elements-split/ice.md` (Decisions, Composition,
+acceptance 8 / 8b).
+
 **Open after it, none blocks the split:** whether shape points count against
 the capacity too; the knob for hops cut → shatter; the Fire multiplier (5,
 tentative); the min-1 pass pick above. `ice-cast.md` (the cast-shapes menu)

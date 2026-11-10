@@ -193,7 +193,25 @@ node!"* (the blade's touch is one breaker among three — § What breaks the
 ice), then *"We want to pop just the two vtx. Not too dramatic, and
 remember Ice is 0D. Point like. Single target. So no splash or anything just
 a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
-check, nothing severed) and breaks the ice. **The burst is corruption-shaped**
+check, nothing severed); the spike pop refuses the contact, so its payload
+does not land, while its crit and damage stay facts the breakers read.
+**The touch breaks the ice only if the vertex is at least as heavy as the
+node** (owner, 2026-11-10: *"melee blade nodes shatter frozen nodes they hit
+*only if their radius is equal or larger than the node they hit*
+(specifically: if they have more weight; ignoring temporary modifications by
+e.g. passing over Cold (but not frozen) nodes)"*). Weight is the blade sim's
+mass, `(radius / 32)²` — the vertex's from its source node's radius times
+Bunker's `blade_mass` (owner picked *Bunker counts*: a build choice, not a
+temporary modifier), the node's from its own `SkillNode.radius` (stake growth
+included) by the same formula. A tie breaks (*"equal or larger"*). Nothing
+per-contact enters the weight: Cold's drag (and the parked "tune the PBD
+weight" aside, were it built) is ignored. A lighter vertex still snaps and
+the ice holds (owner picked *snaps, ice holds*, with *deflects off the ice* —
+the vertex recoils like a defender plate, deals nothing, nothing breaks — as
+the fallback *"if it turns out to nerf melee too much"*); its contact still
+breaks the ice through the other two breakers (owner picked *only the touch
+is gated*), so a light vertex whose contact crits or would deal damage past
+the threshold shatters it. **The burst is corruption-shaped**
 (owner, 2026-11-08: *"frozen side: effect removed at %maxhp propto the amount
 removed"*; earlier: *"maybe %dmg like corruption stack triggers?"*): the
 shatter removes everything above T, overflow (deep freeze) included, and
@@ -205,7 +223,8 @@ lands". The crit side is dropped for now (owner, 2026-11-08: *"drop crit for
 now. might do something else with it later"*); the spend fraction is a knob,
 default 1.0 — everything above T.
 
-**What breaks the ice** (owner, 2026-11-08): a blade vertex's touch, **any
+**What breaks the ice** (owner, 2026-11-08): a blade vertex's touch (one at
+least as heavy as the node — owner, 2026-11-10, § A blade on Frozen), **any
 crit hit landing on the node**, and **any damage at or above a flat
 threshold** — a knob, default 10% of the holder's max HP, deliberately *not*
 scaling with excess (owner: *"a flat amount not scaling with excess. else it
@@ -992,7 +1011,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets: Cold cools it, for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold is absorbed whole and the path ends; a breaking copy lands; a blade vertex snaps | nets: Heat thaws it, for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold is absorbed whole and the path ends; a breaking copy lands; a blade vertex snaps, breaking it only if at least as heavy as the node | nets: Heat thaws it, for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1011,8 +1030,8 @@ picked *after the hit lands* over the trapped Charge exactly as it sat).
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
 no shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
-*brittle* — a blade vertex touching it snaps and breaks the ice (§ The
-threshold model). The list is open to more small costs of that grain (owner:
+*brittle* — a blade vertex touching it snaps, and breaks the ice when it is at
+least as heavy as the node (§ The threshold model). The list is open to more small costs of that grain (owner:
 *"possibly we find more small things like what Cold passage to add later"*),
 and your own spells walk less far through it. Rejected: a Frozen node unable
 to launch attacks, and suspending its stat contributions.

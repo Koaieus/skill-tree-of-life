@@ -5,6 +5,7 @@ Write it through the `adr` skill: each correction needs the owner's dated senten
 ## The corrections
 
 - **ADR 0081 §1** (one spend law, a go-off pays 1 per node reached): a Shocked arc *transfers* its Charge to the node it reaches instead of voiding it — a knob, transfer by default (owner, 2026-11-10; § Temperature, "transfer by default"). Also from that day: the arc released by breaking ice reads its power after the breaking hit lands, and a node's own go-off fires once per hit.
+- **ADR 0081 §3** (the three breakers): a blade vertex's touch breaks the ice only if the vertex is at least as heavy as the node — sim mass `(radius / 32)²`, Bunker counts, a tie breaks; a lighter vertex still snaps and the ice holds; crit and the flat threshold stay ungated (owner, 2026-11-10; § A blade on Frozen).
 - **ADR 0081 §5** (a holder's death changes nothing on terrain): stands for Heat / Cold / Charge, which are node state; it no longer covers Catalyst, which clears with its holder.
 - **ADR 0081 §6** ("one side-less terrain status in no family"): Catalyst is an aspect status on allocated nodes only, clearing with its holder like Poison (owner, 2026-11-09, with the hedge *"but we can always make an exception"*; § The threshold model).
 - **ADR 0081 §7** (a cast carries one element): add the arrow rule — an arrow is an aspect subtype or an element, never both; element arrows are their own ammo type, one per element (owner, 2026-11-09; § The forge).
