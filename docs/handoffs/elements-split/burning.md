@@ -11,8 +11,8 @@ Blocks: #{catalyst}
 - Spend: "Burning 1 per node its disc covers" (owner, 2026-11-08: *"at some explosion size, fire would hit basically "all its nbs" like equalling a shock to each nb"*); a disc that reaches no other node does not go off (*"possibly extend this rule to make it cost 0 if it hits nobody?"*, *"there should be at least 1 stack disappearing, possibly more"*); the spend digs under T (*"would decharge more rapidly"*) (`:79-93`).
 - Power is the excess read after the triggering hit's element riders land; primed-ness reads pre-hit (`:93-102`, owner 2026-11-09 two-stage order).
 - Size: radius ≈ √power × node radius (owner, 2026-11-08: *"size(N) ≈ sqrt(N)×node_radius so chances are power 1 doesn't hit any node, but that's tuning"*) (`:110-113`). Go-off zero keeps its ported `reach_per_radius` (3.0) until #{catalyst} deletes it (coordinator ruling, 2026-11-10).
-- The disc is the `GoOff` disc subclass on the `Element` def (owner, 2026-11-09: *"i think it should sit on Element def, going off is just about their thing"*), "go-off zero, then Burning unchanged with another power source" (`:708-721`).
-- **Burning is what ignites** (owner, 2026-11-05: *"Burning ignites"*, picked over "any Heat ignites") (`:903-906`).
+- The disc is the `GoOff` disc subclass on the `Element` def (owner, 2026-11-09: *"i think it should sit on Element def, going off is just about their thing"*), "go-off zero, then Burning unchanged with another power source" (`:734-747`).
+- **Burning is what ignites** (owner, 2026-11-05: *"Burning ignites"*, picked over "any Heat ignites") (`:937-940`).
 - Copies carry everything (owner, 2026-11-08: *"everything rides yeah, LET IT RIDE! can change that later if it becomes too much"*) (`:105-108`), so a Heat rider on a copy chains.
 - Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node holding Explosive charges and Burning sets off both discs, and a node inside both gets two entries, each landing everything at its share. Each go-off fires once per hit (owner, 2026-11-10), through the once-per-node set. The disc takes every node inside it, allocated or not, at every size (owner, 2026-11-10: *"so far just keep it shape blind always"*; `elements.md:532-542`).
 - A ride row plants its named status: Heat rides "exactly as Poison rides" (the doc's rule, `:346-360`; the owner's 2026-11-04 line behind it is at `:354-357`).
@@ -55,13 +55,13 @@ Blocks: #{catalyst}
 
 **Stubs on master**: none. The shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:70-113 — the trigger table, what a go-off pays, power post-land, the disc's size
 docs/design/elements.md:346-360 — element statuses ride as Poison rides
 docs/design/elements.md:460-503 — the reach rule, chains, the no-parent go-off
-docs/design/elements.md:704-726 — one share, go-off zero, the disc subclass on the Element def
-docs/design/elements.md:744-753 — dual reach concatenated, the dedupe switch
-docs/design/elements.md:891-909 — temperature, Burning ignites
+docs/design/elements.md:730-747 — one share, go-off zero, the disc subclass on the Element def
+docs/design/elements.md:770-784 — dual reach concatenated, the dedupe switch
+docs/design/elements.md:925-943 — temperature, Burning ignites
 effects/status/spread/explosive_spread.gd:41-81 — today's disc: radius from power, one finder per reach
 attack/spell/on_hit/detonate_effect.gd:91-121 — today's detonation the port starts from
 attack/range_finder/euclidean_range_finder.gd:93-100 — nodes_within over a list, the blast path

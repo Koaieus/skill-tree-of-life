@@ -5,20 +5,20 @@ Blocks: #{terrain-ui}, #{resolver}
 ## Acceptance spec
 
 **Decisions**
-- *"option 1"* (owner, 2026-11-05): diffusion, terrain decay and the terrain settle run on the world turn as built (`docs/design/elements.md:916-918`).
-- *"possibly revise the rate at which the world clock ticks. like maybe speed it up with the number of entities (but not linearly? idk)"* (owner, 2026-11-05; the doc's pass knob is `ceil(sqrt(N))`, `:919-925`).
+- *"option 1"* (owner, 2026-11-05): diffusion, terrain decay and the terrain settle run on the world turn as built (`docs/design/elements.md:969-971`).
+- *"possibly revise the rate at which the world clock ticks. like maybe speed it up with the number of entities (but not linearly? idk)"* (owner, 2026-11-05; the doc's pass knob is `ceil(sqrt(N))`, `:972-978`).
 - *"Same rule, linear default"* (owner, 2026-11-10). The turn manager exports a rate rule: per-carrier (today) or integer ceil-sqrt. The default is per-carrier: no behaviour change, ADR 0055 stands, and there is no superseding ADR. Turnless hosts and lingering rows follow whichever rule is set.
-- *"option 1, 100%. hell yeah"* (owner, 2026-11-05): Heat and Cold are one signed `t`, and Metropolis `floor((t_i − t_j) / (max(d_i, d_j) + 1))` runs per edge from one snapshot (`:893-901`).
+- *"option 1, 100%. hell yeah"* (owner, 2026-11-05): Heat and Cold are one signed `t`, and Metropolis `floor((t_i − t_j) / (max(d_i, d_j) + 1))` runs per edge from one snapshot (`:927-935`).
 - *"if we make each node lose e.g. at least 1 heat/cold (towards net 0) per tick, it should eventually cool off"* (owner, 2026-11-08; `:209-215`). Heat/Cold decay runs inside this pass.
 - *"In the world-turn pass, with Heat/Cold"* (owner, 2026-11-10): Charge decays here too. Terrain stays exactly two ints, with no write-turn field and no world-turn counter. One live index holds the nodes with any terrain, and the one writer announces every band crossing. Decay-on-read is dead.
 - Catalyst's prime conversion is read inside this unit's settle routine, at a seat it exposes, and is never hooked on `terrain_band_changed` (pass pick, tentative, 2026-11-10).
-- The pass is the **only** implementation. It runs over the live terrain index on packed arrays, never walks the graph, and has no GDScript mirror (pass, `:929-941`).
-- One snapshot per beat (owner, 2026-11-09: *"option 1. and can we make it order independent somehow?"*, then picked *one snapshot per beat*; the settled doc text, `:693-703`): hits of one beat settle terrain from one snapshot, summed and clamped at 0, and the routine is the one the world-turn tick needs. This unit builds that routine. #{resolver} calls it.
-- The settle is roll-free and obeys the transcendental ban (pass write-back, ADR 0081 §9; `:728-742`).
+- The pass is the **only** implementation. It runs over the live terrain index on packed arrays, never walks the graph, and has no GDScript mirror (pass, `:982-994`).
+- One snapshot per beat (owner, 2026-11-09: *"option 1. and can we make it order independent somehow?"*, then picked *one snapshot per beat*; the settled doc text, `:714-729`): hits of one beat settle terrain from one snapshot, summed and clamped at 0, and the routine is the one the world-turn tick needs. This unit builds that routine. #{resolver} calls it.
+- The settle is roll-free and obeys the transcendental ban (pass write-back, ADR 0081 §9; `:754-768`).
 
 **Knobs** (tentative defaults, easy to change)
 - `TurnManager.world_clock` is an enum `{PER_CARRIER, CEIL_SQRT}`, default `PER_CARRIER` (owner). It sets the world-turn period. Editor feedback: none (a rule); `game_root.tscn` shows the node.
-- `TurnManager.terrain_steps_per_world_turn` is `@export_range(1, 8, 1, "or_greater")`, default 1 (`:919`). It is the number of diffusion steps per world turn, each from a fresh snapshot.
+- `TurnManager.terrain_steps_per_world_turn` is `@export_range(1, 8, 1, "or_greater")`, default 1 (`:972`). It is the number of diffusion steps per world turn, each from a fresh snapshot.
 - The decay amounts are not knobs here. Each is the band's decay-rate answer on the Fire / Ice / Lightning `Element` def (#{defs}), so the overflow band decays at its own fast rate.
 
 **Composition**
@@ -42,7 +42,7 @@ Blocks: #{terrain-ui}, #{resolver}
 
 **Files touched**
 - `systems/turn_manager.gd`: the knobs, `world_turn_period`, the counter compare, and the pass call. Add a line to the doc comments at 27-29 and 99-105 that N is read through the rate rule.
-- `docs/design/elements.md:929-941`: correct the build note. Charge decays in the world-turn pass with Heat and Cold (owner, 2026-11-10), not on read. Terrain is two ints with no write-turn field. The index holds any terrain. Fix the `:211-212` "Charge likewise" sentence to match if it reads otherwise. Run `mise run docs-hygiene` afterwards.
+- `docs/design/elements.md:982-994`: correct the build note. Charge decays in the world-turn pass with Heat and Cold (owner, 2026-11-10), not on read. Terrain is two ints with no write-turn field. The index holds any terrain. Fix the `:211-212` "Charge likewise" sentence to match if it reads otherwise. Run `mise run docs-hygiene` afterwards.
 - `scenes/game_root.tscn`: only if the default is overridden there (otherwise none).
 - `combat/combat_world.gd`: `flow_temperature` (the index itself is #{terrain}'s; read it).
 - `combat/terrain_settle.gd` (new; put it beside #{terrain}'s write door if that unit chose a `combat/terrain/` folder).
@@ -84,7 +84,7 @@ Blocks: #{terrain-ui}, #{resolver}
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 systems/turn_manager.gd:27-30 — the world_turn_ended signal and its N wording
 systems/turn_manager.gd:95-109 — world_turn_progress, the >= rule, resync adoption
 systems/turn_manager.gd:384-409 — the counter compare and _end_world_turn's order
@@ -92,9 +92,9 @@ combat/combat_world.gd:175-218 — the _lingering registry: the index's template
 combat/node_combat.gd:768-775 — the host != null guard that keeps shadows out
 effects/status/spread/fraction_diffusion.gd:1-27 — the existing floored Metropolis on rows (not reused)
 docs/design/elements.md:209-215 — cooling: decay 1 toward zero per world turn, the dead band
-docs/design/elements.md:693-703 — one snapshot per beat, summed and clamped: the shared routine
-docs/design/elements.md:728-742 — two clocks; the settle is roll-free and reproduced
-docs/design/elements.md:891-941 — one signed t, the Metropolis rule, the world clock, the build note
+docs/design/elements.md:714-729 — one snapshot per beat, summed and clamped: the shared routine
+docs/design/elements.md:754-768 — two clocks; the settle is roll-free and reproduced
+docs/design/elements.md:925-994 — one signed t, the Metropolis rule, the world clock, the build note
 docs/adr/0055-turnless-hosts-tick-on-the-world-turn-one-every-n-played-turn-ends.md:30-42 — the linear-N decision; stands as the default
 docs/domain/rounding.md:13-30 — the table a new rounding site joins first
 docs/domain/degree.md:8-21 — get_graph_degree, never get_neighbours().size()

@@ -12,15 +12,15 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 - Atomic 3 (owner, 2026-11-04): *"A Curse arrow hits a Charged (lightning) node and it applies curse to the target *and* to 1..N neighbors"* (`:478-481`).
 - Chains (owner, 2026-11-05): *"LET IT RIDE. The hit, all rider, no decay. Maybe raise you: for charge arcs hitting charged nodes also just keep arcing (and consuming a stack ofc) and concatenating hits."* (`:489-496`).
 - A Charge rider on an arc copy replants `ceil(r × s) ≥ 1` on every node reached, a wire that re-lays itself (owner, 2026-11-05: *"Leaning 2. My reasoning: if buildup is too strong we can always tune up decay rates/mechanisms"*) (`:512-523`).
-- Travel (owner, 2026-11-06: *"picture A sounds very good. also in some sense: elec - hops -> 1D (lines)"*): Shocked "a path **conducts**: a spell walk entering a Shocked node leaves it without spending a hop — a line of Shocked nodes is a wire for anyone's magic", spending "one Charge per pass-through"; side-less; rejected for v1: "Shocked self-discharging on the tick" (`:850-865`).
-- **Charge stays put** (owner, 2026-11-08: *"charge staying put sounds good"*) (`:911-914`). The edge subclass is the Shocked `GoOff`; no `ArcEffect` exists (owner, 2026-11-09, `:708-721`).
+- Travel (owner, 2026-11-06: *"picture A sounds very good. also in some sense: elec - hops -> 1D (lines)"*): Shocked "a path **conducts**: a spell walk entering a Shocked node leaves it without spending a hop — a line of Shocked nodes is a wire for anyone's magic", spending "one Charge per pass-through"; side-less; rejected for v1: "Shocked self-discharging on the tick" (`:884-899`).
+- **Charge stays put** (owner, 2026-11-08: *"charge staying put sounds good"*) (`:964-967`). The edge subclass is the Shocked `GoOff`; no `ArcEffect` exists (owner, 2026-11-09, `:734-747`).
 - Blade: *"copy shocked node -> get shocked blade node (zaps/arcs)"* (owner, 2026-11-09): a Shocked vertex arcs from the node it touches; a vertex go-off spends the copy, never the source (`:425-440`).
 - Dual reach (owner, 2026-11-10: *"riders twice, payload twice. charged burning nodes sounds like a dangerous concept"*): a node both Burning and Shocked blasts and arcs; a node reached by the disc and an arc is two entries, each landing every rider and the damage at its share. Each go-off fires once per hit (owner, 2026-11-10), through the once-per-node set; the dedupe stays a one-line switch (`:770-781`).
 - **An arc moves its Charge, it does not void it** (owner, 2026-11-10: *"knob, transfer by default"*, reasoning: *"decay is 1 per charged node. if it voids 4, they are gone. if it spreads them to 0 charge nodes, they are gone by next tick. if more charge is at play, more things can happen, chain effects, priming mid hit or after, all reads as *very* STATIC DISCHARGE i must say"*; `:945-962`). The go-off still pays 1 per node reached; each spent stack lands on the node it reached, +1 there in the same commit as the -1 on the source. Pass readings, tentative: the conduct cost of a pass-through is still voided; a transferred stack is treated exactly like the Charge rider an arc copy lands (same commit, same primed-ness read); Burning and Frozen keep the void.
 - **An arc's reach is shape-blind at every level** (owner, 2026-11-10: *"option 1"*, then *"so far just keep it shape blind always"*; `:532-542`): every node within L hops over the whole graph, allocated or not, whoever holds it, so transferred Charge lands on empty ground too. Parked by the same answer, not built: *"allocated only at lv1, whole graph at lv 2+"* for Fire and Lightning together.
 - The vertex's copied state reaches the gather as a "go-off source" argument (pass pick, tentative; kept 2026-11-10). Spec-time readings this child owns (`:457-458`), pass picks, tentative: the arc excludes its centre and reads L off the post-land count; a Shocked vertex's level comes from its copy against its source node's T, centred on the contact's node, spending the copy 1 per node reached.
 - Conduction at 0 hops (owner, 2026-11-10: *"i forgot i designed that as a feature. it's rather powerful, not spending a hop. but might be just what it needs"*, and on keeping it including the 0-hops case: *"i agree with that lean."*): a walk arriving on a Shocked node with 0 hops left still leaves, for the conduct cost.
-- Conduction, pass picks, tentative (the spend at the gather head kept 2026-11-10; the only shape that keeps "a gather hit at span head is the only terrain writer", `:663-672`): the pass-through Charge is spent at the arriving wave's gather head when the walk has a spread; Shocked is read pre-beat; the wave minted out of that node keeps its parent's `hops_remaining`, so an arrival with 0 hops left on a Shocked node still leaves (the owner call above, not tentative). `max_visits_per_node` still bounds a wire ring. `max_hops` itself is never modified (no stat scaling, `docs/domain/spell-propagation.md:444-473`).
+- Conduction, pass picks, tentative (the spend at the gather head kept 2026-11-10; the only shape that keeps "a gather hit at span head is the only terrain writer", `:684-693`): the pass-through Charge is spent at the arriving wave's gather head when the walk has a spread; Shocked is read pre-beat; the wave minted out of that node keeps its parent's `hops_remaining`, so an arrival with 0 hops left on a Shocked node still leaves (the owner call above, not tentative). `max_visits_per_node` still bounds a wire ring. `max_hops` itself is never modified (no stat scaling, `docs/domain/spell-propagation.md:444-473`).
 
 **Knobs** (tentative defaults — easy to change; tests assert ratios)
 - Lightning's edge `GoOff` (#{resolver}'s edge subclass) `.ladder_exponent` = 2 (`@export_range(1, 4)`) — level L at count > L^exp × T (owner's L²).
@@ -60,8 +60,8 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 - The transfer reverses ADR 0081 §1's rejected "radiating transfer" for arcs only; the correction joins the sibling issue for ADR corrections. Write no ADR here.
 - The look may be handed to a sub-agent working in this same worktree once the hook it draws from (signal, record field, scene stub) exists; the unit's drone stays the owner and reviewer of the result.
 - Reading list and seam map were cut before #{defs}…#{catalyst} landed; #{refresh} re-cuts the stamp. If `mise run issue-drift` still flags this issue at dispatch, stop and say so.
-- Parked, not built: **a wire evens itself out** (a Shocked run sharing Charge each world turn, `:1083-1085`); the **arc mirror** (owner, 2026-11-05: *"maybe when a nb tries to emit a lightning reach it reflects it? maybe not"*; a blanket reflect rejected, `:1086-1091`) — a Frozen neighbour is simply struck here, and what Frozen does to an arriving arc is #{pairs}.
-- Frozen mutes Shocked / the break releases the storm and Frozen ends an arc are #{pairs}; the dual-reach entries themselves are #{resolver}'s gather (Acceptance 5 only pins Lightning's side). The Shocked "crackle" revealing charged nodes is parked as minor (`:870-873`).
+- Parked, not built: **a wire evens itself out** (a Shocked run sharing Charge each world turn, `:1133-1135`); the **arc mirror** (owner, 2026-11-05: *"maybe when a nb tries to emit a lightning reach it reflects it? maybe not"*; a blanket reflect rejected, `:1136-1141`) — a Frozen neighbour is simply struck here, and what Frozen does to an arriving arc is #{pairs}.
+- Frozen mutes Shocked / the break releases the storm and Frozen ends an arc are #{pairs}; the dual-reach entries themselves are #{resolver}'s gather (Acceptance 5 only pins Lightning's side). The Shocked "crackle" revealing charged nodes is parked as minor (`:904-907`).
 - The no-parent go-off ("terrain hit", `:498-503`) has no caller; not built (the handoff's "lands with 6 and 7" is stale). Generator keystones (#1787) mint Charge without a hit and are their own issue.
 - `lightning_bolt` gaining its innate Charge row: #{forge}. Charge arrows: #{quiver}; starter counts: #{forge}.
 - Adversarial (f) — Charge colliding with explosive's `charge` tag and `vertex_charges` — is cleared by #{catalyst}; #{refresh} confirms neither name survives before this dispatches.
@@ -69,15 +69,15 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:70-113 — the trigger table, what a go-off pays, the hop ladder
 docs/design/elements.md:418-458 — the element addon, vertex copy-on-fill, the spec-time vertex question
 docs/design/elements.md:460-523 — the reach rule, chains concatenating, a copy carries Charge (the wire re-lays)
-docs/design/elements.md:663-726 — the gather as the only terrain writer, one snapshot per beat, the edge subclass
-docs/design/elements.md:744-753 — dual reach concatenated, the dedupe switch
-docs/design/elements.md:823-873 — bands, the travel verb (a path conducts, one Charge per pass-through), the parked crackle
-docs/design/elements.md:911-914 — Charge stays put
-docs/design/elements.md:1083-1091 — the parked wire and arc mirror
+docs/design/elements.md:684-747 — the gather as the only terrain writer, one snapshot per beat, the edge subclass
+docs/design/elements.md:770-784 — dual reach concatenated, the dedupe switch
+docs/design/elements.md:857-907 — bands, the travel verb (a path conducts, one Charge per pass-through), the parked crackle
+docs/design/elements.md:964-967 — Charge stays put
+docs/design/elements.md:1133-1141 — the parked wire and arc mirror
 graph/graph_mirror.gd:229-250 — nodes_within, the one hop-bounded BFS
 attack/range_finder/hop_range_finder.gd:58-66 — gather over a mirror, not the per-candidate predicate
 attack/spell/spell_resolver.gd:376-404 — the expansion step: terminal check on hops_remaining, then the visit cap

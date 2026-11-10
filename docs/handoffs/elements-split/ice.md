@@ -6,15 +6,15 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 ## Acceptance spec
 
 **Decisions** (owner, dated as quoted; `docs/design/elements.md` line ranges)
-- Frozen on a hit: "a copy under the break threshold is absorbed whole (no damage, no riders), a path ends (0D); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*)" (:77; ADR 0082 §3). Only a direct Cold hit deepens a freeze; a Cold copy onto a Frozen node lands nothing (:658-660).
+- Frozen on a hit: "a copy under the break threshold is absorbed whole (no damage, no riders), a path ends (0D); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*)" (:77; ADR 0082 §3). Only a direct Cold hit deepens a freeze; a Cold copy onto a Frozen node lands nothing (:679-681).
 - The blade: *"We want to pop just the two vtx. Not too dramatic, and remember Ice is 0D. Point like. Single target. So no splash or anything just a fragile snap"* (owner, 2026-11-08, :176-184). First contact pops that one vertex and breaks the ice.
 - The burst: *"frozen side: effect removed at %maxhp propto the amount removed"* (owner, 2026-11-08, :185-194): the shatter removes everything above T, overflow included, and deals excess × a knob fraction × max HP to the frozen node's holder as TRUE damage through the shared burst path corruption uses, nothing if unallocated. *"drop crit for now"* (owner, 2026-11-08).
 - The breakers (owner, 2026-11-08, :196-207): a blade vertex's touch, any crit hit landing on the node, any damage at or above a flat threshold — *"a flat amount not scaling with excess …"*. The threshold applies to direct hits and arriving copies alike; a copy that breaks through also lands. Heat and decay end Frozen without a shatter. No re-evaluation: every check reads pre-hit state.
-- Deep freeze: *"deep-freeze stacks dealing bonus damage on breaking ice and get removed along with it"* (owner, 2026-11-06, :884-889).
-- Travel verb: Frozen, 0D — "a path **ends**: hops, chains and arcs stop here" (owner, 2026-11-06, :850-857).
+- Deep freeze: *"deep-freeze stacks dealing bonus damage on breaking ice and get removed along with it"* (owner, 2026-11-06, :918-923).
+- Travel verb: Frozen, 0D — "a path **ends**: hops, chains and arcs stop here" (owner, 2026-11-06, :884-891).
 - A vertex copies its source's primed state: *"copy frozen node -> frozen blade node (detrimental so far, makes blade node fragile, but maybe we do add a damage increase to even it out?)"* (owner, 2026-11-09, :425-433). The Frozen vertex's snap is a concentrate (owner, 2026-11-09, :441-455): one contact hit, then the vertex pops; the bonus is an overlay on that vertex's `blade_damage` read at fill (*"bonus or multiplier riding the pipeline (see `overlay`)"*), scaled by Cold excess at fill.
 - A blade's element is *"an addon per element"* (owner, 2026-11-09, :418-424): the Cold addon grants the rider and nothing else.
-- Spike pop: *"The existing one just pops the one, docs may be stale"* (owner, 2026-11-08, :1156-1159) — settle the header against the code here.
+- Spike pop: *"The existing one just pops the one, docs may be stale"* (owner, 2026-11-08, :1206-1209) — settle the header against the code here.
 - (pass reading, tentative) A spell walk's "path ends" is read pre-hit at the arriving hit's gather head (:206-207), so an arrival that shatters the ice still ends the walk there.
 
 **Knobs** (tentative defaults — easy to change; owners are the Ice `Element` def and its Frozen band as #{defs} shaped them)
@@ -30,7 +30,7 @@ Tests assert ratios (a deep freeze bursts more than a shallow one; burst ∝ exc
 - The Ice `Element` def (#{defs}) carries the Frozen band; this unit adds the Frozen subclass of the `Admits` base #{defs} created in `elements/`. The gather head (#{resolver}) asks it once per arriving hit, against the pre-hit band and the hit's crit and damage facts, and gets one of: land, absorb (copy only, under the threshold: no stage-two entry, no onward reach), land + break. Ice owns no gather code and no terrain write.
 - A break's spend (the excess × `shatter_spend_fraction`) joins the beat's committed spends through #{flow}'s shared settle routine, the one terrain writer (#{terrain}); the burst lands through `DotTick.mint`, the path `CorruptionStatus._on_burst` uses, so "a burst lands" stays one implementation. Unallocated node: spend yes, burst nothing.
 - Spell walk: a node whose pre-hit band is Frozen is terminal for the walk, the way `hops_remaining <= 0` is today (`spell_resolver.gd:383`); the seam is wherever #{resolver} left departure.
-- Blade on a Frozen node: `BladePopResolver.LiveGate.admit` gains a Frozen check that runs *before* its unallocated (`blade_pop_resolver.gd:280`) and own-node (:289) early returns — terrain is side-less (:862-864), so your own and unowned Frozen nodes snap a vertex too — and pops the vertex through the existing `_kill` (no drain check). The gate runs on a shadow world and writes no terrain. The refused contact still runs stage one: its gather head reads the Frozen band, and the `admits` answer fires the blade-touch breaker (spend + burst). Only its stage-two payload (damage, other riders) is dropped. Today a refused contact returns from `BladeDamageInstance.land_on` before anything lands (:29-33), so the drone threads the refused contact through #{resolver}'s gather, not around it. The pop itself stays recorded as today (`popped_vertex`, emitted by `OutcomeApplier.land_one`). If the hit scan emits no contact event for an unallocated node, say so in the report and keep the check for allocated nodes of either side.
+- Blade on a Frozen node: `BladePopResolver.LiveGate.admit` gains a Frozen check that runs *before* its unallocated (`blade_pop_resolver.gd:280`) and own-node (:289) early returns — terrain is side-less (:896-898), so your own and unowned Frozen nodes snap a vertex too — and pops the vertex through the existing `_kill` (no drain check). The gate runs on a shadow world and writes no terrain. The refused contact still runs stage one: its gather head reads the Frozen band, and the `admits` answer fires the blade-touch breaker (spend + burst). Only its stage-two payload (damage, other riders) is dropped. Today a refused contact returns from `BladeDamageInstance.land_on` before anything lands (:29-33), so the drone threads the refused contact through #{resolver}'s gather, not around it. The pop itself stays recorded as today (`popped_vertex`, emitted by `OutcomeApplier.land_one`). If the hit scan emits no contact event for an unallocated node, say so in the report and keep the check for allocated nodes of either side.
 - Frozen vertex: #{blade-elements}'s copy-on-fill sets the vertex's primed copy and one-shot flag; Ice adds (a) the overlay on `blade_damage` at fill through the `overlays_for` hook, scaled by the copied excess, and (b) the pop after that vertex's first contact hit lands (the hit lands, unlike a spike pop). The source node is never touched.
 - Cold addon: data on #{blade-elements}'s per-element addon base (rider only, budget by the `ice` count); no Ice-specific code.
 - Dies: nothing. Frostbite (#1444) is not here: its own issue, blocked by this one.
@@ -74,13 +74,13 @@ Tests assert ratios (a deep freeze bursts more than a shallow one; burst ∝ exc
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:70-78 — the trigger table: Frozen denies, a copy under the threshold is absorbed whole
 docs/design/elements.md:176-207 — blade snap, corruption-shaped burst, the three breakers, pre-hit reads
 docs/design/elements.md:425-455 — vertex copy-on-fill; the Frozen vertex's concentrate snap and its overlay knob
-docs/design/elements.md:640-660 — stage one: the Frozen check at the read; a Cold copy lands nothing
-docs/design/elements.md:823-889 — bands on the Element def, the travel verb "ends", deep freeze
-docs/design/elements.md:1156-1159 — the spike-pop docs-vs-code check
+docs/design/elements.md:661-681 — stage one: the Frozen check at the read; a Cold copy lands nothing
+docs/design/elements.md:857-923 — bands on the Element def, the travel verb "ends", deep freeze
+docs/design/elements.md:1206-1209 — the spike-pop docs-vs-code check
 effects/status/corruption.gd:24-37 — the burst path a shatter reuses (`_on_burst`, `burst_amount`)
 effects/status/dot_tick.gd:15-48 — `DotTick.mint`: TRUE damage on a node or entity host
 attack/melee/sim/blade_pop_resolver.gd:1-10 — the header to settle against the code

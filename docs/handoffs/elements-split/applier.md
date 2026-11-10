@@ -6,7 +6,7 @@ Blocks: #{resolver}
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-09)
-- The applier drains an open worklist (owner picked it over the head landing its own copies). The settled doc text: *"Landing a gather head appends its entries' hits to the applier's queue, compiled through one stamping callable the landing site hands in (replacing the spell and ranged post-compile stamps); the three landing-to-hit stampers fold into one."* (`docs/design/elements.md:722-726`)
+- The applier drains an open worklist (owner picked it over the head landing its own copies). The settled doc text: *"Landing a gather head appends its entries' hits to the applier's queue, compiled through one stamping callable the landing site hands in (replacing the spell and ranged post-compile stamps); the three status, detonate and paired-damage stampers fold into one."* (`docs/design/elements.md:748-752`)
 - *"Applier refactor — `OutcomeApplier` drains an open worklist, one stamping callable replaces the spell and ranged post-compile stamps, the three landing-to-hit stampers fold into one; no behaviour change."* (`docs/handoffs/elements.md:413-415`) — reviewed, taken as settled.
 - Land order is keyed on `(schedule_index, original index)`, never on `arrival_time` (#543 D2, `attack/outcome/outcome_applier.gd:143-169`) — existing law, kept.
 
@@ -43,7 +43,7 @@ Blocks: #{resolver}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 attack/outcome/outcome_applier.gd:18-43 — apply: sort, group flush, await beat, land_one, announce
 attack/outcome/outcome_applier.gd:60-141 — land_one: the per-hit landing; the crit draw is a landing fact
 attack/outcome/outcome_applier.gd:143-181 — in_arrival_order and why the key is structural (#543 D2)
@@ -58,7 +58,7 @@ attack/spell/on_hit/splash_effect.gd:128-146 — _retargeted, landing→landing 
 attack/outcome/crit_roll.gd:53-59 — decide: why land order is crit-stream order
 docs/domain/attack-timeline.md:417-422 — the ordering rule
 docs/domain/attack-timeline.md:539-566 — apply() parameters
-docs/design/elements.md:722-726 — the owner's worklist call
+docs/design/elements.md:748-752 — the owner's worklist call
 attack/melee/swing_resolve.gd — seam: four OutcomeApplier.apply callers (148, 401, 428, 521); 524-526 append-only
 attack/plan/ranged_attack_plan.gd — seam: ranged OutcomeApplier.apply caller (519)
 systems/battle_system.gd — seam: battle caller, awaits apply (740)

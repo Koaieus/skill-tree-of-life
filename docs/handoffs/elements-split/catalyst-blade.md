@@ -45,7 +45,7 @@ Blocks: #{refresh}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:115-174 — Catalyst never goes off
 docs/design/elements.md:418-458 — the blade's element addon and the vertex copy rule #{blade-elements} builds
 docs/domain/explosive.md:123-158 — the two-sided contact being removed

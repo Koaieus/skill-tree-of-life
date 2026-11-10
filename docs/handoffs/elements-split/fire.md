@@ -6,11 +6,11 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 ## Acceptance spec
 
 **Decisions**
-- *Burning* also "burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08)" (`docs/design/elements.md:73-75`). Burning's burn is world-turn time, never a hit (`:728-742`).
-- **Burning is a light source** (owner, 2026-11-06: *"burning being a light source does sound clever, could be one of the cells filled by burning"*): visible through fog to every entity and reveals its neighbours, as a VisionSystem fact with no combat rule (`:867-870`).
+- *Burning* also "burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08)" (`docs/design/elements.md:73-75`). Burning's burn is world-turn time, never a hit (`:754-768`).
+- **Burning is a light source** (owner, 2026-11-06: *"burning being a light source does sound clever, could be one of the cells filled by burning"*): visible through fog to every entity and reveals its neighbours, as a VisionSystem fact with no combat rule (`:901-904`).
 - **A holder's death changes nothing** (owner, 2026-11-08, picked *nothing — terrain persists*; #1660's "death blasts first" is pre-threshold history) (`:263-266`).
 - Blade, *"an addon per element"* (owner, 2026-11-09): the Heat addon grants the rider and nothing else (`:418-424`). *"copy a burning node and you get a burning blade node (booms)"* (owner, 2026-11-09): a Burning vertex blasts a disc where it touches. *"so far there is *no* gameplay connection back to the source node after a blade node copy is made from it. not starting now"*, so the excess at fill is the vertex's power (`:425-440`).
-- Fire needs no overflow verb (owner, 2026-11-06: *"ramping up fire der states to blaze to inferno"*, Burning's power growing with the excess) (`:880-884`).
+- Fire needs no overflow verb (owner, 2026-11-06: *"ramping up fire der states to blaze to inferno"*, Burning's power growing with the excess) (`:914-918`).
 - The vertex's copied state reaches the gather as a "go-off source" argument (pass pick, tentative; kept 2026-11-10). Spec-time readings for `:457-458` (pass picks, tentative): a Burning vertex is primed iff its copied Heat > its source node's T at fill, and its power = copy − that T. Its disc is #{burning}'s, centred on the contact's node, sized by that node's radius, never including it. It spends the copy 1 per node reached and stays Burning while the copy stays > T.
 - Burn (pass picks, tentative): a step in #{flow}'s world-turn settle, reading the pre-diffusion snapshot. It lands through `DotTick.mint` on the node's combat host as TRUE damage with no record (the corruption-burst path), and lands nothing on an unallocated node. Amount = `burn_per_excess` × excess, 1 per stack above T (owner, 2026-11-10: *"butn 1 per stack"*; #1695's 0.5 per stack is superseded). Light radius: √power × the node's radius, the Burning disc's own size formula, power = the excess (owner, 2026-11-10: *"light radius same formula as explosion size would"*).
 
@@ -47,21 +47,21 @@ Blocks: #{pairs}, #{forge}, #{quiver}
 - Reading list and seam map were cut before #{defs}…#{catalyst} landed; #{refresh} re-cuts the stamp. If `mise run issue-drift` still flags this issue at dispatch, stop and say so.
 - The no-parent go-off ("terrain hit", `:498-503`) is a defined shape with no caller and is not built. The handoff's "lands with 6 and 7" is stale.
 - Burning × Frozen and thaw are #{pairs}. Fire arrows are #{quiver}; the forge element field and starter counts are #{forge}.
-- Whip-crack (`:1077-1082`) is parked, not v1. The door for "a bespoke twist or tweaked T value later for Burn. or extinguish mechanics" stays open (`:907-909`).
+- Whip-crack (`:1127-1132`) is parked, not v1. The door for "a bespoke twist or tweaked T value later for Burn. or extinguish mechanics" stays open (`:941-943`).
 - #1695's flow lives in #{flow} on the signed `t`. Its "unallocated sinks" and "½ damage per stack" are superseded (terrain rests on unallocated ground; burn ∝ excess). #1696's faces and its ignition rule (heat meets fuel) are superseded by the threshold model and Catalyst.
 - The next element ADR's corrections are a sibling issue.
 
 **Stubs on master**: none. The shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:70-77 — the trigger table: Burning burns its holder each world turn
 docs/design/elements.md:245-266 — the family table, why a holder's death changes nothing
 docs/design/elements.md:418-458 — the element addon, vertex copy-on-fill, the spec-time vertex question
-docs/design/elements.md:728-742 — the two clocks: the burn is world-turn time
-docs/design/elements.md:823-884 — bands, Burning as a light source, no overflow verb for Fire
+docs/design/elements.md:754-768 — the two clocks: the burn is world-turn time
+docs/design/elements.md:857-918 — bands, Burning as a light source, no overflow verb for Fire
 docs/design/elements.md:498-503 — the no-parent go-off, no caller
-docs/design/elements.md:891-909 — temperature; the door kept open for Burn
-docs/design/elements.md:1077-1082 — Whip-crack, parked
+docs/design/elements.md:925-943 — temperature; the door kept open for Burn
+docs/design/elements.md:1127-1132 — Whip-crack, parked
 effects/status/dot_tick.gd:24-46 — mint: TRUE damage with no record, node-host branch
 systems/vision_system.gd:313-337 — sources_for: SCOUT and OWNED branches, one pass
 systems/vision_source.gd:1-20 — the Kind enum a new sight adds to

@@ -9,9 +9,9 @@ Blocks: #{flow}, #{terrain-ui}, #{resolver}
 - Terrain is node state (owner, 2026-11-09): *"these are actually just node state no? … imho it's a property of a SkillNode"*, and *"if it is modified mid combat, the combat mirror world might need to know about it"*. That means two ints on `NodeState`: the signed `t`, and Charge. Heat, Cold and Charge stay `StatusDef`s, and landing one writes the node's ints, never a host row (`elements.md:276-284`).
 - T = 2 × graph degree, primed at count > T (owner, 2026-11-08): *"T = 2*graph_degree, so a leaf node fits 2 stacks of any without any effects, the third would be 3"* (`elements.md:50-53`).
 - k = 2 + `stake_level` (owner, 2026-11-06): *"k = 2 (base value) + stake_level (statformula)"*. It is a derived rule on the node board, and the cap k × T is soft (`elements.md:288-294`).
-- The overflow (owner, 2026-11-06): *"a 2nd "post cap" state sounds good too … the excess is there but burns off quickly"*. These are stacks past k × T (`elements.md:875-881`).
+- The overflow (owner, 2026-11-06): *"a 2nd "post cap" state sounds good too … the excess is there but burns off quickly"*. These are stacks past k × T (`elements.md:909-915`).
 - A state is pure threshold (owner, 2026-11-05): *"Yes, pure threshold"*. It is derived at every read and never saved (`elements.md:285-287`).
-- Heat and Cold net as one signed `t` (owner, 2026-11-05): *"option 1, 100%. hell yeah"* (`elements.md:893-901`). Charge stays put (owner, 2026-11-08): *"charge staying put sounds good"* (`elements.md:911-912`).
+- Heat and Cold net as one signed `t` (owner, 2026-11-05): *"option 1, 100%. hell yeah"* (`elements.md:927-935`). Charge stays put (owner, 2026-11-08): *"charge staying put sounds good"* (`elements.md:964-965`).
 - A holder's death changes nothing (owner, 2026-11-08, picked *terrain persists*; `elements.md:263-266`).
 - Charge decays in the world-turn pass with Heat and Cold (owner, 2026-11-10, picked the world-turn pass over decay on read):
   - Terrain stays exactly two ints.
@@ -19,8 +19,8 @@ Blocks: #{flow}, #{terrain-ui}, #{resolver}
   - One live index holds the nodes that carry any terrain.
   - The one writer announces every band crossing.
 
-  The "decay on read" build note (`elements.md:929-931`) is dead, and #{flow} corrects it. This unit has no decay code.
-- The node announces a band crossing: the one write path compares the band before and after and emits one `terrain_band_changed(element, from, to)` (pass pick, tentative; `elements.md:842-848`).
+  The "decay on read" build note (`elements.md:982-984`) is dead, and #{flow} corrects it. This unit has no decay code.
+- The node announces a band crossing: the one write path compares the band before and after and emits one `terrain_band_changed(element, from, to)` (pass pick, tentative; `elements.md:876-882`).
 
 **Knobs** (tentative defaults, easy to change)
 - `TerrainRules.t_per_degree`: `@export_range(1, 8, 1)`, default 2 (owner). It lives in one shared resource, `combat/terrain/terrain_rules.tres`, because #{flow}, #{resolver} and #{terrain-ui} read it too. Never a const.
@@ -94,13 +94,13 @@ Tests assert the ratios (`count > t_per_degree × degree`, cap = k × T), never 
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:43-53 — inert to T, T = 2 × graph degree, excess, overflow
 docs/design/elements.md:257-302 — terrain is side-less node state; cap k × T, k = 2 + stake_level
-docs/design/elements.md:830-848 — bands on the Element def; the write path announces crossings
-docs/design/elements.md:875-889 — the soft cap and the overflow
-docs/design/elements.md:891-915 — Heat × Cold one signed t; Charge stays put; world clock
-docs/design/elements.md:929-942 — build note: the index and the pass (its decay-on-read line is stale; #{flow} fixes)
+docs/design/elements.md:864-882 — bands on the Element def; the write path announces crossings
+docs/design/elements.md:909-923 — the soft cap and the overflow
+docs/design/elements.md:925-980 — Heat × Cold one signed t; Charge stays put; world clock
+docs/design/elements.md:982-994 — build note: the index and the pass (its decay-on-read line is stale; #{flow} fixes)
 skill_node/node_state.gd:14-88 — fields, ensure_board, clone()
 combat/node_combat.gd:98-114 — snapshot(): how a shadow takes its NodeState copy
 combat/node_combat.gd:610-621 — apply_status forwarding: the divert point

@@ -12,7 +12,7 @@ Blocks: none
 - One Ice is one hop, authorable per spell (owner, 2026-11-10, picked "1 Ice = 1 hop, authorable per spell"; on the range: *"counts of 20-50 are a bit much, leaning towards having `x_element` counts be 0..5 or maybe 0..10 at best"*; `:599-604`). The rate is the Ice row's existing `affinity_gain:affinity_cost`; the use spends 1 load per hop. Surplus load is wasted.
 - The price is known at cast: *"a spell beforehand doesnt know how many hits a 4-hop spell would do"*; a hop cut must pay: *"a pure nerf if it just reduces hops"* (owner, 2026-11-04; `:551-564`).
 - A concentrated seed on a primed node is a combo, bounded by the bonus knob: *"… and ice + fuel sounds like a combo why not?"* (owner, 2026-11-05; `:639-647`).
-- (pass pick, tentative) Pestilence is the spell that proves it: its Ice row runs `ConcentrateUse` at 1:1 (the doc's own example, *"a Pestilence concentrates"*, `:627-630`). Every other spell keeps the unlisted-element default, a Cold ride.
+- (pass pick, tentative) Pestilence is the spell that proves it: its Ice row runs `ConcentrateUse` at 1:1 (the doc's own example, *"a Pestilence concentrates"*, `:633-635`). Every other spell keeps the unlisted-element default, a Cold ride.
 - (pass pick, tentative) The multiplier lands on the seed arrival only, the wave at hop 0. Arrivals of the remaining hops land at their cast value.
 
 **Knobs** (tentative defaults, easy to change; tests assert ratios, never the literal)
@@ -55,7 +55,7 @@ Blocks: none
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:549-647 — Ice on a cast: ConcentrateUse, the flat per-hop bonus, element stacks never scale, 1 Ice per hop, the combo
 docs/design/elements.md:362-389 — the forge: ride and shape uses, one element per cast
 attack/spell/infusion.gd:46-77 — intake_of, ratio_of (gain 0 refuses), gained

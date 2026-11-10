@@ -11,8 +11,8 @@ Blocks: #{forge-ui}
   - The overflow is a few blocks past the frame that flicker and fade.
 - *"since these are terrain properties, something tells me UI bars for these should be at the south side of the skillnode"* (owner, 2026-11-09; `:235-238`).
 - *"show total with different name, and tooltip indeed"* (owner, 2026-11-09; `:239-243`). The label is one entry per element, updated in place: `Heat 6/6`, `Burning 7/6`, `Heat 5/6`. The tooltip gives the excess and the power it buys, never a second entry.
-- Blaze and inferno are display names on the excess curve, not bands (settled doc text under the owner's 2026-11-09 bands call, `:836-840`; the ladder is the owner's 2026-11-06 *"ramping up fire der states to blaze to inferno"*, `:882`).
-- The node announces a band crossing (`terrain_band_changed`), and the bar, the glow and the light listen to it (pass pick, tentative; `:842-848`).
+- Blaze and inferno are display names on the excess curve, not bands (settled doc text under the owner's 2026-11-09 bands call, `:870-876`; the ladder is the owner's 2026-11-06 *"ramping up fire der states to blaze to inferno"*, `:916`).
+- The node announces a band crossing (`terrain_band_changed`), and the bar, the glow and the light listen to it (pass pick, tentative; `:876-882`).
 - Visuals ride their mechanics unit; a large display surface is its own unit behind them (owner, 2026-11-10: *"option 1"*). This is that unit for child 2.
 
 **Knobs** (tentative defaults, easy to change)
@@ -70,11 +70,11 @@ Blocks: #{forge-ui}
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:217-243 — the bar's shape, colours, overflow tail, south placement, one label per element
-docs/design/elements.md:830-848 — bands on the def, display names, terrain_band_changed listeners
-docs/design/elements.md:855-859 — the travel verbs the tooltip shows
-docs/design/elements.md:880-884 — the owner's blaze/inferno ladder: Burning's power grows with the excess
+docs/design/elements.md:864-882 — bands on the def, display names, terrain_band_changed listeners
+docs/design/elements.md:889-893 — the travel verbs the tooltip shows
+docs/design/elements.md:914-918 — the owner's blaze/inferno ladder: Burning's power grows with the excess
 docs/design/elements.md:79-113 — power = the excess; what the tooltip's power line means
 skill_node/health_bar.gd:186-207 — the show/hide gate and SubBag binding to copy
 skill_node/skill_node.gd:275-292 — pin_health_bar and the Visuals onreadies

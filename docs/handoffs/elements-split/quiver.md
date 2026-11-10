@@ -8,8 +8,8 @@ Blocks: #{forge-ui}
 **Decisions**
 - *"arrow pools are *per type* given Fuel is now an Aspect called Catalyst, we can reintroduce plain fire arrows that simply add heat stacks. 1:1 fire_element -> fire arrows each reload. possibly more scalers later idk. then ranged could add 1 type of elemental arrows with their volley, and they can reorder it with the others"* (owner, 2026-11-09; `docs/design/elements.md:390-398`). An arrow is an aspect subtype *or* an element, never both (`:399-400`).
 - **No cap on elements per volley** (owner, 2026-11-09, picked over one element per volley; `elements.md:405-408`).
-- **The count is the access** — every reload mints `fire` fire arrows into their own bin, nothing to find or buy (owner, 2026-11-09, picked over a temp quiver addon and a starter ammo type; `elements.md:1111-1118`). Element bins sit beside the plain pool, not inside its capacity (`:1120-1121`).
-- Stock cap: *"storing 1000 heat arrows sounds like bad juju"* (owner, 2026-11-05); the knob is a multiplier on the type's own per-reload mint, default 2 (pass pick, tentative; `elements.md:1099-1103, 1122-1126`).
+- **The count is the access** — every reload mints `fire` fire arrows into their own bin, nothing to find or buy (owner, 2026-11-09, picked over a temp quiver addon and a starter ammo type; `elements.md:1161-1168`). Element bins sit beside the plain pool, not inside its capacity (`:1170-1171`).
+- Stock cap: *"storing 1000 heat arrows sounds like bad juju"* (owner, 2026-11-05); the knob is a multiplier on the type's own per-reload mint, default 2 (pass pick, tentative; `elements.md:1149-1153, 1172-1176`).
 - No int:int rate on `AmmoType`: the mint stays 1:1 through `per_reload_stat_id` and an arrow carries an authored load; a count-scaled load per arrow is the per-hit load the doc rejects (`elements.md:412-417`; owner's *"possibly more scalers later idk"*) (pass pick, tentative; kept 2026-11-10).
 
 **Knobs** (tentative defaults — easy to change)
@@ -43,9 +43,9 @@ Blocks: #{forge-ui}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:390-417 — one ammo type per element, 1:1 mint, no per-volley cap, no rate seam on AmmoType today
-docs/design/elements.md:1092-1126 — #1765's access shape settled, bins beside the pool, stock cap arithmetic
+docs/design/elements.md:1142-1176 — #1765's access shape settled, bins beside the pool, stock cap arithmetic
 attack/ammo/ammo_type.gd:16-59 — id, order, on_hit_effects, per_reload_stat_id fallback, max_stock
 attack/ammo/ammo_type_roster.gd:15-40 — types, sorted, by_id
 attack/ammo/types/explosive.tres:1-21 — the template: one ApplyStatusEffect rider, order, visual_scene

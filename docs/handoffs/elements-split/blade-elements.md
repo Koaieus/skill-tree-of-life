@@ -56,10 +56,10 @@ Blocks: #{fire}, #{lightning}, #{ice}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:43-53 — the threshold model; the sweep-speed curve on signed t and its knob
 docs/design/elements.md:410-458 — blade addon per element, copy-on-fill, spend the copy, the Frozen vertex snap
-docs/design/elements.md:791-801 — pair table: a blade feels t of the node it sweeps over
+docs/design/elements.md:822-832 — pair table: a blade feels t of the node it sweeps over
 attack/melee/blade_vertex_fill.gd:1-70 — the single per-vertex filler; charges copied at 42-49; addon dispatch at 58-60
 attack/melee/sim/blade_state.gd:84-112 — per-vertex arrays: vertex_charges (91), vertex_on_hit (104-112)
 attack/melee/sim/blade_state.gd:450-478 — speed_damage_multiplier and stat_value: where the factor helper sits

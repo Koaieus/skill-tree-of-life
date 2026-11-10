@@ -6,12 +6,12 @@ Blocks: #{go-off-zero}
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-09 unless dated)
-- Two stages: *"resolve elements first which settles the reach [as in, total set of targets] for the hit (including cascades..?) and then resolve the remainder of the hit for each target (riders, damage?)"* (`docs/design/elements.md:630-656`; ADR 0082 §1-2).
-- Unit is one hit: *"landing arrow = 1 hit (+optional reach etc) / landing blade contact = 1 hit / 1 spell WAVE = 1..N hits"*. A wave is N gathers (`:676-680`). Built at land time, not compile time (`:663-672`).
-- One owner for the gather with an element callback: *"option 1 looks squeaky clean"*. An element answers *admits* and *go off* and nothing else (`:670-675`).
-- Crit per arrival, at the gather head: *"option 1. does it then also do the CritCondition?"* — yes (`:685-692`).
-- Per-hit once-per-node set, one terrain snapshot per beat: *"option 1. and can we make it order independent somehow?"*, then *one snapshot per beat*. Spends are summed and clamped at 0 (`:693-703`).
-- One share scales the whole payload, `ceil` per rider, one knob per go-off, default 0.5 (`:704-707`; taken as settled by the pass).
+- Two stages: *"resolve elements first which settles the reach [as in, total set of targets] for the hit (including cascades..?) and then resolve the remainder of the hit for each target (riders, damage?)"* (`docs/design/elements.md:651-677`; ADR 0082 §1-2).
+- Unit is one hit: *"landing arrow = 1 hit (+optional reach etc) / landing blade contact = 1 hit / 1 spell WAVE = 1..N hits"*. A wave is N gathers (`:697-701`). Built at land time, not compile time (`:684-693`).
+- One owner for the gather with an element callback: *"option 1 looks squeaky clean"*. An element answers *admits* and *go off* and nothing else (`:691-696`).
+- Crit per arrival, at the gather head: *"option 1. does it then also do the CritCondition?"* — yes (`:706-713`).
+- Per-hit once-per-node set, one terrain snapshot per beat: *"option 1. and can we make it order independent somehow?"*, then *one snapshot per beat*. Spends are summed and clamped at 0 (`:714-729`).
+- One share scales the whole payload, `ceil` per rider, one knob per go-off, default 0.5 (`:730-733`; taken as settled by the pass).
 - Spend law, 2026-11-08: a go-off pays *1 per node it reaches*; a disc reaching no other node does not go off; a spend digs under T. Power is read post-land (`:79-97`).
 - Chains are flat, `damage × s` and riders `ceil(r × s)`, never `s^k` (2026-11-05, `:489-496`). A copy lands raw (#1733 R2, `:525-530`). A copy carries its parent's crit (ADR 0082 §4).
 - Riders are one summed entry per status id per landing entry (`:334`). In-hit order is *"elemental riders first … then other status(es), then damage(s)"* (`:342-344`). A hit carries 0 or 1 element (`:155-157`).
@@ -60,11 +60,11 @@ Blocks: #{go-off-zero}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:79-108 — what a go-off pays; power post-land; copies carry everything
 docs/design/elements.md:326-344 — the hit: summed riders, crit rides, rider order
 docs/design/elements.md:489-530 — chains flat, no-parent go-off, a copy lands raw
-docs/design/elements.md:628-753 — two stages, build shape, the five build calls, dual reach
+docs/design/elements.md:649-784 — two stages, build shape, the five build calls, dual reach
 docs/design/elements.md:155-163 — a hit carries 0 or 1 element; Greed never multiplies elements
 attack/outcome/outcome_applier.gd:18-43 — apply: the drain the gather runs inside
 attack/outcome/hit_landing.gd:122-156 — emit and place: where the head is

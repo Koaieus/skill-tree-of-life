@@ -51,11 +51,11 @@ Symbols to grep for in each late body (all renamed or deleted by the spine; conf
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 .mise/tasks/issue-drift:1-40 — the command, the last-stamp-wins rule, drift rules per entry, the flags
 .claude/skills/spec/SKILL.md:82-104 — what a reading list, seam map and drift stamp must hold
 .claude/skills/spec/SKILL.md:26-34 — the Needs design menu shape for an unresolvable fork
-docs/design/elements.md:682-726 — the resolver's five build calls: the spine's renames and deletions in the doc's words
-docs/design/elements.md:1021-1048 — the Catalyst retag list the late specs were cut against
+docs/design/elements.md:703-752 — the resolver's five build calls: the spine's renames and deletions in the doc's words
+docs/design/elements.md:1074-1101 — the Catalyst retag list the late specs were cut against
 docs/domain/issue-workflow.md — lanes and the Needs design move
 ```

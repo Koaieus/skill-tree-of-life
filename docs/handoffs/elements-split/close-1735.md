@@ -1,0 +1,1 @@
+Closed into the #1716 split (2026-11-10). A chained blast carrying the root payload flat is the design (owner, 2026-11-05: *"LET IT RIDE"*; `docs/design/elements.md` § The reach rule); #{go-off-zero} keeps it and writes the doc line.

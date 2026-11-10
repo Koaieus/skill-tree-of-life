@@ -1,0 +1,1 @@
+Closed into the #1716 split (2026-11-10). The rule set is settled as ADR 0082 and `docs/design/elements.md` § Landing resolution; it is built by #{resolver} (the land-time gather) and #{go-off-zero} (today's detonation ported onto it).

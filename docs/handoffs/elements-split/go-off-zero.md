@@ -6,10 +6,10 @@ Blocks: #{burning}
 ## Acceptance spec
 
 **Decisions** (owner, 2026-11-09 unless dated)
-- Go-off zero: *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared base class between these?"*. The doc's statement of that pick: *"The resolver lands with detonation re-hosted on the go-off contract, proving it on the shipped tests and deleting both spend ledgers; the game keeps its blast until Burning inherits it."* The contract has a disc subclass, `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc, and no `ArcEffect` exists (`docs/design/elements.md:708-721`).
-- `GoOff` sits on the `Element` def: *"i think it should sit on Element def, going off is just about their thing"*. Go-off zero's disc rides the Explosive `Aspect` def under the same field name until the Catalyst retag deletes it (pass pick, tentative) (`:713-721`).
-- Per-hit once-per-node set and one snapshot per beat. The doc: *"The per-wave `detonated` scope goes."* (`:693-703`).
-- One share: The doc: *"Today's stacks-only splash scale and the separate shrapnel fraction collapse into one knob per go-off, default 0.5"* (`:704-707`).
+- Go-off zero: *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared base class between these?"*. The doc's statement of that pick: *"The resolver lands with detonation re-hosted on the go-off contract, proving it on the shipped tests and deleting both spend ledgers; the game keeps its blast until Burning inherits it."* The contract has a disc subclass, `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc, and no `ArcEffect` exists (`docs/design/elements.md:734-747`).
+- `GoOff` sits on the `Element` def: *"i think it should sit on Element def, going off is just about their thing"*. Go-off zero's disc rides the Explosive `Aspect` def under the same field name until the Catalyst retag deletes it (pass pick, tentative) (`:739-747`).
+- Per-hit once-per-node set and one snapshot per beat. The doc: *"The per-wave `detonated` scope goes."* (`:714-729`).
+- One share: The doc: *"Today's stacks-only splash scale and the separate shrapnel fraction collapse into one knob per go-off, default 0.5"* (`:730-733`).
 - A go-off copy carries its parent's crit (owner picked *it rides*; ADR 0082 §4). Spell shrapnel stops rolling its own (`:336-342`).
 - Chains are flat, `damage × s` and riders `ceil(r × s)`, never `s^k`: *"LET IT RIDE"* (2026-11-05, #1735 fork 1). The doc: *"That is how it is built (#1735's finding), so #1735 closes with a doc line"* (`:489-496`). A copy lands raw, so `stacks_per_hit` never multiplies with reach (#1733 R2, `:525-530`).
 - A planting hit is a hit (pass ruling, 2026-11-10, `:484-487`). Today's `DetonateEffect.arm` PlantUse skip survives only as go-off zero's ported behaviour, and #{catalyst} deletes it.
@@ -60,10 +60,10 @@ Blocks: #{burning}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:336-342 — a go-off copy carries its parent's crit; shrapnel stops rolling its own
 docs/design/elements.md:484-530 — planting, chains flat, no-parent go-off, a copy lands raw
-docs/design/elements.md:693-721 — per-hit set, one share, go-off zero
+docs/design/elements.md:714-747 — per-hit set, one share, go-off zero
 docs/domain/explosive.md:66-118 — spend, power, chains as built
 attack/spell/on_hit/detonate_effect.gd:41-122 — arm, spend_of, power_of, apply: what is ported
 attack/spell/on_hit/detonate_effect.gd:130-185 — _present, the ledger, _spend

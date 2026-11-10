@@ -16,10 +16,10 @@ Blocks: #{catalyst-blade}
   - The goo arrow plants it.
 - The blast gap (owner, 2026-11-10): *"option 1 but spare no drones, split if needed"*. Burning's disc lands first (#{burning}). This unit deletes go-off zero's disc, so master always has a blast.
 - Firecracker (owner, 2026-11-10, handoff § 0): its row names Fire and plants Heat. `FuelUse` and `FuelBlastReach` are deleted here.
-- Prime conversion is read inside #{flow}'s settle seat and never hooked on `terrain_band_changed` (pass pick, tentative, kept 2026-11-10). Doc `:842-848` keeps that signal for display.
+- Prime conversion is read inside #{flow}'s settle seat and never hooked on `terrain_band_changed` (pass pick, tentative, kept 2026-11-10). Doc `:876-882` keeps that signal for display.
 - A planting hit is a hit: on a primed node it sets it off (`:484-487`; pass ruling, 2026-11-10). A goo arrow on a primed node flips nothing (`:144-149`).
-- Catalyst caps at k × T (pass default, tentative; `:295-297`). It keeps its own `StatusDef` decay and decays slowly (`:163`, `:931`; pass ruling, 2026-11-10).
-- The retag list (`:1036-1042`). The `charge` tag is freed for Lightning (`:1150-1151`).
+- Catalyst caps at k × T (pass default, tentative; `:295-297`). It keeps its own `StatusDef` decay and decays slowly (`:163`, `:984`; pass ruling, 2026-11-10).
+- The retag list (`:1089-1095`). The `charge` tag is freed for Lightning (`:1200-1201`).
 
 **Knobs** (tentative; tests assert ratios and invariants, never the literal)
 - `CatalystStatus.ratio_in` / `ratio_out` (`@export_range(1, 10, 1, "or_greater")`) = 1 / 1. This is the int:int trade rate. Editor feedback: the status sandbox tab.
@@ -30,7 +30,7 @@ Blocks: #{catalyst-blade}
 - **Retag.** `explosive` becomes `catalyst` on every artifact in the stamp: the id, file, class, `display_name`, tag and identity.
   - `effects/status/catalyst.gd` (`CatalystStatus extends StatusDef`, the `poison.gd` pattern) owns the ratio, the cap, and one static `converted(store) -> int`.
   - `catalyst_resistance` is new. No `explosive_resistance.tres` exists, so mint it the way the other facets are minted (`manage-stats`).
-- **Land conversion.** It happens in #{resolver}'s gather land step (`:640-645`). When a hit's element rider lands on a node holding Catalyst, the store converts via `converted()` into that rider's stacks before the terrain write, and the row is cleared. Primed-ness still reads pre-hit. Copies are hits, so they convert too.
+- **Land conversion.** It happens in #{resolver}'s gather land step (`:661-666`). When a hit's element rider lands on a node holding Catalyst, the store converts via `converted()` into that rider's stacks before the terrain write, and the row is cleared. Primed-ness still reads pre-hit. Copies are hits, so they convert too.
 - **Prime conversion.** The seat #{flow}'s settle routine exposes (per beat and per world turn) reads the node's Catalyst row whenever a band crosses from inert to primed, and converts the row into that element.
 - **Go-off zero's disc goes.** The `GoOff` field leaves the Catalyst `Aspect` def. Burning's disc (#{burning}) is the only blast. Detonation tests that #{go-off-zero} pinned on the Explosive disc re-point to the Burning band, with Heat excess as the power source.
 - **Firecracker.** Its intake row names Fire with the default `PlantUse`, so a landing plants Heat. `FuelUse`, `FuelBlastReach` and the `fuel_blast_reach` propagation sub-resource are deleted. The spell walks with its config's remaining reach (pass reading, tentative). Its blasts now come from the Burning nodes it primes. The description is rewritten to match.
@@ -87,17 +87,17 @@ Blocks: #{catalyst-blade}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:115-174 — Catalyst: trade, both triggers, goo arrow, retag, decay
 docs/design/elements.md:295-298 — the k × T cap (pass default)
 docs/design/elements.md:484-487 — a planting hit is a hit
-docs/design/elements.md:640-656 — stage one: Catalyst converts in the land step
-docs/design/elements.md:708-721 — go-off zero's disc and its deletion at the retag
-docs/design/elements.md:842-848 — terrain_band_changed is display-only
-docs/design/elements.md:929-931 — Catalyst keeps its own decay
-docs/design/elements.md:950-987 — the three "explosive"s; the vocabulary guard
-docs/design/elements.md:1023-1048 — the retag list
-docs/design/elements.md:1148-1152 — the `charge` tag freed for Lightning
+docs/design/elements.md:661-677 — stage one: Catalyst converts in the land step
+docs/design/elements.md:734-747 — go-off zero's disc and its deletion at the retag
+docs/design/elements.md:876-882 — terrain_band_changed is display-only
+docs/design/elements.md:982-984 — Catalyst keeps its own decay
+docs/design/elements.md:1003-1040 — the three "explosive"s; the vocabulary guard
+docs/design/elements.md:1076-1101 — the retag list
+docs/design/elements.md:1198-1202 — the `charge` tag freed for Lightning
 docs/handoffs/fuel-to-catalyst-arc.md:128-149 — every Explosive artifact and its history
 docs/domain/explosive.md:1-190 — what is today, to rewrite
 attack/spell/aspect_intake.gd:44-75 — the default-face map that dies

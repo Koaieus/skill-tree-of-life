@@ -8,7 +8,7 @@ Blocks: #{ice-cast}
 **Decisions**
 - *"the spell should carry at most one Element … forge can add to it (synergy) or replace it for the cast (original cleared, your choice put in)"* (owner, 2026-11-09; `docs/design/elements.md:380-389`) — the field shows which of the two a pick does before it is made.
 - *"they can reorder it with the others"* (owner, 2026-11-09; `elements.md:390-398`): element arrows are ordinary cards in the volley order.
-- *"storing 1000 heat arrows sounds like bad juju"* (owner, 2026-11-05; `elements.md:1099-1103`): the cap is a stated number, so the HUD shows it.
+- *"storing 1000 heat arrows sounds like bad juju"* (owner, 2026-11-05; `elements.md:1149-1153`): the cap is a stated number, so the HUD shows it.
 - Visuals ride their unit; a large display surface is its own unit behind the mechanics (owner, 2026-11-10: *"option 1"*). This is that unit for child 9.
 
 **Knobs** (tentative defaults — easy to change)
@@ -46,10 +46,10 @@ Blocks: #{ice-cast}
 
 **Stubs on master** — none — shapes are named in Composition; the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:380-411 — one element per cast (add or replace); element arrows as cards in the volley
-docs/design/elements.md:1099-1103 — the stock cap quote
-docs/design/elements.md:1120-1126 — bins beside the pool, the cap as a multiplier on the mint
+docs/design/elements.md:1149-1153 — the stock cap quote
+docs/design/elements.md:1170-1176 — bins beside the pool, the cap as a multiplier on the mint
 ui/hud/command_tray/bodies/infusion_sockets.gd:1-30 — the socket arc, socket_px with a setter redraw
 ui/hud/command_tray/bodies/infusion_sockets.gd:120-172 — _refresh reads plan.infusion.points; _rebuild sizes sockets
 ui/hud/command_tray/bodies/infusion_socket.gd:84-118 — one socket shows one identity

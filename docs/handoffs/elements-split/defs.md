@@ -9,16 +9,16 @@ Blocks: #{terrain}, #{resolver}
 - Separate axis (owner, 2026-11-04): *"Separate axis sounds good"*; *"elements not being parents of aspects makes sense"* (`elements.md:13-22`).
 - Aspect:Status 1:1 is guarded by a test (owner, 2026-11-04): *"option 1 sounds very clean"* (`elements.md:24-29`, ADR 0072 §1).
 - The roles table (owner, 2026-11-04): *"that table looks very good, should be persisted"*. Fire = Heat → Burning, Ice = Cold → Frozen (Frostbite is the mover, #1444), Lightning = Charge → Shocked (`elements.md:245-256`).
-- `Identity.Kind.ELEMENT` (owner, 2026-11-09): *"yes Kind.ELEMENT is surely needed"*. It is presentation-only (`elements.md:1137-1139`).
-- An element is its own def beside `Aspect` (owner, 2026-11-09): *"Elements as a class might be better for now, duck typing is also still a thing, and we never enumerate the whole list i think"*. A shared `Concept` base is not taken. The shared fields keep `Aspect`'s names (`elements.md:1140-1146`).
-- `StatDef.Role.ASPECT` is renamed `COUNT`. A member keys its own facets (`heat_resistance`) (pass pick, tentative; `elements.md:1134-1141`).
-- A row names the status it plants (owner, #1660, 2026-10-18): *"B2: agreed"*. It defaults to its concept's only status (`elements.md:1129-1133`). This unit adds only the field. Rekeying the forge budget and `Infusion.load_of` / `use_of` belongs to #{forge}.
-- Bands (owner, 2026-11-09): *"iff these 3 statuses are a special case (or subclass) by virtue of all being `elemental/reach-y/go-off`-ey, option 1 seems cleanest"*. A band is a threshold as a multiple of T, an `Identity`, and its answers: go off, admits, travel verb, decay rate, light. A new band is earned only by a change in kind (`elements.md:830-842`).
-- `GoOff` sits on the `Element` def (owner, 2026-11-09): *"i think it should sit on Element def, going off is just about their thing"* (`elements.md:713-719`). Here the field exists and is null on every band.
-- Burning is a light source (owner, 2026-11-06): *"burning being a light source does sound clever, could be one of the cells filled by burning"* (`elements.md:867-870`).
-- Schools: Fire is in STR's pool, Ice in DEX's, Lightning in INT's. Element counts come from the aspect sources (owner, 2026-11-09; `elements.md:991-996`).
-- Vocabulary guard (owner, 2026-11-04): *"stay mindful of concepts drifting"*. "Volatile" is adopted for Burning and Shocked (owner, 2026-11-09): *"`volatile` is a better fit to describe Burning *and* Shocked"* (`elements.md:968-987`).
-- The Element Matrix has one row per family status, with columns `Ammo : Addon : Spell : Infusion` (owner, 2026-11-04): *"option 1 sounds good"* (`elements.md:1092-1095`).
+- `Identity.Kind.ELEMENT` (owner, 2026-11-09): *"yes Kind.ELEMENT is surely needed"*. It is presentation-only (`elements.md:1187-1189`).
+- An element is its own def beside `Aspect` (owner, 2026-11-09): *"Elements as a class might be better for now, duck typing is also still a thing, and we never enumerate the whole list i think"*. A shared `Concept` base is not taken. The shared fields keep `Aspect`'s names (`elements.md:1190-1196`).
+- `StatDef.Role.ASPECT` is renamed `COUNT`. A member keys its own facets (`heat_resistance`) (pass pick, tentative; `elements.md:1184-1191`).
+- A row names the status it plants (owner, #1660, 2026-10-18): *"B2: agreed"*. It defaults to its concept's only status (`elements.md:1179-1183`). This unit adds only the field. Rekeying the forge budget and `Infusion.load_of` / `use_of` belongs to #{forge}.
+- Bands (owner, 2026-11-09): *"iff these 3 statuses are a special case (or subclass) by virtue of all being `elemental/reach-y/go-off`-ey, option 1 seems cleanest"*. A band is a threshold as a multiple of T, an `Identity`, and its answers: go off, admits, travel verb, decay rate, light. A new band is earned only by a change in kind (`elements.md:864-876`).
+- `GoOff` sits on the `Element` def (owner, 2026-11-09): *"i think it should sit on Element def, going off is just about their thing"* (`elements.md:739-745`). Here the field exists and is null on every band.
+- Burning is a light source (owner, 2026-11-06): *"burning being a light source does sound clever, could be one of the cells filled by burning"* (`elements.md:901-904`).
+- Schools: Fire is in STR's pool, Ice in DEX's, Lightning in INT's. Element counts come from the aspect sources (owner, 2026-11-09; `elements.md:1044-1049`).
+- Vocabulary guard (owner, 2026-11-04): *"stay mindful of concepts drifting"*. "Volatile" is adopted for Burning and Shocked (owner, 2026-11-09): *"`volatile` is a better fit to describe Burning *and* Shocked"* (`elements.md:1021-1040`).
+- The Element Matrix has one row per family status, with columns `Ammo : Addon : Spell : Infusion` (owner, 2026-11-04): *"option 1 sounds good"* (`elements.md:1142-1145`).
 - The count stat ids are `fire_element`, `ice_element` and `lightning_element`, with display names "Fire attunement", "Ice attunement" and "Lightning attunement" (owner, 2026-11-10, picked `fire_element`, shown as "Fire attunement", over `fire_attunement` and a bare `fire`; the picks are recorded in `docs/handoffs/elements.md` § 0, not as a quoted sentence). The suffix follows the kind, as `_aspect` does. `elements.md:253`'s bare `fire` is corrected here.
 
 **Knobs**: none. The band multiples and decay rates are authored data on the `.tres` (below), not tuning exports. T, k and the cap belong to #{terrain}.
@@ -96,16 +96,16 @@ Blocks: #{terrain}, #{resolver}
 
 **Stubs on master**: none. The shapes are named in Composition, and the drone adds them.
 
-```drift-stamp bd800181
+```drift-stamp efba0bc3
 docs/design/elements.md:13-33 — the two axes; Aspect:Status 1:1 is to be test-guarded
 docs/design/elements.md:245-256 — the roles table: count, terrain stack, mover, state
-docs/design/elements.md:713-726 — the GoOff resource sits on the Element def; the applier worklist call
-docs/design/elements.md:830-848 — bands on the Element def: threshold, identity, answers; nothing stores a band
-docs/design/elements.md:850-870 — travel verbs per state; Burning is a light source
-docs/design/elements.md:968-987 — vocabulary guard incl. Volatile, Member
-docs/design/elements.md:989-996 — schools and the pool roll
-docs/design/elements.md:1092-1095 — the Element Matrix columns
-docs/design/elements.md:1127-1146 — adversarial (a) row keys, (b) COUNT role, Kind.ELEMENT, Element def beside Aspect
+docs/design/elements.md:739-752 — the GoOff resource sits on the Element def; the applier worklist call
+docs/design/elements.md:864-882 — bands on the Element def: threshold, identity, answers; nothing stores a band
+docs/design/elements.md:884-904 — travel verbs per state; Burning is a light source
+docs/design/elements.md:1021-1040 — vocabulary guard incl. Volatile, Member
+docs/design/elements.md:1042-1049 — schools and the pool roll
+docs/design/elements.md:1142-1145 — the Element Matrix columns
+docs/design/elements.md:1177-1196 — adversarial (a) row keys, (b) COUNT role, Kind.ELEMENT, Element def beside Aspect
 aspects/aspect.gd:17-36 — the field names Element keeps
 aspects/aspect_roster.gd:13-32 — the roster pattern to copy
 stats_system/stat_def.gd:10-28 — Role enum and the (identity, role) uniqueness
