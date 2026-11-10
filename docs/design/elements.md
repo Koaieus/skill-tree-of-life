@@ -982,9 +982,13 @@ debuff them properly first"*. Terrain riders still land once per node per
 hit (stage one's cap), so the extra landings carry damage and aspect riders
 only and a fire does not feed itself. "No other node reached, no go-off"
 stands as worded: the centre landing happens only when the go-off does. The
-share stays a knob per go-off and the dedupe a switch. Open: whether a
-cast's shape alone, on an unprimed node, is a channel for the seed (every
-shaped cast would land twice on it); Frozen's shatter tuned to match.
+share stays a knob per go-off and the dedupe a switch. **A cast's shape
+alone is not a channel for the seed** (owner, 2026-11-10: *"the shape for
+spells hmmm i think that one shouldn't count"*): a shaped cast on an
+unprimed node lands once on its seed, and the extra landing comes only from
+a primed node going off. Pass reading, tentative: a shape added into a
+primed node's go-off of the same element is that node's go-off, one
+channel, so the seed takes 2. Open: Frozen's shatter tuned to match.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 

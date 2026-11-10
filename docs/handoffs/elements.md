@@ -177,8 +177,10 @@ still once per node per hit. **This changes ADR 0082's share default and
 ADR 0084's "the seed node takes the seed once"** (decision 5): one more
 record, or the corrections sibling. Bodies touched: `resolver.md`,
 `go-off-zero.md`, `burning.md`, `lightning.md`, `pairs.md`, the cast-shapes
-body, and the Ice combo arithmetic (×4 seed now copies at ×4). Open: a
-shape alone as a channel for the seed; Frozen's shatter tuned to match.
+body, and the Ice combo arithmetic (×4 seed now copies at ×4). A shape
+alone is not a channel for the seed (owner); a shape added into a
+same-element go-off counts as that node's one channel (pass reading). Open:
+Frozen's shatter tuned to match.
 
 **Open after it, none blocks the split:** whether shape points count against
 the capacity too; the knob for hops cut → shatter; the Fire multiplier (5,
