@@ -43,3 +43,6 @@ Do, as step 0 of "Left" (before the review round, so each writer does both in on
 Open item (1) is ANSWERED by the owner: **a cast's shape alone is not a channel for the seed.** A Fire- or Lightning-shaped cast on an unprimed node lands once on its seed; the extra landing on the hit node comes only from a primed node going off. Written at the end of "Every landing is a whole hit" in `docs/design/elements.md` § Landing resolution (master commit "a cast's shape alone is not a channel for the seed"). Drop (1) from the owner batch.
 Tentative, the fork session's reading and not the owner's: a shape added into a primed node's go-off of the same element counts as that node's one channel, so the seed takes 2. Carry it as tentative in `cast-shapes.md`.
 Still open for the owner: Frozen's shatter tuned to match the doubling.
+
+### Clerk phase 1 — done (21:08)
+All 24 issues exist: #1793–#1814 are the 22 children of #1716 (order of `ORDER.md`), #1815 inner-tree, #1816 adr-fixes; map in `NUMBERS.md`. Bodies are the pre-review, pre-whole-hit files with placeholders resolved. Parents, 37 blocked-by relations, labels and milestone set; every issue sits in Intake. Not done: statuses, the #1716 comment and label, #1444 blocked by ice, the six closes, stamp checks, hygiene — all phase 2. Never create these again; phase 2 edits bodies in place.
