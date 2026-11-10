@@ -74,7 +74,7 @@ no rule of its own:
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
-| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) if the node is still Frozen after those riders; a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
+| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (pass reading, tentative); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
 across the triad: a trigger pays 1 stack per target its reach touches —
@@ -255,11 +255,11 @@ vibes) sounds like a fitting unification"*), Frozen's match for the whole hit
 (§ Landing resolution) and the 0D case turned inward (above): the shattered
 node takes one more payload of the hit that breaks it, on top of that hit's
 own landing, plus the burst. The extra landing carries damage and aspect
-riders only, as every extra landing does; how many it is, is a knob, default
-1. That is stated for a hit or a copy that breaks it; a blade touch that
-breaks it adds the burst, and whether it also adds the channel's payload,
-when the spike pop refused the contact's own, is open. The threshold applies to direct hits and arriving copies
-alike — the glass
+riders only, as every extra landing does; how many it is, is a knob with
+default 1. That is stated for a hit or a copy that breaks it; a blade touch
+that breaks it adds the burst, and whether it also adds the channel's
+payload, when the spike pop refused the contact's own, is open. The
+threshold applies to direct hits and arriving copies alike — the glass
 ceiling of 2026-11-05 unified with the *"a hit that deals X amount of % max
 health"* breaker: a copy that breaks through also lands — so deep freeze
 raises the burst's stakes, never the wall's strength. Heat and decay still
@@ -284,18 +284,22 @@ shatter. **An arrival that breaks the ice walks on**
 (owner, 2026-11-10, night: *"Arrival shattering sounds like it should no
 longer be blocked tbh. But might be sensitive to race conditions e.g. during
 many nodes being hit simultaneously during a magic spell's Wave (beat)."*):
-it lands, and its path goes on past the shattered node. The race the owner
-flags cannot arise: the hits of one beat all start from the pre-beat store
-(one snapshot per beat, § Landing resolution), so no arrival's absorb, break
-or walk depends on which one landed first, and the break check sits in stage
-one's read, which runs once per node per hit, so a node breaks at most once
-per hit.
+it lands, and its path goes on past the shattered node. Pass reading, not
+an owner call: the order race the owner flags cannot arise, since the hits
+of one beat all start from the pre-beat store (one snapshot per beat,
+§ Landing resolution), so no arrival's absorb, break or walk depends on
+which one landed first, and the break check sits in stage one's read, which
+runs once per node per hit, so a node breaks at most once per hit. Open:
+whether two hits of one beat that both break the same node shatter it twice
+(two bursts and two break channels off one snapshot, the shatter's case of
+the same-beat consequence in § Landing resolution).
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
 make each node lose e.g. at least 1 heat/cold (towards net 0) per tick, it
 should eventually cool off"*), Charge likewise. That 1 is the element's rate
-below its first band (owner, 2026-11-11, accepted when asked); each band
+below its first band (owner, 2026-11-11, accepted when asked), a knob like
+every decay rate; each band
 above it answers its own rate (§ Derived states), the overflow's fast.
 Catalyst decays per world turn too, slowly, its rate a knob. The
 Metropolis step is the discrete graph-Laplacian step; its integer floor is a
@@ -376,8 +380,8 @@ at (owner, 2026-11-04: *"that table looks very good, should be persisted"*).
 - **A terrain stack is capped per node at k × T**, **k = 2 + the node's
   `stake_level`** (owner, 2026-11-06: *"k = 2 (base value) + stake_level
   (statformula)"*) — a derived scaling rule on the node board (manage-stats),
-  so a deeper-staked node holds more terrain and bare ground (`stake_level`
-  1) gives k = 3. `stake_ceiling` is 3 unless raised, so k runs 3–5; a leaf
+  so a deeper-staked node holds more terrain and bare ground
+  (`stake_level` 1) gives k = 3. `stake_ceiling` is 3 unless raised, so k runs 3–5; a leaf
   (T 2) holds 6–10, a degree-5 hub (T 10) 30–50, which late counts (20–50)
   can fill. The cap is soft: stacks past it are the **overflow** (§ Derived
   states). **Catalyst takes a cap of the same k × T** (pass default, carried from the
@@ -736,9 +740,9 @@ lightning shape hitting level M Shocked node creates N+M level arc (e.g.
 1+1=2, 2 hops out)"*). One go-off, not two. **On a Frozen node a Fire or
 Lightning shape runs alone** (owner, 2026-11-11, accepted when asked):
 Frozen mutes the node's own go-off (§ Pair rules), never the cast's shape,
-so the shape lands as on an unprimed node; once the hit breaks the ice, a
-shape of the released go-off's element adds into it and a different one runs
-beside it (§ Landing resolution, "Dual reach"). (Ice's own case is the
+so the shape lands as on an unprimed node. Pass reading, tentative: once the
+hit breaks the ice, a shape of the released go-off's element adds into it
+and a different one runs beside it (§ Landing resolution, "Dual reach"). (Ice's own case is the
 shatter, § Ice on a cast.) A different element stays
 independent: the shape lands its hits and the node goes off by its own rule,
 the two reaches concatenated (§ Landing resolution, "Dual reach").
@@ -802,8 +806,8 @@ shortened walk** (owner, 2026-11-11, accepted when asked): every landing of
 the walk that is left carries it, the seed's and each later hop's. A variant
 that cuts `max_visits` is a second subclass, built when a spell needs it. A
 spell with nothing to cut (0 hops, or unbounded hops) authors no gain on its
-Ice row and so refuses Ice. A spell with no authored Ice row concentrates at
-the defaults below when Ice is forged into its shape field (owner,
+Ice row and so refuses Ice. A spell with hops to cut and no authored Ice row
+concentrates at the defaults below when Ice is forged into its shape field (owner,
 2026-11-11, accepted when asked); a Cold ride still plants Cold.
 
 **The price is one number per spell, default +50% of the payload per hop
@@ -1013,10 +1017,12 @@ from scored options).**
   subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it, on
   the `Element` def too. Explosive is not an element, so go-off zero's disc
   rides the Explosive `Aspect` def under the same field name until the
-  Catalyst retag deletes it (pass pick, tentative). Go-off zero keeps
-  today's numbers until that retag, share 0.5 and no centre copy (owner,
-  2026-11-10, night: *"Tbf i don't care anything about intermediate state so
-  long it's all as it should be when all issues are done"*).
+  Catalyst retag deletes it (pass pick, tentative). Lead call, tentative:
+  go-off zero keeps today's numbers until that retag, share 0.5 and no
+  centre copy. The owner left interim states to the lead rather than
+  picking this (2026-11-10, night: *"Tbf i don't care anything about
+  intermediate state so long it's all as it should be when all issues are
+  done"*).
 - **The applier drains an open worklist** (owner picked it over the head
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing
@@ -1141,7 +1147,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends if the node is still Frozen after them; a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, breaking it only if at least as heavy as the node | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (pass reading, tentative); a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, breaking it only if at least as heavy as the node | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1228,9 +1234,9 @@ effect"*). The cap k × T is **soft**: stacks past it are the overflow, decay
 fast (the overflow band's own rate, knob) and are only stacks above a
 threshold, so a state still remembers nothing. The owner's ladder (*"ramping
 up fire der states to blaze to inferno"*) is Burning's power growing with the
-excess, so Fire and Lightning need no overflow verb: for them the overflow
-band keeps the primed band's go-off and travel verb, and only its decay
-differs. Ice keeps one, **deep freeze** (owner:
+excess, so Fire and Lightning need no overflow verb. Lead call, tentative
+(no owner sentence): for them the overflow band keeps the primed band's
+go-off and travel verb, and only its decay differs. Ice keeps one, **deep freeze** (owner:
 *"deep-freeze stacks dealing bonus damage on breaking ice and get removed
 along with it"*): the shatter spends the overflow with the rest of the excess
 (§ The threshold model). "Chunked for the next incoming hit" is lawful only
@@ -1272,8 +1278,8 @@ any terrain stacks (cold heat charge)"*). Where the spent
 Charge goes — the reached node, or the void — is one exported choice on
 Lightning's edge go-off, transfer by default. It is Lightning's exception to
 the one spend law (ADR 0081 §1, whose rejected "radiating transfer" was
-weighed for Burning's disc, where it mirrors diffusion; the next element ADR
-records the reversal for arcs). Consequence to tune against: an interior node
+weighed for Burning's disc, where it mirrors diffusion; ADR 0084 §7 records
+the reversal for arcs). Consequence to tune against: an interior node
 of a wire gets back what it gives, so decay and the conduct cost are what end
 a wire. Pass readings, tentative: the conduct cost of a pass-through is still
 voided; a transferred stack is treated exactly like the Charge rider an arc
@@ -1300,7 +1306,7 @@ staggered clocks (the one-snapshot Metropolis rule needs one snapshot).
 
 **Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
 needs no tick: a flat decay of 1 per world turn is computable on read (stored
-count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it decays per world turn at its own slow rate). Only the Heat/Cold
+count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it keeps its own decay rule, per world turn at its own slow rate). Only the Heat/Cold
 diffusion is a real pass: **one** pass over the signed `t`, over the
 temperature index (nodes holding Heat or Cold, the `_lingering` registry's
 shape), on packed arrays, never a walk of the graph (the arrays are the
@@ -1313,7 +1319,7 @@ implementation that must stay the **only** implementation (never a GDScript
 mirror), not a new build.
 
 Everything else coexists. Catalyst and Cold coexist: Catalyst under a Frozen
-node is colourless until a hit's element lands; a Cold hit or copy deepens the
+node is colourless until a hit with a primary element lands; a Cold hit or copy deepens the
 freeze (an absorbed copy's Cold still lands), a Heat hit thaws harder. Heat never touches a Frostbite
 pack (owner, 2026-11-04: *"Heat & Cold don't make sense together. frostBITE
 is an ailment"*). Charge has no opposite. Rejected: Catalyst damped by Cold
@@ -1329,7 +1335,7 @@ different rows share the old word, on every facet alike:
 | | Row | What happens | Plants |
 |---|---|---|---|
 | "infuse Explosive to make it AoE" | a Heat **ride** row (or a bespoke shape use) | the hit plants Heat; once its node is past T, later hits there blast | Heat |
-| "goo arrow" | a Catalyst **ride** row | Catalyst is added to the landing node, inert until a hit's element lands | Catalyst |
+| "goo arrow" | a Catalyst **ride** row | Catalyst is added to the landing node, inert until a hit with a primary element lands | Catalyst |
 | "a catalysed node" | Catalyst on the node (an aspect status) | colourless until a hit with a primary element lands; then its store becomes that element's terrain stack 1:1, same landing | — |
 
 Poison has the second and a third of its own ("poison on a node ticks");
@@ -1424,14 +1430,18 @@ hit; the keystone grants its element while held.
     pro rata ? Rounding up? If riders are 1 heat and 2 charge is that a 1:2
     split? Or what would be nice here"*). Settled: the store converts to the
     hit's primary (§ The threshold model). Open: whether a hit carrying two
-    element riders splits the store between them instead. Pass proposal,
+    element riders splits the store between them instead, and what a hit
+    with no shape and two element riders converts it to, since § The
+    threshold model names a primary for one rider only. Pass proposal,
     tentative, to confirm with the owner: pro rata by the riders' stacks
     (1 Heat + 2 Charge → 1:2), largest-remainder rounding so the parts sum to
     the store exactly (rounding each part up would mint stacks).
 - **Overqualified casting, open** (§ The forge). How the forge shows the
   overclock potential, since the loadout hides no target (owner,
   2026-11-11, quoted there), and what picking a target none of whose casters
-  can carry the current loadout does. The AI's fill policy, by difficulty
+  can carry the current loadout does (the owner's earlier copy for a loadout
+  no caster carries, 2026-11-10: *"no qualified casters for this
+  loadout"*). The AI's fill policy, by difficulty
   (owner, 2026-11-11: *"AI idk yet how to model it. Tough AI should spend
   most points use all their budgets etc, easy AI might underspend or leave
   slots open idk"*).
