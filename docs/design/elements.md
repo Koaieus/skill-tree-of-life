@@ -1306,8 +1306,14 @@ asked for, *trapped until broken*): a node both Frozen and Shocked does not
 arc — the Charge sits trapped under the ice, and Charge an arrival lands joins
 it. A cast's shape is not muted (§ Shape and ride). Freezing a wire cuts it
 and stakes the trapped Charge as a visible bomb. **The release is once per
-hit that breaks the ice** (owner, 2026-11-11, picked: *"The ice releases its
-trapped go-off once for each hit that breaks it."*): a Frozen node is still
+hit that breaks the ice, tentative pending playtest** (owner, 2026-11-11,
+picked: *"The ice releases its trapped go-off once for each hit that breaks
+it."*; then: *"mark it as tentative, given playtesting will see if this is ok
+or needs to be toned down (e.g. alternative would be: collect all cascaded
+towards nodes (via blasts / arcs separately) as one union (for each channel)
+per hit. )"*). The toning-down alternative: each hit collects every node its
+cascade reaches into one union per channel, blasts and arcs separately, so a
+node lands once per channel per hit. As the current rule: a Frozen node is still
 read once per generation and shatters once, with one burst, but each hit of
 that generation that breaks the ice sets off the node's trapped go-off as its
 own, the same once-per-hit count an unfrozen node goes off with (§ Landing
