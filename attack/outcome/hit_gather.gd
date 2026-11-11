@@ -33,7 +33,9 @@ extends RefCounted
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
 ## copy as an entry only, and does not go off again. Each go-off that reaches a
 ## node mints one [BlastMark] ([member BlastMark.go_off]: its band's
-## [Identity]), stamped on every entry it makes. Stage two is the drain:
+## [Identity]), stamped on every entry it makes. Two reaches of one hit on one
+## node are two entries unless [member HitGatherTunables.dedupe_dual_reach]
+## merges them ([method _join]). Stage two is the drain:
 ## every entry is pushed onto the [HitQueue] as a copy of the hit's whole span
 ## (element riders excluded), [code]paired[/code] to its head, at damage × s +
 ## own damage and riders ceil(r × s), one row per status id.
@@ -114,6 +116,9 @@ var _ended: Dictionary = {}
 var _deep: Dictionary = {}
 ## `Arrival -> BlastMark`: the go-off mark each entry carries into stage two.
 var _marks: Dictionary = {}
+## `Arrival -> float`: a merged arrival's largest single share, the one its
+## terrain riders land at ([method _join]).
+var _rider_share: Dictionary = {}
 
 
 ## A shatter's burst of [param hp] HP, bare: what [AttackRecord] rebuilds a
@@ -228,7 +233,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				best[h] = {}
 			var stacks: Dictionary = best[h]
 			for e: Element in h.terrain:
-				stacks[e] = maxi(int(stacks.get(e, 0)), _scaled(int(h.terrain[e]), a.share))
+				stacks[e] = maxi(int(stacks.get(e, 0)),
+						_scaled(int(h.terrain[e]), float(_rider_share.get(a, a.share))))
 		for h: _Hit in best:
 			for e: Element in best[h]:
 				_add(batch, node, e, int(best[h][e]))
@@ -371,8 +377,9 @@ func _open_head(_h: _Hit) -> void:
 ## [param go_off] lands on its own node, [param node] takes the centre copy as
 ## an entry. A [param go_off] that reaches a node mints one [BlastMark] naming
 ## [param named], stamped on every entry it makes; [param e] is the element
-## whose store pays a parked node's cost. The dedupe switch merges here
-## (#1798's Unit C); a cast's shape adds its list through it (#1812).
+## whose store pays a parked node's cost. Every reached node joins its
+## generation through [method _join], the dedupe switch; a cast's shape adds
+## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null) -> void:
 	var fired: _Fired = null
@@ -391,7 +398,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 				fired.mark.attacker = h.head.attacker
 				fired.mark.go_off = named
 		if reach.depth <= 1:
-			next.append(_arrive(fired, reach.node, generation))
+			_join(next, _arrive(fired, reach.node, generation))
 			continue
 		var at := generation + reach.depth - 2
 		if not _deep.has(at):
@@ -423,7 +430,7 @@ func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]
 		if fired.element != null:
 			_spend_stacks(spends, fired.node, fired.element, int(fired.result.cost.get(reach.node, 0)))
 			_add(spends, reach.node, fired.element, int(fired.result.transfer.get(reach.node, 0)))
-		next.append(_arrive(fired, reach.node, generation + 1))
+		_join(next, _arrive(fired, reach.node, generation + 1))
 
 
 func _behind_ended(fired: _Fired, reach: GoOffResult.Reach, generation: int) -> bool:
@@ -433,6 +440,29 @@ func _behind_ended(fired: _Fired, reach: GoOffResult.Reach, generation: int) -> 
 		if not fired.dropped.has(ring) and not _ends_at(ring, generation):
 			return false
 	return true
+
+
+## The dedupe switch ([member HitGatherTunables.dedupe_dual_reach]; ADR 0084 §5,
+## ADR 0086 §3), the one place reached nodes join [param next]. Off, [param a]
+## is its own entry (concatenate). On, a copy of the same hit already in
+## [param next] on the same node in the same generation takes [param a] in: one
+## arrival at the summed share and own damage, admitted and read once (the
+## merged landing is the arrival, ADR 0093 §1), its terrain riders still at the
+## largest single share (once per node per hit), its mark the first list's.
+## Never the hit node's landings: a centre copy never comes through here, and a
+## copy back on its head's own node is never merged. Tentative: entries of
+## different generations stay apart, the own damages sum.
+func _join(next: Array[Arrival], a: Arrival) -> void:
+	if tunables != null and tunables.dedupe_dual_reach and a.node != a.head.target:
+		for b: Arrival in next:
+			if b.head == a.head and b.node == a.node and b.generation == a.generation \
+					and b.is_copy and not b.centre:
+				_rider_share[b] = maxf(float(_rider_share.get(b, b.share)), a.share)
+				b.share += a.share
+				b.own_damage += a.own_damage
+				_marks.erase(a)
+				return
+	next.append(a)
 
 
 ## [param fired]'s copy on [param node] in [param generation], carrying its mark.
