@@ -491,3 +491,20 @@ func test_a_beat_lands_terrain_then_damage_then_aspect_riders() -> void:
 	assert_eq(_poison(riders), [3.0], "one summed entry per status id per entry")
 	assert_false(span.has(riders[0] if not riders.is_empty() else null) and not riders.is_empty(),
 			"a copy's rider is its own, never merged with the hit's")
+
+
+# The record: a replay feeds the gather's terrain and skips its staged riders.
+func test_a_record_carries_the_stage_one_terrain_and_the_staged_riders() -> void:
+	_goff.reach_of = {}
+	_set_fire(_h, 0)
+	var outcome: AttackOutcome = await _run([_span(_h, 3)])
+	assert_eq(outcome.hits[0].terrain_ops, [[_h, 3, 0]], "the beat's net terrain rides its first head")
+	assert_true(outcome.hits[1].staged, "the Heat rider landed in stage one")
+	assert_eq(_fire_of(_h), 3, "and landed once")
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
+	assert_eq(rebuilt.hits[0].terrain_ops, [[_h, 3, 0]], "the record carries the terrain ops")
+	assert_true(rebuilt.hits[1].staged, "and the staged flag")
+	assert_false(rebuilt.hits[0].is_head, "a rebuilt hit is no head")
+	_set_fire(_h, 0)
+	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
+	assert_eq(_fire_of(_h), 3, "the replay lands the recorded terrain once, never gathering again")

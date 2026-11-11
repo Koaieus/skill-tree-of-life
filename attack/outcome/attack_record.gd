@@ -169,6 +169,14 @@ const KEY_SETTLE_KEY := "t_key"
 const KEY_SETTLE_THRESHOLD := "t_thr"
 const KEY_SETTLE_BATCH := "t_bat"
 const KEY_SETTLE_CORE := "t_core"
+## Stage one's recorded terrain ([member HitInstance.terrain_ops], #1798): one
+## count per hit slicing flat per-op columns, the node's stable id and its net
+## t and Charge deltas. All omitted when no hit carries any, so a gather-less
+## record is dict-identical to an older one.
+const KEY_TERRAIN_COUNT := "tr_n"
+const KEY_TERRAIN_NODE := "tr_node"
+const KEY_TERRAIN_DT := "tr_dt"
+const KEY_TERRAIN_DC := "tr_dc"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
@@ -179,6 +187,9 @@ const KEY_AIM_GEOM := "a_geom"
 ## [constant KEY_HIT_FLAGS] bits.
 const FLAG_GATED := 1
 const FLAG_CRIT := 2
+## An element rider stage one landed ([member HitInstance.staged], #1798): the
+## replay skips it, its terrain riding the beat's recorded terrain ops.
+const FLAG_STAGED := 4
 
 
 
@@ -263,6 +274,10 @@ var settle_keys := PackedStringArray()
 var settle_thresholds := PackedInt32Array()
 var settle_batches := PackedInt32Array()
 var settle_core := PackedInt32Array()
+var terrain_counts := PackedInt32Array()
+var terrain_nodes := PackedInt32Array()
+var terrain_dt := PackedInt32Array()
+var terrain_dc := PackedInt32Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -329,6 +344,10 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"settle_thresholds", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_THRESHOLD).omitted_at_default(),
 		WireFields.Field.new(&"settle_batches", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_BATCH).omitted_at_default(),
 		WireFields.Field.new(&"settle_core", TYPE_PACKED_INT32_ARRAY).as_key(KEY_SETTLE_CORE).omitted_at_default(),
+		WireFields.Field.new(&"terrain_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"terrain_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_NODE).omitted_at_default(),
+		WireFields.Field.new(&"terrain_dt", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DT).omitted_at_default(),
+		WireFields.Field.new(&"terrain_dc", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DC).omitted_at_default(),
 		WireFields.Field.new(&"blasts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_BLAST).omitted_at_default(),
 		WireFields.Field.new(&"blast_centres", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_CENTRE).omitted_at_default(),
 		WireFields.Field.new(&"blast_reach", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_BLAST_REACH).omitted_at_default(),
@@ -367,6 +386,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		if not hit.settle.is_empty():
 			any_settle = true
 			break
+	var any_terrain := false
+	for hit in outcome.hits:
+		if not hit.terrain_ops.is_empty():
+			any_terrain = true
+			break
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
 		index_of[hit] = i
@@ -382,6 +406,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			f |= FLAG_GATED
 		if hit.is_crit:
 			f |= FLAG_CRIT
+		if hit.staged:
+			f |= FLAG_STAGED
 		r.flags.append(f)
 		r.crit_tiers.append(hit.crit_tier)
 		r.hp_before.append(hit.hp_before)
@@ -415,6 +441,12 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.spill_keys.append(var_to_str(t.key if t != null else true))
 		if any_settle:
 			_capture_settle(r, hit, graph)
+		if any_terrain:
+			r.terrain_counts.append(hit.terrain_ops.size())
+			for op: Array in hit.terrain_ops:
+				r.terrain_nodes.append(_id_of(op[0], graph))
+				r.terrain_dt.append(int(op[1]))
+				r.terrain_dc.append(int(op[2]))
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -500,6 +532,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var spill_at := 0
 	# Running offset over the flattened settle ops, advanced per hit.
 	var settle_at := 0
+	# Running offset over the flattened terrain ops, advanced per hit.
+	var terrain_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -632,6 +666,14 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 			dealloc_at += count
 		if i < r.settle_counts.size():
 			settle_at = _rebuild_settle(r, hit, settle_at, r.settle_counts[i], graph)
+		if i < r.terrain_counts.size():
+			for k in r.terrain_counts[i]:
+				var at := terrain_at + k
+				if at < r.terrain_dt.size():
+					hit.terrain_ops.append([_node_of(r.terrain_nodes[at], graph),
+							r.terrain_dt[at], r.terrain_dc[at]])
+			terrain_at += r.terrain_counts[i]
+		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated
 		hit.structural_key = r.structural[i]
 		hit.target = _node_of(r.targets[i], graph)
