@@ -168,7 +168,7 @@ func _rebuild_rows() -> void:
 		shown.append({"status": status, "host": combat})
 
 	# Terrain readout (#1796): a sibling read off the same combat slice — one
-	# row per element the node carries, with the shown band's go-off under it
+	# row per element the node carries, with the band's own go-off under it
 	# when it has one. `shown` is what has_content() follows, so an unowned
 	# node with terrain is content on its own.
 	shown.append_array(terrain_rows(_bound_node))
