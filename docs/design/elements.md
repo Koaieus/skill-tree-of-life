@@ -277,7 +277,9 @@ not circular. **Each arrival is tested alone** (owner, 2026-11-11, picked
 over *summed per generation*): weak arrivals of one generation (below) never
 sum toward the threshold, which keeps one clear breaker to hand the break's
 landings to. A landing the dedupe merged (§ Landing resolution, "Dual
-reach") is one arrival at its summed multiplier. **A Frozen
+reach") is one arrival at its summed multiplier (pass reading, tentative,
+not the owner's: with dedupe on, two channels' damage does sum toward the
+threshold, and with it off they do not). **A Frozen
 node with no holder has no flat breaker** (owner, 2026-11-11, accepted when
 asked): there is no max HP to measure against, so a copy that does not crit
 is absorbed whatever its damage, and the ice breaks only by a crit or a
