@@ -85,6 +85,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		return
 	var arrivals: Array[Arrival] = []
 	for h in order:
+		gather._open_head(h)
 		var a := Arrival.new()
 		a.node = h.head.target
 		a.head = h.head
@@ -174,18 +175,35 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				if result == null:
 					continue
 				_spend(spends, node, e, result)
-				var reached := false
-				for reach in result.reached:
-					if reach == null or reach.node == null or not is_instance_valid(reach.node):
-						continue
-					reached = true
-					next.append(_copy(h, reach.node, result, generation + 1))
-				if reached and band.go_off.lands_on_own_node:
-					var centre := _copy(h, node, result, generation + 1)
-					centre.centre = true
-					_entries.append(centre)
+				_append_reach(h, node, result, band.go_off, generation + 1, next)
 	TerrainSettle.commit(spends)
 	return next
+
+
+## Runs once per head, before its admit / land / read: the seat the head's
+## crit conditions are evaluated in, against the pre-hit node (#1798's Unit C,
+## ADR 0083 §4). Empty here.
+func _open_head(_h: _Hit) -> void:
+	pass
+
+
+## The one seat a reach list enters by: [param result]'s reached nodes become
+## [param h]'s arrivals of [param generation], and, when the list holds a node
+## and [param go_off] lands on its own node, [param node] takes the centre copy
+## as an entry. The dedupe switch merges here (#1798's Unit C); a cast's shape
+## adds its list through it (#1812).
+func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
+		generation: int, next: Array[Arrival]) -> void:
+	var reached := false
+	for reach in result.reached:
+		if reach == null or reach.node == null or not is_instance_valid(reach.node):
+			continue
+		reached = true
+		next.append(_copy(h, reach.node, result, generation))
+	if reached and go_off != null and go_off.lands_on_own_node:
+		var centre := _copy(h, node, result, generation)
+		centre.centre = true
+		_entries.append(centre)
 
 
 ## Land [param h]'s own element riders where they fall, through each row's own
