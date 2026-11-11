@@ -1,1 +1,0 @@
-Closed into the #1716 split (2026-11-10). The access shape is settled in `docs/design/elements.md` § The forge and § Acquisition: element arrows are their own ammo type, one per element, minted 1:1 from the element count; Catalyst starts at 1. Built by #{quiver} (the arrows) and #{forge} (the starter counts).

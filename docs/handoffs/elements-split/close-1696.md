@@ -1,1 +1,0 @@
-Closed into the #1716 split (2026-11-10). The faces do dissolve, by another route than "heat meets fuel": a terrain stack past its threshold goes off when hit (ADR 0075, 0081), Burning's disc is #{burning}, and Fuel becomes Catalyst with `DetonateUse` / `FuelUse` removed in #{catalyst}. The supersession of ADR 0061 / 0062 is tracked in #{adr-fixes}.

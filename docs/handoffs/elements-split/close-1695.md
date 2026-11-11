@@ -1,1 +1,0 @@
-Closed into the #1716 split (2026-11-10). Heat's flow is the world-turn settle on the signed temperature, built by #{flow}; the burn is #{fire}'s. "Unallocated sinks" and "½ damage per stack" are superseded: terrain rests on unallocated ground, and the burn is per stack above the threshold (`docs/design/elements.md`).
