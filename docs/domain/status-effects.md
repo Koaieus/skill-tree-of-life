@@ -263,8 +263,6 @@ viewer_id)`; nothing reads it with a viewer yet.
 
 ## StatusInstance.land_on: which slice, which host
 
-changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; see docs/design/elements/hit-resolution.md
-
 `StatusInstance.land_on(node, world)` (`attack/outcome/status_instance.gd`):
 
 - `node` is a `NodeCombat`: a shadow slice mid-resolve, or the live slice on a
@@ -281,6 +279,14 @@ changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; see d
   rider (`gated`, power 0, no row), shipped as `FLAG_GATED`. A neutral or bare
   node at 0 HP is not depleted and takes its row. An element's own status
   (Heat, Cold, Charge) is no aspect rider: never held, never dudded.
+- **Stage one** (#1798). A gather head's own Heat, Cold or Charge rider lands
+  before any payload of its beat. `HitGather` calls this `land_on` (its gate,
+  fold, crit and scale) on the rider's slice and marks it `staged`
+  (`FLAG_STAGED`). `OutcomeApplier.land_one` then skips the landing but keeps
+  the crit draw's slot in the stream. A gather copy's terrain never comes
+  here: the gather adds ceil(r × s) of the head's landed stacks through
+  `TerrainSettle`. A replay feeds the beat's recorded `terrain_ops` and skips
+  the staged rider, so it lands once.
 - **Fall-through.** The status lands on the entity iff `node` is its owner's
   core and that core is cracked (`hp.current == 0`) at this moment; damage
   landed earlier in the same `outcome.hits` is visible, so an arrow that cracks
@@ -306,12 +312,21 @@ changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; see d
   (the read node's slice and the receiving `node`), before crit, so crit, scale
   and Greed multiply the whole sum. Skipped with no read node and on an entity
   host.
-- **Crit** is the hit's crit, copied from the paired lead by `CritRoll.decide`
-  (a rider never draws); the folded stacks land times `abs(crit_multiplier)`,
-  a non-crit times 1. A rebuilt hit arrives resolved, so a peer never
-  multiplies twice.
+- **Crit** is the hit's crit: copied from the paired lead by `CritRoll.decide`
+  (a rider never draws), or, on a spell, from the landing's head, which
+  `HitGather._open_head` hands to every unpaired sibling and rider before
+  stage one lands anything. A spell's head-rider Heat therefore lands its
+  stacks with the crit already in. An arrow's or a blade's head is still
+  undecided at stage one, so its terrain rider lands at × 1 (interim, #1809,
+  #1810). A status-only spell landing's bare status is its own head and
+  draws. The folded stacks land times `abs(crit_multiplier)`, a non-crit
+  times 1. A rebuilt hit arrives resolved, so a peer never multiplies
+  twice.
 - **Greed** (defender-side): a landed, positive, `debuff`-tagged power doubles
   iff the receiving host `StatusHost.greed_arm`s the hit, after the fold and the
   block gate, so a blocked rider never spends. A rebuilt hit's recorded power is
   already doubled but still arms, so the live host spends the stack the shadow
   spent. Entity Greed is read only on a fall-through, node Greed otherwise.
+  Heat, Cold and Charge carry no `debuff` tag, so Greed neither doubles nor
+  spends on them: `_greed_arms` answers false before `greed_arm` is asked
+  (`test_greed_landing.gd`).
