@@ -151,6 +151,61 @@ breaks A, if A held. So the ported Cold spell's chain ([open.md](open.md) § Ope
 content") still shatters every Frozen node it crits on. ADR 0091 records
 this.
 
+### The damage breaker's arithmetic, worked
+
+The read is `Mitigation.compute`, `max(floor, raw − armor)` (ADR 0092 §2),
+so against the raw amount it moves two ways, each by a fixed amount: a hit
+that clears the floor (`raw − armor ≥ floor`) reads exactly the armor lower,
+and a hit under the floor reads `floor − raw` higher. Armor hardens the ice;
+the floor softens it. Owner, 2026-11-11, ~11:30, weighing the shapes this
+rule was picked from: *"All three options have something to it. The last one
+i.e. not applying the dmg floor is often *beneficial* to the defender because
+the floor can only *raise* damage (esp if armor is ignored)"*. Worked on the
+shipped numbers: the default board has armor 0, `min_damage_taken` 5 and
+100 HP, so a threshold of 10; Dormant Cores have armor 1 / 3 / 5, floor 5 and
+70 / 130 / 250 HP, so thresholds 7 / 13 / 25; Bunker gives +5 armor and −5
+floor, a Pacifist core +3 armor; each Curse stack lifts the floor 1; at INT 10
+a Spark throws 4, Rend 5 (with 5 Sunder), Lightning Bolt 12, Malediction 2
+(with 5 Curse); a slow blade contact deals 2–3.
+
+- **Default board.** A Bolt reads 12 and breaks. A Spark reads 5, lifted by
+  the floor, and holds; so does a slow blade contact, whose breaker is its
+  weight (§ A blade on Frozen). With armor 0 the read is never below the raw
+  amount, and a floor of 5 under a threshold of 10 never lifts a hit into a
+  break.
+- **Armor.** A Bolt reads 11 on a small Dormant Core (threshold 7) and
+  breaks; it reads 9 on a medium one (13) and 7 on a large one (25) and
+  holds. On a 100-HP node with a Pacifist core's armor 3 it reads 9 against
+  10 and holds: one landing of 9, no burst. A crit Bolt breaks all of them,
+  the crit being a breaker of its own; on the Pacifist node it then lands
+  three times at `max(5, 24 − 3)` = 21, 63, plus the burst. Bunker ice is the
+  case above: 6 against 7, holds.
+- **Curse.** A Curse lands after its own hit's damage (ADR 0092 §1), so it
+  never softens the ice it arrives with: Malediction's own 2 reads 5 and
+  holds. From the next beat the node carries 5 Curse and a floor of 10, so
+  on a 100-HP node every hit reads at least 10 and breaks, a Spark's 4 and a
+  slow blade's 2 included, while those 5 stacks hold. A floor at or above
+  the threshold makes the ice break to any hit.
+- **Sunder.** Rend's own 5 reads 5 on armor 0 and holds; its 5 Sunder lands
+  after it. From the next beat the node's armor is −5 and every hit reads 5
+  higher: a Spark reads 9 and holds, a Rend reads 10 and breaks.
+- **A floor below zero.** A glancing hit that mitigates below zero is a
+  heal: it reads below the threshold and never breaks the ice by damage.
+- **No holder.** No flat breaker (above), so none of this applies; the ice
+  breaks only to a crit or a heavy enough blade. Measuring an unowned node
+  against the board's `node_health` default instead was set aside: a
+  never-owned node has no max HP of its own (it reads 0).
+
+The amount read is the one the hit will land: its stamped amount, share
+already in, its basis resolved to this node's HP, crit multiplied in, rounded
+whole once, then mitigated, so a thrown 9.6 reads 10 and a `% max HP` hit reads as the HP it
+becomes on this node ([hit-resolution.md](hit-resolution.md) § Landing
+resolution, "Thrown and shown"). The shapes this read was picked over, with
+their costs, are there too ("The breaker reads it picked over"). **Where the
+burst lands** (*tentative, not the owner's*): the shatter is read in stage
+one, but the burst is damage, so it lands in stage two with the beat's
+damage, before any aspect rider; it is TRUE, so no armor or floor touches it.
+
 ## Pair rules (from the threshold model and #1444)
 
 Rows are what rests on the node, columns what arrives; a blank cell means
@@ -193,6 +248,9 @@ several hits in one generation. One compound read, never a re-evaluation: a
 hit's crit and damage are its own facts, and both states are read after its
 riders land.
 
+The release count worked on one magic wave, beside the once-per-shatter
+shape it was picked over: § The trapped arc under one magic wave, below.
+
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
 no shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
@@ -201,3 +259,55 @@ is at least as heavy as the node it breaks the ice before it snaps (§ A blade o
 *"possibly we find more small things like what Cold passage to add later"*),
 and your own spells walk less far through it. Rejected: a Frozen node unable
 to launch attacks, and suspending its stat contributions.
+
+### The trapped arc under one magic wave, worked
+
+Arrows land one after the other; a magic wave lands several hits in one beat
+(owner, 2026-11-11: *"Arrows are always sequential, don't hit
+simultaneously. Magic waves can though. … 2 arrows = 2 hits after one
+another, if the first one breaks the ice there's no shatter to do for the
+2nd. In magic, each node can still be hit once as primary target but
+simultaneously another primary target hit (another node) may cause *that*
+hit to be spread via reach e g shocked. I'd say the order should not
+matter"*).
+
+**The case.** One wave lands on W1 and W2 in generation 0; both are Shocked
+at level 1 and arc to every neighbour. X is Frozen and Shocked and
+neighbours W1, W2 and Y. It holds 8 Charge with T 4; W1's and W2's arcs each
+transfer 1 Charge onto it, so X reads 10, still Shocked after one arc of its
+own, which reaches W1, W2 and Y and pays 3. The spell deals 30, 60 on a
+crit, on an armor-0 node, under X's flat threshold of 100 (10% of 1000 max
+HP), so only a crit breaks the ice. Two copies reach X in generation 1:
+W1's, part of W1's hit, and W2's, part of W2's hit. Each hit owns its
+once-per-node set, each copy carries its head's crit and is tested alone,
+and a copy that does not crit is absorbed (its terrain riders land). The
+break counts as 2 channels.
+
+| Case | Arcs from X | Y takes | X takes (+ one burst) |
+|---|---|---|---|
+| Unfrozen X, at once or one after the other | 2 | 2 | 4 |
+| Both break, one after the other (either order) | 2 | 2 | 6 |
+| Both break at once, once per hit that breaks it (the rule) | 2 | 2 | 8 (4 + 4) |
+| Both break at once, once per shatter (set aside) | 1 | 1 | 7 (3 + 3 + 1 centre) |
+| One breaks, one after the other: the breaker first | 2 | 2 | 6 |
+| One breaks, one after the other: the other first | 1 | 1 | 4 |
+| One breaks at once, either shape | 1 | 1 | 4 (the absorbed copy lands nothing) |
+
+X's landings per breaking hit: its own, the break's 2, and the released
+arc's centre landing; per plain hit on an unfrozen X: its own and the arc's
+centre landing.
+
+- **Once per hit that breaks it makes "at once" give what "one after the
+  other" gives** for the arcs and for X's neighbours whenever every hit
+  breaks the ice, and it matches the unfrozen count. Once per shatter halves
+  the neighbours and needs a rule for whose payload the single release
+  carries when the breakers differ (the heaviest, with a tie rule that never
+  reads arrival order); under the rule each release carries its own hit's
+  payload, so no tie rule is needed.
+- **When only one hit breaks,** "one after the other" has no single answer:
+  2 arcs or 1, by order. At once, both shapes give the "other first" count,
+  which fits: X absorbed that hit, so for that hit the ice held.
+- **The one count where "at once" is not "one after the other":** when both
+  break at once X takes 8 against 6, because each hit that breaks the ice
+  takes its own two extra landings (ADR 0091 §1), while in sequence the
+  second hit finds no ice. A known consequence of the settled rule.

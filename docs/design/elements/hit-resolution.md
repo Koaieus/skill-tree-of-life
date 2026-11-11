@@ -99,6 +99,14 @@ function of one snapshot (#1733 R4); nothing reacts mid-land.
    after"*). Nothing in this stage touches a terrain stack, so an aspect
    rider can never change reach.
 
+   Two readings for the partition, *tentative, not the owner's*: a bare
+   aspect status with no paired hit (a spell whose landing is only a status)
+   counts as an aspect rider, so it lands after the beat's damage and the
+   rule stays one predicate, "is it a status"; and a cracked core is not
+   depleted (a core never reaches `depleted`, its overflow going to the
+   owner's `health` pool), so a status landing on it still falls through to
+   the entity host.
+
 A hit carrying +1 Heat onto a 5-Cold node lands it, leaves 4, and is read
 against 4: it thaws for itself. A hit carrying +1 Charge onto a node one
 short of Shocked arcs from it. A Cold *copy* onto a Frozen node is absorbed
@@ -108,6 +116,71 @@ stage two is damage, then aspect riders (owner, 2026-11-11, ~16:29, reversing
 2026-11-10's *keep riders before damage*); terrain riders keep landing first.
 The same terrain
 settle runs after every world-turn tick.
+
+**Thrown and shown are one formula apart.** Frozen's damage breaker reads
+the number the floater shows ([frozen.md](frozen.md) § What breaks the ice),
+and between the amount a hit throws and that number sit only the steps of
+landing it: the hit's stamped amount (its share in), its basis resolved to
+this node's HP (a `% max HP` hit becomes HP of this node), crit multiplied
+in, rounded whole once, then mitigation, `max(floor, raw − armor)`, which
+TRUE damage skips. The floater and the attack record show that
+post-mitigation amount. Block, resistance, Hex and Greed are not on this
+path: they change how many stacks a status rider lands, never a damage
+amount, so no hit shows one number and breaks the ice at another. The
+stage-one read is that same chain on the arrival, against the node as it
+stood before the beat, with no rider fold: within a beat no rider moves
+armor or floor before the damage lands (ADR 0092 §1-§2).
+
+**What riders after damage cost** (first hit only; every later beat is
+unchanged; ADR 0092's Consequences carry Malediction, Rend on armor 0,
+Shredder and Hex). Rend on an armor-8 node, its climb target: its 7 damage
+under its own 7 Sunder landed 6 when riders went first and lands
+`max(5, 7 − 8)` = 5 after, and its "a quarter of the armor" bonus is a
+resolve-time term, untouched. Malediction keeps its point, the floor it
+leaves. Poison and Bleeding lose nothing (they tick); Marked already lifted
+only the hits behind its own; Curse × crit is unchanged. Curse's family role,
+*every hit lands again*, holds as every *later* hit. Nothing is gutted: Rend
+and Shredder lose the most, and both keep their reason to exist.
+
+**The breaker reads it picked over** (ADR 0092 names each and the driver it
+lost on; their costs, on the shipped numbers of [frozen.md](frozen.md) § The
+damage breaker's arithmetic, worked):
+
+- *The raw amount as thrown* (ADR 0091 §3): on a 100-HP node with armor 3,
+  a Bolt of 12 reads 12, shatters, and floats 9 three times (27 plus the
+  burst), and a hit's own Curse raised the floor after the read — the drift
+  the owner called gaslighting.
+- *Crit and blade only* (no damage breaker): with `crit_chance` 5% a spell
+  with no crit condition breaks ice about one cast in twenty; the one
+  generic counter to Frozen goes, a cheap leaf freeze grows stronger, and the
+  Cold spell's Ice form no longer breaks on damage alone. The cheapest
+  build, a deletion.
+- *The arrival's own aspect riders land before the read*: read = floater,
+  but the dearest build — stage one runs the stack fold (resistance, Hex,
+  block) for floor- and armor-moving riders before mitigation, a second
+  landing order at Frozen nodes only, a bounded copy of the payload →
+  terrain loop the owner called spaghetti (ADR 0091) — and a sibling's Curse
+  raises the floor every arrival of the generation is read at, so which
+  arrival takes the break's extra landings depends on sibling riders.
+- *Frozen takes damage unmitigated* (the named fallback in ADR 0092's
+  revisit-when): thrown = read = landed and armor never hardens ice, a flag
+  on the gathered entry to build. It favours the attacker by exactly the
+  armor wherever there is armor and the defender by the floor's shortfall
+  where there is none: owned ice on an armored node turns trap (the Bolt
+  above breaks it and lands 3 × 12 = 36 plus the burst where the unfrozen
+  node takes 9); Curse and Sunder go blind at the ice, exactly where Frozen
+  + Bunker is the stack they answer; a sub-zero floor's heal is off there; a
+  slow blade lands 2–3 instead of the floor's 5; the defense card has to grey
+  armor and floor, and the AI pricers read the flag or misprice ice.
+- *Riders first, armor and floor read from a per-beat snapshot*: the same
+  balance with no reorder, but the floater disagrees with the live defense
+  card mid-beat.
+- *Show the thrown number at the ice* (a floater of `12 (9)`): no rule cost,
+  but two numbers, and a Spark on a Cursed node still reads backwards,
+  `4 (10)` and no shatter at a threshold of 10.
+- *Per-landing order* (each landing's damage, then its own riders): the
+  drift comes back one step over, a sibling's or an earlier generation's
+  Curse moving a later floater its read never saw; hence the beat scope.
 
 **Build shape (2026-11-09).** Stage one runs when the hit *lands*, not where
 landings are compiled: ranged and blade compile every landing before the
@@ -191,6 +264,9 @@ from scored options).**
   picking this (2026-11-10, night: *"Tbf i don't care anything about
   intermediate state so long it's all as it should be when all issues are
   done"*).
+  Following the whole hit at once instead would double the shipped blast's
+  bystander damage (share 0.5 → 1) and give its centre a copy it never
+  takes now, re-pointing the shipped explosive tests for an interim state.
 - **The applier drains an open worklist** (owner picked it over the head
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing
@@ -251,6 +327,12 @@ doubt behind it: *"its close nbs might get hit twice (once by fire once by
 lghtng)"*): the seed node takes the seed once, in full, plus the go-off's
 centre copy (below), and a node inside both the shape's reach and the
 go-off's takes one copy per reach. The one dedupe switch covers both cases.
+
+**Two channels at different shares** reaching one node in one generation
+land its terrain riders once (stage one's cap), at the larger share's
+rounded-up count, `ceil(stacks × share)`, which keeps the result order-free
+(*tentative, not the owner's*). At the default share 1 the case does not
+arise.
 
 **Every landing is a whole hit, and a go-off lands on its own node too**
 (owner, 2026-11-10, night, picked over share ½ with the centre excluded and
