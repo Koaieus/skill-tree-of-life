@@ -41,7 +41,7 @@ func _arm(intelligence: float, poison: float = 0.0) -> void:
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
-	board.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
+	board.facet(&"poison", StatDef.Role.COUNT).base_value = poison
 	var tm := TurnManager.new()
 	add_child_autofree(tm)
 	tm.start_turn(caster)

@@ -23,7 +23,7 @@ func _caster(held: Dictionary, intelligence: float = 10000.0) -> Entity:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
 	for id in held:
-		board.facet(id, StatDef.Role.ASPECT).base_value = float(held[id])
+		board.facet(id, StatDef.Role.COUNT).base_value = float(held[id])
 	return atk
 
 

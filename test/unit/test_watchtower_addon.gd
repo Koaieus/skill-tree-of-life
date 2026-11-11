@@ -222,7 +222,7 @@ func _stacks_at_tip_bare() -> float:
 
 func test_a_temp_watchtower_lands_scouted_like_a_map_one() -> void:
 	await _spine()
-	_attacker.stat_board.facet(&"scout", StatDef.Role.ASPECT).base_value = 1.0
+	_attacker.stat_board.facet(&"scout", StatDef.Role.COUNT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
 	await _settle()
 	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
@@ -259,7 +259,7 @@ func test_allocating_a_watchtower_node_grants_the_owner_scout_aspect() -> void:
 
 func test_a_temp_watchtower_grants_no_scout_aspect() -> void:
 	await _spine()
-	_attacker.stat_board.facet(&"scout", StatDef.Role.ASPECT).base_value = 1.0
+	_attacker.stat_board.facet(&"scout", StatDef.Role.COUNT).base_value = 1.0
 	_attacker.stat_board.blade_size.base_value = 20.0
 	await _settle()
 	var before: float = _attacker.stat_board.get_value(&"scout_aspect")

@@ -44,7 +44,7 @@ func test_per_reload_stats_are_distinct_and_aspects_exist() -> void:
 		seen[t.per_reload_stat_id()] = true
 		if t.id == AmmoTypeRoster.BASE_ID:
 			continue
-		assert_eq(t.per_reload_stat_id(), StatRegistry.facet_def(t.id, StatDef.Role.ASPECT).id, "%s mints its ASPECT facet" % t.id)
+		assert_eq(t.per_reload_stat_id(), StatRegistry.facet_def(t.id, StatDef.Role.COUNT).id, "%s mints its COUNT facet" % t.id)
 		assert_true(stat_ids.has(t.per_reload_stat_id()), "%s on the StatDefRoster" % t.per_reload_stat_id())
 
 

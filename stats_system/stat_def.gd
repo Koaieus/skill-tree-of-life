@@ -11,7 +11,8 @@ enum ValueType { INT, FLOAT, BOOL }
 ## role-bearing def is minted on every non-sparse [EntityStatBoard] at
 ## [method StatBoard.apply_intrinsics] and read typed via [method StatBoard.facet];
 ## [code]NONE[/code] for every stat that is not one concept's per-concept facet.
-enum Role { NONE, ASPECT, STACKS_PER_HIT, RESISTANCE }
+## [code]COUNT[/code] is a concept's count (`poison_aspect`, `fire_element`).
+enum Role { NONE, COUNT, STACKS_PER_HIT, RESISTANCE }
 
 @export var id: StringName = &""
 @export var display_name: String = ""

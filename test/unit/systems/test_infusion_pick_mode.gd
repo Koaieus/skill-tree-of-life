@@ -101,8 +101,8 @@ func _magic_level() -> MagicMode:
 func _arm() -> void:
 	var board := _attacker.stat_board
 	board.intelligence.base_value = 10000.0
-	board.facet(&"poison", StatDef.Role.ASPECT).base_value = 5.0
-	board.facet(&"curse", StatDef.Role.ASPECT).base_value = 3.0
+	board.facet(&"poison", StatDef.Role.COUNT).base_value = 5.0
+	board.facet(&"curse", StatDef.Role.COUNT).base_value = 3.0
 	_ctl.armed_stack.select_spell(_ctl.player, _heal_spell())
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_not_null(_magic_level(), "precondition: magic armed")

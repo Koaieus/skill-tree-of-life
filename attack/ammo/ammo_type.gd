@@ -39,17 +39,17 @@ extends Resource
 	set(value):
 		on_hit_effects = OnHitEffect.keep_mode_agnostic(value, resource_path)
 ## The base arrow's node-local reload stat (`arrows_per_reload`, summed per
-## leaf). Blank on every special, which answers its ASPECT facet instead.
+## leaf). Blank on every special, which answers its COUNT facet instead.
 @export var base_per_reload_stat_id: StringName = &""
 
 
 ## Entity-board stat id minting this type on reload: the base arrow's
-## [member base_per_reload_stat_id], else the concept's ASPECT facet
+## [member base_per_reload_stat_id], else the concept's COUNT facet
 ## (`poison` → `poison_aspect`, flat on the entity; ADR 0050, 0054).
 func per_reload_stat_id() -> StringName:
 	if not base_per_reload_stat_id.is_empty():
 		return base_per_reload_stat_id
-	var def: StatDef = StatRegistry.facet_def(id, StatDef.Role.ASPECT)
+	var def: StatDef = StatRegistry.facet_def(id, StatDef.Role.COUNT)
 	return def.id if def != null else &""
 
 ## A special's own bank cap: its bin holds at most this many, outside the

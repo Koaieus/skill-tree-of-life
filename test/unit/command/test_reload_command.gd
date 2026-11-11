@@ -61,7 +61,7 @@ func _build_world(poison_per_reload: float, extra_aspects: Dictionary = {}) -> W
 	w.player.display_name = "Archer"
 	w.player.stat_board = _BOARD.duplicate(true) as EntityStatBoard
 	w.player.stat_board.mint_facets()
-	w.player.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = poison_per_reload
+	w.player.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = poison_per_reload
 	for stat_id in extra_aspects:
 		(w.player.stat_board.get_stat(stat_id) as ScalarStat).base_value = extra_aspects[stat_id]
 	w.graph.entities_container.add_child(w.player)

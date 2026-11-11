@@ -46,7 +46,7 @@ func test_default_board_mints_every_facet_at_init() -> void:
 		assert_not_null(s, "%s live after apply_intrinsics" % def.id)
 		if s != null:
 			assert_eq(s.base_value, def.default_value, "%s base" % def.id)
-	var poison := board.facet(&"poison", StatDef.Role.ASPECT)
+	var poison := board.facet(&"poison", StatDef.Role.COUNT)
 	assert_not_null(poison, "poison aspect facet")
 	assert_same(poison, board.get_stat(&"poison_aspect"), "facet() is the board's own stat")
 	assert_null(board.facet(&"scout", StatDef.Role.RESISTANCE), "scout has no resistance facet")
@@ -69,7 +69,7 @@ func test_non_facet_ids_still_refused() -> void:
 
 func test_family_parent_folds_into_a_minted_facet() -> void:
 	var board := _fresh(_BOARD)
-	var curse := board.facet(&"curse", StatDef.Role.ASPECT)
+	var curse := board.facet(&"curse", StatDef.Role.COUNT)
 	assert_not_null(curse, "curse aspect facet")
 	if curse == null:
 		return

@@ -24,8 +24,8 @@ func _caster() -> Entity:
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
-	board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
-	board.facet(&"curse", StatDef.Role.ASPECT).base_value = 10.0
+	board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
+	board.facet(&"curse", StatDef.Role.COUNT).base_value = 10.0
 	return atk
 
 

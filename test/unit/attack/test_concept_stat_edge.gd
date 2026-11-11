@@ -29,7 +29,7 @@ func test_ammo_per_reload_ids() -> void:
 		if t.id == AmmoTypeRoster.BASE_ID:
 			assert_eq(t.per_reload_stat_id(), &"arrows_per_reload")
 		else:
-			assert_eq(t.per_reload_stat_id(), StatRegistry.facet_def(t.id, StatDef.Role.ASPECT).id, t.id)
+			assert_eq(t.per_reload_stat_id(), StatRegistry.facet_def(t.id, StatDef.Role.COUNT).id, t.id)
 
 
 func test_aspect_currency_stat_of() -> void:

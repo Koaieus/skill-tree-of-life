@@ -68,8 +68,8 @@ func _plan(spell: SpellDef, intelligence: float) -> MagicAttackPlan:
 	var graph := h.make_graph([[0, 1]], self)
 	var atk := h.make_entity(graph, "ATK", Color.RED)
 	atk.stat_board.intelligence.base_value = intelligence
-	atk.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 20.0
-	atk.stat_board.facet(&"curse", StatDef.Role.ASPECT).base_value = 20.0
+	atk.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 20.0
+	atk.stat_board.facet(&"curse", StatDef.Role.COUNT).base_value = 20.0
 	var plan := MagicAttackPlan.new()
 	plan.attacker = atk
 	plan.set_spell(spell)
@@ -100,14 +100,14 @@ func test_two_aspects_on_one_slot_overrun_by_one() -> void:
 
 func test_points_above_the_aspect_stat_count() -> void:
 	var plan := _plan(_SPARK, 10.0)
-	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 2.0
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 2.0
 	plan.set_infusion(&"poison", 5)
 	assert_eq(plan.aspect_overrun(), 3, "5 poison on poison_aspect 2")
 
 
 func test_each_aspect_carries_what_it_holds_with_no_pool() -> void:
 	var plan := _plan(_VENOM, 100.0)
-	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
 	plan.set_infusion(&"poison", 40)
 	plan.set_infusion(&"curse", 20)
 	assert_eq(plan.aspect_overrun(), 0, "poison 40 + curse 20 at 2 slots, no total cap")
@@ -133,7 +133,7 @@ func test_points_on_a_refused_aspect_count() -> void:
 
 func test_clamp_infusion_refills_each_kept_aspect_to_what_it_holds() -> void:
 	var plan := _plan(_VENOM, 100.0)
-	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
 	var kept := ArmedStack.clamp_infusion(_VENOM, plan.attacker, {&"poison": 5})
 	assert_eq(kept, {&"poison": 40} as Dictionary[StringName, int], "re-maxed to the held 40")
 
@@ -142,8 +142,8 @@ func test_clamp_infusion_drops_refused_and_past_the_slots() -> void:
 	var spell := _VENOM.duplicate() as SpellDef
 	spell.infusion_capacity = 30.0
 	var plan := _plan(spell, 100.0)
-	plan.attacker.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 40.0
-	plan.attacker.stat_board.facet(&"wither", StatDef.Role.ASPECT).base_value = 5.0
+	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
+	plan.attacker.stat_board.facet(&"wither", StatDef.Role.COUNT).base_value = 5.0
 	var refused := spell.duplicate() as SpellDef
 	refused.ingest_gain = 0
 	assert_true(ArmedStack.clamp_infusion(refused, plan.attacker, {&"curse": 1}).is_empty(),

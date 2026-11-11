@@ -37,7 +37,7 @@ func _caster(poison: float, intelligence: float = 100.0) -> Entity:
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0
-	board.facet(&"poison", StatDef.Role.ASPECT).base_value = poison
+	board.facet(&"poison", StatDef.Role.COUNT).base_value = poison
 	return atk
 
 
@@ -138,7 +138,7 @@ func test_the_seat_remembers_the_infusion_per_spell_clamped_to_todays_caps() -> 
 	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 2, "back to venom restores its infusion")
 	stack.select_spell(plan.attacker, _SPARK)
-	caster.stat_board.facet(&"poison", StatDef.Role.ASPECT).base_value = 1.0
+	caster.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 1.0
 	stack.select_spell(plan.attacker, _VENOM)
 	assert_eq(plan.infusion.points.get(&"poison", 0), 1, "restored, clamped to today's aspect")
 	assert_eq(plan.aspect_overrun(), 0)
@@ -221,8 +221,8 @@ func _live() -> void:
 	add_child_autofree(_ctl)
 	var board := _attacker.stat_board
 	board.intelligence.base_value = 10000.0
-	board.facet(&"poison", StatDef.Role.ASPECT).base_value = 5.0
-	board.facet(&"curse", StatDef.Role.ASPECT).base_value = 3.0
+	board.facet(&"poison", StatDef.Role.COUNT).base_value = 5.0
+	board.facet(&"curse", StatDef.Role.COUNT).base_value = 3.0
 	_ctl.armed_stack.select_spell(_ctl.player, TestSpells.SPARK)
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	assert_not_null(_stack().find(MagicMode), "precondition: magic armed")
