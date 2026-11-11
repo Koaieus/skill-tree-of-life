@@ -74,7 +74,7 @@ no rule of its own:
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
-| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (owner, 2026-11-11); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
+| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (owner, 2026-11-11); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it if it is still Frozen after the touch's riders (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
 across the triad: a trigger pays 1 stack per target its reach touches —
@@ -221,7 +221,12 @@ node!"* (the blade's touch is one breaker among three — § What breaks the
 ice), then *"We want to pop just the two vtx. Not too dramatic, and
 remember Ice is 0D. Point like. Single target. So no splash or anything just
 a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
-check, nothing severed). **A touch that breaks the ice lands as a normal
+check, nothing severed) only if the node is still Frozen after that contact's
+terrain riders. **A vertex whose touch thaws the node with its own Heat does not pop**
+(owner, 2026-11-11, picked *No pop: read after riders*): the contact lands as
+on an unfrozen node, with no break, no burst and no extra landing, and the
+vertex keeps sweeping. It is the same read as the path end (a path ends at
+Frozen only if the node is still Frozen after the arrival's terrain riders). **A touch that breaks the ice lands as a normal
 hit, then the vertex pops** (owner, 2026-11-11: *"So basically bladd node
 should land as normal but with a guaranteed shatter (and then pop)"*): its
 payload lands, the ice shatters — the break's channels (2 by default) and
@@ -570,8 +575,14 @@ the elements so far:
   trim order is socket order** (owner, 2026-11-11, picked: *"what
   `clamp_infusion` already does today: sockets fill in the order they were
   socketed, each to what it can carry, so the last-socketed lose points
-  first"*): every trim in the forge, this one and the way back below, walks
-  the sockets in that order. Such a target
+  first"*): every trim in the forge, this one and the way back below, takes
+  one point off the last entry of the aspect-slot array and pops the entry
+  when it reaches zero, repeating until the loadout fits the cap (owner,
+  2026-11-11: *"i mean the aspect slots are just an array right? just pick
+  the last element and reduce it, pop if empty"*). **The elemental slots do
+  not count towards the cap** (owner, 2026-11-11: *"the Elemental slots dont
+  need to count towards the cap"*), so a trim never touches the shape or the
+  ride. Such a target
   looks different (owner, 2026-11-11: *"This means that
   "target" should look different too. Like secondary or muted or "not using
   your full spec""*). **A point past the source's cap**: a non-aimed spell
@@ -822,15 +833,13 @@ threshold model). Shape and ride may be different elements,
 each drawing its own count; the same element splits one count between them
 (owner: *"say you got 3 Fire … you can spend 1 there and 2 on Heat for 2 Heat
 stack riders"*), and the spell's authored baseline is free on top. The ride
-never takes an aspect slot, and it is not free either: **its points count
-against the spell's total-points cap** with the aspects' points (owner,
-2026-11-10, picked *own slot, points count against spell capacity* over a
-free slot, a slot paid in the hit and the rider taking an aspect slot:
-*"option 1, good solution"*; the worry it answers: *"it'd be a default to
-also add an element … given there's no downside to adding it"*). The cap is
-`SpellDef.infusion_capacity`, which exists and is infinite on every spell
-today, so each spell gets a finite number (§ The forge, "Overqualified
-casting"). Whether shape points count against it too is open.
+never takes an aspect slot, and neither the shape nor the ride counts towards
+the spell's total-points cap (owner, 2026-11-11: *"the Elemental slots dont
+need to count towards the cap"*; this amends ADR 0085 §2; ADR pending). The
+cap, `SpellDef.infusion_capacity`, holds the aspects' points alone. It exists
+and is infinite on every spell today, so each spell gets a finite number
+(§ The forge, "Overqualified casting"). A shape or ride point is bounded only
+by its element's count.
 
 **Lightning's shape talks in levels** (owner, 2026-11-10: *"Lightning reach on
 a spell talks in *level*, where level N gathers up to N hops from target.
@@ -1270,7 +1279,7 @@ board, where any mode's hit sets it off (Fire, Lightning) or is stopped by it
 | Mode | School | Native reach | Element | What its primed terrain does to a hit |
 |---|---|---|---|---|
 | Melee | STR | **disc** — a blade sweeps a hurtbox | Fire | Burning copies it over a disc |
-| Ranged | DEX | **point** — a target is 0-dimensional | Ice | Frozen denies its reach and ends its path; a blade vertex on it snaps (§ The threshold model), so melee meets Ice in the counters; on a cast, concentrate (§ Ice on a cast) |
+| Ranged | DEX | **point** — a target is 0-dimensional | Ice | Frozen denies its reach and ends its path; a blade vertex on it snaps unless its own riders thaw it (§ The threshold model), so melee meets Ice in the counters; on a cast, concentrate (§ Ice on a cast) |
 | Magic | INT | **path** — projectiles are graph automata over edges | Lightning | Shocked copies it to every neighbour and conducts a spell walk |
 
 Ice reads as ranged's nature turned into terrain: the kiter's gift is
@@ -1298,7 +1307,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (terrain riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (terrain riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps (unless its own riders thaw the node first), and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (terrain riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1333,7 +1342,7 @@ riders land.
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
 no shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
-*brittle* — a blade vertex touching it lands its hit and snaps, and when it
+*brittle* — a blade vertex touching it lands its hit and snaps (unless its own riders thaw it first), and when it
 is at least as heavy as the node it breaks the ice before it snaps (§ The threshold model). The list is open to more small costs of that grain (owner:
 *"possibly we find more small things like what Cold passage to add later"*),
 and your own spells walk less far through it. Rejected: a Frozen node unable
