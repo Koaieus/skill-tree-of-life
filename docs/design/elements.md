@@ -272,8 +272,8 @@ is absorbed whatever its damage, and the ice breaks only by a crit or a
 blade touch (the burst is nothing there); Heat and decay still end it.
 **Breaking the ice counts as a channel** (owner, 2026-11-10, night: *"Break
 counts as a channel (or more radical: 2, more concentrated single target
-vibes) sounds like a fitting unification"*), Frozen's match for the whole hit
-(§ Landing resolution) and the 0D case turned inward (above). **A break
+vibes) sounds like a fitting unification"*): it is Frozen's match for the
+whole hit (§ Landing resolution) and the 0D case turned inward (above). **A break
 counts as 2 channels** (owner, 2026-11-11: *"+1 is what a 1-burning node
 would get already. Shatter is aggressively single target."*, then *"2 for
 now sounds good. Can retune later, most likely a knob or const"*): the
