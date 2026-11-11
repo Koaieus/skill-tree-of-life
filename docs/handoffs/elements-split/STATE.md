@@ -147,6 +147,44 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - *"get these issues all clear and ready"* is the go for phase 2, gated: no live `whip-*.md` swarm-train ledger, and the issue carries no open fork.
 
 ## NEXT LEAD START HERE (overnight leads, 2026-11-11, from 02:50; relay lead 2 handed off at 03:51, relay lead 3 at 04:30, relay lead 4 at 04:45, relay lead 5 finished phase 2 at 04:55; the 02:45 notes follow below)
+**READ FIRST — ele 4 handed off at 16:50 (2026-11-11, at its context budget). Every owner question is answered; read the "Owner batch C" bullets below, then do this list. Skip ele 3's list further down, which is done or superseded.**
+- **Done in ele 4 (on master):**
+  - **`elements.md`:**
+    - the ele 3 batch: trim order = socket order, the merged landing summed, the absorbed thaw walks on, the arc pays for what it reaches;
+    - the blade vertex's element is a shape on the node it hits (Burning and Shocked alike);
+    - Q1: aspect riders land after damage, beat-scoped; the breaker reads the mitigated number; a depleted node takes none of the beat's aspect riders. § Open's breaker fork is deleted.
+  - **New handoff files:** `Q1-OPINION.md` (Fable researcher plus the advisor pass) and `Q3-SKETCH.md` (the magic wave).
+  - **Board:** #1817 moved to Needs design.
+- **Left, in order:**
+  1. **Fold Q3 into `elements.md`:**
+     - § Pair rules ("the hit that breaks the ice sets off the Shocked state", "unless this hit shatters") and any "one release" text become the rule sentence under Q3 DECIDED below;
+     - `Q3-SKETCH.md` line 3 still says "raw amount (until Q1 is ruled)": irrelevant once folded.
+     - Then run docs-hygiene and commit.
+  2. **ADRs via the `adr` skill.** The skill gates how many. Likely two:
+     - **(i) the hit's landing order:** non-elemental aspect riders after damage, beat-scoped; a depleted node takes none; Frozen's breaker reads `Mitigation.compute` against the pre-beat node. It supersedes ADR 0067 §1 (and its "a curse arrow deals at least its own raised floor" consequence), 0083 §3, a clause of 0082 §2 and 0091 §3. The grounds are in `Q1-OPINION.md` § 6, the rejected shapes (a), (b), (c) and the fourth in § 2-3.
+     - **(ii) the follow-ups beside 0091:** the merged landing is one arrival at its summed multiplier, mitigated; an absorbed copy whose Heat thaws walks on (fills 0087's "not decided"); the release is once per hit that breaks the ice; a blade vertex's element is a shape on the node it hits.
+     - Let the skill gate whether the trim order and the arc spend need an ADR at all.
+     - The owner's verbatim sentences are in this file (batches B and C, ele 3's answers). Option-text picks are verbatim as picked, at 11:21.
+  3. **A new implementation issue via the `spec` skill** for the landing-order change, a child of #1716. Its scope (file:line in `Q1-OPINION.md` § 6.3):
+     - `status_instance.gd:92-95` → AFTER for aspect statuses;
+     - the beat-scoped partition (all damage before any aspect rider);
+     - the depleted-node skip;
+     - seven tests re-pointed (`test_rider_order.gd:73/87/140/244/323/346`, `test_shredder_addon.gd:234`);
+     - domain docs `status-effects.md:186-191` and `attack-timeline.md:585` updated with the code, not before;
+     - fingerprints and balance regenerate.
+     Check whether an existing child already owns rider order (grep the 22 children for "0067" or "riders before").
+  4. **Issue edits.** Delegate to Sonnet writers, a few issues each. Re-fetch every body first (all were stamped at `2cbacfa1`). Then restamp every child once, after all doc edits, with `mise run issue-drift -- <n>` silent.
+     - **#1809, #1814:** socket order lifts the fork. The later-socketed of shape / ride gives way: the lead's reading, which the writer checks against #1814 NOTES :77's "ride-after-aspects"; on a disagreement, ask the owner.
+     - **#1806:** the arc spend, and acc 7 (a Shocked vertex gives an unprimed contact node 1 landing, not 2).
+     - **#1805:** the vertex is a shape (unprimed contact node 1 landing; on a Burning node one bigger explosion; on Frozen the shape runs alone).
+     - **#1807, #1808:** the absorbed thaw is settled. #1808's Decisions and acc 2c change to once per hit that breaks it, with each release carrying its own hit's payload, and its payload sub-question goes. #1798's Q3 NOTES line becomes the answer.
+     - **Breaker NOTE lifted (Q1 decided)** on #1798, #1804, #1807, #1808, #1812, #1813, #1789 and #1816. The damage read is mitigated against the pre-beat node; the "% max health" breaker stays. #1804's contact amount = what it deals, mitigated (Q5). #1816's ADR-corrections scope may grow by the new supersessions.
+     - **Replace** the NOTES citing "morning question 3/6" (#1798, #1806, #1808). Then move each fork-free issue to Ready via one Haiku clerk.
+  5. **Cleanup:**
+     - the "For the cleanup pass" list below, plus #1798's "A hit carries 0 or 1 element";
+     - one owner question still open, decided nowhere: does a blade vertex still pop if its Heat addon thaws X before the read?
+     - then ask the owner's go to delete this folder and `docs/handoffs/elements.md`.
+
 **READ FIRST — ele 3, 2026-11-11 ~11:30 (owner awake; ele 3 handed off at its context budget).** The owner answered seven questions in ele 3. Batch A is recorded under "Owner answers given in ele 3's AskUserQuestion" further down: trim order = socket order; Q3 re-asked; the dedupe-merged landing is summed; an absorbed thaw walks on. Batch B, ~11:30, verbatim, asked as morning questions 1, 3 (recheck), 6 and 7:
 - **Morning Q1, the breaker shape: NOT decided.** *"All three options have something to it. The last one i.e. not applying the dmg floor is often *beneficial* to the defender because the floor can only *raise* damage (esp if armor is ignored). Let a fable researcher form an opinion on this"*. The options were crit and blade only, own riders land first, and Frozen takes it raw.
 - **Morning Q3, recheck: NOT decided.** *"I need a more concrete example sketched"*. Options offered: (a) keep once per generation, the released copies carrying the heaviest breaker's payload under a fixed tie rule; (b) once per breaking arrival, as #1798 acc 6 counts it for an unmuted node.
