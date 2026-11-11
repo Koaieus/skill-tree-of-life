@@ -193,6 +193,10 @@ const FLAG_CRIT := 2
 ## An element rider stage one landed ([member HitInstance.staged], #1798): the
 ## replay skips it, its terrain riding the beat's recorded terrain ops.
 const FLAG_STAGED := 4
+## A shatter's burst ([method HitGather.burst], #1798): the replay lands it on
+## the holder's pool through [method DotTick.mint], as the live landing did,
+## never as damage on the node.
+const FLAG_BURST := 8
 
 
 
@@ -229,6 +233,7 @@ var blast_power := PackedInt32Array()
 var blast_attackers := PackedInt32Array()
 var blast_rider_counts := PackedInt32Array()
 var blast_riders := PackedStringArray()
+var blast_go_offs := PackedStringArray()
 var status_defs := PackedStringArray()
 var status_hosts := PackedInt32Array()
 var status_keys := PackedInt32Array()
@@ -358,6 +363,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"blast_attackers", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_ATTACKER).omitted_at_default(),
 		WireFields.Field.new(&"blast_rider_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_RIDER_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"blast_riders", TYPE_PACKED_STRING_ARRAY).as_key(KEY_BLAST_RIDER).omitted_at_default(),
+		WireFields.Field.new(&"blast_go_offs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_BLAST_GO_OFF).omitted_at_default(),
 	]
 
 
@@ -411,6 +417,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			f |= FLAG_CRIT
 		if hit.staged:
 			f |= FLAG_STAGED
+		if HitGather.is_burst(hit):
+			f |= FLAG_BURST
 		r.flags.append(f)
 		r.crit_tiers.append(hit.crit_tier)
 		r.hp_before.append(hit.hp_before)
@@ -608,6 +616,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 				flip.gates.append(gate)
 			gate_at += count
 			hit = flip
+		elif (r.flags[i] & FLAG_BURST) != 0:
+			hit = HitGather.burst(amount)
 		else:
 			var di := DamageInstance.new()
 			# Already mitigated on the host. TRUE is the one path
@@ -741,13 +751,20 @@ static func _tempo_of(path: String) -> PresentationTempo:
 
 ## [param mark]'s 1-based row in [param r]'s blast table, appending it on
 ## first sight; 0 for no mark. The per-hit index rides every record like
-## `pops`; a blastless record omits only the table keys.
+## `pops`; a blastless record omits only the table keys. The go-off column
+## starts at the first row that names one, padding the rows before it with "",
+## so a record of unnamed blasts writes no new key (#1798).
 static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, graph: Graph) -> int:
 	if mark == null:
 		return 0
 	if index.has(mark):
 		return index[mark]
 	r.blast_centres.append(_id_of(mark.centre, graph))
+	var named := String(mark.go_off.id) if mark.go_off != null else ""
+	if not named.is_empty() and r.blast_go_offs.is_empty():
+		r.blast_go_offs.resize(r.blast_centres.size() - 1)
+	if not named.is_empty() or not r.blast_go_offs.is_empty():
+		r.blast_go_offs.append(named)
 	r.blast_reach.append(mark.reach)
 	r.blast_power.append(mark.power)
 	r.blast_attackers.append(mark.attacker.entity_id if mark.attacker != null else 0)
@@ -758,11 +775,13 @@ static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, 
 	return index[mark]
 
 
-## The blast table back as one [BlastMark] per row, riders resolved by id
-## through [IdentityRoster] (authored content both peers hold).
+## The blast table back as one [BlastMark] per row, riders and the go-off
+## resolved by id through [IdentityRoster] (authored content both peers hold).
+## A row past the go-off column, or "" in it, names no go-off.
 static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
 	var marks: Array[BlastMark] = []
-	var roster := IdentityRoster.shared() if not r.blast_riders.is_empty() else null
+	var roster := IdentityRoster.shared() \
+			if not r.blast_riders.is_empty() or not r.blast_go_offs.is_empty() else null
 	var rider_at := 0
 	for k in r.blast_centres.size():
 		var mark := BlastMark.new()
@@ -770,6 +789,8 @@ static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
 		mark.reach = r.blast_reach[k]
 		mark.power = r.blast_power[k]
 		mark.attacker = graph.get_by_entity_id(r.blast_attackers[k]) if graph != null else null
+		if roster != null and k < r.blast_go_offs.size() and not r.blast_go_offs[k].is_empty():
+			mark.go_off = roster.by_id(StringName(r.blast_go_offs[k]))
 		for n in r.blast_rider_counts[k]:
 			var identity := roster.by_id(StringName(r.blast_riders[rider_at + n])) if roster != null else null
 			if identity != null:
