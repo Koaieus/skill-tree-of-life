@@ -147,6 +147,35 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - *"get these issues all clear and ready"* is the go for phase 2, gated: no live `whip-*.md` swarm-train ledger, and the issue carries no open fork.
 
 ## NEXT LEAD START HERE (overnight leads, 2026-11-11, from 02:50; relay lead 2 handed off at 03:51, relay lead 3 at 04:30, relay lead 4 at 04:45, relay lead 5 finished phase 2 at 04:55; the 02:45 notes follow below)
+**READ FIRST — ele 3, 2026-11-11 ~11:30 (owner awake; ele 3 handed off at its context budget).** The owner answered seven questions in ele 3. Batch A is recorded under "Owner answers given in ele 3's AskUserQuestion" further down: trim order = socket order; Q3 re-asked; the dedupe-merged landing is summed; an absorbed thaw walks on. Batch B, ~11:30, verbatim, asked as morning questions 1, 3 (recheck), 6 and 7:
+- **Morning Q1, the breaker shape: NOT decided.** *"All three options have something to it. The last one i.e. not applying the dmg floor is often *beneficial* to the defender because the floor can only *raise* damage (esp if armor is ignored). Let a fable researcher form an opinion on this"*. The options were crit and blade only, own riders land first, and Frozen takes it raw.
+- **Morning Q3, recheck: NOT decided.** *"I need a more concrete example sketched"*. Options offered: (a) keep once per generation, the released copies carrying the heaviest breaker's payload under a fixed tie rule; (b) once per breaking arrival, as #1798 acc 6 counts it for an unmuted node.
+- **Morning Q6, the arc wall: pays for what it reaches** (picked). Spend follows landings: Charge is spent and transferred only for the nodes the arc actually reaches.
+- **Morning Q7, a Burning vertex on a Burning or Frozen node.** *"Sounds to me like a burning blade node is a similar case of a spell with Fire reach hitting a node, they add up per channel"*. The lead's reading: the contact reads as a Fire-shaped cast landing on that node.
+  - On a Burning node, the vertex's disc and the node's own go-off add up as one Fire channel (ADR 0086 §5).
+  - On a Frozen node, as a Fire shape on Frozen: Ice mutes the node's own go-off and the shape runs alone (#1812). This half is tentative; confirm it with Q3's sketch.
+
+**Left, in order (next lead):**
+1. **Fold the settled answers into `docs/design/elements.md`**, then run `mise run docs-hygiene` and commit:
+   - Define the forge's trim order as socket order (§ The forge, beside "the forge's trim order").
+   - Owner calls replace the pass readings: the dedupe-merged landing is one arrival at its summed multiplier (§ What breaks the ice); an absorbed copy whose Heat thaws the ice walks on.
+   - The arc pays for what it reaches.
+   - The Burning vertex adds up per channel.
+2. **Q1:** spawn ONE Fable researcher (Agent, `model: "fable"`). Give it:
+   - morning Q1 above, the owner's note verbatim, elements.md § Open (first bullet), ADRs 0082 and 0091 §3, and the mitigation code (`Mitigation.compute`, `min_damage_taken`);
+   - its task: an opinion with the costs of each shape.
+   **Q3:** sketch one worked example: a Frozen + Shocked node X with two neighbours, two crit arrows in one wave, landings and arcs under (a) and (b), and the same two arrows on an unfrozen X for contrast.
+   Put both to the owner in one AskUserQuestion. If Q1 lands on own riders first or raw, morning Q5 (a blade contact's amount) is live.
+3. **One ADR via the `adr` skill once Q1 and Q3 are answered:** the follow-ups beside 0091 (the breaker shape, the merged landing, the absorbed thaw walks on, the release count). Let the skill gate whether the trim order and the arc spend need an ADR at all.
+4. **Issue edits.** Re-fetch every body first: all were restamped at `2cbacfa1`, and an edit from a stale body undoes the restamp.
+   - #1809 and #1814: the trim order lifts their fork. The later-socketed of shape / ride gives way.
+   - #1806: the arc spend. #1805: the Burning vertex.
+   - Replace the NOTES that cite "morning question 3/6" (#1798, #1806, #1808).
+   - #1807 and #1808: the absorbed thaw is settled.
+   - Move each fork-free issue to Ready. The six breaker-NOTE issues wait for Q1.
+5. **#1817** (ele 3's trajectory hint): route it from Intake to Needs design, its intended lane.
+6. **Cleanup:** the "For the cleanup pass" list below, plus #1798's "A hit carries 0 or 1 element" (relay lead 4's finding). Then ask the owner's go to delete this folder and `docs/handoffs/elements.md`.
+
 **For the owner's morning (relay lead 5, 04:55): the overnight pass is done. Steps (a)-(d) are complete, and nothing is in flight.** Board after phase 2, verified on GitHub by a GraphQL read-back:
 - **Ready (12), all fork-free, all drift-silent, milestone Content depth:** #1793, #1794, #1795, #1796, #1797, #1799, #1800, #1801, #1802, #1803, #1810, #1811. #1799-#1803 sit behind #1798 (Designing) on their blocked-by edges. The advisor's ruling: the fork is in #1798's body, not theirs, so they may be Ready. No swarm takes them before #1798 lands.
 - **Designing (10 children, unchanged), each waiting on one of your calls:**
