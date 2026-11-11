@@ -198,3 +198,17 @@ status: settling
   between them. The lead's reading (tentative, not the owner's) was that the
   later-socketed gives way; the cap rule above makes it moot for trims, so
   it matters only where a count, not the cap, cuts a loadout.
+- **Since settled for a count cut:** the owner's *"Ride first"* (2026-11-11
+  18:26, [casting.md](casting.md) § Shape and ride) answers the item above
+  where a count, not the cap, cuts a loadout: the ride gives up points before
+  the shape. Delete the item when the forge ADR records it (#1816).
+- **For the owner** (raised by the 2026-11-11 harvest, none settled):
+  - 5 Curse on a 100-HP node lifts the damage floor to 10, the break
+    threshold, so that node's ice breaks to any hit, a slow blade contact
+    included ([frozen.md](frozen.md); follows from ADR 0092 §2).
+  - [frozen.md](frozen.md) says only a magic wave puts several hits in one
+    generation; [hit-resolution.md](hit-resolution.md) makes two blade
+    contacts of one sample one beat. Reconcile beat vs generation there.
+  - [go-offs.md](go-offs.md) and [terrain.md](terrain.md) call what an arc
+    released by a blade weight-break carries unsettled; ADR 0093 §3 (the
+    release carries the breaking hit's payload) may already settle it.
