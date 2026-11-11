@@ -87,10 +87,23 @@ static func _status_rows(graph: Graph) -> Array:
 	return rows
 
 
+## One row per node carrying terrain (#1794 — all-zero nodes are omitted, so a
+## world without terrain folds exactly as before): `[stable_id, terrain_t,
+## charge]`. Plain ints: nothing quantizes.
+static func _terrain_rows(graph: Graph) -> Array:
+	var rows: Array = []
+	for node in graph.get_skill_nodes():
+		var s := node.state
+		if s.terrain_t == 0 and s.charge == 0:
+			continue
+		rows.append([graph.get_stable_id(node), s.terrain_t, s.charge])
+	return rows
+
+
 static func compute(graph: Graph) -> int:
 	if graph == null:
 		return 0
-	var rows := _ownership_rows(graph) + _topology_rows(graph) + _accumulated_rows(graph) + _status_rows(graph)
+	var rows := _ownership_rows(graph) + _topology_rows(graph) + _accumulated_rows(graph) + _status_rows(graph) + _terrain_rows(graph)
 	return _fold_rows(rows)
 
 
@@ -106,10 +119,11 @@ static func describe(graph: Graph) -> String:
 	for node in nodes:
 		if node.owned_by != null:
 			owned += 1
-	return "%d nodes, %d owned, fp %d (own %d / topo %d / accum %d / status %d)" % [
+	return "%d nodes, %d owned, fp %d (own %d / topo %d / accum %d / status %d / terrain %d)" % [
 		nodes.size(), owned, compute(graph),
 		_fold_rows(_ownership_rows(graph)),
 		_fold_rows(_topology_rows(graph)),
 		_fold_rows(_accumulated_rows(graph)),
 		_fold_rows(_status_rows(graph)),
+		_fold_rows(_terrain_rows(graph)),
 	]

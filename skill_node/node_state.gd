@@ -38,6 +38,13 @@ var channel_progress: int = 0
 ## The node-local `vision_range` it last had while owned, sampled as it
 ## loses its owner; `0` means never owned. Accumulated world state (saved).
 var last_owned_vision: float = 0.0
+## Terrain (#1794, `docs/domain/elements.md` § Terrain): side-less node state,
+## written only through [method NodeCombat.add_terrain] ([Terrain] owns the
+## arithmetic). [member terrain_t] is the signed net of Heat over Cold (+ is
+## Fire's count, − is Ice's); [member charge] is Lightning's, never below 0.
+## Accumulated world state (saved, replicated, fingerprinted).
+var terrain_t: int = 0
+var charge: int = 0
 ## Composition-swap ledgers of [LocalScaleMutator] (#376 decision 8): parent
 ## modifier / effect -> the scaled leaf-set applied in its place on its
 ## contribution board. Only populated while an override returns an Array.
@@ -81,6 +88,8 @@ func clone() -> NodeState:
 	c.channel_target = channel_target
 	c.channel_progress = channel_progress
 	c.last_owned_vision = last_owned_vision
+	c.terrain_t = terrain_t
+	c.charge = charge
 	# By reference: a shadow only ever reads the ledgers (it strips what they
 	# list from its own board), never writes them.
 	c.scaled_sets = scaled_sets

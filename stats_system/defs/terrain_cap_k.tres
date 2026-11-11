@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+
+[resource]
+script = ExtResource("1_stat_def")
+id = &"terrain_cap_k"
+display_name = "Terrain Cap"
+description = "k in a node's terrain cap k × T: the stacks of one element a node holds before the excess overflows. Node-local: base(2) + stake_level (the stake pool's cap, via stake_scaling.tres), so bare ground (stake 1) holds 3 × T. Node-only (never on an entity board), no procgen pool, no HUD row yet (the terrain display is #1796)."
+value_type = 0
+default_value = 2.0
+tint_color = Color(0.85, 0.55, 0.3, 1)
+modifier_name = "Terrain Cap"
+local_grantable = true

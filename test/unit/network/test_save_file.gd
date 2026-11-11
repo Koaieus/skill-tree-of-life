@@ -51,6 +51,9 @@ const _ROW_LAYOUT_PINS := {
 	# 13: EntitySnapshot lost `_R_TAGS` (slot 8); every later entity index
 	# moved down one.
 	13: "b30ee89faecde946a28d1a0e48b160d66107c7f6424687d6562e1ae0dc26d485",
+	# 14: GraphSnapshot gained `_R_TERRAIN_T` (20) and `_R_CHARGE` (21), the
+	# node's terrain (#1794). A 13 still loads: its short rows decode as none.
+	14: "4bc004d19d93bf5ed8d09b9c486f4d0a84da50f75d2f70cfe6cfb88cd40fe51e",
 }
 
 
@@ -130,6 +133,17 @@ func test_a_version_11_file_is_refused() -> void:
 	var bytes := _sample().to_bytes()
 	bytes.encode_u32(SaveFile.VERSION_OFFSET, 11)
 	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
+
+
+## A v13 file's node rows end before the terrain columns (#1794); they decode
+## as no terrain, so it still loads.
+func test_a_version_13_file_still_loads() -> void:
+	assert_eq(SaveFile.FORMAT_VERSION, 14, "terrain bumped the format to 14")
+	var bytes := _sample().to_bytes()
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, 13)
+	var got := SaveFile.from_bytes(bytes)
+	assert_eq(got.load_result, SaveFile.LoadResult.OK)
+	assert_eq(got.format_version, 13)
 
 
 func test_a_version_below_the_oldest_loadable_is_a_version_mismatch() -> void:

@@ -281,3 +281,37 @@ func test_fingerprint_status_rows_fold_the_key_deterministically() -> void:
 			"application order of keyed rows must not reach the fold")
 	assert_ne(WorldFingerprint.compute(worlds[0]), WorldFingerprint.compute(worlds[2]),
 			"a different row key must fingerprint differently")
+
+
+## Terrain (#1794): both ints round-trip, the receiving fingerprint agrees, and
+## a 20-column row (a v13 save's body) decodes as no terrain.
+func test_terrain_round_trips_and_a_twenty_column_row_decodes_to_none() -> void:
+	var source := await _procgen_graph(12, 20261111)
+	var nodes := source.get_skill_nodes()
+	var cold: SkillNode = nodes[0]
+	var charged: SkillNode = nodes[1]
+	var roster := ElementRoster.shared()
+	cold.get_combat().add_terrain(roster.by_id(&"ice"), 4)
+	charged.get_combat().add_terrain(roster.by_id(&"lightning"), 3)
+	var bytes := GraphSnapshot.encode(source)
+
+	var target := await _new_graph()
+	GraphSnapshot.decode(bytes, target)
+	var by_id := {}
+	for n in target.get_skill_nodes():
+		by_id[target.get_stable_id(n)] = n
+	assert_eq((by_id[source.get_stable_id(cold)] as SkillNode).state.terrain_t, -4)
+	assert_eq((by_id[source.get_stable_id(charged)] as SkillNode).state.charge, 3)
+	assert_eq(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
+			"decoded terrain diverged: %s vs %s" %
+			[WorldFingerprint.describe(target), WorldFingerprint.describe(source)])
+
+	var payload := GraphSnapshot._unpack(bytes)
+	for row in (payload["nodes"] as Array):
+		(row as Array).resize(20)
+	var short := await _new_graph()
+	GraphSnapshot.decode(GraphSnapshot._pack(payload), short)
+	for n in short.get_skill_nodes():
+		assert_eq(n.state.terrain_t, 0, "a short row decodes t as 0")
+		assert_eq(n.state.charge, 0, "a short row decodes charge as 0")
+	CombatWorld.reset_live()

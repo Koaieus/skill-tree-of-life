@@ -204,6 +204,51 @@ func is_lingering(node: NodeCombat) -> bool:
 	return _lingering.has(node) and not node.is_allocated()
 
 
+# Every LIVE node slice carrying terrain (`t != 0` or `charge > 0`, #1794) —
+# kept in step by the one writer, [method NodeCombat.add_terrain], and per node
+# by a snapshot decode; nothing walks the graph. #1795's world-turn pass gathers
+# from it. Live-only: a shadow world refuses, since no shadow runs a world turn.
+
+## Insertion-ordered set: [NodeCombat] -> true.
+var _terrain: Dictionary = {}
+
+
+## [param node] carries terrain. No-op on a shadow world.
+func note_terrain(node: NodeCombat) -> void:
+	if not _shadow and node != null:
+		_terrain[node] = true
+
+
+## [param node] carries no terrain any more.
+func forget_terrain(node: NodeCombat) -> void:
+	_terrain.erase(node)
+
+
+## Note or forget [param node] by what its state holds now.
+func reindex_terrain(node: NodeCombat) -> void:
+	if node == null:
+		return
+	if node.terrain_t() != 0 or node.charge() > 0:
+		note_terrain(node)
+	else:
+		forget_terrain(node)
+
+
+func holds_terrain(node: NodeCombat) -> bool:
+	return _terrain.has(node)
+
+
+## The indexed slices, insertion order. A slice whose host is freed is dropped.
+func terrain_nodes() -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	for node: NodeCombat in _terrain.keys():
+		if is_instance_valid(node.host):
+			out.append(node)
+		else:
+			_terrain.erase(node)
+	return out
+
+
 ## One tick of every unowned lingering host — run once per WORLD turn end by
 ## [method TurnManager._end_world_turn] (ADR 0055), after the turnless hosts'
 ## ticks and before its flush. Iterates a snapshot: a tick can release a host or add another. A

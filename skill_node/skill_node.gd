@@ -70,6 +70,11 @@ signal depleted
 ## shape (see [method notify_damaged]) rather than a poll. `_sync_status_tint`
 ## is the sole subscriber today.
 signal statuses_changed
+## This node's terrain crossed a band of [param element] (#1794): [param from]
+## → [param to], either null when inert. Emitted live only, by the one writer
+## [method NodeCombat.add_terrain] via [method notify_terrain_band_changed]; a
+## sign flip of the signed t emits twice (one band leaves, the other arrives).
+signal terrain_band_changed(element: Element, from: ElementBand, to: ElementBand)
 ## Emitted after every allocation_level change, once the local-scale mutator
 ## has retuned this node's modifiers — a listener re-reads level-dependent
 ## state (a [LevelGatedModifier]'s dormancy) already current. Rides the stake
@@ -1318,6 +1323,16 @@ func get_display_name() -> String:
 	return display_name
 
 
+## The [Graph] this node belongs to — the nearest [Graph] ancestor, or null
+## (as [method Gate.get_graph]). For [method get_graph_degree] when only the
+## node is in hand (terrain's T, [method NodeCombat.terrain_threshold]).
+func get_graph() -> Graph:
+	var p := get_parent()
+	while p != null and not (p is Graph):
+		p = p.get_parent()
+	return p as Graph
+
+
 ## True vertex degree in [param graph] — every node sharing an edge with this
 ## one, regardless of ownership. O(degree): reads [method Graph.get_neighbours]'s
 ## cached adjacency index. NEVER walk [method Graph.get_edges] per node — see
@@ -1571,6 +1586,12 @@ func notify_healed(_prev: float, _after: float, effective: float, source: HitIns
 ## [NodeCombat]), so a preview/AI rollout never touches the live composite.
 func notify_statuses_changed() -> void:
 	statuses_changed.emit()
+
+
+## Host contract, live only: [method NodeCombat.add_terrain] saw [param element]'s
+## band move from [param from] to [param to].
+func notify_terrain_band_changed(element: Element, from: ElementBand, to: ElementBand) -> void:
+	terrain_band_changed.emit(element, from, to)
 
 
 ## [signal statuses_changed] handler — blends the strongest live status's

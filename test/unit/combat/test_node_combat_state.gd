@@ -97,3 +97,20 @@ func test_orphan_clone_is_unowned() -> void:
 	assert_false(orphan.is_allocated(), "an orphan reads unallocated")
 	assert_eq(_n4.owned_by, _entity, "the live field is untouched")
 	assert_ne(orphan._state, _n4.state, "an orphan holds a clone, never the live state")
+
+
+## Terrain (#1794): a shadow's clone reads the live ints on first touch, and a
+## shadow write moves only the clone.
+func test_shadow_snapshot_reads_live_terrain_and_its_write_stays_shadow() -> void:
+	var roster := ElementRoster.shared()
+	_n2.get_combat().add_terrain(roster.by_id(&"fire"), 3)
+	_n2.get_combat().add_terrain(roster.by_id(&"lightning"), 2)
+	var shadow := _entity.get_combat().snapshot()
+	_shadows.append(shadow)
+	var sn2: NodeCombat = shadow.shadow_for(_n2)
+	assert_eq(sn2.terrain_t(), 3, "the clone carries the live t")
+	assert_eq(sn2.charge(), 2, "and the live charge")
+	sn2.add_terrain(roster.by_id(&"ice"), 5)
+	assert_eq(sn2.terrain_t(), -2, "the shadow write moved the clone")
+	assert_eq(_n2.state.terrain_t, 3, "and left the live NodeState untouched")
+	CombatWorld.reset_live()

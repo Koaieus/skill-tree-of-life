@@ -29,9 +29,11 @@ const _R_LAST_OWNED_VISION := 16 ## SkillNode.last_owned_vision — the node-loc
 const _R_CHANNEL_TARGET := 17   ## SkillNode.channel_target — the staking channel's goal cap, 0 = no channel
 const _R_CHANNEL_PROGRESS := 18 ## SkillNode.channel_progress — turns ticked toward it
 const _R_STAKE_CEILING_LIFTS := 19 ## how many procgen `stake_ceiling` lifts the node holds (they live on the node board, not in `modifiers`, so _R_MODS never carries them)
-## A row shorter than this predates the three columns above (a save's v7
-## body): the channel defaults to none and the lifts re-derive from the stake.
-const _ROW_SIZE := 20
+const _R_TERRAIN_T := 20 ## NodeState.terrain_t — the signed net of Heat over Cold (#1794)
+const _R_CHARGE := 21     ## NodeState.charge — Lightning's terrain (#1794)
+## A row shorter than this predates the columns above: a v7 body has no channel
+## (none) and no lifts (re-derived from the stake); a v13 body has no terrain (0).
+const _ROW_SIZE := 22
 
 const _LIFT := preload("res://skill_node/stake_ceiling_lift_modifier.tres")
 
@@ -268,6 +270,8 @@ static func _encode_node(graph: Graph, node: SkillNode, table: _InternTable) -> 
 	row[_R_CHANNEL_TARGET] = node.channel_target
 	row[_R_CHANNEL_PROGRESS] = node.channel_progress
 	row[_R_STAKE_CEILING_LIFTS] = _lifts_of(node).size()
+	row[_R_TERRAIN_T] = node.state.terrain_t
+	row[_R_CHARGE] = node.state.charge
 	return row
 
 
@@ -308,6 +312,10 @@ static func _decode_node(
 	var has_channel := row.size() > _R_CHANNEL_PROGRESS
 	node.channel_target = int(row[_R_CHANNEL_TARGET]) if has_channel else 0
 	node.channel_progress = int(row[_R_CHANNEL_PROGRESS]) if has_channel else 0
+	var has_terrain := row.size() > _R_CHARGE
+	node.state.terrain_t = int(row[_R_TERRAIN_T]) if has_terrain else 0
+	node.state.charge = int(row[_R_CHARGE]) if has_terrain else 0
+	CombatWorld.live().reindex_terrain(node.get_combat())
 	_reconcile_addons(node, row, res)
 	# Addons attach (and push their own modifiers) above — the node's OWN
 	# residual modifiers reconcile on top, reproducing the source's full list.

@@ -43,7 +43,9 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##     Older files are refused.
 ## 13: the entity row lost its status-tag slot and every later `_R_*` index
 ##     moved down one. Older files are refused.
-const FORMAT_VERSION := 13
+## 14: a node row carries `_R_TERRAIN_T` and `_R_CHARGE` (terrain, #1794). A 13
+##     still loads: the short row decodes as no terrain.
+const FORMAT_VERSION := 14
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
 const MIN_FORMAT_VERSION := 13
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.

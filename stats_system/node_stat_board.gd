@@ -74,6 +74,13 @@ extends StatBoard
 ## `max_shots_per_leaf` baseline (#956).
 @export var max_shots_per_leaf: ScalarStat
 
+## k in the node's terrain cap k × T (#1794): `base(2) + stake_level` via an
+## ADD_BASE intrinsic on `default_node_board.tres` reading `stake_scaling.tres`
+## (the stake pool's cap, never the fill). A typed field for the same reason as
+## [member addon_slots]: the intrinsic needs a stat to bind to. Read through
+## [method NodeCombat.terrain_cap].
+@export var terrain_cap_k: ScalarStat
+
 
 ## Node stat id -> the [StatDef] id its combat POOL is minted from (see
 ## [method _mint_stat]).

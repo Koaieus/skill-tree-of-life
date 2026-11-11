@@ -606,6 +606,94 @@ func refill(silent: bool = false) -> void:
 		host.notify_refilled(prev, hp.current, silent)
 
 
+# ── Terrain (#1794) ──────────────────────────────────────────────────────────
+#
+# Terrain is node state: two ints on [NodeState], arithmetic in [Terrain].
+# [method add_terrain] is the ONE write path — a Heat / Cold / Charge landing
+# ([method apply_status]'s divert), #1795's world-turn pass and #1801 all write
+# through it. Live, it announces every band crossing on [member host] and keeps
+# [CombatWorld]'s terrain index in step; a shadow writes its clone's ints and
+# nothing else (no shadow runs a world turn or notifies).
+
+## The signed net of Heat over Cold on this slice's state.
+func terrain_t() -> int:
+	return _state.terrain_t
+
+
+## Lightning's Charge on this slice's state.
+func charge() -> int:
+	return _state.charge
+
+
+## [param element]'s count here — see [method Terrain.count_of].
+func terrain_count(element: Element) -> int:
+	return Terrain.count_of(_state, element)
+
+
+## This node's T from the REAL node's graph degree — a static fact of the real
+## world, so a shadow reads it through [method real] (`docs/domain/degree.md`).
+func terrain_threshold() -> int:
+	var r := real()
+	return Terrain.threshold(r.get_graph_degree(r.get_graph()) if r != null else 0)
+
+
+## This node's cap k × T, k read off the node board (`terrain_cap_k`: base 2 +
+## stake level). Live, the board is minted first — an unowned node's may not be.
+func terrain_cap() -> int:
+	var r := real()
+	if r == null:
+		return 0
+	if host != null:
+		host._init_node_board()
+	var k := int(get_local_value(&"terrain_cap_k"))
+	return Terrain.cap(r.get_graph_degree(r.get_graph()), k)
+
+
+## [param element]'s band here, derived at the read; null when inert.
+func terrain_band(element: Element) -> ElementBand:
+	return Terrain.band_of(element, terrain_count(element), terrain_threshold(), terrain_cap())
+
+
+## THE terrain writer: [param delta] stacks of [param element] (negative takes
+## away). Fire and Ice net on the signed t, Charge clamps at 0. Live: reads the
+## band of every element the write can move before and after, keeps the live
+## index in step and emits one [signal SkillNode.terrain_band_changed] per
+## element whose band changed — drops before rises, so a sign flip of t reads
+## as one band leaving, then the other arriving. Shadow: the int only.
+func add_terrain(element: Element, delta: int) -> void:
+	if delta == 0 or Terrain.axis_of(element) == Terrain.Axis.NONE:
+		return
+	if host == null:
+		Terrain.write(_state, element, delta)
+		return
+	var moved: Array[Element] = []
+	for e in ElementRoster.shared().elements:
+		if Terrain.shares_int(element, e):
+			moved.append(e)
+	var t := terrain_threshold()
+	var c := terrain_cap()
+	var counts: Array[int] = []
+	var before: Array[ElementBand] = []
+	for e in moved:
+		var n := Terrain.count_of(_state, e)
+		counts.append(n)
+		before.append(Terrain.band_of(e, n, t, c))
+	Terrain.write(_state, element, delta)
+	CombatWorld.live().reindex_terrain(self)
+	var rises: Array[int] = []
+	for i in moved.size():
+		var n := Terrain.count_of(_state, moved[i])
+		if Terrain.band_of(moved[i], n, t, c) == before[i]:
+			continue
+		if n < counts[i]:
+			host.notify_terrain_band_changed(moved[i], before[i], Terrain.band_of(moved[i], n, t, c))
+		else:
+			rises.append(i)
+	for i in rises:
+		host.notify_terrain_band_changed(moved[i], before[i],
+				Terrain.band_of(moved[i], Terrain.count_of(_state, moved[i]), t, c))
+
+
 # ── Status slice (#872) ──────────────────────────────────────────────────────
 #
 # Forwarding only (#995): the machinery is [StatusHost], composed at
@@ -617,7 +705,15 @@ func refill(silent: bool = false) -> void:
 # it's discarded within the same synchronous resolve that created it.
 
 ## See [method StatusHost.apply_status].
+## An element's terrain stack (Heat, Cold, Charge — #1794) never reaches the
+## host: it is node state, side-less and owner-blind, so it skips the row, the
+## camp, the applier and `_may_host` and lands as [method add_terrain] with the
+## power rounded half-up (the landing fold's rule, `docs/domain/rounding.md`).
 func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", applier_id: int = 0) -> void:
+	var element := ElementRoster.shared().for_status(def)
+	if element != null and element.terrain == def:
+		add_terrain(element, int(StatusDef.round_half_up(power)))
+		return
 	_status_host.apply_status(def, power, camp_id, applier_id)
 
 
