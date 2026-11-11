@@ -139,7 +139,7 @@ what make that order meaningful.
 
 ## Landing against a world: `CombatWorld`
 
-changing: the live world keeps a terrain index, #1794, and runs the world turn's temperature flow and burn, #1795, #1805; see docs/design/elements/terrain.md
+changing: the live world runs the world turn's temperature flow and burn, #1795, #1805; see docs/design/elements/terrain.md
 
 ```
 record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
@@ -178,6 +178,13 @@ entity actually hit and per node actually visited, rather than for the whole
 owned subgraph per hover). Every shadow needs `free_shadow` for the reference
 cycles `EntityCombat.free_shadow` documents; a live world holds and frees
 nothing.
+
+A live world also keeps a **terrain index** (#1794): an insertion-ordered set
+of the live node slices with `t != 0` or `charge > 0`
+(`note_terrain` / `forget_terrain` / `reindex_terrain` / `holds_terrain` /
+`terrain_nodes`). `NodeCombat.add_terrain`, the one terrain writer, keeps it in
+step and a `GraphSnapshot` decode rebuilds it per node; a shadow world refuses
+it, since no shadow runs a world turn. Nothing reads it yet (#1795's pass will).
 
 **No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
 topology never changes mid-attack, so islanding and propagation walk the *real*
@@ -401,7 +408,7 @@ stream; seed 0 (a preview, an AI rollout) is a fixed stream.
 
 ## Statuses landing
 
-changing: Heat, Cold and Charge land as node terrain rather than host rows, #1794; Greed neither doubles nor spends on them, #1798; see docs/design/elements/hit-resolution.md
+changing: Greed neither doubles nor spends on terrain landings, #1798; see docs/design/elements/hit-resolution.md
 
 A status hit is a `StatusInstance` an `ApplyStatusEffect` emitted.
 `StatusInstance.land_on` duds it through `rider_gated` like any rider, and on
@@ -412,7 +419,17 @@ slice, adds `stack_terms`, multiplies by `abs(crit_multiplier)` and
 `stack_scale`, rounds half-up to a whole count; zeroes it if the host blocks
 the status; doubles it if the host's Greed arms; then `apply_status`. All of
 that is decided once on the authority (`power_resolved`), and a rebuilt hit
-lands the recorded power. The bullet-by-bullet contract:
+lands the recorded power.
+
+**Heat, Cold and Charge never make a row** (#1794): `apply_status` ends in
+`NodeCombat.apply_status`, which asks `ElementRoster.for_status(def)`; an
+element's own terrain def diverts into
+`NodeCombat.add_terrain(element, round_half_up(power))` and never reaches
+`StatusHost` (no row, camp, applier or `_may_host`; unallocated nodes take
+it). Everything above the divert (the gate, the fold, crit and `stack_scale`) runs
+as for any status; `*_resistance` does not filter it, and Greed's doubling and
+spending on terrain is open (#1798). Every other def lands as a row, unchanged. The
+bullet-by-bullet contract:
 [status-effects.md](status-effects.md) § "StatusInstance.land_on: which slice,
 which host"; the stacks fold and resistance: § "The DoT model".
 
