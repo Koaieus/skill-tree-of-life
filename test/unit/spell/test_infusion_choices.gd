@@ -52,7 +52,8 @@ func test_only_held_aspects_in_roster_order_with_their_values() -> void:
 	var plan := _plan(_caster({&"poison": 5, &"curse": 3}), _spell())
 	var entries := InfusionChoices.entries(plan, 0)
 	var ids: Array[StringName] = []
-	for e in entries:
+		if not ElementRoster.shared().by_id(e.id):
+			ids.append(e.id)
 		ids.append(e.id)
 	var expected: Array[StringName] = []
 	for aspect in AspectRoster.shared().aspects:
@@ -122,10 +123,21 @@ func test_element_counts_show_after_aspects_tinted_and_unpickable() -> void:
 	var entries := InfusionChoices.entries(plan, 0)
 	var by := _by_id(entries)
 	assert_true(by.has(&"fire"), "held Fire attunement is offered")
-	assert_false(by.has(&"ice"), "a zero count is skipped, as aspects are")
+	assert_eq(by[&"ice"].value, 0, "a zero count still shows, unlike aspects")
+	assert_eq(by[&"ice"].hub_text, "Ice attunement: 0")
 	var fire: AspectWheelEntry = by[&"fire"]
 	assert_eq(fire.value, 4)
 	assert_eq(fire.hub_text, "Fire attunement: 4")
 	assert_eq(fire.identity, ElementRoster.shared().by_id(&"fire").identity)
 	assert_false(fire.is_pickable())
-	assert_eq(entries.back().id, &"fire", "elements follow the aspects")
+	assert_eq(entries.back().id, &"lightning", "elements follow the aspects")
+
+
+func test_default_entity_shows_all_three_element_counts() -> void:
+	var caster := _caster({})
+	var entries := InfusionChoices.entries(_plan(caster, _spell()), 0)
+	var by := _by_id(entries)
+	for id in [&"fire", &"ice", &"lightning"]:
+		assert_true(by.has(id), "%s shown on a default entity" % id)
+	# default_value is 0 today; #1809 raises it to 1.
+	assert_eq(by[&"fire"].value, AspectCurrency.cap_of(caster, &"fire_element"))
