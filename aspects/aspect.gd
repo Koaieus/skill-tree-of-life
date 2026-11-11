@@ -30,6 +30,11 @@ extends Resource
 ## The concept's bespoke layer on a board blast it rides ([BlastVFX]). Null =
 ## the identity-tinted generic ([RiderBlastLayer]).
 @export var blast_layer: PackedScene = null
+## What a node primed by this concept does when a hit sets it off: the same
+## field as [member ElementBand.go_off], read by the gather beside the element
+## bands. Null for a concept with none. Explosive's is go-off zero, a
+## [DiscGoOff] (#1799), until the Catalyst retag (#1801) deletes it.
+@export var go_off: GoOff = null
 
 
 func id() -> StringName:

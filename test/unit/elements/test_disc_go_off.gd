@@ -16,7 +16,8 @@ const _EPS := 0.001
 const _PAST := 0.5
 ## `[load, present, spent, power]` at resonance 1 (acceptance 1's table).
 const _TABLE := [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 6], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]
-## Rows sit this far apart on y, so no disc reaches another row's nodes.
+## Rows sit this far apart on y, so no disc reaches another row's nodes. A
+## centre is allocated: an unowned node hosts no Explosive charge.
 const _ROW_GAP := 5000.0
 
 var _w: TestWorld
@@ -73,17 +74,20 @@ func test_spend_and_power_follow_the_formula() -> void:
 
 func test_the_disc_spends_and_reaches_by_power_at_every_power_of_the_table() -> void:
 	var disc := DiscGoOff.new()
+	var red := _w.add_entity("Red")
 	var rows: Array = []
 	for i in _TABLE.size():
 		var row: Array = _TABLE[i]
 		var centre := _w.add_node(StringName("C%d" % i))
 		centre.global_position = Vector2(0.0, _ROW_GAP * i)
+		_w.allocate(red, [centre])
 		var reach := _spread().radius_for(centre.radius, maxi(row[3], 1))
 		var at := _east_of(centre, StringName("At%d" % i), reach - _EPS)
 		var past := _east_of(centre, StringName("Past%d" % i), reach + _PAST)
-		_charge(centre, row[1])
 		rows.append([row, centre, at, past])
 	await get_tree().process_frame
+	for r: Array in rows:
+		_charge(r[1], r[0][1])
 	for r: Array in rows:
 		var row: Array = r[0]
 		var centre: SkillNode = r[1]
@@ -106,8 +110,9 @@ func test_the_disc_spends_and_reaches_by_power_at_every_power_of_the_table() -> 
 
 func test_a_lone_charged_node_still_spends() -> void:
 	var centre := _w.add_node(&"C", Vector2.ZERO)
-	_charge(centre, 2)
+	_w.allocate(_w.add_entity("Red"), [centre])
 	await get_tree().process_frame
+	_charge(centre, 2)
 	var result := DiscGoOff.new().fire(centre, _read(centre), 0)
 	assert_true(result.reached.is_empty(), "fixture: the disc reaches no other node")
 	assert_eq(result.spend(), DiscGoOff.spend_of(0, 2), "go-off zero spends whatever its disc reaches")
