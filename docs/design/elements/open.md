@@ -159,7 +159,7 @@ status: settling
   the code pops the one vertex and only records a `Severance` for what the
   pop left unreachable; settle header against code at the Ice spec.
 - **Open by design, carried as knobs** (the pass's readings, each tentative,
-  not the owner's): shape points against the spell's capacity; the
+  not the owner's): the
   hops-cut → shatter knob (how much of a breaker's cut hops feed the burst);
   the Fire multiplier (5); the "at least 1" solo cost
   ([casting.md](casting.md) § The node pays its solo cost); Frozen's shatter tuned to match the
@@ -178,15 +178,7 @@ status: settling
   - **Stock cap and ratios** (nit): a stock cap is a stat only if something
     targets it, and `AmmoType` and addons have no int:int seam; the element
     ammo types' multiplier knob above is the one place this bites.
-- **Doc and ADR corrections owed**, none built: ADR 0082's Context is wrong
-  about today's code (it says spell shrapnel's `draws_own_crit()` is false;
-  shrapnel rolls its own crit, [hit-resolution.md](hit-resolution.md) § Landing resolution); 0081 §3
-  (the blade weight gate has no ADR of its own), 0081 §7 (an arrow is an aspect
-  subtype or an element, never both) and 0081 §1 (a node's own go-off fires
-  once per hit) are corrections the elements ADRs 0083-0085 do not carry, and
-  0081 §6's goes with them — carry all into the next element ADR, the
-  alternative being a new ADR for the weight gate alone (tentative, not the
-  owner's). `aspect_matrix.md:34` still says "side-less terrain, gives reach"
+- **Doc corrections owed**, none built: `aspect_matrix.md:34` still says "side-less terrain, gives reach"
   and has no `## Element Matrix` heading. The pair table's "for the next
   landing" contradicts ADR 0083 §1 for a rider: a fix in the pair rules.
 - **Socket-order gap for shape and ride** (open, no owner call): the trim

@@ -50,7 +50,7 @@ each drawing its own count; the same element splits one count between them
 stack riders"*), and the spell's authored baseline is free on top. The ride
 never takes an aspect slot, and neither the shape nor the ride counts towards
 the spell's total-points cap (owner, 2026-11-11: *"the Elemental slots dont
-need to count towards the cap"*; this amends ADR 0085 §2; ADR pending). The
+need to count towards the cap"*; ADR 0094 amends ADR 0085 §2). The
 cap, `SpellDef.infusion_capacity`, holds the aspects' points alone. It exists
 and is infinite on every spell today, so each spell gets a finite number
 ([forge.md](forge.md) § The forge, "Overqualified casting"). A shape or ride point is bounded only
