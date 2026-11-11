@@ -132,8 +132,22 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - Same-beat race, on the lead's "breaks settle first" proposal: *"Breaks settle first sounds good but also like a spaghetti going forth between elements, terrain, riders, damage, back to elements and terrain, then riders then damage.. get what i mean? Possibly might need to simplify it otherwise. Perhaps a frozen node remains frozen for all during the hit after all, shattering as a result of combined hits, and none of these hits pass through it.. maybe. Not sure"* → STILL OPEN. Owner's lean, not a call: within one hit / beat a Frozen node stays Frozen for every path, shatters as the result of the combined hits, and none of them pass through it. That would take back ADR 0087 §3 ("a shatter no longer ends the walk") at least within a beat. Next lead: put the two simple shapes to the owner (frozen-for-the-whole-beat vs breaks-settle-first), with what each costs the resolver.
 - *"Let a subagent do the ADR stuff and patch the prompt so i can start next sesh"*.
 
-## NEXT LEAD START HERE (written 2026-11-11, 02:20, after batch 6)
-**Done:** batches 5-6 folded into `docs/design/elements.md` and `aspect_matrix.md` (`97b74e2e`: a light blade vertex lands a plain hit then pops, Catalyst priming kept, a break counts 2, § Open holds the owner's same-beat requirement and lean, the snapshot proposal is gone); ADR (d) = **0089** the loadout hides no target, and **0090** a break counts as 2 channels + every blade contact lands (`87fb0e4f`, pushed, linked on #1716). Earlier: ADRs 0086-0088 (`de8805af`), batch 4 folded (`d1f5054a`).
+### Owner batch 7, 02:17-02:40 on 2026-11-11 (verbatim; picked option in brackets)
+- Same-beat race [Node settles first: a beat lands in generations; each node is read once per generation over all its arrivals; one shatter, every path through walks on; only breakers take the 2 extra landings; admission still on arrival]: *"Option 1 sounds best"*. Rejected: Frozen for the whole beat (the batch-6 lean).
+- On the pipeline (02:26): *"So first terrain stacks land (cold heat charge) (because they can prime a node) then reach is checked (aoe and hops effects) and all this results in a.. almost a dict like {primary target: 3 load, nb1: 2 load, …} And then other riders land And then damage is checked. I think frozen shatters (≈go-offs) should ideally resolve in the Reach section along with other go-offs like blast or arc do …"*. The lead's answer, which the owner built on: the placement is compelled, because a shatter changes reach and ADR 0082 bars stage two from that.
+- Damage breaker [Raw, as thrown: the arrival's stamped amount, crit included, × its load multiplier; armor plays no part]. Combined damage [Each arrival alone: no summing within a generation].
+- All in `deb12126` (elements.md) and ADR **0091** (`e39be560`, linked on #1716). Pass readings, tentative: a multi-hop arc advances one hop per generation; the shatter is Ice's 0D point go-off.
+
+## NEXT LEAD START HERE (written 2026-11-11, 02:45, after batch 7)
+**Done since 02:20:** the same-beat race settled (batch 7 above; ADR 0091). Step 1 below is done; it is kept for the record.
+**Loose ends, none backed by an owner sentence yet:**
+- The forge's trim order is used but never defined.
+- ADR 0089's alternatives do not rebuild the batch-4 options the owner left unpicked.
+- The one-shot reset to base (owner ticked it, batch 3) is in no ADR: put it in #1814's body.
+- How often a trapped Shocked state goes off when several arrivals of one generation meet the node it is released on: § Pair rules still says "the hit that breaks the ice sets off" it, singular. Unplaced.
+- An absorbed Heat copy that thaws and walks on is a pass reading. ADR 0087 lists it as not decided; do not cite 0087 for it.
+
+**Done (02:20):** batches 5-6 folded into `docs/design/elements.md` and `aspect_matrix.md` (`97b74e2e`: a light blade vertex lands a plain hit then pops, Catalyst priming kept, a break counts 2, § Open holds the owner's same-beat requirement and lean, the snapshot proposal is gone); ADR (d) = **0089** the loadout hides no target, and **0090** a break counts as 2 channels + every blade contact lands (`87fb0e4f`, pushed, linked on #1716). Earlier: ADRs 0086-0088 (`de8805af`), batch 4 folded (`d1f5054a`).
 The issues #1793-#1816 are the source of truth and still hold pre-batch-3 bodies; edit them in place (`gh issue view <n> --json body -q .body` → edit → `gh issue edit <n> --body-file`). At most 5 subagents at a time.
 
 1. **Same-beat break race** — put the two simple shapes to the owner in ONE AskUserQuestion, each with what it costs the resolver. Owner's requirement (batch 5): *"if it shatters the lightning arc either always passes through it or it never does, shouldn't be up to the in-wave hit resolution order"*. Owner's lean (batch 6): *"Perhaps a frozen node remains frozen for all during the hit after all, shattering as a result of combined hits, and none of these hits pass through it.. maybe. Not sure"*.
@@ -145,6 +159,12 @@ The issues #1793-#1816 are the source of truth and still hold pre-batch-3 bodies
    - #1801 catalyst: no primary element; the store converts pro rata over the Heat / Cold / Charge stacks landing, largest remainder, a tied leftover stays Catalyst; priming kept (a node crossing T converts its whole store); the save-version item goes. #1810 quiver: the goo arrow is a plain rider arrow.
    - #1807 ice, #1804 blade-elements: every blade contact lands — a breaking touch lands then pops (ADR 0088 §5), a light vertex lands a plain hit then pops (0090 §2); a break counts as 2 channels (0090 §1). #1813 ice-cast: a concentrated seed that breaks the ice lands ×m three times, plus the burst.
    - #1798 resolver, #1808 pairs: dedupe on, a collateral takes one landing at share × channels, the hit node never merged (ADR 0086 §3); break count 2.
+   - ADR 0091 (batch 7) touches #1798 resolver, #1807 ice, #1808 pairs and #1806 lightning:
+     - A beat lands in generations, and each node is read once per generation over all its arrivals.
+     - The shatter is read in stage one as Ice's go-off.
+     - The damage breaker reads each arrival's raw amount alone.
+     - A multi-hop arc advances one hop per generation (tentative).
+     - #1799 go-off-zero only if its body describes the per-wave scope.
    - #1814 overqualified-casting: all of batches 3-4, citing ADR 0089 (pip on targets, range known after the pick, trim on a low-cap pick with a notice and a muted target, aimed locks / refuses, non-aimed re-picks, AI overclocks from FIGHTER up).
    Keep the lead readings tentative (the "Corrections" list above). Then one re-review of the changed issues.
 4. Then the 00:15 plan's steps 4-6 unchanged: restamp the issues, clerk phase 2 from a fresh work order (Corrections, step 5), delete this folder and `docs/handoffs/elements.md` after the owner's go.
