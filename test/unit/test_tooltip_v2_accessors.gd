@@ -120,9 +120,11 @@ func test_dynamic_stat_ids_does_not_create_a_stat() -> void:
 	# solely so their MULTIPLY-by-stake_level intrinsics have a non-minting
 	# `get_stat` target — see .claude/rules/stats-system.md's "Bake what the
 	# node owns" bullet.
+	# `terrain_cap_k` joined for the same reason (#1794): its +stake_level
+	# intrinsic needs a typed target.
 	# Order is the board's property order, which the full suite and a lone run
 	# disagree on — compare as a set.
-	var baked: Array[String] = ["addon_slots", "arrows_per_reload", "max_shots_per_leaf", "stake_ceiling", "stake_level"]
+	var baked: Array[String] = ["addon_slots", "arrows_per_reload", "max_shots_per_leaf", "stake_ceiling", "stake_level", "terrain_cap_k"]
 	var live: Array[String] = []
 	for id in sn.node_board.get_stat_ids():
 		live.append(String(id))
