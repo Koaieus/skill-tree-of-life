@@ -249,6 +249,23 @@ func terrain_nodes() -> Array[NodeCombat]:
 	return out
 
 
+# ── World-turn terrain pass (#1795) ──────────────────────────────────────────
+# STUB
+
+func flow_temperature(_steps: int) -> void:
+	pass
+
+
+func diffuse_temperature() -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	return out
+
+
+func decay_terrain() -> Array[NodeCombat]:
+	var out: Array[NodeCombat] = []
+	return out
+
+
 ## One tick of every unowned lingering host — run once per WORLD turn end by
 ## [method TurnManager._end_world_turn] (ADR 0055), after the turnless hosts'
 ## ticks and before its flush. Iterates a snapshot: a tick can release a host or add another. A

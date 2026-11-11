@@ -7,6 +7,7 @@ extends GutTest
 const _BOARD := preload("res://entity/default_entity_board.tres")
 
 var _graph: Graph
+var _tw: TestWorld
 var _tm: TurnManager
 var _entities: Array[Entity] = []
 ## One entry per `world_turn_ended`.
@@ -30,7 +31,8 @@ func _build(speeds: Array) -> void:
 	_entities = []
 	_world_turns = []
 	_enders = []
-	_graph = TestWorld.create(self).graph
+	_tw = TestWorld.create(self)
+	_graph = _tw.graph
 	_tm = autofree(TurnManager.new())
 	_tm.entity_root = _graph
 	add_child(_tm)
@@ -135,3 +137,75 @@ func test_adopt_turn_sets_the_world_progress() -> void:
 	assert_eq(_world_turns.size(), 0, "a repair never emits")
 	_tm.end_turn()
 	assert_eq(_world_turns.size(), 1, "and the adopted progress is the one counted on")
+
+
+# ── The rate rule (#1795): CEIL_SQRT is the option; the cases above pin the default.
+
+
+func test_world_turn_period_sweeps_both_rules() -> void:
+	var bad: Array = []
+	for n in range(0, 101):
+		var lin := TurnManager.world_turn_period(n, TurnManager.WorldClock.PER_CARRIER)
+		if lin != maxi(1, n):
+			bad.append("PER_CARRIER n=%d -> %d" % [n, lin])
+		var s := TurnManager.world_turn_period(n, TurnManager.WorldClock.CEIL_SQRT)
+		if s < 1 or s * s < n or (n >= 1 and (s - 1) * (s - 1) >= n):
+			bad.append("CEIL_SQRT n=%d -> %d" % [n, s])
+	assert_eq(bad, [], "max(1, n); the least s >= 1 with s*s >= n")
+
+
+func test_ceil_sqrt_closes_a_world_turn_every_two_ends_for_four_carriers() -> void:
+	_build([10.0, 10.0, 10.0, 10.0])
+	_tm.world_clock = TurnManager.WorldClock.CEIL_SQRT
+	_tm.start_turn(_entities[0])
+	_tm.end_turn()
+	assert_eq(_world_turns.size(), 0, "1 of 2")
+	_tm.end_turn()
+	assert_eq(_world_turns.size(), 1, "2 of 2: ⌈√4⌉ = 2")
+	_tm.end_turn()
+	_tm.end_turn()
+	assert_eq(_world_turns.size(), 2)
+
+
+func test_ceil_sqrt_a_death_that_shrinks_the_period_below_progress_closes_next_end() -> void:
+	var speeds := []
+	speeds.resize(17)
+	speeds.fill(10.0)
+	_build(speeds)
+	_tm.world_clock = TurnManager.WorldClock.CEIL_SQRT
+	_tm.start_turn(_entities[0])
+	for _i in 4:
+		_tm.end_turn()
+	assert_eq(_world_turns.size(), 0, "sanity: 4 of ⌈√17⌉ = 5")
+	for _i in 8:
+		_kill(_a_bystander())
+	_tm.end_turn()
+	assert_eq(_world_turns.size(), 1, "9 living: period 3, below the progress 4 — closes")
+	assert_eq(_tm.world_turn_progress, 0)
+
+
+func test_a_world_turn_runs_the_terrain_pass_with_its_steps() -> void:
+	CombatWorld.reset_live()
+	_build([10.0, 10.0])
+	var x := _tw.add_node(&"X")
+	var y := _tw.add_node(&"Y")
+	var z := _tw.add_node(&"Z")
+	_tw.link(x, y)
+	_tw.link(y, z)
+	await get_tree().process_frame
+	var fire := ElementRoster.shared().by_id(&"fire")
+	_tm.terrain_steps_per_world_turn = 2
+	x.get_combat().add_terrain(fire, 30)
+	_tm.start_turn(_entities[0])
+	_tm.end_turn()
+	_tm.end_turn()
+	assert_eq(_world_turns.size(), 1, "sanity: one world turn")
+	var got := [x.state.terrain_t, y.state.terrain_t, z.state.terrain_t]
+	for n: SkillNode in [x, y, z]:
+		n.get_combat().add_terrain(fire, -n.state.terrain_t)
+	x.get_combat().add_terrain(fire, 30)
+	CombatWorld.live().flow_temperature(2)
+	assert_ne(got, [30, 0, 0], "the world turn moved the terrain")
+	assert_eq(got, [x.state.terrain_t, y.state.terrain_t, z.state.terrain_t],
+			"exactly as the pass with two steps does")
+	CombatWorld.reset_live()

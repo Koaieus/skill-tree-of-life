@@ -108,6 +108,31 @@ var world_turn_progress: int:
 		return _world_turn_progress
 var _world_turn_progress: int = 0
 
+## The world clock's rate rule (#1795; owner, 2026-11-10: "same rule, linear
+## default"). [member world_clock] picks it; [method world_turn_period] is it.
+enum WorldClock {
+	## A world turn every N played turn ends, N = the living carriers (ADR 0055).
+	PER_CARRIER,
+	## A world turn every ⌈√N⌉ played turn ends, found by an integer search
+	## (`docs/design/elements/terrain.md` § The world clock). Tentative.
+	CEIL_SQRT,
+}
+
+## How the world turn's period follows N, the living initiative carriers.
+## Default [constant WorldClock.PER_CARRIER]: ADR 0055's every N, unchanged.
+## Turnless hosts, lingering rows and the terrain pass all ride whichever rule
+## is set. A rule, so no editor feedback; `game_root.tscn` shows the node.
+@export var world_clock: WorldClock = WorldClock.PER_CARRIER
+
+## Heat/Cold diffusion steps per world turn, each from a fresh snapshot
+## ([method CombatWorld.flow_temperature]). Tentative knob (pass default 1).
+@export_range(1, 8, 1, "or_greater") var terrain_steps_per_world_turn: int = 1
+
+
+## STUB
+static func world_turn_period(_n: int, _clock: WorldClock) -> int:
+	return 0
+
 
 ## Whether a round is open — the resync carries it with [method round_waiting].
 func is_round_open() -> bool:
