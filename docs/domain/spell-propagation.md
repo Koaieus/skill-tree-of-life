@@ -524,7 +524,7 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-changing: the land-time gather, #1798; conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
+changing: conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
 
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.
@@ -556,9 +556,12 @@ while wave not empty:
             eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
 
-    # 3b. land the wave through OutcomeApplier.drain: one wave is one beat
-    #     (structural_key = hop_index), so every landing's damage and heals
-    #     land in append order, then every aspect rider (ADR 0092)
+    # 3b. land the wave through OutcomeApplier.drain, on the cast world: one
+    #     wave is one beat (structural_key = hop_index). Its first hit opens
+    #     the group, so HitGather.stage_one gathers the whole wave first
+    #     (below), then every landing's damage and heals land in append
+    #     order, then every aspect rider (ADR 0092); each hit draws its crit
+    #     as it lands
 
     # 4. compute next wave: reach PROPOSES, cap visits, filter NARROWS,
     #    spread SELECTS, config MINTS. The visit cap runs FIRST — the filter is set-level, so a
@@ -568,7 +571,11 @@ while wave not empty:
     next_wave = []
     for state in merged:
         lctx = lctx_of[state]
-        if state.hops_remaining <= 0: continue
+        # the walk also ends where the landing's node said "paths end" at
+        # its second Admits read, in the generation its head arrived in
+        paths_end = any(hit.is_head and hit.path_ends for hit in event_of[state].hits)
+        if state.hops_remaining <= 0 or config.spread == null or paths_end:
+            mark_terminal(state); continue
         reachable = config.reach.candidates(lctx) if config.reach \
                     else graph.get_neighbours(state.current_node)
         candidates = [nb for nb in reachable
@@ -603,15 +610,59 @@ the unrepeated landing. A count of 0 lands nothing; only the scalar's
 multiply: N incident arrivals × M repeats, each incident's repeats adjacent
 (`_repeated_arrivals` runs after `_incident_arrivals`).
 
+**Step 3b gathers before anything lands** (#1798; ADR 0082, ADR 0083, ADR
+0091). `OutcomeApplier.drain` calls `HitGather.stage_one` once per beat, over
+the whole group, before `land_one` runs on any of it; a spell wave is one beat.
+A head (`HitInstance.is_head`, marked by `HitLanding.place()`) and the hits
+after it up to the next head are one hit. Stage one runs in generations:
+generation 0 is the wave's heads, and each generation starts from the terrain
+the one before left. At each node of a generation:
+
+1. **Admit.** Every go-off copy is asked of the node's bands' `Admits.admit`
+   against the terrain before this generation's riders. A head and a centre
+   copy are never asked. An admitted copy is an entry; an absorbed one is not.
+2. **Land.** Every arrival's element riders (Heat, Cold, Charge) land, absorbed
+   or not, once per node per hit. A head's own rows land through their own
+   `land_on` and are marked `staged`. A copy's land as ceil(r × s).
+3. **Read.** The node's second `Admits.read` runs once per generation, over
+   every arrival there. A breaker shatters the node: one spend, one burst
+   (TRUE, through `DotTick.mint` in stage two), and its extra landings, and
+   every path through the node walks on. Otherwise an answer may end the paths
+   there, and that verdict rides each head arriving there as `path_ends`, which
+   step 4 reads. Then, once per node per hit, each band the node sits in fires
+   its `GoOff` with the post-rider read and the head's load (0 on a copy). The
+   generation's spends and transfers (the breaks' included) commit together
+   before the next generation's admit.
+
+A go-off's reach enters through `HitGather._append_reach`. A node at hop depth
+1 arrives in the next generation, and so does the centre copy when
+`lands_on_own_node`. A node at depth d ≥ 2 (the hop seat, tentative; #1806 fills
+depth and ring from its BFS) arrives at g + d. Its cost and transfer commit at
+the read of g + d − 1, just before its admit. It is dropped instead when every
+ring node it hangs behind ended its paths at that read, or had its own entry
+from the go-off dropped. A dropped node is never admitted or landed, costs
+nothing, and takes no transfer. Each go-off that reaches a node mints one
+`BlastMark`, stamped on each of its entries (the centre copy included).
+`BlastMark.go_off` names the go-off by its band's `Identity`, or by the nearest
+band below that has one.
+
+Stage two is the drain itself: each entry lands as a copy of its hit's whole
+span (staged riders excluded), `paired` to its head, at damage × s + own damage
+with riders ceil(r × s). The gather records the beat's net terrain change on
+its first head (`terrain_ops`). A rebuilt record feeds those ops, never
+gathering again, and lands a recorded burst on the holder's pool as the live
+landing did (`AttackRecord.FLAG_BURST`).
+
 Notes:
 
 - `current_node` keying assumes node-target spells; when edge/area
   targeting lands later, the grouping key becomes
   `(target_kind, target_ref)` and the merger gets a polymorphic
   payload — out of scope today.
-- The resolver remains side-effect free w.r.t. world state (damage
-  application still deferred to the VFX layer; merged `CastSpell`s
-  carry their `.damage` for the coordinator to apply).
+- The walk lands each wave only on the cast world it is handed, always a
+  shadow (`resolve` mints one), so the live board is untouched. The live
+  landing is the outcome's later apply, where a head the walk already gathered
+  feeds its recorded `terrain_ops` and is never gathered twice.
 - BFS hop-monotonic ordering is preserved — the VFX layer's stagger
   still works without changes.
 
