@@ -10,7 +10,8 @@ class_name OutcomeApplier
 ## model will want.
 
 
-## Land every hit in SCHEDULE order (structure, not append order), waiting out
+## Land every hit in SCHEDULE order (structure, not append order), a beat's
+## aspect riders after the rest of it ([method drain]), waiting out
 ## each hit's `arrival_time` on [param clock]: its [method drain] is the clock. The
 ## required [param world] picks live vs shadow, with no preview flag below;
 ## [param alloc] is read only by a live [GateFlipInstance] landing.
@@ -29,8 +30,9 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 
 ## The landing loop — [method apply]'s, and a spell wave's mid-walk
 ## ([method SpellResolver.resolve_against]), one implementation for both. Lands
-## [param queue] to empty, in its order, a hit [method land_one] pushes
-## included: one [method land_one] per hit, waiting out each hit's
+## [param queue] to empty, in its order within the beat order (a beat's aspect
+## riders after all of its other hits, ADR 0092), a hit [method land_one]
+## pushes included: one [method land_one] per hit, waiting out each hit's
 ## `arrival_time` on [param beat]. An instant clock never parks, so a caller
 ## that must not wait (the wave) calls this un-awaited and it runs to the end
 ## synchronously. [param announced] is [method apply]'s once-per-mark blast
@@ -42,8 +44,29 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 	# node stripped by the group's landings spills over their union, flushed
 	# before the next group lands (CombatWorld.flush_removals).
 	var group := -1
-	while queue.has_next():
-		var hit := queue.next()
+	# The beat order (ADR 0092). A beat is a run of equal `structural_key`;
+	# within it every hit lands in queue order except an aspect rider
+	# ([method HitInstance.is_aspect_rider]), which is held and lands, in queue
+	# order, once the queue yields a hit of another key or runs dry. A same-key
+	# hit pulled meanwhile (a pushed one included) lands ahead of the held
+	# riders: all of a beat's damage, then all of its aspect riders.
+	var held: Array[HitInstance] = []
+	var incoming: HitInstance = null
+	while true:
+		if incoming == null and queue.has_next():
+			incoming = queue.next()
+		var hit: HitInstance
+		if not held.is_empty() and (incoming == null
+				or incoming.structural_key != held[0].structural_key):
+			hit = held.pop_front()
+		elif incoming != null:
+			hit = incoming
+			incoming = null
+			if hit.target != null and hit.is_aspect_rider():
+				held.append(hit)
+				continue
+		else:
+			break
 		if hit.target == null:
 			continue
 		if hit.schedule_index != group:

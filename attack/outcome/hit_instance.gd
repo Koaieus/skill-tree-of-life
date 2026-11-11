@@ -275,21 +275,31 @@ var land_resolved: bool = false
 
 
 ## Where a hit lands within its landing's span, relative to the primary hit
-## that span rides on ([method HitLanding.place]): a status rider lands
-## BEFORE it, so a curse floor or a sunder lifts its own hit (a mark lifts
-## the NEXT hit — its own drew its crit ahead of the rider); the
-## primary is PRIMARY; a damage-shaped rider (paired damage, splash copy,
-## blast, detonate's cure) lands AFTER it. Landing-scoped and applied at
-## build time as list position, never a sort key at land (ADR 0067).
+## that span rides on ([method HitLanding.place]): the primary is PRIMARY;
+## every rider (a status, paired damage, a splash copy, a blast, detonate's
+## cure) lands AFTER it. Nothing returns BEFORE since ADR 0092: a status lands
+## after its hit, and [method is_aspect_rider] holds it behind the rest of its
+## beat at land. Landing-scoped and applied at build time as list position,
+## never a sort key at land (ADR 0067 §2).
 enum LandPriority { BEFORE = -1, PRIMARY = 0, AFTER = 1 }
 
 
 ## This hit's [enum LandPriority] within its landing. Base: [code]AFTER[/code]
 ## for a rider ([member paired] set), else [code]PRIMARY[/code] — so a spell's
 ## own authored hits, which ride nothing, keep their authored order.
-## [StatusInstance] overrides it to [code]BEFORE[/code].
+## [StatusInstance] returns [code]AFTER[/code] even bare (ADR 0092).
 func land_priority() -> int:
 	return LandPriority.AFTER if paired != null else LandPriority.PRIMARY
+
+
+## Whether this hit is an aspect rider (Curse, Poison, Hex, Sunder, Wither,
+## Bleeding, Marked): it lands after every other hit of its beat, the run of
+## equal [member structural_key], so nothing it does moves the armor or floor
+## a hit of its own beat reads ([method OutcomeApplier.drain], ADR 0092). The
+## one predicate the beat order reads. Base: no. [StatusInstance] says yes; a
+## terrain rider (Heat, Cold, Charge) must say no.
+func is_aspect_rider() -> bool:
+	return false
 
 
 ## Decide this hit's land-time veto, once — the first asker triggers it: a

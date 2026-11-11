@@ -350,9 +350,10 @@ static func _resolve(
 				var pre := outcome.hits.size()
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
 				alctx.ride_heal(pre)
-				# The infusion's statuses land before the spell's own hits at
-				# this hop (kept in authored order), its other hits after them
-				# (ADR 0067).
+				# The infusion's hits land after the spell's own hits at this
+				# hop, in authored order (ADR 0067 §2); its statuses then wait
+				# out the rest of the wave's damage (the drain's beat order,
+				# ADR 0092).
 				alctx.anchor = pre
 				alctx.lead = outcome.hits.size()
 				OnHitEffect.run_all(riders, alctx)
@@ -370,9 +371,10 @@ static func _resolve(
 		# wave killed as dead.
 		#
 		# Each hit draws its crit as it lands (the stream rides into
-		# `land_one`), wave by wave, append order within a wave -- the order
-		# `OutcomeApplier.in_arrival_order` would land them, since magic's key
-		# is the hop ordinal with an index-stable tiebreak.
+		# `land_one`), wave by wave: within a wave its damage and heals in
+		# append order, then its aspect riders in append order. One wave is
+		# one `structural_key` (the hop ordinal), so one beat, and the drain's
+		# beat order (ADR 0092) lands a replay in this same order.
 		#
 		# The wave lands through the applier's own drain, over a queue of just
 		# this wave's hits: un-awaited on an instant clock, so it never parks
