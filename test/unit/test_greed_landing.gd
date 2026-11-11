@@ -12,6 +12,9 @@ const _GREED := preload("res://effects/status/greed.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _CURSE := preload("res://effects/status/curse.tres")
 const _SCOUTED := preload("res://effects/status/scouted.tres")
+const _HEAT := preload("res://effects/status/heat.tres")
+const _COLD := preload("res://effects/status/cold.tres")
+const _CHARGE := preload("res://effects/status/charge.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -214,3 +217,22 @@ func test_the_arm_memo_forgets_a_hit_once_a_later_hit_arms() -> void:
 	assert_true(host.greed_arm(a))
 	assert_almost_eq(_power(_node, &"greed"), 2.0, 0.001,
 			"hit a was forgotten when b armed, so it spends afresh")
+
+
+# #1798 item 12: an element rider (Heat, Cold, Charge) lands as node terrain and
+# never passes through Greed, neither doubled nor spending it. Green with no
+# guard: the three defs carry no `debuff` tag, so `_greed_arms` answers false
+# before it ever asks the host to arm.
+func test_a_terrain_rider_is_never_doubled_by_greed_and_spends_none() -> void:
+	# Heat and Cold net on one axis: Cold lands on the core, the others on the node.
+	for pair: Array in [[_HEAT, _node], [_COLD, _core], [_CHARGE, _node]]:
+		var def: StatusDef = pair[0]
+		var n: SkillNode = pair[1]
+		var e := ElementRoster.shared().for_status(def)
+		assert_not_null(e, "%s is an element's terrain rider" % def.id)
+		_greed_on(n, 2.0)
+		var greed := _power(n, &"greed")
+		var before: int = n.get_combat().terrain_count(e)
+		_hit(n, [[def, 3.0]])
+		assert_eq(n.get_combat().terrain_count(e) - before, 3, "%s lands r stacks, never 2r" % def.id)
+		assert_almost_eq(_power(n, &"greed"), greed, 0.001, "%s leaves the Greed row unchanged" % def.id)
