@@ -135,7 +135,7 @@ changing: the crit is read at the hit's head before its riders and crit conditio
 | Ordering of landings (authored into `arrival_time`; `OutcomeApplier` sorts on it) | **Resolve** |
 | Landing gate (target still allocated / still hostile / vertex still alive) | **Land** |
 | Aspect riders' turn (after every other hit of their beat, a run of equal `structural_key`; `OutcomeApplier.drain`, ADR 0092) | **Land** — the list order is Resolve's, the hold is the drain's |
-| Depleted-node skip (a non-core node at 0 HP takes no aspect rider) | **Land**, on the authority, shipped as `FLAG_GATED`; a replay reads no HP |
+| Depleted-node skip (a node its beat's hits stripped takes no aspect rider) | **Land** — the drain reads the beat's `deallocations`; shipped as `FLAG_GATED` |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
 | Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit as it lands, before any of its payload (its riders land after it); every rider copies it |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |

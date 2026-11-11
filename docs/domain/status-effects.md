@@ -273,10 +273,12 @@ changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; see d
 - **Order and the depleted skip.** A status is an aspect rider
   (`HitInstance.is_aspect_rider`): it lands after its own hit and after every
   other hit of its beat (`OutcomeApplier.drain`, ADR 0092), so a curse or
-  sunder lifts only later beats. If its slice is then a non-core node at or
-  below 0 HP (that damage depleted it), it duds like a gated rider (`gated`,
-  power 0, no row), decided once on the authority and shipped as
-  `FLAG_GATED`; a replay honours the flag and reads no HP.
+  sunder lifts only later beats. If its beat's hits stripped its node (the
+  node is in a landed hit's `deallocations`: depleted, or cut off by that
+  cascade; never a cracked core), the drain gates it and it duds like a gated
+  rider (`gated`, power 0, no row), shipped as `FLAG_GATED`. A neutral or bare
+  node at 0 HP is not depleted and takes its row. An element's own status
+  (Heat, Cold, Charge) is no aspect rider: never held, never dudded.
 - **Fall-through.** The status lands on the entity iff `node` is its owner's
   core and that core is cracked (`hp.current == 0`) at this moment; damage
   landed earlier in the same `outcome.hits` is visible, so an arrow that cracks

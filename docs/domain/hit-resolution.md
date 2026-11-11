@@ -192,12 +192,18 @@ for the placement and the memoized gate (§2 to §4), and [ADR 0092](../adr/0092
 for the order, which supersedes ADR 0067 §1 (a status rider used to land
 before its hit and lift it).
 
-- **Priority.** `HitInstance.land_priority()` returns `LandPriority.PRIMARY`
-  (0) or `AFTER` (1); `BEFORE` (−1) stays in the enum and in `place()`, but
-  nothing returns it. Base: `AFTER` for a rider (`paired` set), else
-  `PRIMARY`. `StatusInstance` returns `AFTER` always, so every rider (a
-  status, paired damage, a splash copy, a blast, detonate's cure) lands after
-  its hit, in authored order.
+- **Priority.** `HitInstance.land_priority()` returns `LandPriority.BEFORE`
+  (−1), `PRIMARY` (0) or `AFTER` (1). Base: `AFTER` for a rider (`paired`
+  set), else `PRIMARY`. `StatusInstance` returns `AFTER` when it rides a lead
+  (`paired` set: an arrow's, a contact's) or is blast or splash shaped
+  (`blast_mark`, `land_mask`), else `BEFORE`: a bare status (every magic
+  status, an infusion's included) keeps its ADR 0067 list slot ahead of its
+  landing's own block. Priority is list position only; an aspect rider's land
+  turn is the drain's (below), so a bare status listed first still lands after
+  its beat's damage, and only its order among the beat's aspect riders follows
+  the list: an intake's stacks are on the row before the spell's own row
+  operations read it (Gloomflux: the intake's add, then `MultiplyRowEffect`'s
+  double).
 - **Placement is list position, set once by the landing's builder.**
   `HitLanding.place()` reorders only the landing's span `hits[anchor..]`: the
   landing's own block `hits[anchor..lead)` in authored order, then `PRIMARY`,
@@ -212,21 +218,28 @@ before its hit and lift it).
   queue yields `(schedule_index, list order)`, so a beat's hits are adjacent;
   `drain` lands them in that order except the aspect riders
   (`HitInstance.is_aspect_rider()`, true on every `StatusInstance`, a bare one
-  included), which it holds and lands, in queue order, once the queue yields
+  included, except a status `ElementRoster.for_status` knows), which it holds and lands, in queue order, once the queue yields
   another key or runs dry. Every other hit of a beat lands before any of its
   aspect riders, each half in list order. `drain` is the one landing loop, so
   `apply` (live, shadow, every replay of a rebuilt `AttackRecord`) and the
   spell wave land in the same order. The hold is streamed, not an array
   partition, because the queue is open: a same-key hit `HitQueue.push`ed
   mid-beat still lands ahead of the held riders. A terrain rider (Heat, Cold,
-  Charge; none built) must return false and lands with the damage.
-- **A depleted node takes no aspect rider.** `StatusInstance.land_on` duds
-  itself (`gated`, power and amounts zeroed, like a gated rider) when its
-  slice is a non-core node at or below 0 HP: its beat's damage landed first
-  and depleted it. Decided on the authority (`power_resolved` unset) and
-  shipped as `AttackRecord.FLAG_GATED`; a replay honours `gated` and reads no
-  HP. A cracked core is not depleted (it never emits `depleted`); its status
-  falls through to the entity ([Statuses landing](#statuses-landing)).
+  Charge) returns false: it is neither held nor dudded and lands in list order
+  with the damage.
+- **A depleted node takes no aspect rider.** "Depleted" is "stripped by this
+  beat's hits", never "at 0 HP": a neutral or bare node at 0 HP takes its
+  riders as before. `drain` collects, per beat, the non-core nodes in each
+  landed hit's `deallocations` (the `DeallocEntry`s a kill writes onto its
+  hit: the depleted node and any node its cascade cut off; a replay's are the
+  record's), and sets `gated` on a held aspect rider whose target is one of
+  them before landing it; `StatusInstance.land_on` then duds (power and
+  amounts zeroed, like a gated rider), shipped as `AttackRecord.FLAG_GATED`.
+  The set lives in `drain`, not on `CombatWorld`: the removal collector
+  flushes per `schedule_index`, which splits an arrow from its own riders. A
+  cracked core is not depleted (it is never stripped, `was_core` entries are
+  skipped); its status falls through to the entity
+  ([Statuses landing](#statuses-landing)). A terrain rider is never dudded.
 - **The gate is memoized.** `resolve_gate(world)` decides a hit's veto once;
   the first asker decides it — the hit's own `land_on`, or a rider through
   `rider_gated`, which asks it first (only a hand-built list puts a rider
@@ -392,8 +405,8 @@ changing: Heat, Cold and Charge land as node terrain rather than host rows, #179
 
 A status hit is a `StatusInstance` an `ApplyStatusEffect` emitted.
 `StatusInstance.land_on` duds it through `rider_gated` like any rider, and on
-a non-core node at or below 0 HP (its beat's damage, which lands first,
-depleted it; ADR 0092, shipped as `FLAG_GATED`); picks the host (the entity iff the node is its owner's cracked core); folds the
+a node its own beat's hits stripped (the drain gates it, ADR 0092, shipped
+as `FLAG_GATED`); picks the host (the entity iff the node is its owner's cracked core); folds the
 attacker's `<id>_stacks_per_hit` over the authored power on the read node's
 slice, adds `stack_terms`, multiplies by `abs(crit_multiplier)` and
 `stack_scale`, rounds half-up to a whole count; zeroes it if the host blocks

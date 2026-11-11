@@ -350,10 +350,11 @@ static func _resolve(
 				var pre := outcome.hits.size()
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
 				alctx.ride_heal(pre)
-				# The infusion's hits land after the spell's own hits at this
-				# hop, in authored order (ADR 0067 §2); its statuses then wait
-				# out the rest of the wave's damage (the drain's beat order,
-				# ADR 0092).
+				# The infusion's damage-shaped hits are listed after the
+				# spell's own hits at this hop, in authored order (ADR 0067
+				# §2), and its statuses, bare, ahead of them; every status then
+				# waits out the rest of the wave's damage (the drain's beat
+				# order, ADR 0092), the intake's landing before the spell's own.
 				alctx.anchor = pre
 				alctx.lead = outcome.hits.size()
 				OnHitEffect.run_all(riders, alctx)
