@@ -155,6 +155,13 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
   - On a Burning node, the vertex's disc and the node's own go-off add up as one Fire channel (ADR 0086 §5).
   - On a Frozen node, as a Fire shape on Frozen: Ice mutes the node's own go-off and the shape runs alone (#1812). This half is tentative; confirm it with Q3's sketch.
 
+**Owner batch C, ele 4, ~13:40 (verbatim; asked with `Q1-OPINION.md` and `Q3-SKETCH.md`):**
+- **Q1, the breaker: NOT decided; a new shape from the owner.** *"Maybe non elemental riders (curse poison hex etc) land after damage after all. Might be a simpler split. Curse riders then only take effect on the next hit, which is fine"*. (The researcher had recommended (c), unmitigated at the ice, ~6/10.) Being costed before a confirm.
+- **Q3, the release count: NOT decided; the example was wrong.** *"Arrows are always sequential, don't hit simultaneously. Magic waves can though. Don't like "breaking arrival" what's it mean? 2 arrows = 2 hits after one another, if the first one breaks the ice there's no shatter to do for the 2nd. In magic, each node can still be hit once as primary target but simultaneously another primary target hit (another node) may cause *that* hit to be spread via reach e g shocked. I'd say the order should not matter so.. idk how to solve that"*. To re-sketch as a magic wave, dropping the words "breaking arrival".
+- **Q7, the vertex disc: a shape** (picked). *"I think it's best read as a shape. Or really it comes down to this: do we let *the blade node* explode, or let the *node it hits* explode? The latter points to a shape and is easier to do esp if a burning blade hitting a burning node causes a *bigger* explosion instead of 2 explosions"*. An unprimed contact node takes 1 landing and the disc fans out from it. On Burning: one bigger explosion (one Fire channel). On Frozen: Ice mutes the node's go-off and the Fire shape runs alone. #1805's "an unprimed contact node takes 2" changes to 1.
+- **Q7b, a Shocked blade vertex: the same rule** (picked). #1806 acc 7's 2 landings on an unprimed contact node change to 1.
+- Open, decided nowhere (from `Q3-SKETCH.md` § 5): does the vertex still pop if its Heat addon thaws X before the read?
+
 **Left, in order (next lead):**
 1. **DONE (ele 4, 13:30): fold the settled answers into `docs/design/elements.md`** (trim order :578, merged landing :281, absorbed thaw :350 plus the two table cells :77 and :1282, the arc :1420, the Burning vertex :654; the Frozen half of Q7 is a tentative bullet in § Open, second bullet, after the damage breaker). Originally:
    - Define the forge's trim order as socket order (§ The forge, beside "the forge's trim order").
