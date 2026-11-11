@@ -15,6 +15,7 @@ extends GutTest
 const _POISON := preload("res://effects/status/poison.tres")
 const _BOARD := preload("res://entity/default_entity_board.tres")
 const _D := 2.0
+const _MARKED := preload("res://effects/status/marked.tres")
 
 
 ## A test go-off: reaches what [member reach_of] names for the node it fires
@@ -637,6 +638,51 @@ func test_a_cast_evaluates_its_crit_conditions_once_per_landing() -> void:
 		assert_eq(ev.hits.map(func(h: HitInstance) -> int: return h.crit_tier),
 				ev.hits.map(func(_h: HitInstance) -> int: return head.crit_tier),
 				"every hit of the landing carries its head's crit tier")
+
+
+## Unit C2: a landing whose head is a bare status draws its one crit on the
+## landing's damage, so the target's incoming `crit_chance` overlays (Mark's
+## crit-taken) fold in as they did when the damage drew its own; a landing
+## whose head is its damage draws as before. Built the production way: the
+## hits appended unstamped, then [method HitLanding.place] runs the stamper.
+func test_a_status_headed_landing_draws_its_crit_through_the_targets_overlays() -> void:
+	var cc: Stat = _attacker.stat_board.get_stat(&"crit_chance")
+	cc.base_value = 0.0
+	var marked := _MARKED
+	_c(_h).apply_status(marked, ceilf(1.5 / marked.incoming_modifiers[0].value))
+	var spell := SpellDef.new()
+	for status_first: bool in [true, false]:
+		var why := " (status head)" if status_first else " (damage head)"
+		var d := DamageInstance.new()
+		_stamp(d, _h, 0)
+		d.amount = _D
+		var s := _status(_POISON, 2.0, _h, 0)
+		assert_eq(CritRoll.chance_for(s, CombatWorld.live()), 0.0, "fixture: the attacker has no crit" + why)
+		assert_true(CritRoll.chance_for(d, CombatWorld.live()) >= 1.0, "fixture: the Mark crits a damage" + why)
+		d.attacker = null
+		s.attacker = null
+		var lctx := LandingContext.new()
+		lctx.node = _h
+		lctx.anchor = 0
+		lctx.hits.append(s)
+		lctx.hits.append(d)
+		if not status_first:
+			lctx.hits.reverse()
+		lctx.lead = lctx.hits.size()
+		var rng := RandomNumberGenerator.new()
+		rng.seed = 1798
+		lctx.stamper = func(hit: HitInstance) -> void:
+			hit.attacker = _attacker
+			SpellResolver._crit_at_head(spell, lctx, hit, rng, CombatWorld.live())
+		lctx.place()
+		lctx.stamper = Callable()
+		assert_true(lctx.hits[0].is_head, "fixture: the first hit is the head" + why)
+		var once := RandomNumberGenerator.new()
+		once.seed = 1798
+		once.randf()
+		assert_eq(rng.state, once.state, "the landing draws once" + why)
+		assert_eq([lctx.hits[0].crit_tier, d.crit_tier], [1, 1],
+				"the head and the damage crit through the target's Mark" + why)
 
 
 # 10 ────────────────────────────────────────────────────────────────────────────
