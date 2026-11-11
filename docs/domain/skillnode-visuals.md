@@ -365,6 +365,18 @@ decoupled from the consumer's rebuild.
 through the convention: it is a gameplay reach in world space, not a decoration
 band.
 
+## Terrain bars
+
+`skill_node/terrain_bars.gd` + `.tscn` (#1796): a tool-script Node2D under `Visuals`, south of the node (the health bar sits north). It draws everything in `_draw` and never joins `StatusOverlay`.
+
+- **Shape.** One bar for heat/cold, Fire's tint above 0 and Ice's below, and one for Charge with a blip per stack. A block holds `degree` stacks, so the frame is the cap (k × `t_per_degree` blocks), the first `t_per_degree` blocks are inert, and a leaf counts stacks exactly. The overflow is a tail of `ceil((count − cap) / degree)` blocks past the frame, capped at `max_overflow_blocks`, flickering (`flicker_period`) and fading along its length. `TerrainBars.layout(count, degree, k, max_overflow)` is the pure layout; `bars_for(node, max_overflow)` reads one bar per nonzero element, so one label per element.
+- **The one name read.** `TerrainBars.label_for(node, element)` → `<name> <count>/<T>`. The name is the shown band's excess name the count passes (`ElementBand.excess_names`: threshold multiple → name, the key `EXCESS_AT_CAP` meaning the cap; Fire's Burning carries Blaze past 2 × T and Inferno past the cap), else the shown band's `Identity.noun`, else (inert) the terrain `StatusDef.display_name`. The shown band (`shown_band`) is the band itself or the nearest below it with an `Identity`, so Fire's and Lightning's overflow bands read Burning and Shocked, and Deep freeze its own. The label takes the shown band's colour and icon. The tooltip's terrain row calls the same read; nothing re-derives it.
+- **Show gate.** Pinned (`SkillNode.pin_health_bar`), hovered, or mid spread cue, owned or not. While shown it is subscribed to `SkillNode.terrain_changed` through a `SubBag` (`now()` paints first, `clear()` on hide).
+- **Signals.** `SkillNode.terrain_changed` (no arguments, live only) fires once per `NodeCombat.add_terrain` call that moved either int, through `notify_terrain_changed()`; a shadow never fires it. `CombatWorld.terrain_settled(changed)` (live only) fires once per world turn at the end of `flow_temperature`; `changed` is the union of the pass's `TerrainSettle.commit` results, each node once.
+- **Spread cue.** One static listener on the live world's `terrain_settled` calls `flash()` on each changed node's bars: fade in, hold `flash_hold_s`, fade out, unless hovered or pinned. It costs O(changed) per world turn, never a scan of every node.
+- **Band glow.** `SkillNode` listens to `terrain_band_changed` and calls `NodeVisualsComposite.set_terrain_glow(charge, tint, band)`, the sibling of `set_status_tint`. There are two slots, heat/cold and Charge, each the element's tint lifted by `Emissive.at` to `terrain_primed_tier` (a band at a multiple of T) or `terrain_overflow_tier` (an `at_cap` band); a null band clears the slot. Both slots multiply into `_apply_modulate` with the feedback, status and subtype tints, so no channel erases another and a node in two bands holds both glows. A product has no order, so "the temperature's under Charge's" is not expressed (tentative).
+- **Knobs** (all tentative): `block_size`, `gap`, `bar_height`, `south_offset` and `max_overflow_blocks` redraw from their setters (the bars' own scene previews a sample bar in the editor); `flicker_period` and `flash_hold_s` are tuned in the sandbox tab; the composite's `terrain_primed_tier` (VALUE) and `terrain_overflow_tier` (ALERT) re-apply from their setters.
+
 ## SkillNodeAddon contract
 
 `SkillNodeAddon` (`skill_node/addons/skill_node_addon.gd`) is a scene, not a
