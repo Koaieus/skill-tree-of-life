@@ -66,6 +66,9 @@ const KEY_BLAST_POWER := "b_pow"
 const KEY_BLAST_ATTACKER := "b_atk"
 const KEY_BLAST_RIDER_COUNT := "b_ridc"
 const KEY_BLAST_RIDER := "b_rid"
+## Per blast row, the [member BlastMark.go_off] [Identity] id ("" for none);
+## omitted when no row names one (#1798).
+const KEY_BLAST_GO_OFF := "b_goff"
 ## [member StatusInstance.def]'s `resource_path`, "" for every non-STATUS hit
 ## (#878). Same pattern as [constant KEY_TEMPO]/`_tempo_path` — the def is
 ## authored content both peers already have on disk, so shipping the path

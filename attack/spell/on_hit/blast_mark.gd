@@ -19,3 +19,7 @@ var power: int = 0
 var riders: Array[Identity] = []
 ## Whose blast it is.
 var attacker: Entity = null
+## The go-off this blast is ([HitGather]), named by the [Identity] of the band
+## holding its [GoOff], or of the nearest band below with one (#1798; for
+## go-off zero, the Explosive [Aspect]'s). Null on a blast no go-off fired.
+var go_off: Identity = null

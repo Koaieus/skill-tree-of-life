@@ -4,7 +4,8 @@ extends GutTest
 ## one runs per beat, generation by generation, admit / land / read at each
 ## node; stage two lands each gathered entry as a copy of the whole hit.
 ## Acceptance 1, 2, 2b, 3, 4, 6, 7 and 10 of the issue; Unit B1 adds the
-## second [Admits] read, the shatter and the walk end: 5, 5b and 6b.
+## second [Admits] read, the shatter and the walk end: 5, 5b and 6b; Unit B2
+## the hop seat, the go-off's mark and the burst's replay: 6c and 11.
 ##
 ## Terrain is keyed by an element's axis, so the test bands sit on the roster's
 ## own Fire (a band whose test [GoOff] logs what it is handed) and Lightning (a
@@ -20,6 +21,8 @@ const _D := 2.0
 ## on, through the base law unless told otherwise, and logs what it is handed.
 class _TestGoOff extends GoOff:
 	var reach_of: Dictionary = {}
+	## `SkillNode -> [[node, depth, ring], ...]`: reaches past depth 1 (B2).
+	var deep_of: Dictionary = {}
 	var nodeless_of: Dictionary = {}
 	var transfer_of: Dictionary = {}
 	var own_damage := 0.0
@@ -46,6 +49,10 @@ class _TestGoOff extends GoOff:
 		var out: Array[GoOffResult.Reach] = []
 		for n: SkillNode in reach_of.get(node, []):
 			out.append(GoOffResult.Reach.new(n))
+		for d: Array in deep_of.get(node, []):
+			var r := GoOffResult.Reach.new(d[0], d[1])
+			r.ring.assign(d[2])
+			out.append(r)
 		return out
 
 
@@ -82,6 +89,8 @@ class _ReadAdmits extends Admits:
 	var breaks: Dictionary = {}
 	var break_all := false
 	var ends := false
+	## `SkillNode -> true`: the nodes whose read alone says "paths end" (B2).
+	var ends_at: Dictionary = {}
 	var spend := 0
 	var burst := 0.0
 	var extra := 2
@@ -99,7 +108,7 @@ class _ReadAdmits extends Admits:
 		for i in arrivals.size():
 			if break_all or breaks.has(arrivals[i].head):
 				answer.breakers.append(i)
-		answer.paths_end = ends
+		answer.paths_end = ends or ends_at.has(node)
 		answer.spend = spend
 		answer.burst = burst
 		answer.extra_landings = extra
@@ -763,3 +772,160 @@ func test_the_second_read_is_handed_each_arrivals_own_amount() -> void:
 	assert_eq(adm.reads.map(func(r: Dictionary) -> Array: return r.amounts),
 			[[_D * 3.0], [(_D * 0.5 + 1.0) * 1.5]],
 			"a head at its stamped damage; a copy at (D × s + d) × m, its own landing's number")
+
+
+# ── Unit B2: the hop seat, the go-off's mark, the burst's replay ────────────────
+
+# 6c ────────────────────────────────────────────────────────────────────────────
+## P (H) primed in Fire at S = T; its go-off (spend 1 per node, share 1,
+## transferring 1 to each) reaches each of [param ys] at depth 1 and Z (N2) at
+## depth 2 behind them all. Y and Z sit in Lightning's band, under the test
+## read, and hold no Fire, so neither primes. One hit X on P: D, poison 2, +1.
+func _hop(adm: _ReadAdmits, ys: Array, ends: Array) -> AttackOutcome:
+	_seq.clear()
+	adm.admits.clear()
+	adm.reads.clear()
+	adm.ends_at = {}
+	for y: SkillNode in ends:
+		adm.ends_at[y] = true
+	var deep: Array = []
+	for y: SkillNode in ys:
+		deep.append([y, 1, []])
+	deep.append([_n2, 2, ys])
+	_goff.deep_of = {_h: deep}
+	for n: SkillNode in ys + [_n2]:
+		_set_light(n, _t(n) + 1)
+		_set_fire(n, 0)
+	_set_fire(_h, _t(_h))
+	return _gather([_span(_h, 1, 2)])
+
+
+func test_a_deep_reach_lands_a_generation_later_and_drops_behind_an_ended_ring() -> void:
+	var adm := _read_admits(_light.bands[0])
+	adm.extra = 0
+	_goff.lands_on_own_node = false
+	_goff.transfer_of = {_h: 1}
+	var s := _t(_h)
+	var z := _n2
+	assert_gt(_t(z), 2, "fixture: T ≥ 3, so Y and Z never prime at 2")
+	var out := _hop(adm, [_n1], [])
+	assert_eq(_seq, ["fire:H", "admit:N1:1", "read:N1:1", "admit:N2:2", "read:N2:2"],
+			"Y arrives in generation 1, Z in 2, Z's admit after Y's second read")
+	assert_eq(adm.admits.map(func(r: Dictionary) -> int: return r.count), [1, 1],
+			"Z's admit is handed its store with the transfer already in")
+	assert_eq([_damage(_entries(out, z)), _poison(_entries(out, z))], [[_D], [2.0]], "Z takes one landing")
+	assert_eq([_fire_of(z), _fire_of(_h)], [2, s + 1 - 2], "Z: transfer + rider; P spends both nodes")
+
+	_light.bands[0].admits = null
+	out = _hop(adm, [_n1], [])
+	assert_eq([_damage(_entries(out, z)), _poison(_entries(out, z)), _fire_of(z), _fire_of(_h)],
+			[[_D], [2.0], 2, s + 1 - 2], "a null Admits on Y runs the same")
+	_light.bands[0].admits = adm
+
+	out = _hop(adm, [_n1], [_n1])
+	assert_eq(_seq, ["fire:H", "admit:N1:1", "read:N1:1"], "Y ends the paths: Z is never asked")
+	assert_eq(_entries(out, z).size(), 0, "Z takes no entry")
+	assert_eq([_fire_of(z), _fire_of(_h), _fire_of(_n1)], [0, s + 1 - 1, 2],
+			"no rider and no transfer reach Z, and only Y's cost commits")
+
+	out = _hop(adm, [_n1, _n3], [_n1])
+	assert_eq(_damage(_entries(out, z)), [_D], "one ring node of two ends: Z still takes its entry")
+	out = _hop(adm, [_n1, _n3], [_n1, _n3])
+	assert_eq([_entries(out, z).size(), _fire_of(z)], [0, 0], "both ring nodes end: Z takes none")
+
+
+# 11 ────────────────────────────────────────────────────────────────────────────
+## Fire's own first band's [Identity] (Burning), one the roster holds.
+func _burning() -> Identity:
+	var id: Identity = _fire_bands[0].identity
+	assert_not_null(IdentityRoster.shared().by_id(id.id), "fixture: the roster holds Fire's band identity")
+	return id
+
+
+func _marks(hits: Array) -> Array:
+	var out: Array = []
+	for h: HitInstance in hits:
+		if not out.any(func(m: BlastMark) -> bool: return is_same(m, h.blast_mark)):
+			out.append(h.blast_mark)
+	return out
+
+
+func test_each_go_off_mints_one_mark_stamped_on_its_entries() -> void:
+	var burning := _burning()
+	_fire.bands[0].identity = burning
+	_goff.reach_of = {_h: [_n1], _n3: [_n2]}
+	_set_fire(_h, _t(_h))
+	_set_fire(_n3, _t(_n3))
+	var x := _span(_h, 1, 2)
+	var y := _span(_n3, 1, 2)
+	var outcome := _gather([x, y])
+	var from_h := _entries(outcome, _n1) + _entries(outcome, _h)
+	var marks := _marks(from_h)
+	assert_eq(from_h.size(), 4, "fixture: N1 and the centre copy on H, damage and poison each")
+	assert_eq(marks.size(), 1, "one mark on every entry of H's go-off, the centre copy's included")
+	var mark: BlastMark = marks[0]
+	assert_not_null(mark, "the go-off stamps its entries")
+	if mark != null:
+		assert_eq([mark.go_off.id if mark.go_off != null else &"", mark.centre, mark.attacker],
+				[burning.id, _h, _attacker], "naming the band's Identity, centred on H, the attacker's")
+	var from_n3 := _marks(_entries(outcome, _n2) + _entries(outcome, _n3))
+	assert_eq(from_n3.size(), 1, "N3's go-off marks its own entries")
+	assert_false(is_same(from_n3[0], mark), "a second go-off mints a second mark")
+	assert_eq(_marks(x + y), [null], "the heads' own hits carry no mark")
+
+
+func test_a_record_carries_the_go_off_mark_and_writes_no_key_unnamed() -> void:
+	var burning := _burning()
+	_fire.bands[0].identity = burning
+	_goff.reach_of = {_h: [_n1]}
+	_set_fire(_h, _t(_h))
+	var outcome: AttackOutcome = await _run([_span(_h, 1, 2)])
+	var d := AttackRecord.capture(outcome, _w.graph)
+	assert_true(d.has(AttackRecord.KEY_BLAST_GO_OFF), "a named go-off writes the column")
+	var rebuilt := AttackRecord.rebuild(d, _w.graph)
+	var marks := _marks(rebuilt.hits.slice(_orig))
+	assert_eq(marks.map(func(m: BlastMark) -> StringName:
+			return m.go_off.id if m != null and m.go_off != null else &""), [burning.id],
+			"the rebuilt entries share one mark naming the same Identity")
+
+	_fire.bands[0].identity = null
+	_set_fire(_h, _t(_h))
+	outcome = await _run([_span(_h, 1, 2)])
+	d = AttackRecord.capture(outcome, _w.graph)
+	assert_eq([d.has(AttackRecord.KEY_BLAST_CENTRE), d.has(AttackRecord.KEY_BLAST_GO_OFF)], [true, false],
+			"an unnamed go-off's mark rides the blast table and writes no new key")
+
+
+func test_a_go_off_on_a_band_with_no_identity_names_the_band_below() -> void:
+	var lower := ElementBand.new()
+	lower.identity = _burning()
+	var upper := ElementBand.new()
+	upper.go_off = _goff
+	var fb: Array[ElementBand] = [lower, upper]
+	_fire.bands = fb
+	_goff.reach_of = {_h: [_n1]}
+	_set_fire(_h, _t(_h))
+	var outcome := _gather([_span(_h, 1)])
+	var marks := _marks(_entries(outcome, _n1))
+	assert_eq(marks.map(func(m: BlastMark) -> StringName:
+			return m.go_off.id if m != null and m.go_off != null else &""), [lower.identity.id],
+			"the identity-less band's go-off names the band below")
+
+
+# The burst's replay (B1's gap) ─────────────────────────────────────────────────
+func test_a_rebuilt_burst_lands_on_the_holders_pool() -> void:
+	var adm := _read_admits(_light.bands[0])
+	adm.break_all = true
+	adm.burst = 3.0
+	adm.extra = 0
+	_goff.reach_of = {}
+	var f := _n1
+	_set_light(f, _t(f) + 4)
+	_set_fire(f, 0)
+	var outcome: AttackOutcome = await _run([_span(f, 1, 2)])
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
+	var pool := _pool(f)
+	var hp := _c(f).get_current_hp()
+	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
+	assert_eq(_pool(f), pool - 3.0, "the replay lands the burst on the holder's pool, through DotTick.mint")
+	assert_eq(_c(f).get_current_hp(), hp - _D, "and only the hit's own damage on the node")
