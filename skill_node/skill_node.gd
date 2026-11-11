@@ -75,6 +75,11 @@ signal statuses_changed
 ## [method NodeCombat.add_terrain] via [method notify_terrain_band_changed]; a
 ## sign flip of the signed t emits twice (one band leaves, the other arrives).
 signal terrain_band_changed(element: Element, from: ElementBand, to: ElementBand)
+## Live only (#1796): one per [method NodeCombat.add_terrain] call that moved
+## either terrain int, via [method notify_terrain_changed]; no arguments — read
+## the counts off [method get_combat]. A shadow write never fires it. The
+## terrain bars repaint on it.
+signal terrain_changed
 ## Emitted after every allocation_level change, once the local-scale mutator
 ## has retuned this node's modifiers — a listener re-reads level-dependent
 ## state (a [LevelGatedModifier]'s dormancy) already current. Rides the stake
@@ -296,6 +301,7 @@ var self_loops: Array[Edge] = []
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _health_bar: HealthBar = $Visuals/HealthBar
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
+@onready var terrain_bars: TerrainBars = $Visuals/TerrainBars
 
 
 ## The body composite, for a presenter that drives its
@@ -1592,6 +1598,12 @@ func notify_statuses_changed() -> void:
 ## band move from [param from] to [param to].
 func notify_terrain_band_changed(element: Element, from: ElementBand, to: ElementBand) -> void:
 	terrain_band_changed.emit(element, from, to)
+
+
+## Host contract, live only (#1796): [method NodeCombat.add_terrain] moved this
+## node's heat/cold or Charge. Same host-hook shape as [method notify_statuses_changed].
+func notify_terrain_changed() -> void:
+	terrain_changed.emit()
 
 
 ## [signal statuses_changed] handler — blends the strongest live status's

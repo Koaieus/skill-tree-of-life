@@ -154,6 +154,19 @@ var _applied_a_shape: bool = false
 @export var channel_step_tier: Emissive.Tier = Emissive.Tier.ALERT
 ## Seconds the step flash takes to decay. Tentative.
 @export_range(0.05, 2.0, 0.01) var channel_step_flash_s: float = 0.4
+## The terrain band glow's tier while a node's terrain is primed — a band at a
+## multiple of T (Burning, Frozen, Shocked), #1796. Named, never a float
+## (`docs/domain/hdr-color.md`). Tentative; the setter re-applies.
+@export var terrain_primed_tier: Emissive.Tier = Emissive.Tier.VALUE:
+	set(value):
+		terrain_primed_tier = value
+		_apply_modulate()
+## The band glow's tier at the cap — an `at_cap` band (Fire's and Lightning's
+## overflow bands, Deep freeze), #1796. Tentative; the setter re-applies.
+@export var terrain_overflow_tier: Emissive.Tier = Emissive.Tier.ALERT:
+	set(value):
+		terrain_overflow_tier = value
+		_apply_modulate()
 
 var _channel_flash: float = 0.0
 
@@ -241,6 +254,13 @@ var subtype_tint: Color = Color.WHITE:
 		subtype_tint = value
 		_apply_modulate()
 
+## The terrain band glow (#1796), one slot per terrain int — 0 heat/cold, 1
+## Charge: the element's tint and the band it is in (null: below T, no glow).
+## The lifted colour is derived at read ([method terrain_glow]) from the tier
+## exports, so a tier edit re-applies. Pushed only via [method set_terrain_glow].
+var _terrain_tint: Array[Color] = [Color.WHITE, Color.WHITE]
+var _terrain_band: Array[ElementBand] = [null, null]
+
 
 ## Whether this node currently hosts its owner's core. Gates the core-only
 ## presence visuals — the slot look and CoreSigilBloom — so they draw
@@ -272,7 +292,32 @@ func _on_identity_changed() -> void:
 ## channel can erase another: WHITE on one channel is the identity element, so
 ## an idle channel contributes nothing to the product.
 func _apply_modulate() -> void:
-	modulate = feedback_tint * status_tint * subtype_tint
+	modulate = feedback_tint * status_tint * subtype_tint \
+			* terrain_glow(false) * terrain_glow(true)
+
+
+## The band glow [param charge]'s slot shows: WHITE when its band is null, else
+## the element tint lifted to [member terrain_primed_tier], or to
+## [member terrain_overflow_tier] for an `at_cap` band. Both slots multiply into
+## [method _apply_modulate], so a node in two bands holds both glows and the
+## status tint survives either.
+func terrain_glow(charge: bool) -> Color:
+	var i := 1 if charge else 0
+	var band := _terrain_band[i]
+	if band == null:
+		return Color.WHITE
+	var tier := terrain_overflow_tier if band.at_cap else terrain_primed_tier
+	return Emissive.at(_terrain_tint[i], Emissive.stops(tier))
+
+
+## SkillNode's band-glow push (#1796), sibling of [method set_status_tint]:
+## [param tint] is the element's colour, [param band] the band it is now in
+## (null clears the slot). [param charge] picks Charge's slot over heat/cold's.
+func set_terrain_glow(charge: bool, tint: Color, band: ElementBand) -> void:
+	var i := 1 if charge else 0
+	_terrain_tint[i] = tint
+	_terrain_band[i] = band
+	_apply_modulate()
 
 
 ## Blends [param tint] toward WHITE by [param normalised_power] (#880,

@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://skill_node/shots_pips.tscn" id="8_pips"]
 [ext_resource type="PackedScene" path="res://ui/status_overlay/status_overlay.tscn" id="9_overlay"]
 [ext_resource type="Script" path="res://skill_node/node_feedback.gd" id="10_feedback"]
+[ext_resource type="PackedScene" path="res://skill_node/terrain_bars.tscn" id="11_terrain_bars"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_hit"]
 resource_local_to_scene = true
@@ -124,6 +125,9 @@ script = ExtResource("7_corehb")
 layout_mode = 1
 
 [node name="ShotsPips" parent="Visuals" instance=ExtResource("8_pips")]
+z_index = 10
+
+[node name="TerrainBars" parent="Visuals" instance=ExtResource("11_terrain_bars")]
 z_index = 10
 
 [node name="Feedback" type="Node" parent="." node_paths=PackedStringArray("host", "visuals", "hover_ring", "node_visuals")]

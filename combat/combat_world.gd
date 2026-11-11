@@ -8,6 +8,12 @@ extends RefCounted
 ## [method free_shadow]. See docs/domain/hit-resolution.md "Landing against
 ## a world: CombatWorld".
 
+## Live only: once per world turn, at the end of [method flow_temperature] —
+## [param changed] is every [NodeCombat] whose terrain the pass moved (the union
+## of its [method TerrainSettle.commit] results, each node once). The terrain
+## bars' spread cue (#1796) listens.
+signal terrain_settled(changed: Array[NodeCombat])
+
 ## Live singleton — stateless, so one instance serves every caller and the
 ## default argument on [method OutcomeApplier.apply] costs no allocation.
 static var _live: CombatWorld = null
