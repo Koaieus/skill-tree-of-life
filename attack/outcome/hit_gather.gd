@@ -93,6 +93,12 @@ class _Fired:
 	var dropped: Dictionary = {}
 
 
+const DEFAULT_TUNABLES := preload("res://attack/outcome/hit_gather_tunables.tres")
+
+## The gather's tunables, [constant DEFAULT_TUNABLES] unless a test hands it
+## its own (and puts the default back).
+static var tunables: HitGatherTunables = DEFAULT_TUNABLES
+
 var _world: CombatWorld = null
 var _hits: Dictionary = {}  # head HitInstance -> _Hit
 var _slices: Dictionary = {}  # SkillNode -> NodeCombat (null: not a node slice)

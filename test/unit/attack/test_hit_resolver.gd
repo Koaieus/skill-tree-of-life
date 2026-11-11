@@ -189,6 +189,7 @@ func before_each() -> void:
 func after_each() -> void:
 	_fire.bands = _fire_bands
 	_light.bands = _light_bands
+	HitGather.tunables = HitGather.DEFAULT_TUNABLES
 	CombatWorld.reset_live()
 
 
@@ -510,6 +511,68 @@ func test_a_transfer_commits_with_the_spend_before_the_next_admit() -> void:
 			"N2's admit is handed its store with the transfer already in")
 	assert_eq(_fire_of(_n2), 2, "the transfer and the absorbed copy's rider both land")
 	assert_eq(_copies(outcome, _n2).size(), 0, "the absorbed copy makes no entry")
+
+
+# 8 ─────────────────────────────────────────────────────────────────────────────
+## Item 8's fixture: Fire's band (A, reaching N1 and N2) and Lightning's (B,
+## reaching N2 and N3) on H, shares 1; one hit on H of damage D, Poison r and
+## one Fire terrain stack, with the switch at [param dedupe] and B primed or
+## not. H sits one Fire stack short of primed (at T), so the hit's own rider primes A.
+func _dual(dedupe: bool, b_primed: bool, a_reach: Array = [_n1, _n2]) -> AttackOutcome:
+	var tun := HitGatherTunables.new()
+	tun.dedupe_dual_reach = dedupe
+	HitGather.tunables = tun
+	_goff.log.clear()
+	_goff.reach_of = {_h: a_reach}
+	var b := _TestGoOff.new()
+	b.element = _light
+	b.reach_of = {_h: [_n2, _n3]}
+	_light.bands[0].admits = null
+	_light.bands[0].go_off = b
+	for n: SkillNode in [_n1, _n2, _n3]:
+		_set_fire(n, 0)
+		_set_light(n, 0)
+	_set_fire(_h, _t(_h))
+	_set_light(_h, _t(_h) + 1 if b_primed else 0)
+	var outcome := _gather([_span(_h, 1, 3)])
+	assert_eq(_fired_at(_h, "count").size(), 1, "A is read once at H")
+	assert_eq(b.log.filter(func(e: Dictionary) -> bool: return e.node == _h).size(), 1 if b_primed else 0,
+			"B fires once at H when primed")
+	return outcome
+
+
+func _landed(outcome: AttackOutcome, at: SkillNode) -> Array:
+	return [_damage(_copies(outcome, at)), _poison(_copies(outcome, at))]
+
+
+func test_the_whole_hit_takes_one_landing_per_channel_at_both_dedupe_settings() -> void:
+	for dedupe: bool in [false, true]:
+		var why := " (dedupe %s)" % dedupe
+		var only_a := _dual(dedupe, false)
+		assert_eq(_landed(only_a, _h), [[_D], [3.0]], "only A: H takes the head + one centre copy" + why)
+		assert_eq(_landed(only_a, _n1), [[_D], [3.0]], "only A: N1 takes 1" + why)
+		assert_eq(_landed(only_a, _n2), [[_D], [3.0]], "only A: N2 takes 1" + why)
+		assert_eq(_landed(only_a, _n3), [[], []], "only A: N3 takes none" + why)
+		assert_eq(_fire_of(_h), _t(_h) + 1 - 2, "H: its own rider once, then A's spend of 2" + why)
+		for n: SkillNode in [_n1, _n2]:
+			assert_eq(_fire_of(n), 1, "%s takes the terrain rider once%s" % [n.name, why])
+
+		var both := _dual(dedupe, true)
+		assert_eq(_landed(both, _h), [[_D, _D], [3.0, 3.0]],
+				"both: H takes the head + one centre copy per channel, never merged" + why)
+		assert_eq(_landed(both, _n1), [[_D], [3.0]], "both: N1 takes 1" + why)
+		assert_eq(_landed(both, _n3), [[_D], [3.0]], "both: N3 takes 1" + why)
+		if dedupe:
+			assert_eq(_landed(both, _n2), [[2.0 * _D], [6.0]],
+					"both, dedupe on: N2 takes one landing at share × channels" + why)
+		else:
+			assert_eq(_landed(both, _n2), [[_D, _D], [3.0, 3.0]], "both, concatenate: N2 takes 2" + why)
+		assert_eq(_fire_of(_h), _t(_h) + 1 - 2, "H: its own rider once, then A's spend" + why)
+		for n: SkillNode in [_n1, _n2, _n3]:
+			assert_eq(_fire_of(n), 1, "%s takes the terrain rider once, N2 t not 2t%s" % [n.name, why])
+
+		var none := _dual(dedupe, false, [])
+		assert_eq(_landed(none, _h), [[], []], "A reaching no other node: no centre copy" + why)
 
 
 # 10 ────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,7 @@
+[gd_resource type="Resource" script_class="HitGatherTunables" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://attack/outcome/hit_gather_tunables.gd" id="1_tunables"]
+
+[resource]
+script = ExtResource("1_tunables")
+dedupe_dual_reach = false
