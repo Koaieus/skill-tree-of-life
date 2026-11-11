@@ -245,7 +245,7 @@ ice** (owner, 2026-11-11, picked *lands as a plain hit*): a lighter
 vertex's contact lands its payload as a plain hit — no break, no burst, no
 extra landing — and then the vertex pops. Its contact still breaks the ice
 through the other two breakers (owner picked *only the touch is gated*), so
-a light vertex whose contact crits or whose raw damage clears the threshold
+a light vertex whose contact crits or whose damage (mitigated, as the floater shows it) clears the threshold
 shatters it, and that contact lands as a breaking hit: its payload, the
 break's channels and the burst, then the pop. **The burst is
 corruption-shaped** (owner, 2026-11-08: *"frozen side: effect removed at %maxhp propto the amount
@@ -265,24 +265,14 @@ crit hit landing on the node**, and **any damage at or above a flat
 threshold** — a knob, default 10% of the holder's max HP, deliberately *not*
 scaling with excess (owner: *"a flat amount not scaling with excess. else it
 would mean that a deep-frozen node would require more damage to shatter
-right? and that doesn't sound good"*). Each triggers the shatter. **The damage read is the raw amount,
-as thrown** (owner, 2026-11-11, picked over *mitigated, pre-hit*, *crit and
-blade only* and *actual damage after landing*): the arrival's own stamped
-amount, crit already multiplied in (`CritRoll.apply`), times its load
-multiplier, against the threshold. *(Reopened by the owner, 2026-11-11, 02:43: the
-break must read the number the player sees; three shapes in § Open, the
-first bullet. ADR 0091 §3 stands until the owner rules.)* Armor and the damage floor
-(`min_damage_taken`) play no part, so armor never makes ice harder to break;
-the number is already on the hit, so nothing is recomputed; and it is the
-arrival's own landing, before the break adds its channels, so the test is
-not circular. **Each arrival is tested alone** (owner, 2026-11-11, picked
+right? and that doesn't sound good"*). Each triggers the shatter. **The damage read is the number the player sees** (owner, 2026-11-11, 02:43: *"If dmg is checked first and then riders land that e.g. raise min dmg taken then the actual hit resolves differently compared to the check at the start. And that feels like gaslighting the player."*, then, ~16:29, on the beat-scoped riders-after-damage order below: *"sounds agreeable"*): the breaker reads `Mitigation.compute` (armor and the `min_damage_taken` floor, `attack/formulas/mitigation.gd`) on the arrival's amount, crit already multiplied in (`CritRoll.apply`) and times its load multiplier, against the node as it stood before the beat. That is the floater's number, because within a beat all damage lands before any aspect rider (§ Landing resolution), so no rider can move the floor or the armor between the read and the landing. Armor hardens ice (a Bolt of 12 on Bunker ice floats 6 against a threshold of 7 and holds), the floor lifts a small hit as it lifts the floater, and the "% max health" breaker stays, read mitigated. The read is the arrival's own landing, before the break adds its channels, so the test is not circular. **Each arrival is tested alone** (owner, 2026-11-11, picked
 over *summed per generation*): weak arrivals of one generation (below) never
 sum toward the threshold, which keeps one clear breaker to hand the break's
 landings to. A landing the dedupe merged (§ Landing resolution, "Dual
-reach") is one arrival at its summed multiplier (owner, 2026-11-11, picked:
+reach") is one arrival at its summed multiplier, mitigated (owner, 2026-11-11, picked:
 *"the merged landing IS the arrival: its 2x amount is tested once"*): with
 dedupe on, two channels' damage sums into the one amount the break tests,
-and with it off the entries are separate arrivals, each tested alone. This
+and with it off the entries are separate arrivals, each tested alone. A blade contact is read at what it deals, mitigated. This
 holds while a damage breaker exists. **A Frozen
 node with no holder has no flat breaker** (owner, 2026-11-11, accepted when
 asked): there is no max HP to measure against, so a copy that does not crit
@@ -307,7 +297,7 @@ end Frozen without a shatter: a thaw is not a breaker, so a Heat rider netting
 Cold below T ends Frozen with no shatter and no burst. No re-evaluation
 anywhere: the break check reads three facts, each the hit's own — its crit
 (decided at the head of the gather, pre-hit), the blade vertex's weight
-(build time) and its raw damage. **Frozen reads at two points** (owner, 2026-11-10,
+(build time) and its mitigated damage. **Frozen reads at two points** (owner, 2026-11-10,
 picked *admit on arrival, the rest after riders* over all of Frozen reading
 pre-hit): whether an arriving copy is absorbed is checked on arrival,
 against the node as it stood before this generation; the path-end and the
@@ -319,7 +309,7 @@ lands no matter what. It can thaw a freeze? Or prime a node as it hits? (Or
 that last one might be a little intense but still kinda valid?)"*). An
 absorbed copy's Heat, Cold and Charge land all the same, once per node per
 hit: Heat on an absorbed copy can thaw the ice, and a tipping rider primes
-the node as it hits (riders first, ADR 0083 §1). An arc's transferred Charge
+the node as it hits (terrain riders first, ADR 0083 §1). An arc's transferred Charge
 lands too: it moves with the spend, before the next node's admit. ADR 0087
 records this and the walk past a shatter (below), amending ADR 0083 §2.
 So a hit that freezes a node ends its own walk there, a crit or heavy hit that freezes it
@@ -497,9 +487,9 @@ rides* over flat copies; ADR 0082): a spell blast's shrapnel rolls its *own*
 crit today (its `paired` is null, so `draws_own_crit()` is true and
 `CritRoll.decide` rolls afresh — 2026-11-09 code check; the earlier "draws no
 crit" was wrong) and must come to copy the hit's crit as a melee blast's
-copies and riding landings already do. #1741's owner line
-also fixes an order inside a hit — *"elemental riders first … then other
-status(es), then damage(s)"* — which § Landing resolution must keep.
+copies and riding landings already do. A hit lands in a fixed order:
+terrain riders first, then damage, then the other statuses (owner,
+2026-11-11; § Landing resolution).
 
 An element status (Heat, Cold, Frostbite, Charge) rides exactly as
 Poison rides; it differs only in which count caps it. Catalyst rides too,
@@ -1032,9 +1022,13 @@ settles the reach [as in, total set of targets] for the hit (including
 cascades..?) and then resolve the remainder of the hit for each target
 (riders, damage?)"*, confirmed as the two stages below; ADR 0082). The
 2026-11-05 three phases (*"hold it"*) survive inside stage one, at each node;
-the shipped order inside a landing stands — riders before their hit (ADR
-0067) and the owner's #1741 order, element riders, then other statuses, then
-damage — so a Curse arrow still lifts its own hit. Every read is a pure
+the order inside a beat is terrain riders first (stage one), then all of the
+beat's damage, then the aspect riders (owner, 2026-11-11, ~16:29: *"Maybe non
+elemental riders (curse poison hex etc) land after damage after all. Might be a
+simpler split. Curse riders then only take effect on the next hit, which is
+fine"*, then, on the beat-scoped version: *"sounds agreeable. also if damage
+kills nodes it makes no sense applying statuses after"*) — so a Curse arrow
+does not lift its own hit, and a Curse takes effect from the next beat. Every read is a pure
 function of one snapshot (#1733 R4); nothing reacts mid-land.
 
 1. **Terrain: elements land, the reach is gathered.** Owner, 2026-11-10,
@@ -1067,17 +1061,24 @@ function of one snapshot (#1733 R4); nothing reacts mid-land.
    attack record's blast table, one mark and its copies — before anything
    else lands.
 2. **Payload: the remainder lands per target.** For every gathered entry the
-   other status riders, then the damage, land at that entry's share (a
-   concatenated node takes one landing per entry). Nothing in this stage
-   touches a terrain stack, so an aspect rider can never change reach.
+   damage, then the aspect riders (Curse, Poison, Hex, Sunder, Wither,
+   Bleeding, Marked and the rest), land at that entry's share (a
+   concatenated node takes one landing per entry), beat-scoped: within a
+   beat, all damage lands before any aspect rider, so every arrival of every
+   generation reads the node as it stood before the beat. A node the beat's
+   damage depletes (HP 0) takes none of that beat's aspect riders (owner,
+   2026-11-11: *"if damage kills nodes it makes no sense applying statuses
+   after"*). Nothing in this stage touches a terrain stack, so an aspect
+   rider can never change reach.
 
 A hit carrying +1 Heat onto a 5-Cold node lands it, leaves 4, and is read
 against 4: it thaws for itself. A hit carrying +1 Charge onto a node one
 short of Shocked arcs from it. A Cold *copy* onto a Frozen node is absorbed
 but lands its Cold, so a copy deepens a freeze as a direct hit does. The
 order per target in
-stage two is unchanged (owner, 2026-11-10, asked whether damage now lands
-before the aspect riders: *keep riders before damage*). The same terrain
+stage two is damage, then aspect riders (owner, 2026-11-11, ~16:29, reversing
+2026-11-10's *keep riders before damage*); terrain riders keep landing first.
+The same terrain
 settle runs after every world-turn tick.
 
 **Build shape (2026-11-09).** Stage one runs when the hit *lands*, not where
@@ -1201,7 +1202,7 @@ takes 1 + (channels) loads, other nodes besides central take
 and never the hit node's, so the hit node takes 1 + 1 per channel either
 way (below) and always more than any collateral. **Switched off** (the
 default), a node gathered by two reaches is two entries, each landing the
-aspect riders and the damage (owner, 2026-11-10: *"riders twice, payload
+damage and the aspect riders (owner, 2026-11-10: *"riders twice, payload
 twice. charged burning nodes sounds like a dangerous concept"*; its terrain
 riders land once, stage one's cap). **Switched on**, that node takes one
 landing at share × channels, summed (owner, 2026-11-11, picked *one
@@ -1295,9 +1296,9 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | On the node ↓ / arriving → | a hit (a copy and a blade vertex included) | the opposite temperature (rider or flow) | a Frostbite pack |
 |---|---|---|---|
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
-| **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
+| **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (terrain riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (terrain riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1553,47 +1554,6 @@ hit; the keystone grants its element while held.
 
 ## Open
 
-- **The damage breaker reads a number the player never sees** (owner,
-  2026-11-11, 02:43; reopens the raw-as-thrown pick in § What breaks the
-  ice and ADR 0091 §3): *"If dmg is checked first and then riders land
-  that e.g. raise min dmg taken then the actual hit resolves differently
-  compared to the check at the start. And that feels like gaslighting the
-  player."* The floater shows `max(min_damage_taken, raw − armor)`
-  (`attack/formulas/mitigation.gd`) after the hit's own aspect riders land,
-  and a Curse raises `min_damage_taken` (`docs/domain/status-effects.md`,
-  the family table); the breaker reads the raw amount before either. So the
-  break and the shown number disagree both ways: armor lets a 4-damage
-  floater shatter the ice, and a Curse floor can leave a 12-damage floater
-  short of it. The owner's criterion: **the rule reads the number the
-  player sees.** Three shapes meet it; none is picked.
-  1. **Crit and blade only.** The flat damage breaker goes. Both breakers
-     left are pre-hit facts the player sees as events (the crit floater, the
-     blade snap). Owned and unowned ice get one rule (a holder-less node
-     already has no flat breaker), and the tentative reading on a
-     dedupe-merged arrival goes with it. Cost: it drops the owner's
-     2026-11-08 *"a hit that deals X amount of % max health"*, and the Cold
-     spell's concentrated seed (#1789) no longer breaks ice on damage
-     alone. That may be no loss: a Cold spell deepening its own freeze is
-     thematic, and Thermal shock carries the break after a forge swap. It
-     was one of batch 7's four options; raw, as thrown, was picked over it.
-  2. **The arrival's own aspect riders land before the read.** The break
-     runs the same `Mitigation.compute` the landing will, and stage two
-     lands that landing's damage with nothing in between. It keeps the
-     owner's breaker, and a Curse arrow visibly helps break ice. Cost: the
-     break decides reach (a shattered node lets paths walk on), so the
-     aspect riders that feed the read would decide reach through Frozen,
-     which ADR 0082's invariant forbids (stage two never changes reach)
-     unless those riders move into stage one; and stage two needs an
-     ordering rule: the arrival's own damage lands before any other entry's
-     riders at that node.
-  3. **Frozen takes damage unmitigated.** Thrown then equals shown, so ADR
-     0091 §3 stands as written. Cost: a new damage rule the owner never
-     floated. Listed, not leaned on.
-
-  **Lead's lean, tentative, not the owner's:** shape 1, on the owner's
-  *"most often the simple gameplay mechanics are best"* (same message).
-  Reversing ADR 0091 §3 takes the owner's ruling and a new ADR; until then
-  the issue bodies follow 0091 as it stands, with a NOTE naming this fork.
 - **Catalyst, settled and what remains** (owner, 2026-11-09). Settled in § The
   threshold model: Catalyst is one element-generic converter in no family, the
   world-tick fuse is dropped (it converts at landing, so no node holds it
