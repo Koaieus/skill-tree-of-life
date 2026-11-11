@@ -83,6 +83,13 @@ var target_mask: int = 0
 ## stamps one dict on every landing of the wave); a blast's chained
 ## [DetonateEffect] shares its parent's, so a chain never sets a node off twice.
 var detonated: Dictionary = {}
+## What the landing site stamps onto each hit of its span, as
+## `func(hit: HitInstance) -> void` — run by [method place] over
+## [code]hits[anchor..][/code] once ordered, in placed order. A spell's stamps
+## the caster, its crit conditions and the wave ordinal, and files the hit on
+## its timeline event; an arrow's stamps its ammo id onto every rider. Unset =
+## nothing stamped (a blade contact).
+var stamper: Callable = Callable()
 
 static var _next_hit_key: int = 1
 
@@ -128,11 +135,30 @@ func emit(hit: HitInstance) -> void:
 	hits.append(hit)
 
 
+## Copies the eight facts every hit of this landing shares — [member attacker],
+## [member source], [member origin], [member read_node], [member target],
+## [member structural_key], [member paired], [member hit_key] — onto
+## [param hit]: the one landing-to-hit stamping an effect's minted hit takes
+## ([method StatusInstance.stamp_landing], [DetonateEffect]'s cure,
+## [PairedDamageEffect]'s share). Anything kind-specific is the caller's own
+## write.
+func copy_facts_to(hit: HitInstance) -> void:
+	hit.attacker = attacker
+	hit.source = source
+	hit.origin = origin
+	hit.read_node = read_node
+	hit.target = target
+	hit.structural_key = structural_key
+	hit.paired = paired
+	hit.hit_key = hit_key
+
+
 ## Order this landing's span by [method HitInstance.land_priority]: the
 ## riders after [member lead] that land BEFORE, then the landing's own block
 ## [code]hits[anchor..lead)[/code] untouched, then the riders that land PRIMARY,
 ## then AFTER — authored order kept within each (a stable partition, never a
-## sort). Called once by the landing's builder, after its effects ran.
+## sort), then runs [member stamper] over the placed span. Called once by the
+## landing's builder, after its effects ran.
 ## Landing-scoped: hits outside the span, another arrow's included, never move.
 func place() -> void:
 	if anchor < 0 or anchor >= hits.size():
@@ -153,6 +179,9 @@ func place() -> void:
 		for hit: HitInstance in bucket:
 			hits[at] = hit
 			at += 1
+	if stamper.is_valid():
+		for i in range(anchor, hits.size()):
+			stamper.call(hits[i])
 
 
 func _init() -> void:

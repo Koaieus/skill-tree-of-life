@@ -41,14 +41,7 @@ func apply(landing: HitLanding) -> void:
 				uses_board_pierce, armor_pierce_modifiers)
 		hit = damage
 	hit.amount = fraction * landing.raw_amount
-	hit.attacker = landing.attacker
-	hit.source = landing.source
-	hit.origin = landing.origin
-	hit.read_node = landing.read_node
-	hit.target = landing.target
-	hit.structural_key = landing.structural_key
-	hit.paired = landing.paired
-	hit.hit_key = landing.hit_key
+	landing.copy_facts_to(hit)
 	landing.emit(hit)
 
 

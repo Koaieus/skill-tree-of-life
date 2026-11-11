@@ -334,6 +334,19 @@ static func _resolve(
 			# the arrival that appended it.
 			for alctx: LandingContext in arrivals_of[state]:
 				alctx.detonated = detonated
+				# Run by `place()` over every hit this landing appended. The
+				# caster is stamped HERE rather than inside each OnHitEffect:
+				# every effect that appends a hit needs it (the shared crit roll
+				# reads its board), and one place that cannot be forgotten beats
+				# N places that can.
+				alctx.stamper = func(hit: HitInstance) -> void:
+					hit.attacker = ctx.caster
+					_stamp_crit_conditions(spell, alctx, hit)
+					# Magic's structural parameter is purely ORDINAL -- which wave
+					# this landing belongs to, nothing more. The compiler turns it
+					# into seconds; this walk never names one (#543).
+					hit.structural_key = float(state.hop_index)
+					ev.hits.append(hit)
 				var pre := outcome.hits.size()
 				OnHitEffect.run_all(spell.on_hit_effects, alctx)
 				alctx.ride_heal(pre)
@@ -344,19 +357,9 @@ static func _resolve(
 				alctx.lead = outcome.hits.size()
 				OnHitEffect.run_all(riders, alctx)
 				alctx.place()
-				for i in range(pre, outcome.hits.size()):
-					var hit: HitInstance = outcome.hits[i]
-					# The caster is stamped HERE rather than inside each
-					# OnHitEffect: every effect that appends a hit needs it (the
-					# shared crit roll reads its board), and one place that cannot
-					# be forgotten beats N places that can.
-					hit.attacker = ctx.caster
-					_stamp_crit_conditions(spell, alctx, hit)
-					# Magic's structural parameter is purely ORDINAL -- which wave
-					# this landing belongs to, nothing more. The compiler turns it
-					# into seconds; this walk never names one (#543).
-					hit.structural_key = float(state.hop_index)
-					ev.hits.append(hit)
+				# The stamper captures `alctx`: dropped once placed, so the
+				# context and its own callable are not a reference cycle.
+				alctx.stamper = Callable()
 			outcome.timeline.append(ev)
 			event_of[state] = ev
 			ctx.bump_visit(state.current_node)
@@ -370,11 +373,14 @@ static func _resolve(
 		# `land_one`), wave by wave, append order within a wave -- the order
 		# `OutcomeApplier.in_arrival_order` would land them, since magic's key
 		# is the hop ordinal with an index-stable tiebreak.
-		for i in range(wave_first, outcome.hits.size()):
-			OutcomeApplier.land_one(outcome.hits[i], world, null, crit_rng)
-		# One wave, one beat: its strips spill over their union before step
-		# 4's filter reads the world.
-		world.flush_removals()
+		#
+		# The wave lands through the applier's own drain, over a queue of just
+		# this wave's hits: un-awaited on an instant clock, so it never parks
+		# and lands the whole wave before this returns. One wave, one beat: the
+		# drain's closing flush spills its strips over their union before step
+		# 4's filter reads the world. No blast cue: a cast world has no audience.
+		OutcomeApplier.drain(HitQueue.over(outcome.hits, wave_first), world,
+				BeatClock.instant_clock(), null, crit_rng)
 
 		# 4. Expand next wave: filter narrows → spread selects → config mints.
 		var next_wave: Array[CastSpell] = []

@@ -166,14 +166,7 @@ static func _world(landing: HitLanding) -> CombatWorld:
 static func _spend(landing: HitLanding, def: StatusDef, on_core: bool, count: int) -> CureInstance:
 	var cure := CureInstance.new()
 	cure.add(def, float(count), on_core)
-	cure.attacker = landing.attacker
-	cure.source = landing.source
-	cure.origin = landing.origin
-	cure.read_node = landing.read_node
-	cure.target = landing.target
-	cure.structural_key = landing.structural_key
-	cure.paired = landing.paired
-	cure.hit_key = landing.hit_key
+	landing.copy_facts_to(cure)
 	return cure
 
 

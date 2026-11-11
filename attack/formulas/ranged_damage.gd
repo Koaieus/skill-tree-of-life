@@ -96,13 +96,14 @@ static func ride(hit: DamageInstance, hits: Array[HitInstance], gather_cache: Di
 		effects = arrow.ammo_type.on_hit_effects
 	var landing := HitLanding.riding(arrow, hits, gather_cache)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
+	# Every rider carries its arrow's ammo id; `place()` runs this over the span.
+	landing.stamper = func(h: HitInstance) -> void:
+		if h != arrow:
+			h.ammo_type_id = arrow.ammo_type_id
 	OnHitEffect.run_all(DetonateEffect.arm(effects), landing)
 	landing.place()
 	if hits.size() - landing.anchor <= 1 and effects.is_empty():
 		arrow.hit_key = 0
-	for i in range(landing.anchor, hits.size()):
-		if hits[i] != arrow:
-			hits[i].ammo_type_id = arrow.ammo_type_id
 
 
 ## [param hit]'s riders alone, in the order [method ride] places them around
