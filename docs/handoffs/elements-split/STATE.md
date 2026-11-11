@@ -147,6 +147,33 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - *"get these issues all clear and ready"* is the go for phase 2, gated: no live `whip-*.md` swarm-train ledger, and the issue carries no open fork.
 
 ## NEXT LEAD START HERE (overnight leads, 2026-11-11, from 02:50; relay lead 2 handed off at 03:51, relay lead 3 at 04:30, relay lead 4 at 04:45, relay lead 5 finished phase 2 at 04:55; the 02:45 notes follow below)
+**READ FIRST: ele 5, 2026-11-11 ~17:50. Steps 1-4 of ele 4's list below are done, and step 5 is done apart from the owner's calls. Nothing is in flight. Skip ele 4's list.**
+- **Done (on master):**
+  - **`elements.md`:**
+    - Q3 is folded (`6b6a7443`).
+    - The owner's 16:48 call (recorded under Q3 DECIDED below) marks it tentative, with the union-per-channel fallback (`ac17eab3`).
+  - **ADRs (`b75276e3`; comment on #1716):**
+    - **0092:** within a beat, all damage lands before any aspect rider. The ice reads the floater, and a depleted node takes no aspect riders. It supersedes 0067 §1, 0083 §3, a clause of 0082 §2, and 0091 §3. Old records stay `accepted`, per the house's partial-supersede convention (the hygiene check is green).
+    - **0093:** the merged landing is one arrival. A thawing absorbed copy walks on. The ice releases once per breaking hit (tentative; `revisit-when` names the playtest and the fallback). A blade vertex is a shape on the node it hits. An arc pays for what it reaches.
+    - **Gated out, the trim order (socket order):** it keeps what `clamp_infusion` already does, so there is nothing to supersede, and its extension to #1809's shape and ride is undecided. Its home is `elements.md` § The forge, plus #1809 and #1814.
+- **Board:**
+  - **New: #1818** (aspect riders after damage, beat-scoped; the depleted-node skip; ADR 0092).
+    - A child of #1716: P1, Content depth, in Intake, intended lane Ready.
+    - #1798 and #1807 are blocked by #1818.
+  - **To Ready:** #1798, #1804, #1805, #1806, #1807, #1808, #1812 and #1813.
+  - **#1816 is still in Designing.** The clerk refused to move it because it had no stamp. It has one now, so it needs one clerk line to move it to Ready.
+  - **Still in Designing:** #1789 (its own six open questions), #1809 and #1814 (question A).
+  - **Bodies:** every owner call is in the issue bodies. All 22 children are restamped at `b75276e3`, and #1818 is stamped there.
+    - **Gotcha:** this worktree's local `master` is stale, so run `mise run issue-drift -- <n> --base origin/master`.
+- **For the owner:**
+  - **A. #1809 and #1814:** where do the shape and the ride stand in the socket order, against each other and against the aspects? When the counts or the cap cut a loadout, which gives way first? The lead's reading ("the later-socketed gives way") had nothing to compare. Shape and ride are fixed fields with no socket sequence, and #1814's NOTES state no "ride-after-aspects" order.
+  - **B.** Does a blade vertex still pop if its Heat addon thaws X before the read? This has been open since `Q3-SKETCH.md` § 5.
+  - **C.** May I delete this folder and `docs/handoffs/elements.md`? First grep the issue bodies and ADRs for `docs/handoffs`.
+  - **Tentative readings in Ready bodies (they block nothing):**
+    - #1812: a shape adds into the released go-off once the hit breaks the ice.
+    - #1813: only the seed's head carries the hops removed, and several breakers' cuts sum into one burst.
+    - #1818: a bare status counts as an aspect rider, and a cracked core is not depleted.
+
 **READ FIRST — ele 4 handed off at 16:50 (2026-11-11, at its context budget). Every owner question is answered; read the "Owner batch C" bullets below, then do this list. Skip ele 3's list further down, which is done or superseded.**
 - **Done in ele 4 (on master):**
   - **`elements.md`:**
