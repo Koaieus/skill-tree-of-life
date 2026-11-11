@@ -143,9 +143,10 @@ func test_innate_zero_lands_nothing() -> void:
 	assert_true(Infusion.innate(SpellDef.new()).riders(SpellDef.new()).is_empty())
 
 
-## An infusion's status lands before the spell's own hit at its landing
-## (ADR 0067), though the riders still RUN after the spell's effects.
-func test_an_infusion_status_lands_before_the_spells_own_hit() -> void:
+## An infusion's status is LISTED before the spell's own hit at its landing
+## (a bare status keeps its ADR 0067 slot), though the riders still RUN after
+## the spell's effects; the drain lands it after the beat's damage (ADR 0092).
+func test_an_infusion_status_is_listed_before_the_spells_own_hit() -> void:
 	var outcome := _cast([_intake(_POISON, 1)] as Array[AspectIntake], 0)
 	assert_eq(outcome.hits.size() >= 2, true)
 	var damage_at := -1

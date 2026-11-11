@@ -50,8 +50,17 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 	# order, once the queue yields a hit of another key or runs dry. A same-key
 	# hit pulled meanwhile (a pushed one included) lands ahead of the held
 	# riders: all of a beat's damage, then all of its aspect riders.
+	#
+	# A held rider on a node its beat's landed hits stripped (the
+	# [DeallocEntry]s a kill writes onto its hit, a replay's recorded ones
+	# alike; a cracked core is none) lands as a dud: a node the beat's damage
+	# depletes takes none of its aspect riders (ADR 0092 §3). Kept here, not on
+	# the world: the removal collector flushes per `schedule_index`, which
+	# splits an arrow from its own riders.
 	var held: Array[HitInstance] = []
 	var incoming: HitInstance = null
+	var depleted := {}
+	var beat_key := NAN
 	while true:
 		if incoming == null and queue.has_next():
 			incoming = queue.next()
@@ -59,6 +68,8 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		if not held.is_empty() and (incoming == null
 				or incoming.structural_key != held[0].structural_key):
 			hit = held.pop_front()
+			if not hit.gated and depleted.has(hit.target):
+				hit.gated = true
 		elif incoming != null:
 			hit = incoming
 			incoming = null
@@ -77,7 +88,13 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
+		if not hit.is_aspect_rider() and hit.structural_key != beat_key:
+			beat_key = hit.structural_key
+			depleted.clear()
 		land_one(hit, world, alloc, crit_rng, queue)
+		for e: DeallocEntry in hit.deallocations:
+			if e != null and e.node != null and not e.was_core:
+				depleted[e.node] = true
 		if announced != null:
 			_announce_blast(hit, world, announced)
 	world.flush_removals()

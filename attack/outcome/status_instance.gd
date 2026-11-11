@@ -79,32 +79,41 @@ static func stamp_landing(status: StatusInstance, p_def: StatusDef, landing: Hit
 	landing.copy_facts_to(status)
 
 
-## Every status lands AFTER its paired hit (ADR 0092, superseding ADR 0067 §1):
-## its effect (a curse floor, a sunder, a mark) lifts the hits of later beats,
-## never its own. [method is_aspect_rider] then holds it behind the rest of its
-## beat at land ([method OutcomeApplier.drain]).
+## A status riding a lead ([member HitInstance.paired]: an arrow's, a
+## contact's) is listed AFTER it (ADR 0092, superseding ADR 0067 §1), and so is
+## a blast's status or a splash copy ([member HitInstance.blast_mark] /
+## [member HitInstance.land_mask], both stamped before the landing is placed).
+## A bare status (magic's, an infusion's) keeps its ADR 0067 slot ahead of its
+## landing's own block, so an intake's stacks are on the row before the
+## spell's own row operations read it (Gloomflux: add, then double). Either
+## way it lands after its beat's damage: [method is_aspect_rider] holds it
+## there ([method OutcomeApplier.drain]), so its effect (a curse floor, a
+## sunder, a mark) lifts the hits of later beats, never its own.
 func land_priority() -> int:
-	return LandPriority.AFTER
+	if paired != null or blast_mark != null or land_mask != 0:
+		return LandPriority.AFTER
+	return LandPriority.BEFORE
 
 
-## Every status is an aspect rider today, a bare one with no paired hit
-## included; a terrain rider (Heat, Cold, Charge, none built) overrides this
-## back to false.
+## Every status is an aspect rider, a bare one with no paired hit included,
+## except an element's own status (Heat, Cold, Charge: one
+## [method ElementRoster.for_status] recognises), a terrain rider that lands in
+## stage one, unheld and never dudded on a depleted node.
 func is_aspect_rider() -> bool:
-	return true
+	return ElementRoster.shared().for_status(def) == null
 
 
 ## Land the status on [param node] (a [NodeCombat]: a shadow slice mid-resolve,
 ## or the live slice on a real landing / a peer's replay). Falls through to the
 ## ENTITY iff the node is its owner's cracked core. A dud, like a gated rider,
-## on a non-core node already at 0 HP: its own beat's damage landed first and
-## depleted it (ADR 0092). Decided once on the authority and shipped as
-## [constant AttackRecord.FLAG_GATED], so a replay honours [member gated] and
-## reads no HP. Stacks are folded once on the authority (scaling,
+## when it arrives [member gated] already: [method OutcomeApplier.drain] gates
+## an aspect rider on a node its own beat's damage depleted (ADR 0092 §3). The
+## dud ships as [constant AttackRecord.FLAG_GATED], so a replay lands the same
+## dud. Stacks are folded once on the authority (scaling,
 ## [member stack_terms], crit, Greed) and a rebuilt hit lands its recorded
 ## number as-is. See docs/domain/status-effects.md "StatusInstance.land_on".
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
-	if gated or rider_gated(node, world) or _lands_on_depleted(node):
+	if gated or rider_gated(node, world):
 		gated = true
 		power = 0.0
 		amount = 0.0
@@ -150,14 +159,6 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	host.apply_status(def, power, _attacker_camp_id(), _attacker_id())
 	amount = power
 	effective_amount = power
-
-
-## Whether [param node] is a non-core node at or below 0 HP, asked only on the
-## authority ([member power_resolved] unset). A cracked core is not depleted:
-## it never emits `depleted` (its damage overflows into the owner's `health`),
-## and its status falls through to the entity instead.
-func _lands_on_depleted(node: NodeCombat) -> bool:
-	return not power_resolved and not node.is_core() and node.get_current_hp() <= 0.0
 
 
 ## Whether this landing is a debuff with stacks AND [param host] arms Greed

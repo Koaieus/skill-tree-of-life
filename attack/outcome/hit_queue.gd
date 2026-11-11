@@ -6,7 +6,8 @@ extends RefCounted
 ##
 ## Land order is `(schedule_index, insertion order)` — the structural key, never
 ## [member HitInstance.arrival_time] (#543 D2; see
-## [method OutcomeApplier.in_arrival_order]). It is also the order the crit
+## [method OutcomeApplier.in_arrival_order]); [method OutcomeApplier.drain]
+## then holds a beat's aspect riders behind its other hits (ADR 0092). It is also the order the crit
 ## stream is drawn in ([method CritRoll.decide] runs inside each landing), so
 ## what this queue yields next is a determinism fact, not a style.
 ##

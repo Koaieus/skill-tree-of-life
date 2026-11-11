@@ -98,7 +98,7 @@ func test_bites_step_down_the_walk_and_the_zero_hop_is_terminal() -> void:
 	assert_null(_event_on(r.outcome, n[5]), "nothing past it")
 
 
-func test_each_bite_lands_its_status_before_its_damage_under_its_own_key() -> void:
+func test_each_bite_lists_its_status_before_its_damage_under_its_own_key() -> void:
 	var r := _cast(LINE, [_sunder(), DamageEffect.new()], 3.0, {max_hops = 0})
 	var hits := _hits_on(r.outcome, r.n[1])
 	assert_eq(hits.map(func(x): return x is DamageInstance), [false, true, false, true, false, true],
@@ -110,15 +110,18 @@ func test_each_bite_lands_its_status_before_its_damage_under_its_own_key() -> vo
 	assert_eq(keys.size(), 3, "three bites, three distinct keys")
 
 
-func test_each_bite_sees_the_sunder_the_bite_before_it_landed() -> void:
+## A hop's bites share its structural key, so they are one beat: every bite's
+## damage lands before any bite's sunder (ADR 0092), and the ramp moves to the
+## next wave ([method test_a_later_wave_sees_an_earlier_waves_sunder]).
+func test_a_hops_bites_all_meet_the_armor_as_it_stood() -> void:
 	var r := _cast(LINE, [_sunder(), DamageEffect.new()], 3.0, {max_hops = 0}, 6.0)
 	var dmg := _damage_on(r.outcome, r.n[1])
 	assert_eq(dmg.size(), 3)
 	if dmg.size() != 3:
 		return
-	assert_gte(dmg[1].effective_amount, dmg[0].effective_amount, "bite 2 lands on less armor than bite 1")
-	assert_gte(dmg[2].effective_amount, dmg[1].effective_amount, "bite 3 on less than bite 2")
-	assert_gt(dmg[2].effective_amount, dmg[0].effective_amount, "the ramp is real, not flat")
+	assert_eq(dmg[0].structural_key, dmg[2].structural_key, "fixture: the bites are one beat")
+	assert_eq(dmg[1].effective_amount, dmg[0].effective_amount, "bite 2 meets bite 1's armor")
+	assert_eq(dmg[2].effective_amount, dmg[0].effective_amount, "bite 3 too: no ramp inside a beat")
 
 
 func test_a_later_wave_sees_an_earlier_waves_sunder() -> void:

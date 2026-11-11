@@ -354,7 +354,11 @@ func _cast(spell: SpellDef, infusion: Infusion, enemy: bool) -> Array:
 	return [n, SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, infusion)]
 
 
-func test_an_infusion_status_lands_after_the_spells_own_hits_at_its_hop() -> void:
+## An infusion's status is listed ahead of the spell's own hit at its hop (a
+## bare status keeps its ADR 0067 slot) and lands after it: one hop is one
+## beat, and the drain holds the beat's aspect riders behind its damage
+## (ADR 0092).
+func test_an_infusion_status_is_listed_first_and_lands_after_the_spells_own_hit() -> void:
 	var r: Array = _cast(_VENOM, null, true)
 	var outcome: AttackOutcome = r[1]
 	var status_at := -1
@@ -369,7 +373,14 @@ func test_an_infusion_status_lands_after_the_spells_own_hits_at_its_hop() -> voi
 			own_at = i
 	assert_gt(status_at, -1, "fixture: venom's innate poison rides the seed")
 	assert_gt(own_at, -1, "fixture: venom's burst hits the seed")
-	assert_gt(status_at, own_at, "the infusion rider lands after the spell's own hit")
+	assert_lt(status_at, own_at, "listed ahead of the spell's own hit")
+	if status_at < 0 or own_at < 0:
+		return
+	var status := outcome.hits[status_at]
+	var own := outcome.hits[own_at]
+	assert_eq(status.structural_key, own.structural_key, "one hop, one beat")
+	assert_true(status.is_aspect_rider(), "the infusion status is held behind the beat")
+	assert_false(own.is_aspect_rider(), "the spell's own hit is not, so it lands first")
 
 
 func test_a_heal_spells_rider_still_pairs_the_heal() -> void:
