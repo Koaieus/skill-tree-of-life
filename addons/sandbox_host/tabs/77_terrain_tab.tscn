@@ -1,0 +1,163 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://addons/sandbox_host/sandbox_live_tab.tscn" id="1_base"]
+[ext_resource type="Script" path="res://addons/sandbox_host/tabs/77_terrain_panel.gd" id="2_panel"]
+[ext_resource type="PackedScene" path="res://ui/theme/bloom_viewport.tscn" id="3_vp"]
+
+[node name="Terrain" instance=ExtResource("1_base")]
+tab_title = "Terrain"
+tab_id = &"terrain"
+loader_method = &"noop"
+
+[node name="TitleLabel" parent="Layout/Toolbar" index="0"]
+text = "Terrain"
+
+[node name="TerrainPanel" type="PanelContainer" parent="Layout/Split/PanelHost" index="0"]
+script = ExtResource("2_panel")
+layout_mode = 2
+
+[node name="Split" type="HBoxContainer" parent="Layout/Split/PanelHost/TerrainPanel"]
+layout_mode = 2
+
+[node name="Knobs" type="VBoxContainer" parent="Layout/Split/PanelHost/TerrainPanel/Split"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+
+[node name="NodeLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Node"
+
+[node name="Node" type="OptionButton" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+item_count = 4
+selected = 0
+popup/item_0/text = "Hub"
+popup/item_0/id = 0
+popup/item_1/text = "Leaf 1"
+popup/item_1/id = 1
+popup/item_2/text = "Leaf 2"
+popup/item_2/id = 2
+popup/item_3/text = "Leaf 3"
+popup/item_3/id = 3
+
+[node name="TLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "T (signed heat/cold)"
+
+[node name="T" type="HSlider" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = -60.0
+max_value = 60.0
+step = 1.0
+value = 18.0
+
+[node name="ChargeLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Charge"
+
+[node name="Charge" type="HSlider" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.0
+max_value = 40.0
+step = 1.0
+value = 0.0
+
+[node name="Apply" type="Button" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Apply"
+
+[node name="StepsLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Steps"
+
+[node name="Steps" type="SpinBox" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 1.0
+max_value = 8.0
+step = 1.0
+value = 1.0
+
+[node name="StepTurn" type="Button" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Step world turn"
+
+[node name="PinBars" type="CheckBox" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+button_pressed = true
+text = "Pin bars"
+
+[node name="FlickerLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Flicker period (s)"
+
+[node name="Flicker" type="HSlider" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.05
+max_value = 4.0
+step = 0.01
+value = 0.4
+
+[node name="FlashLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Flash hold (s)"
+
+[node name="Flash" type="HSlider" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 5.0
+step = 0.05
+value = 0.8
+
+[node name="ZoomLabel" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+layout_mode = 2
+text = "Zoom"
+
+[node name="Zoom" type="HSlider" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+min_value = 0.25
+max_value = 3.0
+step = 0.05
+value = 1.0
+
+[node name="Reset" type="Button" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Reset"
+
+[node name="Readout" type="Label" parent="Layout/Split/PanelHost/TerrainPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="Layout/Split/PanelHost/TerrainPanel/Split"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
+stretch = true
+
+[node name="World" parent="Layout/Split/PanelHost/TerrainPanel/Split/ViewportContainer" instance=ExtResource("3_vp")]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(600, 400)
+render_target_update_mode = 4
+
+[node name="Bg" type="ColorRect" parent="Layout/Split/PanelHost/TerrainPanel/Split/ViewportContainer/World"]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0.02, 0.025, 0.035, 1)
+
+[node name="Stage" type="Node2D" parent="Layout/Split/PanelHost/TerrainPanel/Split/ViewportContainer/World"]
+unique_name_in_owner = true
