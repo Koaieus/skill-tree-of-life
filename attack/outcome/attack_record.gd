@@ -69,6 +69,9 @@ const KEY_BLAST_RIDER := "b_rid"
 ## Per blast row, the [member BlastMark.go_off] [Identity] id ("" for none);
 ## omitted when no row names one (#1798).
 const KEY_BLAST_GO_OFF := "b_goff"
+## Per blast row, the [member BlastMark.generation]; omitted when every row is
+## generation 0 (#1799).
+const KEY_BLAST_GENERATION := "b_gen"
 ## [member StatusInstance.def]'s `resource_path`, "" for every non-STATUS hit
 ## (#878). Same pattern as [constant KEY_TEMPO]/`_tempo_path` — the def is
 ## authored content both peers already have on disk, so shipping the path
@@ -234,6 +237,7 @@ var blast_attackers := PackedInt32Array()
 var blast_rider_counts := PackedInt32Array()
 var blast_riders := PackedStringArray()
 var blast_go_offs := PackedStringArray()
+var blast_generations := PackedInt32Array()
 var status_defs := PackedStringArray()
 var status_hosts := PackedInt32Array()
 var status_keys := PackedInt32Array()
@@ -364,6 +368,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"blast_rider_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_RIDER_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"blast_riders", TYPE_PACKED_STRING_ARRAY).as_key(KEY_BLAST_RIDER).omitted_at_default(),
 		WireFields.Field.new(&"blast_go_offs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_BLAST_GO_OFF).omitted_at_default(),
+		WireFields.Field.new(&"blast_generations", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_GENERATION).omitted_at_default(),
 	]
 
 

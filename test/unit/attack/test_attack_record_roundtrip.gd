@@ -90,6 +90,7 @@ func _build_outcome() -> AttackOutcome:
 	mark.power = 7
 	mark.attacker = _attacker
 	mark.riders.assign([(load(_POISON) as StatusDef).identity])
+	mark.generation = 1
 	status.blast_mark = mark
 	gated.blast_mark = mark
 	o.hits.assign([dmg, heal, status, gated])
@@ -128,6 +129,16 @@ func test_capture_survives_a_rebuild_key_for_key_and_type_for_type() -> void:
 		assert_eq(second.get(key), first[key], "%s value" % key)
 	for key in second.keys():
 		assert_true(first.has(key), "a re-capture invents no key (%s)" % key)
+
+
+func test_a_record_of_generation_0_marks_writes_no_generation_key() -> void:
+	var outcome := _build_outcome()
+	outcome.hits[2].blast_mark.generation = 0
+	var d := AttackRecord.capture(outcome, _graph)
+	assert_eq([d.has(AttackRecord.KEY_BLAST_CENTRE), d.has(AttackRecord.KEY_BLAST_GENERATION)], [true, false],
+			"every row at generation 0 rides the blast table and writes no new key")
+	var rebuilt := AttackRecord.rebuild(d, _graph)
+	assert_eq(_marks(rebuilt), _marks(outcome), "and rebuilds at generation 0")
 
 
 func test_every_captured_hit_field_comes_back_on_the_rebuilt_hit() -> void:
@@ -213,5 +224,5 @@ func _marks(outcome: AttackOutcome) -> Array:
 			if is_same(outcome.hits[k].blast_mark, m):
 				first = k
 				break
-		out.append([first, m.centre, m.reach, m.power, m.attacker, m.riders])
+		out.append([first, m.centre, m.reach, m.power, m.attacker, m.riders, m.generation])
 	return out

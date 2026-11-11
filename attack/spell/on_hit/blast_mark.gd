@@ -23,3 +23,8 @@ var attacker: Entity = null
 ## holding its [GoOff], or of the nearest band below with one (#1798; for
 ## go-off zero, the Explosive [Aspect]'s). Null on a blast no go-off fired.
 var go_off: Identity = null
+## The generation of the read at which the go-off fired (ADR 0091 §1): 0 for
+## one set off by the beat's own arrival, g + 1 for one set off by a copy a
+## generation-g go-off sent. [HitGather] fills it where it mints the mark; 0 on
+## a [BlastEffect] blast. [BlastVFX] staggers a cascade's discs by it (#1799).
+var generation: int = 0
