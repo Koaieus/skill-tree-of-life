@@ -8,7 +8,7 @@ bypass are [defense-axes.md](defense-axes.md).
 
 ## The status slice
 
-changing: a rate rule for the world turn's clock, #1795; Catalyst rows decay once per world turn, #1801; see docs/design/elements/terrain.md
+changing: Catalyst rows decay once per world turn, #1801; see docs/design/elements/terrain.md
 
 - **Definition.** `StatusDef` (`effects/status/status_def.gd`) is a `.tres`-authored
   resource: id, tags, `power_max`, a `decay` slot, `reapply` policy, `on_dealloc`,
@@ -43,8 +43,10 @@ changing: a rate rule for the world turn's clock, #1795; Catalyst rows decay onc
   - A **turnless host** (an in-scope entity with no `initiative` pool: a
     blocker, a dormant core) has no turn: it runs the same `resolve_turn_end` on
     the **world turn** (`TurnManager._end_world_turn`, one every N played turn
-    ends, N = the living carriers; ADR 0055), in tree order, then the unowned
-    `LINGER` rows tick once and the beat flushes. No upkeep, no regen.
+    ends, N = the living carriers; ADR 0055; N is read through the rate rule
+    `TurnManager.world_clock`, per carrier by default, #1795), in tree order,
+    then the unowned `LINGER` rows tick once, then the terrain pass
+    (`CombatWorld.flow_temperature`, #1795), and the beat flushes. No upkeep, no regen.
 - **Deallocation.** `CLEAR` rows release and spill
   (`NodeCombat.release_statuses(true)`, which hands back only the released rows);
   `LINGER` rows stay on the node, are never spilled, and while it is unowned tick

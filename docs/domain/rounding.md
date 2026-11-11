@@ -22,9 +22,12 @@ second rounding downstream.
 | Spill on death, per neighbour | stacks, int | down: `⌊⌊S · f⌋ / k⌋`, remainder lost (no total increase) | `SpillSpread` | #1204, #1217 (owner, 2026-09-29/30) |
 | Flux copy-out, per neighbour | stacks, int | down: `⌊⌊S · share · f · df⌋ / (k + sinks)⌋`, nothing debited | `SpillSpread.copy_out` | #1561 |
 | Diffusion, FRACTION mode, per edge | stacks, int | down: `⌊f · d / (1 + max(deg_u, deg_v))⌋` (floored Metropolis) | `FractionDiffusion` | #1264 |
+| Temperature flow, per edge (Heat/Cold diffusion) | t, int | **down**: `⌊gap / (1 + max(deg_u, deg_v))⌋`, hot to cold, graph degree; the remainder stays on the sender, so Σt is conserved | `CombatWorld.flow_temperature` (its `diffuse_temperature` step) | #1795 |
+| World-turn period under `CEIL_SQRT` (`⌈√N⌉`, N = living carriers) | played turn ends, int | **up**: the least `s ≥ 1` with `s·s ≥ N`, by an integer loop, never a float `sqrt` / `ceil`; `PER_CARRIER` is `max(1, N)`, no rounding | `TurnManager.world_turn_period` | #1795 (owner, 2026-11-10) |
 | Resistance cancel | stacks, int | half-down: `⌈row × res − ½⌉` cancelled (ties to the attacker) | `StatusHost.effective_power` | ADR 0031 |
 | Landing fold `(authored + extras) × (1 + Σinc) × Πmore` | stacks, int | **half-up**, ties to the attacker (noise within `is_equal_approx` of a whole or a half snaps to it first); the `*_stacks_per_hit` stats stay FLOAT so the read never truncates first | `StatusDef.stacks_per_hit` (`round_half_up`), also on the null-board path | ADR 0032, #1310 (owner, 2026-10-01) |
 | FRACTION decay | stacks, int | **down**, floor kept: `⌊S · (1 − f)⌋`, always reaches 0 | `FractionDecay.decayed` | ADR 0032, #1310 (owner, 2026-10-01) |
+| Heat / Cold / Charge landing (the terrain divert) | stacks, int | **half-up**, ties to the attacker, as the landing fold | `NodeCombat.apply_status`'s terrain divert, through `StatusDef.round_half_up` | #1794 |
 | Repeat landing count (`repeat_landings_by`) | count, int | round half away from zero (`roundi`), floored at 0 | `SpellResolver._repeated_arrivals` | #1720 |
 | Retract haul, per debuff | stacks, int | `roundi` of the spot row, then largest-remainder split over parents by trail count (`Apportion`) | `RetractSpread._returns` | #1424 |
 | Status row store | stacks, int | none — whole in, whole stored (a cap clamps to `⌊power_max⌋`); a fraction reaching it is a minting site's bug (debug `assert`) | `StatusHost._settle`, `StatusHost.tick_statuses` | ADR 0032, #1310 |

@@ -62,4 +62,6 @@ all of that already happened.
   a turn-limited run on a different turn. `rounds < 0` leaves round state
   untouched. Never emits `round_completed`.
 - `world_progress` is the authority's `world_turn_progress`, adopted with the
-  round state (and only then); never emits `world_turn_ended`.
+  round state (and only then); never emits `world_turn_ended`. The period it
+  counts toward is `world_turn_period(N, world_clock)`, N read through the
+  exported rate rule (per carrier by default, #1795).

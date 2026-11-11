@@ -275,12 +275,18 @@ linear default"*): an exported rate rule, per carrier (today's: a world turn
 every N played turn ends) or integer `ceil(sqrt(N))`, default per carrier. The
 `ceil(sqrt(N))` above is the other setting and not the default, and ADR 0055
 stands, so the pass changes no behaviour until someone flips the rule.
+Built (#1795): `TurnManager.world_clock` (`PER_CARRIER` default, `CEIL_SQRT`
+the option, an integer loop, never a float `sqrt`) and
+`terrain_steps_per_world_turn` (default 1).
 
-**Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
-needs no tick: a flat decay of 1 per world turn is computable on read (stored
-count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it keeps its own decay rule, per world turn at its own slow rate). Only the Heat/Cold
-diffusion is a real pass: **one** pass over the signed `t`, over the
-temperature index (nodes holding Heat or Cold, the `_lingering` registry's
+**Build note (pass, not an owner call; the owner asked, 2026-11-08;
+corrected 2026-11-10).** Terrain is two ints with no write-turn field, so
+decay is a tick in the world-turn pass, not a read: Heat, Cold and Charge all
+decay there (owner, 2026-11-10; Catalyst is an aspect status row, not node
+state: it keeps its own decay rule, per world turn at its own slow rate).
+Charge decays but never flows; only the Heat/Cold diffusion moves terrain
+between nodes. It is **one** pass over the signed `t`, over the terrain index
+(nodes holding any terrain, `t ≠ 0` or Charge, the `_lingering` registry's
 shape), on packed arrays, never a walk of the graph (the arrays are the
 pass's scratch, gathered from the indexed nodes' state and written back; the
 index is live-only, since no shadow world runs a world turn). Worst case is a fully
@@ -295,8 +301,9 @@ the world-turn pass with Heat and Cold* over decay on read). Terrain is exactly
 two ints on the node: the signed `t` and Charge. The cost is one more decrement
 per Charge-holding node in the pass; it buys one place where terrain changes
 (the pass and the beat's settle), no timestamp per node, and a shadow world
-that clones two ints and nothing else. The computed-on-read form above
-describes what the decay does, not a second mechanism.
+that clones two ints and nothing else. Decay on read is dead. Built (#1795):
+`CombatWorld.flow_temperature` runs the steps and the decay sweep, and
+`TerrainSettle` commits them.
 
 Everything else coexists. Catalyst and Cold coexist: Catalyst under a Frozen
 node stays colourless until Heat, Cold or Charge lands there; a Cold hit or copy deepens the

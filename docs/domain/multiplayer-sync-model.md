@@ -97,15 +97,17 @@ since been retired, is
 
 ## The determinism obligation
 
-changing: the obligation widens to the world-turn settle (terrain decay and diffusion), #1795; see docs/design/elements/terrain.md
-
 **This model does not buy freedom from determinism; it bounds it.** Derived
 stats are recomputed **locally on every peer** — nothing about `max_hp`, AP
 regen, or any board total rides a record. So the stat pipeline must produce
 identical results on every machine, and that obligation is real today.
 
-**Today the obligation reaches the stat pipeline** — auditable with a grep,
-roll-free.
+**Today the obligation reaches the stat pipeline and the world-turn settle**
+— auditable with a grep, roll-free. The settle (terrain decay and Heat/Cold
+diffusion, #1795) runs inside `end_turn`, which `EndTurnCommand` reproduces on
+every peer, and no record carries its result, so it is integer only and
+roll-free. `TerrainSettle` (`combat/terrain/terrain_settle.gd`) is the
+auditable site: the one bulk write of terrain ints.
 
 Two rules follow, the stat-pipeline analogue of the stable hitscan sort:
 

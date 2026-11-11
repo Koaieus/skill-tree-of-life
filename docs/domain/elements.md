@@ -153,15 +153,66 @@ fingerprint) and `test_terrain_bands.gd` (the band sweep, the signal).
   - `add_terrain` keeps it in step, and `GraphSnapshot` decode rebuilds it
     per node.
   - A shadow world refuses it.
-  - Nothing reads it yet; #1795's pass will gather from it.
+  - #1795's world-turn pass gathers from it (§ Flow).
 - **Replication.**
   - `GraphSnapshot`: `_R_TERRAIN_T` = 20 and `_R_CHARGE` = 21
     (`_ROW_SIZE` 22). A shorter row decodes as 0.
   - `SaveFile` is v14, and a 13 still loads.
   - `WorldFingerprint._terrain_rows` folds `[stable_id, t, charge]`. All-zero
     nodes are skipped, so a world without terrain folds as before.
-- **Not yet.** There is no decay, diffusion or world-turn pass (#1795) and
-  no display (#1796).
+- **Not yet.** No display (#1796).
+
+## Flow: the world-turn settle (#1795)
+
+Terrain changes between beats on the world turn only. Guards:
+`test/unit/combat/test_terrain_settle.gd` (the commit),
+`test_temperature_flow.gd` (the pass) and
+`test/unit/systems/test_world_turn.gd` (the clock and the call).
+
+- **The clock.** `TurnManager.world_clock` is an exported rate rule,
+  `WorldClock.{PER_CARRIER, CEIL_SQRT}`, default `PER_CARRIER`: a world turn
+  every N played turn ends, N = the living carriers (ADR 0055, unchanged).
+  `CEIL_SQRT` closes one every ⌈√N⌉, found by an integer loop in the pure
+  `world_turn_period(n, clock)`. `_note_played_turn_end` compares progress
+  `>=` the period. Turnless hosts and lingering rows ride whichever rule is
+  set. `terrain_steps_per_world_turn` (default 1, tentative) is the number of
+  diffusion steps a world turn runs.
+- **The call.** `_end_world_turn` runs `CombatWorld.flow_temperature(steps)`
+  after `tick_lingering` and before `flush_removals`: the steps, then one
+  decay sweep. A shadow world refuses it.
+- **Diffusion** (`diffuse_temperature`, one step from one snapshot). It
+  gathers the indexed nodes with t ≠ 0, and their graph neighbours as
+  receivers, into a dense order on packed arrays (t, graph degree, each edge
+  once). It never walks the graph. Per edge it moves
+  `⌊gap / (1 + max(deg_u, deg_v))⌋` from hot to cold, so Σt is conserved, a
+  gap at or below the larger degree moves nothing and a self-loop moves
+  nothing. The per-node sums commit as one batch. `FractionDiffusion` (rows,
+  float share) is not reused: temperature is node state, not a row.
+- **Decay** (`decay_terrain`, once after the steps). Every indexed node's t
+  moves toward 0 and its Charge down by `TerrainSettle.decay_rate`: the
+  current band's `decay_per_world_turn`, or the element's own when the count
+  is ≤ T (null band). Heat and Cold read Fire / Ice by t's sign, Charge reads
+  Lightning. Every rate is read before any write, so an overflowing node
+  loses the overflow's whole rate even where that ends it below the cap.
+  Charge never flows.
+- **The commit.** `TerrainSettle` (`combat/terrain/terrain_settle.gd`) is
+  static and pure.
+  - A `TerrainSettle.Batch` holds per-node `Sums`: `net_t` (signed, nets
+    through 0), `toward_zero_t` (≥ 0, never crosses 0) and `charge` (signed,
+    the result clamped at 0).
+  - `commit(batch)` applies the net, then toward zero. It runs the settle
+    seat (`seat()`, an `Array[TerrainSettle.SettleReader]`, empty today;
+    #1801's prime conversion is the first reader): each reader once per node,
+    with the pre- and post-batch ints and the node's sums to add to. Then it
+    writes once per int through `add_terrain` (Fire for t, Lightning for
+    Charge), so a band crossing is announced once per node per commit, and
+    returns the nodes whose ints moved. `commit_with(batch, readers)` takes
+    explicit readers.
+  - Callers: the world turn, once per step and once for decay. #1798's beat
+    will commit a land batch and a spend batch per generation.
+- **Determinism.** Integer only, roll-free, no transcendental. The index's
+  order never reaches the ints, and a world decoded from a `GraphSnapshot`
+  ends its next world turn on the same ints as its source.
 
 ## `Identity.Kind.ELEMENT`
 
