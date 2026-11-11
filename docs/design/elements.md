@@ -1539,11 +1539,13 @@ hit; the keystone grants its element while held.
   2. **The arrival's own aspect riders land before the read.** The break
      runs the same `Mitigation.compute` the landing will, and stage two
      lands that landing's damage with nothing in between. It keeps the
-     owner's breaker, and a Curse arrow visibly helps break ice. Cost: an
-     aspect rider can then change reach through Frozen, which ADR 0082's
-     invariant forbids (stage two never changes reach); and stage two needs
-     an ordering rule: the arrival's own damage lands before any other
-     entry's riders at that node.
+     owner's breaker, and a Curse arrow visibly helps break ice. Cost: the
+     break decides reach (a shattered node lets paths walk on), so the
+     aspect riders that feed the read would decide reach through Frozen,
+     which ADR 0082's invariant forbids (stage two never changes reach)
+     unless those riders move into stage one; and stage two needs an
+     ordering rule: the arrival's own damage lands before any other entry's
+     riders at that node.
   3. **Frozen takes damage unmitigated.** Thrown then equals shown, so ADR
      0091 §3 stands as written. Cost: a new damage rule the owner never
      floated. Listed, not leaned on.
