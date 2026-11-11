@@ -261,6 +261,30 @@ var paired: HitInstance = null
 ## landing behind it" (a bare arrow, a hand-built hit) and never matches.
 var hit_key: int = 0
 
+## #1798's gather head: [method HitLanding.place] marks the first hit of a
+## landing's placed span. [HitGather] runs stage one from it once per beat
+## ([method OutcomeApplier.drain]); the hits after it, up to the next head, are
+## its whole hit. Never shipped: a rebuilt hit is no head, and its beat lands
+## the recorded [member terrain_ops] instead of gathering.
+var is_head: bool = false
+## The hit's load, handed to [method GoOff.fire] on the head's own arrival: 0
+## unless the landing site sets one (#1799). A copy's is 0.
+var hit_load: int = 0
+## Set once [HitGather] ran this head's stage one, so a second drain of the
+## same outcome (the authority's live apply after its shadow) feeds the
+## recorded [member terrain_ops] rather than gathering again.
+var gathered: bool = false
+## An element rider (Heat, Cold, Charge) [HitGather] landed in stage one:
+## stage two skips it ([method OutcomeApplier.land_one]), after its crit draw,
+## so the stream does not move. Shipped as [constant AttackRecord.FLAG_STAGED].
+var staged: bool = false
+## Stage one's terrain change for this hit's beat, net per node, as
+## `[SkillNode, dt, dcharge]` triples: written onto the beat's first gathered
+## head (as [member settle] is onto its first fresh landing). A non-empty list
+## is fed where the beat would gather ([method HitGather.stage_one]), so a
+## replay lands the same terrain without gathering.
+var terrain_ops: Array = []
+
 ## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
 ## land the receiving node's [method NodeCombat.ownership_bit] to
 ## [member attacker] must intersect it, else [method rider_gated] duds the
