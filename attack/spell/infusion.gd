@@ -116,7 +116,15 @@ static func use_of(spell: SpellDef, id: StringName) -> LoadUse:
 	var row := intake_of(spell, id)
 	if row != null:
 		return row.resolved_use()
-	return AspectIntake.use_for_status(StatusRoster.shared().by_concept(id))
+	return AspectIntake.use_for_status(status_of(spell, id))
+
+
+## The status concept [param id] lands as on [param spell]: its listed row's
+## [method AspectIntake.status] (its `plants` when set), else the concept's only
+## status ([method AspectIntake.concept_status]). The one status lookup here.
+static func status_of(spell: SpellDef, id: StringName) -> StatusDef:
+	var row := intake_of(spell, id)
+	return row.status() if row != null else AspectIntake.concept_status(id)
 
 
 ## The [OnHitEffect] riders this cast runs after the spell's own effects — one
@@ -138,5 +146,5 @@ func bag(spell: SpellDef) -> LoadBag:
 	for id in counts:
 		if counts[id] <= 0:
 			continue
-		use_of(spell, id).spend(intake_of(spell, id), StatusRoster.shared().by_concept(id), counts[id], out)
+		use_of(spell, id).spend(intake_of(spell, id), status_of(spell, id), counts[id], out)
 	return out

@@ -62,8 +62,19 @@ func aspect_id() -> StringName:
 func status() -> StatusDef:
 	if plants != null:
 		return plants
-	var id := aspect_id()
-	return null if id.is_empty() else StatusRoster.shared().by_concept(id)
+	return concept_status(aspect_id())
+
+
+## The only status of concept [param id]: an aspect's by concept id, an
+## element's [member Element.terrain]; null if it has none. The one resolver
+## every status lookup falls back to ([method status], [Infusion]).
+static func concept_status(id: StringName) -> StatusDef:
+	if id.is_empty():
+		return null
+	var element := ElementRoster.shared().by_id(id)
+	if element != null:
+		return element.terrain
+	return StatusRoster.shared().by_concept(id)
 
 
 ## [member use], or — left null — its concept status's default
