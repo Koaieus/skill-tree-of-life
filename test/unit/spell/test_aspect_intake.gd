@@ -342,3 +342,12 @@ func test_an_explicit_plant_use_folds_its_stack_terms() -> void:
 	var riders := Infusion.innate(spell).riders(spell)
 	assert_eq(riders.size(), 1)
 	assert_eq((riders[0] as ApplyStatusEffect).stack_terms, [term] as Array[StackTerm], "the plant's terms ride")
+
+
+func test_a_row_naming_plants_returns_that_def_else_its_concepts() -> void:
+	var row := _intake(_POISON, 1)
+	assert_eq(row.status(), _POISON, "no plants: by_concept's def")
+	row.plants = _CURSE
+	assert_eq(row.status(), _CURSE, "plants names the status the row lands")
+	row.plants = null
+	assert_eq(row.status(), _POISON, "cleared: by_concept again")

@@ -11,8 +11,8 @@ extends Resource
 ## lands per hit through the concept status's own [method StatusDef.stacks_per_hit]
 ## fold. Points at the concept's [Identity], never an [Aspect] (an Aspect lists
 ## its spells: an edge back would be a resource cycle) nor a [StatusDef] (a
-## concept need not have one); the status resolves by concept id
-## ([method status]).
+## concept need not have one); the status is [member plants] when the row names
+## one, else it resolves by concept id ([method status]).
 
 ## The concept this row takes in — the Aspect's identity, keyed by its id.
 @export var identity: Identity = null:
@@ -34,6 +34,12 @@ extends Resource
 	set(value):
 		affinity_cost = maxi(value, 1)
 		emit_changed()
+## The status this row plants (#1660 B2); null takes its concept's only
+## status, by concept id ([method status]).
+@export var plants: StatusDef = null:
+	set(value):
+		plants = value
+		emit_changed()
 ## How a hit spends this row's load ([LoadUse]); null takes the concept
 ## status's default ([method resolved_use]).
 @export var use: LoadUse = null:
@@ -51,8 +57,11 @@ func aspect_id() -> StringName:
 	return identity.id if identity != null else &""
 
 
-## The status this concept's load lands as, by concept id; null if it has none.
+## The status this row's load lands as: [member plants], else the concept's
+## status by concept id; null if it has none.
 func status() -> StatusDef:
+	if plants != null:
+		return plants
 	var id := aspect_id()
 	return null if id.is_empty() else StatusRoster.shared().by_concept(id)
 

@@ -7,7 +7,8 @@ extends Resource
 ## [StatusDef], its spells and addons — references the same `.tres` under
 ## `identity/defs/`, so a hue or icon changes in one place. Owns nothing else.
 
-enum Kind { ASPECT, ATTRIBUTE, VITAL, SPELL, ADDON }
+## ELEMENT is appended last so stored ints never shift (presentation-only).
+enum Kind { ASPECT, ATTRIBUTE, VITAL, SPELL, ADDON, ELEMENT }
 
 @export var id: StringName = &""
 ## The concept's noun as shown to the player ("Poison").

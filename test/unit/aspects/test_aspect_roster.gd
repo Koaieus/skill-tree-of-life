@@ -109,3 +109,23 @@ func test_aspects_family_children_are_exactly_the_rostered_stats() -> void:
 		assert_true(rostered.has(stat_id), "%s is some Aspect's stat" % stat_id)
 	for stat_id in rostered:
 		assert_true(children.has(stat_id), "%s is a child of aspects" % stat_id)
+
+
+## ADR 0072 §1: an aspect is exactly one status — every aspect has one, no two
+## share one, and none is an element's member (only an element is a family).
+func test_every_aspect_is_exactly_one_status_and_no_element_member() -> void:
+	var roster := _roster()
+	var elements := ElementRoster.shared()
+	assert_not_null(roster)
+	assert_not_null(elements, "element_roster.tres loads")
+	if roster == null or elements == null:
+		return
+	var owner_of := {}
+	for aspect in roster.aspects:
+		var id := aspect.id()
+		assert_not_null(aspect.status, "%s has a status" % id)
+		if aspect.status == null:
+			continue
+		assert_false(owner_of.has(aspect.status), "%s shares its status with %s" % [id, owner_of.get(aspect.status, &"")])
+		owner_of[aspect.status] = id
+		assert_null(elements.for_status(aspect.status), "%s's status is no element's member" % id)
