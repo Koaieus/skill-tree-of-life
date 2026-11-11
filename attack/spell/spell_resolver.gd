@@ -562,11 +562,30 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 ## no reference to it (no cycle through [member HitLanding.hits]). Any other
 ## hit is left alone: [method HitGather._open_head] hands the head's crit to
 ## its unpaired siblings, and every copy is paired to the head, so neither
-## draws nor evaluates again.
+## draws nor evaluates again. A bare status head decides on its landing's
+## first unpaired damage instead, then copies it: the target's incoming
+## `crit_chance` overlays fold into a damage's draw only
+## ([method CritRoll.chance_for]), as when the damage drew its own.
 static func _crit_at_head(spell: SpellDef, lctx: LandingContext, hit: HitInstance,
 		rng: RandomNumberGenerator, world: CombatWorld) -> void:
 	if hit == null or not hit.is_head:
 		return
+	# A bare (BEFORE) status lands first, so `place()` made it the head. The
+	# stamper reaches the damage after the head: it is stamped with the same
+	# caster here, so its draw reads the attacker it will carry.
+	if hit is StatusInstance and hit.paired == null and lctx != null \
+			and lctx.anchor >= 0 and lctx.anchor < lctx.hits.size() \
+			and lctx.hits[lctx.anchor] == hit:
+		for i in range(lctx.anchor + 1, lctx.hits.size()):
+			var damage := lctx.hits[i]
+			if not damage is DamageInstance or damage.paired != null:
+				continue
+			damage.attacker = hit.attacker
+			_stamp_crit_conditions(spell, lctx, damage)
+			if rng != null:
+				CritRoll.decide(damage, rng, world)
+				hit.copy_crit_from(damage)
+			return
 	# A head that rides a lead (a bare rider first in a heal's landing, paired
 	# to the heal by `ride_heal`) stamps the lead, whose crit it then copies.
 	_stamp_crit_conditions(spell, lctx, hit.paired if hit.paired != null else hit)
