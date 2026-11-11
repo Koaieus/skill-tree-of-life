@@ -156,12 +156,12 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
   - On a Frozen node, as a Fire shape on Frozen: Ice mutes the node's own go-off and the shape runs alone (#1812). This half is tentative; confirm it with Q3's sketch.
 
 **Left, in order (next lead):**
-1. **Fold the settled answers into `docs/design/elements.md`**, then run `mise run docs-hygiene` and commit:
+1. **DONE (ele 4, 13:30): fold the settled answers into `docs/design/elements.md`** (trim order :578, merged landing :281, absorbed thaw :350 plus the two table cells :77 and :1282, the arc :1420, the Burning vertex :654; the Frozen half of Q7 is a tentative bullet in § Open, second bullet, after the damage breaker). Originally:
    - Define the forge's trim order as socket order (§ The forge, beside "the forge's trim order").
    - Owner calls replace the pass readings: the dedupe-merged landing is one arrival at its summed multiplier (§ What breaks the ice); an absorbed copy whose Heat thaws the ice walks on.
    - The arc pays for what it reaches.
    - The Burning vertex adds up per channel.
-2. **Q1:** spawn ONE Fable researcher (Agent, `model: "fable"`). Give it:
+2. **In flight (ele 4, 13:25): the Fable researcher writes `Q1-OPINION.md`; an Opus drafter writes `Q3-SKETCH.md` (with a Burning-vertex-on-Frozen example for Q7's Frozen half). Then advisor over Q1, then one AskUserQuestion: Q1, Q3, Q5 (conditional), Q7 Frozen half.** Originally: **Q1:** spawn ONE Fable researcher (Agent, `model: "fable"`). Give it:
    - morning Q1 above, the owner's note verbatim, elements.md § Open (first bullet), ADRs 0082 and 0091 §3, and the mitigation code (`Mitigation.compute`, `min_damage_taken`);
    - its task: an opinion with the costs of each shape.
    Then an `advisor` pass over the researcher's opinion (owner, ~12:48: *"And an advisor pass after"*), before it goes to the owner.
@@ -174,7 +174,7 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
    - Replace the NOTES that cite "morning question 3/6" (#1798, #1806, #1808).
    - #1807 and #1808: the absorbed thaw is settled.
    - Move each fork-free issue to Ready. The six breaker-NOTE issues wait for Q1.
-5. **#1817** (ele 3's trajectory hint): route it from Intake to Needs design, its intended lane.
+5. **DONE (ele 4): #1817** moved from Intake to Needs design.
 6. **Cleanup:** the "For the cleanup pass" list below, plus #1798's "A hit carries 0 or 1 element" (relay lead 4's finding). Then ask the owner's go to delete this folder and `docs/handoffs/elements.md`.
 
 **For the owner's morning (relay lead 5, 04:55): the overnight pass is done. Steps (a)-(d) are complete, and nothing is in flight.** Board after phase 2, verified on GitHub by a GraphQL read-back:

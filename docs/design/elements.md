@@ -74,7 +74,7 @@ no rule of its own:
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
 | **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
-| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (pass reading, tentative); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
+| **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (owner, 2026-11-11); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
 across the triad: a trigger pays 1 stack per target its reach touches —
@@ -279,9 +279,11 @@ not circular. **Each arrival is tested alone** (owner, 2026-11-11, picked
 over *summed per generation*): weak arrivals of one generation (below) never
 sum toward the threshold, which keeps one clear breaker to hand the break's
 landings to. A landing the dedupe merged (§ Landing resolution, "Dual
-reach") is one arrival at its summed multiplier (pass reading, tentative,
-not the owner's: with dedupe on, two channels' damage does sum toward the
-threshold, and with it off they do not). **A Frozen
+reach") is one arrival at its summed multiplier (owner, 2026-11-11, picked:
+*"the merged landing IS the arrival: its 2x amount is tested once"*): with
+dedupe on, two channels' damage sums into the one amount the break tests,
+and with it off the entries are separate arrivals, each tested alone. This
+holds while a damage breaker exists. **A Frozen
 node with no holder has no flat breaker** (owner, 2026-11-11, accepted when
 asked): there is no max HP to measure against, so a copy that does not crit
 is absorbed whatever its damage, and the ice breaks only by a crit or a
@@ -345,8 +347,11 @@ breaking arrival or arrivals take the break's two extra landings, each of
 its own payload. A sibling of that generation that does not break the ice
 keeps what its admit decided on arrival (an under-threshold copy stays
 absorbed) and still walks on, as an absorbed copy whose Heat thaws the ice
-does. The answer is decided once per generation, not once per
-beat: the ice can hold against a wave's direct hit and shatter when a crit
+does. **An absorbed copy whose Heat thaws the ice walks on** (owner,
+2026-11-11, picked: *a path ends at Frozen only if the node is still Frozen
+after the arrival's terrain riders*): the rule is the read after the riders,
+as for every path at the node. The answer is decided once per generation,
+not once per beat: the ice can hold against a wave's direct hit and shatter when a crit
 arc copy reaches it a generation later, and the result never depends on
 resolution order. The owner's case: a wave lands on Frozen A and level-2
 Shocked B in one beat; B's arc reaches A one generation later and passes
@@ -571,8 +576,13 @@ the elements so far:
   amongst the nodes that can fire at it."*), and the real cap is the best
   capacity among them. **A target whose best cap is below the loadout**
   trims the loadout to that cap when picked, one-shot, in the forge's trim
-  order, with a notice (owner, 2026-11-11, picked *trim to its cap*), and
-  such a target looks different (owner, 2026-11-11: *"This means that
+  order, with a notice (owner, 2026-11-11, picked *trim to its cap*). **The
+  trim order is socket order** (owner, 2026-11-11, picked: *"what
+  `clamp_infusion` already does today: sockets fill in the order they were
+  socketed, each to what it can carry, so the last-socketed lose points
+  first"*): every trim in the forge, this one and the way back below, walks
+  the sockets in that order. Such a target
+  looks different (owner, 2026-11-11: *"This means that
   "target" should look different too. Like secondary or muted or "not using
   your full spec""*). **A point past the source's cap**: a non-aimed spell
   re-picks its source among the casters that reach the target and can carry
@@ -641,6 +651,13 @@ the elements so far:
   where it touches, a Shocked vertex arcs from the node it touches, a Frozen
   vertex is brittle and snaps on first contact. Your terrain travels with
   your blade.
+  - **A Burning vertex on a contact node adds up per channel** (owner,
+    2026-11-11: *"Sounds to me like a burning blade node is a similar case
+    of a spell with Fire reach hitting a node, they add up per channel"*):
+    a Burning vertex touching a node reads as a Fire-shaped cast landing on
+    it. On a Burning node the vertex's disc and the node's own go-off add up
+    as one Fire channel, not two go-offs (ADR 0086 §5), the same sum as a
+    shape and a primed node of one element (§ Shape and ride).
   - **A vertex go-off spends the copy, never the source** (owner,
     2026-11-09: *"so far there is *no* gameplay connection back to the
     source node after a blade node copy is made from it. not starting
@@ -1262,7 +1279,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (pass reading, tentative); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1400,6 +1417,11 @@ a wire. Pass readings, tentative: the conduct cost of a pass-through is still
 voided; a transferred stack is treated exactly like the Charge rider an arc
 copy lands (same commit, same primed-ness read); Burning and Frozen keep the
 void.
+**The arc pays for what it reaches** (owner, 2026-11-11, picked *spend
+follows landings*): a level-2+ arc that stops at a ring node whose path
+ends (a Frozen node that holds, say) spends and transfers Charge only for
+the nodes it actually reaches. The Charge of the hops it never makes is not
+spent and is not lost into the wall; it stays on the source.
 
 **Charge stays put** (owner, 2026-11-08: *"charge staying put sounds
 good"*): static charge. Its travel is the arc it fires when hit, and since
@@ -1554,6 +1576,10 @@ hit; the keystone grants its element while held.
   *"most often the simple gameplay mechanics are best"* (same message).
   Reversing ADR 0091 §3 takes the owner's ruling and a new ADR; until then
   the issue bodies follow 0091 as it stands, with a NOTE naming this fork.
+- **A Burning vertex on a Frozen contact node** (tentative, awaiting the
+  owner's confirmation): Ice mutes the node's own go-off (§ Pair rules), so
+  the vertex's Fire shape runs alone, as a Fire shape does on a Frozen node
+  (§ Shape and ride).
 - **Catalyst, settled and what remains** (owner, 2026-11-09). Settled in § The
   threshold model: Catalyst is one element-generic converter in no family, the
   world-tick fuse is dropped (it converts at landing, so no node holds it
