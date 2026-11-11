@@ -20,14 +20,30 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 	var beat: BeatClock = clock if clock != null else BeatClock.instant_clock()
 	if outcome.schedule == null:
 		outcome.schedule = OutcomeSchedule.compile(outcome)
+	# Marks already announced this apply: a blast's cue fires on its first
+	# landed hit and never again.
+	var announced: Dictionary = {}
+	await drain(HitQueue.over(outcome.hits), world, beat, alloc,
+			outcome.crit_stream, announced)
+
+
+## The landing loop — [method apply]'s, and a spell wave's mid-walk
+## ([method SpellResolver.resolve_against]), one implementation for both. Lands
+## [param queue] to empty, in its order, a hit [method land_one] pushes
+## included: one [method land_one] per hit, waiting out each hit's
+## `arrival_time` on [param clock]. An instant clock never parks, so a caller
+## that must not wait (the wave) calls this un-awaited and it runs to the end
+## synchronously. [param announced] is [method apply]'s once-per-mark blast
+## set; null = announce nothing (the wave's cast world has no audience).
+static func drain(queue: HitQueue, world: CombatWorld, clock: BeatClock,
+		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null,
+		announced: Variant = null) -> void:
 	# One `schedule_index` group is one beat for the removal collector: every
 	# node stripped by the group's landings spills over their union, flushed
 	# before the next group lands (CombatWorld.flush_removals).
 	var group := -1
-	# Marks already announced this apply: a blast's cue fires on its first
-	# landed hit and never again.
-	var announced: Dictionary = {}
-	for hit in in_arrival_order(outcome.hits):
+	while queue.has_next():
+		var hit := queue.next()
 		if hit.target == null:
 			continue
 		if hit.schedule_index != group:
@@ -37,9 +53,10 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 		# redundant — it is a runtime coroutine (it parks on a timer) and
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
-		await beat.advance_to(hit.arrival_time)
-		land_one(hit, world, alloc, outcome.crit_stream)
-		_announce_blast(hit, world, announced)
+		await clock.advance_to(hit.arrival_time)
+		land_one(hit, world, alloc, crit_rng, queue)
+		if announced != null:
+			_announce_blast(hit, world, announced)
 	world.flush_removals()
 
 
@@ -81,8 +98,14 @@ static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dic
 ## stream): the recorded crit lands as-is. Never key that off a per-hit field
 ## — a recorded hit with no dealloc would read as fresh and re-draw. A hit
 ## that does not reach its landing (freed target or origin) draws nothing.
+##
+## [param _queue] is the worklist this landing drains from ([method drain]);
+## null = a standalone landing, which can append nothing. Accepted and unread
+## today: the seam #1798's gather head dispatches on, to [method HitQueue.push]
+## the hits it lands.
 static func land_one(hit: HitInstance, world: CombatWorld,
-		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null) -> void:
+		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null,
+		_queue: HitQueue = null) -> void:
 	if hit == null or hit.target == null:
 		return
 	# A rebuilt record arrives with its deallocations pre-populated (the
