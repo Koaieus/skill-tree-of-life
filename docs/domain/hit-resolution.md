@@ -13,7 +13,7 @@ child issue and its file in the design record: [`docs/design/elements.md`](../de
 
 ## The pieces: `HitLanding` and the `HitInstance` kinds
 
-changing: `HitLanding` gains a stamping callable and one landing-to-hit fold, #1797; a head mark and the head's load, #1798; see docs/design/elements/hit-resolution.md
+changing: a head mark and the head's load, #1798; see docs/design/elements/hit-resolution.md
 
 A **hit** is one `HitInstance` (`attack/outcome/hit_instance.gd`): one landing's
 effect on one target node, held in `AttackOutcome.hits`. `target` is the hit's
@@ -44,8 +44,17 @@ whatever mode produced it ([ADR 0044](../adr/0044-one-on-hit-vocabulary-for-ever
 `LandingContext` subclass; an arrow's or a blade contact's is
 `HitLanding.riding(primary, hits, gather_cache)`, which sets `paired` to the
 primary hit, stamps the landing's `hit_key` on it, and takes `raw_amount` /
-`raw_type` off it. Effects append through `emit(hit)` in authored order; the
-builder calls `place()` once they have run (below). The landing also carries
+`raw_type` off it. Effects append through `emit(hit)` in authored order. A
+hit an effect mints takes the eight shared facts in one call,
+`landing.copy_facts_to(hit)`: `StatusInstance.stamp_landing` sets the def and
+calls it, as do `DetonateEffect`'s cure and `PairedDamageEffect`'s share
+(`HaulEffect` sets its own target, origin and source and does not). The
+builder calls `place()` once the effects have run (below), which orders the
+span and then runs the landing site's **`stamper`** callable over it,
+`func(hit) -> void`: a spell's stamps the caster, its crit conditions and the
+wave ordinal and files the hit on its timeline event; an arrow's stamps its
+ammo id on every rider; a blade contact sets none. `SplashEffect._retargeted`
+copies a landing whole, `stamper` included. The landing also carries
 the per-compile `gather_cache`, the spell's `stack_scale` and the `detonated`
 scope ([Go-off zero](#go-off-zero-explosive-detonation)).
 
@@ -58,19 +67,36 @@ spends once per key.
 
 ## The walk: `OutcomeApplier`
 
-changing: `apply` drains an open worklist and `land_one` takes an optional queue, #1797; stage one (the gather) runs per beat, #1798; see docs/design/elements/hit-resolution.md
+changing: stage one (the gather) runs per beat, #1798; see docs/design/elements/hit-resolution.md
 
 `OutcomeApplier` (`attack/outcome/outcome_applier.gd`) is the one place an
 `AttackOutcome` reaches a world, and `land_one` the only place a
 `HitInstance.land_on` is called from.
 
 - **`apply(outcome, world, clock, alloc)`** compiles a schedule if the outcome
-  has none, then walks `in_arrival_order(outcome.hits)`: it flushes the beat
-  whenever `schedule_index` changes ([The beat](#the-beat)), awaits
-  `clock.advance_to(hit.arrival_time)`, calls `land_one`, and announces a
-  blast's `blast_mark` once per apply on a live world. One more flush ends it.
-- **`land_one(hit, world, alloc, crit_rng)`** never awaits, so
-  `SpellResolver` lands a whole wave mid-walk through it. In order: a hit with
+  has none, then drains a `HitQueue` over `outcome.hits` with a fresh
+  once-per-apply blast set.
+- **`drain(queue, world, beat, alloc, crit_rng, announced)`** is the one
+  landing loop, `apply`'s and a spell wave's. It takes the queue's hits in
+  order, flushes the beat whenever `schedule_index` changes
+  ([The beat](#the-beat)), awaits `beat.advance_to(hit.arrival_time)`, calls
+  `land_one` with the queue, and announces a blast's `blast_mark` once per
+  `announced` set on a live world (a wave passes none). One more flush ends
+  it. On an instant clock it never parks, so `SpellResolver` calls it
+  un-awaited over a queue of one wave's hits and the wave has landed when the
+  call returns.
+- **`HitQueue`** (`attack/outcome/hit_queue.gd`) is the open worklist.
+  `HitQueue.over(hits, from)` orders `hits[from..]` by `in_arrival_order` and
+  holds a cursor at the next hit to land. `push(hit)` appends to the record
+  (the outcome's `hits`) and slots the hit into the unlanded tail after every
+  unlanded hit of its own `schedule_index` and before the first greater one,
+  never ahead of the cursor: a hit pushed at an index the drain has passed
+  lands next. What the queue yields is the order the crit stream is drawn
+  in. Nothing pushes yet; #1798's gather head is the first pusher.
+- **`land_one(hit, world, alloc, crit_rng, queue)`** never awaits, which is
+  why a wave can land mid-walk. `queue` is the worklist the landing drains
+  from, null for a standalone landing (the spell's exert set); it is unread
+  until a gather head dispatches on it (#1798). In order: a hit with
   recorded `deallocations` or `settle` is a rebuilt record's and feeds the
   beat (`feed_recorded`, `feed_settle`), any other is offered to `track_hit`;
   `ADDON_DESTROY` and `GATE_FLIP` branch to their own landers; a freed `target`
@@ -93,10 +119,10 @@ what make that order meaningful.
 - **Order is the schedule's structure; the wait is its seconds.** The sort keys
   off `HitInstance.schedule_index`, which every machine derives identically from
   the same structure; the wait reads seconds no two machines need to agree on.
-  That separation is what lets tempo be per-peer. The loop compiles a schedule
+  That separation is what lets tempo be per-peer. `apply` compiles a schedule
   when the outcome has none yet because a replayed record arrives with
   structure and no seconds, and exactly one place must turn one into the other.
-- **The loop is the clock.** It waits out each hit's `arrival_time` on `clock`
+- **The drain is the clock.** It waits out each hit's `arrival_time` on `clock`
   before landing it, so the world mutates when the arrow arrives and everything
   that draws reads the model on one clock, with no view store to keep in step.
   `BeatClock.instant_clock` (the default) lands the whole outcome synchronously;

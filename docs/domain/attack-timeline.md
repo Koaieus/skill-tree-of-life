@@ -317,15 +317,18 @@ world: `CombatWorld`".
 
 ### The candidate-set half: `resolve_against(world)`
 
-changing: a wave lands through the applier's worklist drain, #1797; a walk ends or goes on at a node's `Admits` answer, #1798, #1806, #1808; see docs/design/elements/hit-resolution.md
+changing: a walk ends or goes on at a node's `Admits` answer, #1798, #1806, #1808; see docs/design/elements/hit-resolution.md
 
 `SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
 N's kills have happened. Two things move together:
 
 1. **The wave loop lands.** Between "reduce incidents" and "expand next wave",
-   the wave's hits go through `OutcomeApplier.land_one` — the *same* landing
-   every other path uses, so there is exactly one implementation of "land a hit".
+   the wave's hits go through `OutcomeApplier.drain` over a `HitQueue` of just
+   that wave, un-awaited on an instant clock — the *same* drain `apply` runs,
+   and through it the same `land_one` every other path uses, so there is
+   exactly one implementation of "land a hit" and one of "land a list of
+   hits". The drain's closing flush is the wave's one beat.
 2. **The filters ask the world, not the node.** A hit's target stays the real
    `SkillNode`, so `to.ownership_bit(caster)` reads a node that is *still alive*
    whatever the resolver did. `PropagationContext.world` is where the question
@@ -382,7 +385,13 @@ in `LootSystem`, via its `preview_kill_xp` query.
 
 ## Ordering and `arrival_time`
 
-changing: the walk drains an open worklist and a hit appended mid-walk joins the unlanded tail in schedule order, #1797; see docs/design/elements/hit-resolution.md
+The applier lands by draining an open worklist, `HitQueue`
+([hit-resolution.md](hit-resolution.md) § "The walk: `OutcomeApplier`"), in
+`(schedule_index, insertion order)`. A hit appended while it drains (`push`,
+from inside a landing) joins the unlanded tail: after every unlanded hit of its
+own `schedule_index`, before the first greater one, and never ahead of the
+cursor, so one pushed at an index already passed lands next. The crit stream
+is drawn in that order. Nothing appends today; #1798's gather is the first.
 
 Every hit carries a real `arrival_time`, stamped by `OutcomeSchedule` from the
 structure its resolver records: with the world mutating on the reveal clock, an

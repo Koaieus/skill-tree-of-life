@@ -11,7 +11,7 @@ class_name OutcomeApplier
 
 
 ## Land every hit in SCHEDULE order (structure, not append order), waiting out
-## each hit's `arrival_time` on [param clock]: this loop is the clock. The
+## each hit's `arrival_time` on [param clock]: its [method drain] is the clock. The
 ## required [param world] picks live vs shadow, with no preview flag below;
 ## [param alloc] is read only by a live [GateFlipInstance] landing.
 ## See docs/domain/hit-resolution.md "OutcomeApplier.apply: the parameters".
