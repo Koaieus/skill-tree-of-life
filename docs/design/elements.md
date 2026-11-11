@@ -1583,7 +1583,8 @@ hit; the keystone grants its element while held.
   - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow, per world
     turn.
 - **v1 spell content** (owner, 2026-11-09): `lightning_bolt` carries Charge
-  (renamed, not reshaped, a Charge ride row as its innate element), and **a
+  (not reshaped, a Charge ride row as its innate element; it keeps its name
+  for now, the owner's pick of 2026-11-10), and **a
   new single-target Cold spell** — *"one single target ice spell that is only
   single target (0 hops) because of its ice element load. and replacing that
   load with another element restores some hops and drastically alters the
