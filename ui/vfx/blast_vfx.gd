@@ -14,6 +14,11 @@ extends Node2D
 @export var roster: AspectRoster = null
 ## Silences the ring (a headless harness, a cinematic).
 @export var muted: bool = false
+## Seconds between a cascade's generations (tentative, #1799): a disc whose
+## go-off fired at generation g ([member BlastMark.generation]; ADR 0091 §1)
+## plays g × this after its cue, so a chained node's disc fires visibly after
+## its parent's. Read off the mark, so an observer replay staggers the same.
+@export_range(0.0, 1.0, 0.01, "or_greater", "suffix:s") var generation_stagger: float = 0.12
 
 
 func _ready() -> void:
@@ -24,7 +29,17 @@ func _ready() -> void:
 func _on_blast_landed(mark: BlastMark) -> void:
 	if muted:
 		return
-	spawn(mark)
+	var delay := delay_for(mark)
+	if delay <= 0.0 or not is_inside_tree():
+		spawn(mark)
+		return
+	get_tree().create_timer(delay, false).timeout.connect(spawn.bind(mark))
+
+
+## How long after its cue [param mark]'s ring waits: its generation ×
+## [member generation_stagger]; 0 at generation 0.
+func delay_for(mark: BlastMark) -> float:
+	return maxf(0.0, (mark.generation if mark != null else 0) * generation_stagger)
 
 
 ## Play one ring for [param mark] with its rider layers; null when there is
