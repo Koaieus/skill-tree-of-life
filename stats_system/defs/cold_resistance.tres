@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/cold.tres" id="identity_cold"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_cold")
+role = 3
+id = &"cold_resistance"
+parent_ids = Array[StringName]([&"status_resistance"])
+display_name = "Cold Resistance"
+description = "Fraction of the cold row this node shrugs off, a live filter at effect time (ADR 0031), the poison_resistance formula: every apply hands the def row - ceil(row x res - 1/2), and at 100% stacks do not land. Read node-locally like Armor; Status Resistance is its family parent and folds into this read. Default 0. Below 0% it is vulnerability."
+value_type = 1
+default_value = 0.0
+modifier_name = "Cold Resistance"
+local_grantable = true

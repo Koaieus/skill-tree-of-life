@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ElementRoster" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://elements/element_roster.gd" id="1"]
+[ext_resource type="Script" path="res://elements/element.gd" id="1_element"]
+[ext_resource type="Resource" path="res://elements/defs/fire.tres" id="2_fire"]
+[ext_resource type="Resource" path="res://elements/defs/ice.tres" id="3_ice"]
+[ext_resource type="Resource" path="res://elements/defs/lightning.tres" id="4_lightning"]
+
+[resource]
+script = ExtResource("1")
+elements = Array[ExtResource("1_element")]([ExtResource("2_fire"), ExtResource("3_ice"), ExtResource("4_lightning")])

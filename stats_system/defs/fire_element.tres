@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/fire.tres" id="identity_fire"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_fire")
+role = 1
+id = &"fire_element"
+display_name = "Fire attunement"
+description = "How much of the fire element this entity carries: the element's count, as an aspect count is the aspect's, read by each combat mode in its own cell. No family parent. A count, never potency. Default 0; entity-scope only."
+value_type = 0
+default_value = 0.0
+modifier_name = "Fire attunement"

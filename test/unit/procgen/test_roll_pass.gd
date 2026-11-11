@@ -183,6 +183,12 @@ func test_blight_ships_a_supply_pass() -> void:
 	assert_has(ids, &"supply", "blighted nodes run the supply pass")
 
 
+## A supply stat is a COUNT facet (`poison_aspect`, `fire_element`).
+func _is_count(stat_id: StringName) -> bool:
+	var def := StatRegistry.get_def(stat_id)
+	return def != null and def.role == StatDef.Role.COUNT
+
+
 func test_shipped_supply_pass_reaches_exactly_each_schools_aspects() -> void:
 	var checked := 0
 	for pack in _SET.packs:
@@ -190,7 +196,7 @@ func test_shipped_supply_pass_reaches_exactly_each_schools_aspects() -> void:
 			continue
 		var aspects := {}
 		for pool in pack.pools:
-			if pool != null and String(pool.stat_id).ends_with("_aspect"):
+			if pool != null and _is_count(pool.stat_id):
 				aspects[pool.stat_id] = true
 		if aspects.is_empty():
 			continue

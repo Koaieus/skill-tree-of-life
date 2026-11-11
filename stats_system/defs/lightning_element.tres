@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="StatDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://stats_system/stat_def.gd" id="1_stat_def"]
+[ext_resource type="Resource" path="res://identity/defs/lightning.tres" id="identity_lightning"]
+
+[resource]
+script = ExtResource("1_stat_def")
+identity = ExtResource("identity_lightning")
+role = 1
+id = &"lightning_element"
+display_name = "Lightning attunement"
+description = "How much of the lightning element this entity carries: the element's count, as an aspect count is the aspect's, read by each combat mode in its own cell. No family parent. A count, never potency. Default 0; entity-scope only."
+value_type = 0
+default_value = 0.0
+modifier_name = "Lightning attunement"

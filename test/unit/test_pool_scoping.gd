@@ -129,6 +129,9 @@ const _SUPPLY_HOME := {
 	&"blindness_aspect": &"perception",
 	&"corruption_aspect": &"wisdom",
 	&"greed_aspect": &"wisdom",
+	&"fire_element": &"strength",
+	&"ice_element": &"dexterity",
+	&"lightning_element": &"intelligence",
 }
 
 

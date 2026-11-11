@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="StatusDef" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_status_def"]
+[ext_resource type="Resource" path="res://identity/defs/heat.tres" id="2_identity"]
+
+[resource]
+script = ExtResource("1_status_def")
+id = &"heat"
+display_name = "Heat"
+identity = ExtResource("2_identity")
+description = "Fire's terrain stack: side-less heat a node holds, read per node. Past its threshold it primes into Burning (elements/defs/fire.tres). Uncapped here: the cap is the node's k x T (#1794)."
+power_max = 0.0

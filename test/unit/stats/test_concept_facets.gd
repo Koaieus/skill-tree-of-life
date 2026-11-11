@@ -29,7 +29,7 @@ func test_every_facet_def_has_an_identity_and_indexes_to_itself() -> void:
 		seen[key] = def.id
 		assert_eq(StatRegistry.facet_def(def.identity.id, def.role), def, "facet_def for %s" % def.id)
 		checked += 1
-	assert_eq(checked, 31, "the 31 concept stats carry a role")
+	assert_eq(checked, 37, "the 37 concept stats carry a role")
 	assert_eq(StatRegistry.facet_defs().size(), checked, "facet_defs() is every role-bearing def")
 
 
@@ -80,3 +80,25 @@ func test_family_parent_folds_into_a_minted_facet() -> void:
 	m.value = 1.0
 	board.add_modifier(m)
 	assert_eq(curse.value, before + 1.0, "+1 aspects reads +1 on the curse aspect")
+
+
+func test_each_element_resolves_its_count_and_member_resistance_facets() -> void:
+	var board := _fresh(_BOARD)
+	var checked := 0
+	for element in ElementRoster.shared().elements:
+		var count := StatRegistry.facet_def(element.id(), StatDef.Role.COUNT)
+		assert_not_null(count, "%s COUNT facet" % element.id())
+		if count != null:
+			assert_eq(count, element.stat, "%s: the roster's count stat" % element.id())
+			assert_not_null(board.get_stat(count.id), "%s minted on a default board" % count.id)
+			checked += 1
+		var members: Array[StatusDef] = [element.terrain]
+		members.append_array(element.movers)
+		for member in members:
+			var res := StatRegistry.facet_def(member.identity.id, StatDef.Role.RESISTANCE)
+			assert_not_null(res, "%s RESISTANCE facet" % member.id)
+			if res != null:
+				assert_eq(res.id, member.resistance_stat_id(), "%s keys its own resistance" % member.id)
+				assert_not_null(board.get_stat(res.id), "%s minted on a default board" % res.id)
+				checked += 1
+	assert_eq(checked, 6, "a default board mints all six element stats")

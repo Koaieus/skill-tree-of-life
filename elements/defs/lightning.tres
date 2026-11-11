@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="Element" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://elements/element.gd" id="1_element"]
+[ext_resource type="Script" path="res://elements/element_band.gd" id="2_band"]
+[ext_resource type="Resource" path="res://identity/defs/lightning.tres" id="3_identity"]
+[ext_resource type="Resource" path="res://stats_system/defs/lightning_element.tres" id="4_stat"]
+[ext_resource type="Resource" path="res://effects/status/charge.tres" id="5_terrain"]
+[ext_resource type="Resource" path="res://identity/defs/intelligence.tres" id="6_school"]
+[ext_resource type="Resource" path="res://identity/defs/shocked.tres" id="7_primed"]
+
+[sub_resource type="Resource" id="band_primed"]
+script = ExtResource("2_band")
+identity = ExtResource("7_primed")
+travel = 2
+decay_per_world_turn = 1
+
+[sub_resource type="Resource" id="band_overflow"]
+script = ExtResource("2_band")
+at_cap = true
+travel = 2
+decay_per_world_turn = 2
+
+[resource]
+script = ExtResource("1_element")
+identity = ExtResource("3_identity")
+stat = ExtResource("4_stat")
+terrain = ExtResource("5_terrain")
+school = ExtResource("6_school")
+decay_per_world_turn = 1
+bands = Array[ExtResource("2_band")]([SubResource("band_primed"), SubResource("band_overflow")])

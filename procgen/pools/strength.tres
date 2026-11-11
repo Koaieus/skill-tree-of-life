@@ -150,7 +150,23 @@ min_tier = 2
 max_tier = 2
 metadata/_custom_type_script = "uid://csc1d4c2smgr7"
 
+[sub_resource type="Resource" id="sup_fire_shape"]
+script = ExtResource("3_m6jpa")
+
+[sub_resource type="Resource" id="fire_element"]
+resource_name = "fire_element +"
+script = ExtResource("2_pool")
+stat_id = &"fire_element"
+passes = Array[StringName]([&"budget", &"supply"])
+subtypes = Array[ExtResource("90_nsub")]([ExtResource("91_sreg"), ExtResource("92_sbli")])
+tags = Array[StringName]([&"str", &"flat", &"attack", &"ammo"])
+pool_weight = 1.2
+tier_shape = SubResource("sup_fire_shape")
+min_tier = 2
+max_tier = 2
+metadata/_custom_type_script = "uid://csc1d4c2smgr7"
+
 [resource]
 script = ExtResource("1_sp")
 archetype_stat = &"strength"
-pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_res"), SubResource("bleeding_res"), SubResource("bleeding_aspect"), SubResource("weakness_aspect")])
+pools = Array[ExtResource("2_pool")]([SubResource("ab"), SubResource("inc"), SubResource("mul"), SubResource("ar"), SubResource("ar_pct"), SubResource("Resource_u38nb"), SubResource("corruption_res"), SubResource("bleeding_res"), SubResource("bleeding_aspect"), SubResource("weakness_aspect"), SubResource("fire_element")])
