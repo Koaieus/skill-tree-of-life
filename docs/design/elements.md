@@ -647,18 +647,36 @@ the elements so far:
   copy frozen node -> frozen blade node (detrimental so far, makes blade node
   fragile, but maybe we do add a damage increase to even it out?). copy
   shocked node -> get shocked blade node (zaps/arcs)"*): `BladeVertexFill`
-  reads the state at fill as it reads stats; a Burning vertex blasts a disc
-  where it touches, a Shocked vertex arcs from the node it touches, a Frozen
-  vertex is brittle and snaps on first contact. Your terrain travels with
-  your blade.
+  reads the state at fill as it reads stats; a Burning vertex casts Fire's
+  disc on the node it touches, a Shocked vertex casts Lightning's arc on it,
+  a Frozen vertex is brittle and snaps on first contact. Your terrain
+  travels with your blade.
+  - **A vertex's element is a shape on the node it hits** (owner,
+    2026-11-11: *"I think it's best read as a shape. Or really it comes down
+    to this: do we let *the blade node* explode, or let *the node it hits*
+    explode? The latter points to a shape and is easier to do esp if a
+    burning blade hitting a burning node causes a *bigger* explosion instead
+    of 2 explosions"*; a Shocked vertex follows the same rule): an elemented
+    vertex touching a node reads as a cast of that element's shape landing on
+    the contact node. The disc is Burning's blast area (radius A × (√power +
+    B) × node size, § The threshold model), centred on the skill node the
+    vertex touches and sized by that node (every disc is sized by the node it
+    originates from); a Shocked vertex's arc fans out from the touched node
+    to its neighbours. Neither is centred on or sized by the blade vertex,
+    and neither is the hitbox of the vertex or the node. An unprimed contact
+    node takes 1 landing, the contact: a shape alone is not a channel (ADR
+    0086 §4), so there is no centre landing.
   - **A Burning vertex on a contact node adds up per channel** (owner,
     2026-11-11: *"Sounds to me like a burning blade node is a similar case
     of a spell with Fire reach hitting a node, they add up per channel"*):
     a Burning vertex touching a node reads as a Fire-shaped cast landing on
     it. On a Burning node the vertex's disc and the node's own go-off add up
-    as one Fire channel, not two go-offs (ADR 0086 §5), the same sum as a
-    shape and a primed node of one element (§ Shape and ride).
-  - **A vertex go-off spends the copy, never the source** (owner,
+    as one Fire channel, one bigger explosion and never two (ADR 0086 §5),
+    the same sum as a shape and a primed node of one element (§ Shape and
+    ride). On a Frozen contact node Ice mutes the node's own go-off (§ Pair
+    rules) and the vertex's shape runs alone, as a Fire shape does on a
+    Frozen node (§ Shape and ride).
+  - **A vertex's shape spends the copy, never the source** (owner,
     2026-11-09: *"so far there is *no* gameplay connection back to the
     source node after a blade node copy is made from it. not starting
     now"*): the fill is a read, the source node keeps its stacks, and the
@@ -682,7 +700,7 @@ the elements so far:
     threshold all see the full amount.
 
   Spec-time (the Fire and Lightning children): what a Burning or Shocked
-  vertex's go-off reads and reaches.
+  vertex's shape reads and reaches.
 
 ## The reach rule (owner's atomics, 2026-11-04)
 
@@ -1222,7 +1240,7 @@ down — iff you debuff them properly first"*. Frozen matches by counting its
 break as 2 channels (§ What breaks the ice). Terrain riders still land once
 per node per hit (stage one's cap), so the extra landings carry damage and
 aspect riders only and a fire does not feed itself. "No other node reached, no go-off"
-stands as worded: the centre landing happens only when the go-off does. The
+stands as worded: the centre landing happens only when the go-off does, so a blade vertex's shape on an unprimed contact node adds none. The
 share stays a knob per go-off and the dedupe a switch that never merges the
 hit node's landings (Dual reach, above). **A cast's shape alone is not a
 channel for the seed** (owner, 2026-11-10: *"the shape for
@@ -1576,10 +1594,6 @@ hit; the keystone grants its element while held.
   *"most often the simple gameplay mechanics are best"* (same message).
   Reversing ADR 0091 §3 takes the owner's ruling and a new ADR; until then
   the issue bodies follow 0091 as it stands, with a NOTE naming this fork.
-- **A Burning vertex on a Frozen contact node** (tentative, awaiting the
-  owner's confirmation): Ice mutes the node's own go-off (§ Pair rules), so
-  the vertex's Fire shape runs alone, as a Fire shape does on a Frozen node
-  (§ Shape and ride).
 - **Catalyst, settled and what remains** (owner, 2026-11-09). Settled in § The
   threshold model: Catalyst is one element-generic converter in no family, the
   world-tick fuse is dropped (it converts at landing, so no node holds it
