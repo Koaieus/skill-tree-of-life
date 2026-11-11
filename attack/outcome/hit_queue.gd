@@ -53,3 +53,7 @@ func next() -> HitInstance:
 ## it goes after every unlanded hit with an index no greater than its own.
 func push(hit: HitInstance) -> void:
 	record.append(hit)
+	var at := _cursor
+	while at < _order.size() and _order[at].schedule_index <= hit.schedule_index:
+		at += 1
+	_order.insert(at, hit)
