@@ -4,8 +4,10 @@ Reviewer: one fresh subagent, 2026-11-11, read-only over the bodies as posted (p
 
 Findings T1, T2, … run across the file. Kinds: A contradiction / ownership / Blocked-by, B stale citation or quote, C untestable acceptance, D the fork NOTE, E arithmetic.
 
+**Coverage:** read in full: #1807, #1816, and #1798's Decisions, Composition, Acceptance and NOTES. Every other body was grepped and read in sections around the writer points and the arithmetic. A second pass on #1800, #1810, #1811 and #1813 would find what greps miss.
+
 ## Cross-cutting checks (mechanical)
-- **Owner quotes:** every `*"…"*` quote in the 19 bodies (196 in all) was matched against `elements.md` + `docs/adr/00*.md`, whitespace- and markup-normalised: none missing. Other double-quoted strings are labels or doc phrases, not owner quotes.
+- **Owner quotes:** every `*"…"*` quote in the 19 bodies (195 in all) was matched against `elements.md` + `docs/adr/00*.md`, whitespace- and markup-normalised: none missing. Other double-quoted strings are labels or doc phrases, not owner quotes.
 - **D, the 02:43 NOTE:** present, verbatim, at the top of #1798, #1804, #1807, #1808, #1812, #1813, #1816. Each of them cites the raw amount, the threshold or the flat breaker, so none is unneeded. No body without the NOTE cites the damage breaker or the break threshold: #1795:40 ("a shatter's") and #1806:24 ("the arrival that breaks the ice sets the arc off") name only the break, not the damage breaker. **D is clean.**
 - **Blocked-by / Blocks** match `ORDER.md` everywhere except #1814 (T10). #1807 does not list #1444 on its Blocks line, but its NOTES name it ("Frostbite #1444 (blocked by this)"), and the relation is a board edge: not reported.
 - **"Closes" / save items:** none. (#1801:57 says "No save version moves", which is a statement, not an item.)
@@ -21,7 +23,7 @@ No findings. Its commit shape (:40, two commits per generation: a land batch, th
 No findings. Writer point 5: #1796:27 ("This unit adds the signal unless it already exists. … #1805 is not behind this unit") and #1805:28 ("if it is not on master at dispatch, this unit adds that one signal exactly as #1796 specifies it") are a matched contingency. #1796 owns the spec; ORDER gives no edge between them, so no blocker is owed.
 
 ## #1798 — resolver
-**T1 (A, cross-body with #1806; writer point 2).** #1798:91: "This unit ships no hop seat: a `GoOff`'s reached nodes all land in the next generation. If #1806 finds no seat for later rings, the seat is the gather's; stop and report." #1806:44: "The seat that carries the depth, and the stagger itself, are #1798's; if its contract at dispatch takes the reached set without a depth, stop and say so." Each body defers to the other, so the seam ships in neither, and #1806 acceptance 3a ("Y and W one above the hit, Z two above") cannot pass. Source: one decision, one owner (FIX-BRIEF § Rules). The reading itself is ADR 0091 §1's pass reading, tentative. **Fix (#1798):** the gather owns generations and the entry's `generation` field, so ship the seat there. A `GoOff`'s reached nodes carry a depth (default 1). The gather appends a depth-d entry at generation g + d, and admits and reads it against the terrain that generation starts from. The spend and the transfer still commit at g. One test uses a test-local `GoOff` returning a depth-2 node. #1806 then only fills the depth from `nodes_within`.
+**T1 (A, cross-body with #1806; writer point 2).** #1798:91: "This unit ships no hop seat: a `GoOff`'s reached nodes all land in the next generation. If #1806 finds no seat for later rings, the seat is the gather's; stop and report." #1806:44: "The seat that carries the depth, and the stagger itself, are #1798's; if its contract at dispatch takes the reached set without a depth, stop and say so." Each body defers to the other, so the seam ships in neither, and #1806 acceptance 3a ("Y and W one above the hit, Z two above") cannot pass. Source: one decision, one owner (FIX-BRIEF § Rules). The reading itself is ADR 0091 §1's pass reading, tentative. **Fix (#1798):** the gather owns generations and the entry's `generation` field, so ship the seat there. A `GoOff`'s reached nodes carry a depth (default 1). The gather appends a depth-d entry at generation g + d, and admits and reads it against the terrain that generation starts from. The spend and the transfer still commit at g. One test uses a test-local `GoOff` returning a depth-2 node. A depth alone does not satisfy #1806 acceptance 3a ("with a test-local `Admits` whose second read answers 'path ends' at Y, Z takes no entry"), so the seat also carries each node's parent ring node. The gather drops a depth-d entry when every path to it runs through a node whose read said "path ends". That drop rule is the same seam as #1806's :80 fork (does the source still pay for those nodes?), so #1798 owns both. #1806 then only fills the depth and the parent from its BFS.
 
 **T2 (C/E; writer point 6).** #1798:42 hands the second read "its raw amount (the stamped amount with the crit already in, × its share; armor and the damage floor play no part, ADR 0091 §3)". #1798:41 lands every go-off entry at "damage × s + own damage", and #1807 acceptance 3b reads a copy's raw amount as D + d ("D < τ ≤ D + d … A's copy breaks"). #1807 agrees with #1798:41 and with ADR 0086 §2 (the centre copy carries the own damage, "as a reached node's copy does"). #1798:42's definition leaves the own damage out, and says nothing on whether the crit multiplies it. **Fix (#1798):** define a copy's raw amount as its landing's own number, stamped × crit × share + own damage, and say whether the crit multiplies the own damage. The NOTE covers the eventual value.
 
@@ -56,12 +58,12 @@ No findings. Arithmetic verified against ADR 0086 §1 / §3, 0090 §1 and 0091:
 Writer point 1 is settled under the writer points below.
 
 ## #1808 — pairs
-**T8 (A, with #1798).** #1808:27: "With several breakers in one generation the node is read once and releases once (tentative, not the owner's; asked of the owner)". Its NOTES name the alternative: one release per breaker, each spending the arc's Charge and adding a centre landing and copies. #1798 acceptance 6 already fixes how often an unmuted go-off fires for two same-beat arrivals at one node: "both have their go-off handed S + 2; both go off. Their spends are summed and clamped at 0". That is the owner's "a node's own go-off fires once per hit" (`elements.md` § Landing resolution; #1816's 0081 §1 item). Under #1798's rule a released arc fires once per breaking hit, so #1808's tentative "releases once" departs from the resolver's own count without saying so. The "read once" half is settled: ADR 0091 §1. **Fix:** #1808 cites ADR 0091 §1 for the one read, and says its "releases once" departs from #1798 acceptance 6's per-hit go-off count. The owner's answer goes to #1798, which owns the go-off count, and #1808 follows it. Listed under F, together with which breaker's payload the release's copies carry.
+**T8 (A, with #1798).** #1808:27: "With several breakers in one generation the node is read once and releases once (tentative, not the owner's; asked of the owner)". Its NOTES name the alternative: one release per breaker, each spending the arc's Charge and adding a centre landing and copies. #1798 acceptance 6 already fixes how often an unmuted go-off fires for two same-beat arrivals at one node: "both have their go-off handed S + 2; both go off. Their spends are summed and clamped at 0". That is the owner's "a node's own go-off fires once per hit" (`elements.md` § Landing resolution; #1816's 0081 §1 item). Under #1798's rule a released arc fires once per breaking hit, so #1808's tentative "releases once" departs from the resolver's own count without saying so. The "read once" half is settled: ADR 0091 §1. **Fix:** #1808 cites ADR 0091 §1 for the one read, and says its "releases once" departs from #1798 acceptance 6's per-hit go-off count. The owner's answer goes to #1798, which owns the go-off count, and #1808 follows it. This is a spine contradiction: if the answer is "once per read", #1798 acceptance 6 changes first. Listed under F, together with which breaker's payload the release's copies carry.
 
 Arithmetic verified. A Frozen + Shocked breaking hit takes 2 + b = 4: its own landing, b = 2 break landings, and the released arc's centre landing (ADR 0086 §1, 0090 §1, 0081 §4). Each neighbour takes 1. Two breakers take 2 + 2b = 6 beyond the centre landing, with one shatter.
 
 ## #1809 — forge
-**T9 (B; writer point 8).** #1809:15: "It keeps its name for now (owner picked keeping it, 2026-11-10)." Neither `elements.md` nor an ADR carries this call. The doc's v1 spell bullet (§ Open) reads "`lightning_bolt` carries Charge (renamed, not reshaped, …)". The pick is recorded only in the handoff `BRIEF.md` item H ("(a) Keep the name lightning_bolt for now"). Quote marks were rightly dropped, but the dated call has no quotable home, and the doc says the opposite. **Fix:** the lead corrects the doc's v1 bullet to "keeps its name for now (owner, 2026-11-10)", and #1809 then cites § Open. Until then #1809 cites `BRIEF.md` H and notes that the doc's word is stale.
+**T9 (B; writer point 8).** #1809:15: "It keeps its name for now (owner picked keeping it, 2026-11-10)." Neither `elements.md` nor an ADR carries this call. The doc's v1 spell bullet (§ Open) reads "`lightning_bolt` carries Charge (renamed, not reshaped, …)". The pick is recorded only in the handoff `BRIEF.md` item H ("(a) Keep the name lightning_bolt for now"). Quote marks were rightly dropped, but the dated call has no quotable home, and the doc says the opposite. #1809 already complies with FIX-BRIEF: it states the rule without quote marks. **Fix (doc, not the body):** the lead or the restamp pass corrects the doc's v1 bullet to "keeps its name for now (owner, 2026-11-10)", and #1809 then cites § Open.
 
 Not a finding: the trim order is honestly left open. #1809:38 says "this unit picks none", acceptance 9 says "Which field gives way is not asserted", and NOTES :71 says "Open, asked of the owner". It is listed under F. A drone still has to give `clamp_infusion` some order when a shared element's shape + ride exceed its count, and no tentative default is named, so the fork does block Ready.
 
@@ -128,12 +130,104 @@ Here a fork means a design call the body leaves open with no default. Every body
 
 ## Writer points 1-10
 1. **Landings of a breaking hit.** Both bodies are right. #1807's 1 + `break_channels` = 3 is a plain Frozen node. #1808's 2 + b = 4 is a Frozen + Shocked node, where the break releases the muted arc (ADR 0081 §4) and that go-off is a channel landing one centre payload (ADR 0086 §1). #1807 points the release and its centre copy at #1808 ("A Frozen + Shocked node's mute and release, and the released go-off's centre copy, are #1808's"). No finding.
-2. **The hop seat.** Neither body ships it (T1). #1798 must carry it: it owns generations and the entry's `generation` field. #1806's description (depth 1 to L from `nodes_within`, a copy d generations after the arrival) is enough to build once #1798 states the entry rule: generation g + d, admitted against that generation's start, spend and transfer at g.
+2. **The hop seat.** Neither body ships it (T1). #1798 must carry it: it owns generations and the entry's `generation` field. #1806's description (depth 1 to L from `nodes_within`, a copy d generations after the arrival) is enough to build once #1798 states the entry rule: generation g + d, a parent ring node, the drop rule behind a "path ends" node, admission against that generation's start, and spend and transfer at g. Depth alone is not enough.
 3. **The `light` flag.** Resolved in #1793, whose acceptance 2 no longer pins "only Burning". The stale piece is #1805 acceptance 3c's re-point clause (T7).
 4. **The goo order.** Confirmed: #1810 states no goo order. The goo's 2 is today's `explosive.tres` value, and #1801 should say so (T4).
 5. **`terrain_changed`.** No finding. #1796 and #1805 carry a matched add-if-absent clause, #1796 owns the spec, and ORDER gives no edge between them.
 6. **D + d.** #1807 is consistent with ADR 0086 §2 and #1798:41 (every go-off entry lands damage × s + own damage). #1798:42's raw-amount definition is the body that omits the own damage (T2).
 7. **The clamp order.** Confirmed stale in #1814:77 (T11). #1809 leaves the order open throughout.
-8. **The name.** "Keeps its name (owner, 2026-11-10)" is sourced only in `BRIEF.md` H. The doc's "renamed, not reshaped" contradicts it and is the stale side. A doc fix is needed (T9).
+8. **The name.** "Keeps its name (owner, 2026-11-10)" is sourced only in `BRIEF.md` H. The doc's "renamed, not reshaped" contradicts it and is the stale side. The only fix is that doc correction (T9); #1809 already complies.
 9. **"Per beat".** Confirmed stale in #1801:38 (T5). The seat runs at every commit, twice per generation.
 10. **The lone node.** Both bodies agree the law is the owner's (ADR 0081 §1) and that go-off zero keeps today's lone-node spend as a tentative interim. #1798 is ambiguous about whether the base `GoOff` or the gather enforces "0 reached, no go-off" (T3). Fix in #1798, so that #1799's stop clause never fires.
+
+## Second pass (#1800, #1810, #1811, #1813)
+
+Reviewer: a second fresh subagent, 2026-11-11, read-only. The four bodies were pulled at 03:13 UTC and read in full. Sibling bodies were read by grep only, where a cross-body check needed them: #1793, #1798, #1799, #1801, #1806, #1807, #1809 and #1812. #1798 and #1801 were being edited in parallel, so any line cited from them is as pulled. The bar, format and exclusions are the first pass's. T1-T11 are not repeated. Line numbers (`:NN`) point into the bodies as pulled.
+
+**Checked and clean on all four:**
+- Blocked-by and Blocks match `ORDER.md`.
+- D: the NOTE is on #1813, which cites the flat breaker, and on none of the other three, which do not cite it.
+- The ADR § citations hold: 0081 §7, 0084 §2/§3/§4/§8, 0086 §1-§5, 0083 §2 (its post-rider read), 0090 §1 and 0091 §1-§4.
+- Arithmetic, against 0086 §1 / §3, 0090 §1 and 0091:
+  - #1800: acceptance 1, 3b, 3c, 4, 5, 5b and 5c. The radii are 4R / 6R / 8R, 2R → 8R. C takes 2, N takes 1, C's Heat moves by h − 1. The chain is 6R / 4R / 9.8R. The dual reach gives 2, or 3 with the flag on.
+  - #1810: acceptance 2 (n, 2n, 2n).
+  - #1813: acceptance 1, 3, 4b and 5. ×2.5 / ×4 and ceil(7.5) = 8. 4b gives 8D / 4D, and 12D / 8D / 4D / 4D; #1806's arc returns own damage 0, so 4b needs no second zeroing. 5 gives 3 landings, 12D and one burst of (e + 6 × knob).
+- The ammo orders 3 / 4 / 6 collide with no existing type: explosive 2, greed 5, sunder 10 and so on.
+
+**Not findings:**
+- #1800:37 sets the overflow band's travel "unless #1793 already authors it so", and #1793:18 does author it. The contingency resolves to doing nothing.
+- #1800:42's mark fallback to the band below matches #1798:45 and its acceptance 11.
+- #1813's "§ What breaks the ice" is the bold lead at `elements.md` "**What breaks the ice**". Its no-holder call is there.
+
+### #1800 — burning
+**T12 (A/C, with #1799).** #1800:37: "If the disc subclass hard-codes go-off zero's power, the power read becomes the subclass's one override point. No second disc class." Files touched (:47): "the disc `GoOff` subclass (created by #1799): a power source seam, if it lacks one."
+- #1799:27 makes only two reads swappable, power and radius. Its spend is fixed at "`spend_of(load, present)`" and its own damage at "0".
+- Burning's instance differs from go-off zero's in four reads:
+  - power: the excess.
+  - radius: `disc_radius`.
+  - spend: 1 Heat per node reached (:39, acceptance 1).
+  - own damage: `damage_per_power` × power (:32, acceptance 3c).
+- On the class as #1799 builds it, Burning's instance would spend `spend_of(0, 0)` and deal no own damage. Acceptance 1, 3 and 3c would fail, and no body owns the two missing seams (one decision, one owner; FIX-BRIEF § Rules).
+
+**Fix (#1800):** in Composition and Files touched, name all four per-instance reads it sets or adds on `DiscGoOff`, including a `damage_per_power` export that go-off zero's instance leaves at 0 and a swappable spend whose go-off-zero value is `spend_of`, and drop "one override point".
+
+### #1810 — quiver
+**T13 (C).** Acceptance 1: "`:52-58`'s "carries its own status" becomes "carries its own status, or a member status of its element" for the three element types only". Composition :25 builds each type with "one `ApplyStatusEffect` of its terrain status (Heat / Cold / Charge, #1793)". A "member status" admits any member of the element: #1793's Element Matrix lists Frostbite beside Cold, and `ElementRoster.for_status` answers membership. The pin would therefore pass an `ice` arrow carrying Frostbite.
+
+**Fix (#1810):** pin "carries its element's `terrain` status (#1793's `Element.terrain`)".
+
+(Not numbered: #1810:24's "#1807 points here for it" has no matching line in #1807, which carries only the Blocks edge. Harmless.)
+
+### #1811 — forge-ui
+**T14 (A, with #1800).** #1800:41: "the forge readout's own lookup (`ui/hud/command_tray/bodies/readout_lines.gd:113`) is #1811's and is untouched here." Today that lookup is `ReadoutLines.status_of`, which returns `StatusRoster.shared().by_concept(id)`, so it gives null for `fire`, `ice` and `lightning`. #1811:31 needs it: "The ride line names the terrain it plants (Heat / Cold / Charge)". Acceptance 1 needs it too. #1811 never names the lookup, in Composition, Files touched or acceptance. This is a seam #1800 hands over that #1811 does not ship.
+
+**Fix (#1811):** Composition and acceptance 1 route `ReadoutLines.status_of` through the row's `AspectIntake.status()` (#1800's resolver), so that a forged ride, and an element row with `plants` unset, name the element's terrain.
+
+**T15 (A, with #1809 and #1813).** #1811:27: "A spell refusing a shape, and its reason, are #1812's and #1813's (#1809 NOTES); this unit greys nothing in the shape socket on that account, so until they land every element with a count is offered there". Acceptance 3 says the same. The bodies disagree in two places:
+- #1809:69 gives the refusal to one owner: "a spell refusing a shape (an Ice row with gain 0) are #1813's alone". #1812 has no refusal.
+- "Until they land" promises a shape-socket grey-out that no body ships. #1813 touches only `readout_lines.gd` and `crucible_readout_line.gd`, not `infusion_sockets.gd` or `infusion_choices.gd`, and has no socket item.
+
+**Fix:** #1811:27 and acceptance 3 say the shape refusal is #1813's alone. Then either #1813 adds the shape socket's grey-out of a refused Ice (`infusion_choices.gd` plus one socket test), or #1811 drops "until they land" and says the readout's refusal line is the only signal. The lead picks which.
+
+### #1813 — ice-cast
+**T16 (B, and a seam no body owns; with #1809 and #1811).** #1813:29: "an `AspectIntake` on Ice whose `use` is a `ConcentrateUse` (rows key on the use they run, #1793)". #1793 builds no such keying: its :15 says "This unit adds only the field" (`plants`). #1800:79 leaves the walk over two rows of one concept unbuilt. Today `Infusion.intake_of` and `ratio_of` / `rate_of` (`infusion.gd:50-86`) answer for the first row whose `aspect_id()` is the bare concept.
+- #1813:33 authors a refusing Ice shape row (`affinity_gain` 0) on every def with `max_hops` 0 or `inf`.
+- #1811:27 greys a ride by `Infusion.rate_of(spell, id) <= 0`.
+- #1809:36's `aspect_overrun()` counts "every ride point on an element the spell refuses (rate 0)".
+
+So once #1813 lands, `trail_blazer` and every 0-hop def refuse a Cold ride. That breaks `elements.md` § Ice on a cast ("a Cold ride still plants Cold"; rows "key on the status or use they run, never on the bare element"). The tests as written still pass: #1811's acceptance 3 and #1813's acceptance 2 and 6 use test or refusing rows and never forge a Cold ride on a refusing def. The behaviour breaks only in play.
+
+**Fix (#1813):** #1813 adds the second kind of Ice row, so it owns telling the two apart. It splits the rate reads so that the ride refusal #1809 and #1811 test reads only plant rows and the shape's rate and refusal read only the concentrate row. One way is a use-kind argument on `intake_of` / `ratio_of` / `rate_of`. It adds an acceptance item that a 0-hop def still takes a Cold ride, and drops the #1793 pointer.
+
+**T17 (A/E, with #1807; the T2 gap restated here).**
+- #1813:18: "The damage breaker reads each arrival's raw amount as thrown: its stamped amount, crit included, × its load multiplier".
+- #1813:35: "A copy of the concentrated payload that arrives at a Frozen node meets the damage breaker alone, at its stamped amount (×m included) × its share".
+
+#1807 acceptance 3b reads a copy's raw amount as D + d, own damage included. ADR 0086 §2 has the copy carry the go-off's own damage. #1813 restates #1798:42's definition (as pulled, under parallel edit), which leaves the own damage out. That is T2. If #1798 takes T2's fix, #1813:35 contradicts it.
+
+**Fix (#1813):** :35 reads "at its stamped amount (×m included) × its share, plus the go-off's own damage", matching #1798's definition once T2 lands. No acceptance item moves, because 4b zeroes Burning's `damage_per_power` and the arc's own damage is 0. The NOTE covers the eventual value.
+
+### Open forks (second pass)
+| Issue | Open forks (no default) |
+|---|---|
+| #1800 | none |
+| #1810 | none |
+| #1811 | none (T15's "who greys a refused shape" is a spec gap for the lead, not an owner fork) |
+| #1813 | none beyond the 02:43 damage-breaker fork (the NOTE) |
+
+**Counted as tentative with a default, not forks:**
+- #1800:
+  - go-off zero's exemption: `lands_on_own_node` false, share 0.5.
+  - the overflow band keeping Burning's go-off and travel.
+  - the overflow mark naming the band below.
+  - the Cold / Frostbite row walk left unbuilt (:79).
+  - the solo-cost "at least 1" and the shape multiplier 5, both #1812's.
+- #1810: `stock_cap_reloads` 2; the orders 3 / 4 / 6; no int:int rate on `AmmoType`.
+- #1811: shape points left out of the capacity (ADR 0085 revisit-when; #1809's `total_points()`).
+- #1813:
+  - `shatter_excess_per_hop_cut` 1.0, its name and value both open but carried.
+  - pass reading (1): only the seed's head carries `hops_removed`.
+  - pass reading (2): several concentrated breakers add their cuts to the one burst.
+  - pass reading (3): the shatter as Ice's 0D go-off.
+  - the owner's three shape-reaction fields idea, "Not built here".
+  - the parked identity-fields recomposition.
