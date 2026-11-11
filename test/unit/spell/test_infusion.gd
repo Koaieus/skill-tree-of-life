@@ -192,3 +192,54 @@ func test_an_uninfused_plan_ships_no_infusion_key() -> void:
 	var back := MagicAttackPlan.from_dict(plan.to_dict(graph), graph, TestSpells.CATALOG)
 	assert_not_null(back.infusion)
 	assert_true(back.infusion.points.is_empty())
+
+
+# ── the ride row's rekeying (#1800): a row named by element resolves its status ──
+
+const _HEAT: StatusDef = preload("res://effects/status/heat.tres")
+
+
+func _fire_row_spell(plants: StatusDef, innate: int) -> SpellDef:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = ElementRoster.shared().by_id(&"fire").identity
+	row.plants = plants
+	row.innate = innate
+	spell.intakes = [row]
+	return spell
+
+
+func test_a_fire_row_planting_heat_gives_one_heat_rider_at_its_innate() -> void:
+	var spell := _fire_row_spell(_HEAT, 3)
+	var riders := Infusion.innate(spell).bag(spell).riders
+	assert_eq(riders.size(), 1)
+	var apply := riders[0] as ApplyStatusEffect
+	assert_not_null(apply)
+	assert_eq(apply.def, _HEAT)
+	assert_eq(apply.power, 3.0)
+
+
+func test_a_fire_row_with_plants_unset_resolves_the_elements_terrain() -> void:
+	var spell := _fire_row_spell(null, 3)
+	var riders := Infusion.innate(spell).bag(spell).riders
+	assert_eq(riders.size(), 1)
+	var apply := riders[0] as ApplyStatusEffect
+	assert_not_null(apply)
+	assert_eq(apply.def, _HEAT)
+	assert_eq(apply.power, 3.0)
+
+
+func test_a_fire_rows_load_keys_fire_and_its_use_plants() -> void:
+	var spell := _fire_row_spell(_HEAT, 3)
+	assert_eq(Infusion.innate(spell).load_of(spell), {&"fire": 3})
+	assert_true(Infusion.use_of(spell, &"fire") is PlantUse)
+
+
+func test_a_poison_row_with_plants_unset_still_resolves_by_concept() -> void:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = StatusRoster.shared().by_concept(&"poison").identity
+	row.innate = 2
+	spell.intakes = [row]
+	assert_eq(row.status(), StatusRoster.shared().by_concept(&"poison"))
+	assert_eq(_rider_power(Infusion.innate(spell), spell, &"poison"), 2.0)
