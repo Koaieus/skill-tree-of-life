@@ -733,6 +733,27 @@ func test_a_record_carries_the_stage_one_terrain_and_the_staged_riders() -> void
 	assert_eq(_fire_of(_h), 3, "the replay lands the recorded terrain once, never gathering again")
 
 
+# A's replay trap, with a go-off: a rebuilt record feeds its terrain ops and
+# re-lands its copies as recorded; its first hit is no head, so nothing gathers.
+func test_a_rebuilt_go_off_feeds_its_ops_and_mints_no_copy() -> void:
+	_goff.reach_of = {_h: [_n1]}
+	_set_fire(_h, _t(_h))
+	_set_fire(_n1, 0)
+	var outcome: AttackOutcome = await _run([_span(_h, 1, 2)])
+	assert_gt(outcome.hits.size(), _orig, "fixture: the live gather made copies")
+	var fired := _goff.log.size()
+	var live := [_fire_of(_h), _fire_of(_n1)]
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
+	var count := rebuilt.hits.size()
+	assert_eq(count, outcome.hits.size(), "the record carries every copy")
+	_set_fire(_h, _t(_h))
+	_set_fire(_n1, 0)
+	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
+	assert_eq(rebuilt.hits.size(), count, "the replay mints no copy")
+	assert_eq(_goff.log.size(), fired, "and fires no go-off")
+	assert_eq([_fire_of(_h), _fire_of(_n1)], live, "the recorded terrain lands as the live gather left it")
+
+
 # ── Unit B1: the second read, the shatter, the walk end ─────────────────────────
 
 ## A [_ReadAdmits] on [param band], counting Fire (the hits' element).
