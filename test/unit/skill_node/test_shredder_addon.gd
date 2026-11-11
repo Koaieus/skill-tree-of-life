@@ -231,16 +231,17 @@ func test_a_target_without_armor_takes_the_flat_part_only() -> void:
 			"armor at or below 0 adds no share")
 
 
-func test_the_contact_damage_goes_through_the_armor_it_just_broke() -> void:
+func test_the_contact_is_cut_by_the_armor_as_it_stood_and_the_shred_lands_after() -> void:
 	# No damage floor, and exactly the 2/X flat stacks of armor: a plain hit is
-	# cut by it, a Shredder hit lands after its rider broke it all.
+	# cut by it, and so is a Shredder hit: its rider breaks the armor after it.
 	_set_plate(&"min_damage_taken", 0.0)
 	_set_plate(&"armor", _flat_per_level() * 2.0)
 	var plain := _damage_on_plate(await _swing_at(2, false))
 	assert_gt(plain, 0.0, "precondition: the plain contact deals damage")
-	var shredded := _damage_on_plate(await _swing_at(2))
-	assert_almost_eq(shredded, plain + _flat_per_level() * 2.0, 0.001,
-			"the rider lands first, so the hit sees the armor it broke")
+	var outcome := await _swing_at(2)
+	assert_almost_eq(_damage_on_plate(outcome), plain, 0.001,
+			"the shred lands after its contact, so the contact meets the armor as it stood")
+	assert_eq(_sunder_on_plate(outcome), _flat_per_level() * 2.0, "and the shred still lands")
 
 
 # ── map face and temp price ─────────────────────────────────────────────────
