@@ -45,6 +45,8 @@ order.
 
 ## MagicBody (`ui/hud/command_tray/bodies/magic_body.gd`)
 
+changing: shape and ride sockets and the element tally, #1811; the reset and the notice when the cap shrinks, #1814; see docs/design/elements/forge.md
+
 Magic tab content: the crucible. The vessel (`%SpellButton`, the equipped spell
 full-bleed at `vessel_px`, an `ArcaneCircle` turning behind it) on the left, its
 `InfusionSockets` fanned on an arc hugging its bottom edge, a circuit trace from

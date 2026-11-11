@@ -142,6 +142,17 @@ status: settling
 - **Knobs** ([terrain.md](terrain.md) § The threshold model, [go-offs.md](go-offs.md) § The trigger and what a go-off pays): T = 2 × degree, k, the hop ladder's
   L² × T, the disc's A and B, the decay rates — tuned with
   #1733.
+- **Knob values so far** (tentative pass picks unless marked owner; the world
+  turn's rate is [terrain.md](terrain.md)'s, per carrier by default): T = 2 ×
+  degree (owner); k = 2 + stake_level (owner); hop ladder L² × T (owner); disc
+  radius √power × node radius (owner); shatter fraction 1% per stack, spend
+  fraction 1.0; ice break threshold 10% max HP; blade sweep-speed
+  clamp(1 + c·t/T, 1 − c, 1 + c), c = 0.5; Catalyst ratio 1:1, cap k × T, slow
+  decay; terrain decay 1 per world turn below the first band; element ammo
+  stock cap 2 × the per-reload mint; starter count 1 each, dev sandbox Player
+  3 each, Catalyst the same (owner); Frozen vertex snap +10% per excess stack
+  as its own multiplier, no base term; Charge generator +2 per world tick,
+  ceiling ~4T (owner, tentative).
 - Which inner-tree shape holds elements, and the card offer's cadence.
 - **Spike pop docs vs code**: owner, 2026-11-08, *"The existing one just pops
   the one, docs may be stale"* — `BladePopResolver`'s header describes severing past a pop while

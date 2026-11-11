@@ -61,6 +61,8 @@ Per-entity, derived from each allocated node:
 
 ### The vision RULE is one class, shared by every caller
 
+changing: a Burning source kind, one disc per lit node, #1805; see docs/design/elements/go-offs.md
+
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers` is the
 **camp-mates** — every entity, AI or human, sharing the bound hero's `faction.id`. The
 rule lives in `SeatPolicy.vision_group` (`session/seat_policy.gd`, see

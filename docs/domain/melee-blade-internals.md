@@ -4,9 +4,11 @@ Per-class contracts for the melee solver and plan modules. The model and its inv
 
 ## Spike pop: `BladePopResolver`
 
+changing: a vertex on a Frozen node breaks by weight, a lighter one snaps, #1807; see docs/design/elements/frozen.md
+
 Given the raw `BladeHitEvent`s of a swing scan, `BladePopResolver` decides which
 of the attacker's own blade vertices die and which are then severed from the
-driven handle and disintegrated.
+driven handle (orphaned: they keep coasting, they are not killed).
 
 - A blade vertex that sweeps into a spiked, allocated enemy node drains that
   node's remaining `spikes` pool by the vertex's own `blunting`. Remaining >=

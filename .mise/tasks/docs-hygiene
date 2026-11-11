@@ -19,7 +19,7 @@ STATUSES = ("exploring", "settling", "built")
 HEADER_1 = "> **Archived "
 HEADER_2 = "> Decisions:"
 # A domain line that cites a design doc on purpose says so.
-CITE_PHRASES = ("design record:", "history:")
+CITE_PHRASES = ("design record:", "history:", "changing:")
 # Domain pages that talk about docs/design as a subject, not as a source.
 LINK_EXEMPT = {"design-doc-lifecycle.md", "adr.md", "breadcrules.md"}
 DESIGN_LINK = re.compile(r"(?:\.\./design/|docs/design/)([^\s)\]`'\"#]*)")

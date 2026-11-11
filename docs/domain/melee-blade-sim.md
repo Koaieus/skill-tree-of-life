@@ -238,6 +238,8 @@ Edges collide so a truss slamming a bunker cannot slip between its vertices
 
 ## Speed-scaled damage
 
+changing: a temperature term on the sweep-speed factor, applied at the stage-one stamp, #1804; see docs/design/elements/frozen.md
+
 `damage = blade_damage x f(speed)`, evaluated **per contact** from the contacting
 vertex's own speed at its own contact time (not a blade-wide average or per-step
 max):
@@ -638,6 +640,8 @@ up a coasting vertex's landings and a peer replays them without re-running a sol
 
 ### `SkillBlade`
 
+changing: the vertex fill copies a node's element terrain onto its blade vertex (spend-the-copy, one-shot flag), #1804; see docs/design/elements/frozen.md
+
 `build_from_skill_nodes(skill_nodes, pivot, induced_edges, owner, fill)` builds the
 `BladeState` and spawns BladeNode + BladeEdge visuals. `fill` is the plan's
 `vertex_fill`, a `BladeVertexFill`: the one owner of per-vertex stat reads and the
@@ -722,6 +726,8 @@ mispredicts; the rule they must not break is that a peer *receives* or *reproduc
 a landing and never re-decides one (`.claude/rules/multiplayer-sync.md`).
 
 ## Explosive charges: `vertex_charges` and the two-sided contact
+
+changing: section deleted, the blade's explosive path is removed, #1802; see docs/design/elements/go-offs.md
 
 `BladeState.vertex_charges` is the swing's **working copy** of each source
 node's Explosive charges, filled at swing start by `BladeVertexFill`. A

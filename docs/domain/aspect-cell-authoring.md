@@ -15,6 +15,8 @@ Guard: `test/unit/aspects/test_aspect_roster.gd`.
 
 ## Stat (prerequisite for every other cell)
 
+changing: role ASPECT renamed COUNT, #1793; explosive_aspect retagged catalyst_aspect, #1801; see docs/design/elements/counts.md, docs/design/elements/terrain.md
+
 - `stats_system/defs/<concept>_aspect.tres`, a child of the `aspects`
   parent (ADR 0029) with `identity` + `role = ASPECT`, on
   `stats_system/stat_def_roster.tres` — no board field: every entity board
@@ -27,6 +29,8 @@ Guard: `test/unit/aspects/test_aspect_roster.gd`.
 - Findable in play only once an attribute pool places it (#1249).
 
 ## Arrow (ranged column)
+
+changing: the per-reload facet is the COUNT facet, #1793; one ammo type per element with a stock cap, #1810; the explosive arrow becomes the Catalyst goo arrow, #1801; see docs/design/elements/counts.md, docs/design/elements/forge.md, docs/design/elements/terrain.md
 
 One `AmmoType` resource, `attack/ammo/types/<concept>.tres`, plus one line
 on `attack/ammo/ammo_type_roster.tres` (hard `ExtResource` edges; a folder
@@ -51,6 +55,8 @@ distinct mint stats, order invariants, own scene per statused type),
 `test_status_arrow_visual.gd` (the lifecycle).
 
 ### On-hit shelf
+
+changing: DetonateEffect and BlastEffect die into the go-off, #1799; DetonateUse goes, #1801; a hit's statuses land after its damage (the :58 span prose), #1818; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
 
 `RangedDamageFormula.ride` builds one `HitLanding` per arrow, anchored at its
 slot in the outcome (paired to it, so a gated arrow duds every rider), runs
@@ -197,6 +203,8 @@ harder by that amount — one formula, two readers (Rend, `rend.tres`).
 The design work is what else the spell does, so it is not "damage plus status" again.
 
 ## Infusion (magic column — ADR 0047, ADR 0060, #1250)
+
+changing: an intake row's `plants` field, #1793; rows named by element resolve their status, #1800; DetonateUse, FuelUse and detonate_load deleted, #1801; shape and ride fields, #1809; point cap grows with the caster node's degree, #1814; riders land after damage, #1818; see docs/design/elements/counts.md, docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/forge.md, docs/design/elements/hit-resolution.md
 
 Five words, one meaning each (owner, 2026-10-13, #1593):
 

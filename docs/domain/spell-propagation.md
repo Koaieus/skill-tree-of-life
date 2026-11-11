@@ -161,6 +161,8 @@ walk is over.** Both are authored elsewhere:
 
 ### `LandingCondition`
 
+changing: DetonateEffect.arm goes with the detonation port, #1799, #1801; see docs/design/elements/go-offs.md
+
 ```gdscript
 @tool
 @abstract
@@ -443,6 +445,8 @@ that landing's `lctx`.
 
 #### `max_hops` takes NO stat scaling — owner ruling, 2026-09-02
 
+changing: the Ice concentrate removes hops from `hops_remaining` per cast, #1813; see docs/design/elements/casting.md
+
 There are two different "spell hops" and they must never share a modifier:
 
 | | what it means | where | scalable? |
@@ -519,6 +523,8 @@ and fails to parse with "Expected '('". Same collision that named
 ---
 
 ## Resolver flow (wave-based)
+
+changing: the land-time gather and beat order, #1798, #1818; conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
 
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.

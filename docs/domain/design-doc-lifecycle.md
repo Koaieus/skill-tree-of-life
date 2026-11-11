@@ -33,6 +33,13 @@ to `archive/<yyyy-mm-dd>-<topic>.md`, the folder to
 `archive/<yyyy-mm-dd>-<topic>/`, each file with the header below. A folder with
 no hub beside it (a design-tool export) is not a doc set.
 
+**While a drop is in flight** the domain doc stays what the code is today, and
+each section a `Ready` issue will change carries one line at its top:
+`changing: <what>, #n; see docs/design/<topic>/<file>.md`. The issue's
+acceptance rewrites that section to what it built and drops the line, so a
+reader of the domain doc sees which passages are about to move without reading
+the target model as fact (#1716 set the pattern, 2026-11-11).
+
 ## Within a live doc vs. a whole doc
 
 - **A passage** that the code or a later call has overtaken is **deleted**, not
@@ -81,7 +88,7 @@ Reports; exits 1 on any violation, one line each. Checks:
   header and its `What is:` domain link exists;
 - `docs/design/index.md` links every top-level design doc;
 - **warn only:** a `docs/domain/*.md` line linking into `docs/design/` without
-  `design record:` / `history:` on it. Today these are mostly legitimate
+  `design record:` / `history:` / `changing:` on it. Today these are mostly legitimate
   pointers at a live doc's unbuilt half, so they are counted, not failed
   (`-- --verbose` lists them). A link into `docs/design/archive/` without the
   phrase, or to a design path that no longer exists, **fails** — that is what

@@ -104,6 +104,8 @@ above).
 
 ## Quiver, volleys, infusion, ammo aspects
 
+changing: element counts join the aspect rows, #1793; explosive becomes catalyst, #1801; element arrow bins beside the plain pool, #1810; see docs/design/elements/counts.md, docs/design/elements/terrain.md, docs/design/elements/forge.md
+
 | id | surface |
 |---|---|
 | `arrows` | `ui/hud/command_tray/bodies/ranged_body.gd` (base arrows are the remainder `N − Σ specials`) and `volley_bar.gd` |
