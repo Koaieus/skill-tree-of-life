@@ -147,7 +147,7 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - *"get these issues all clear and ready"* is the go for phase 2, gated: no live `whip-*.md` swarm-train ledger, and the issue carries no open fork.
 
 ## NEXT LEAD START HERE (overnight leads, 2026-11-11, from 02:50; relay lead 2 handed off at 03:51, relay lead 3 at 04:30, relay lead 4 at 04:45, relay lead 5 finished phase 2 at 04:55; the 02:45 notes follow below)
-**READ FIRST: ele 5, 2026-11-11 ~17:50. Steps 1-4 of ele 4's list below are done, and step 5 is done apart from the owner's calls. Nothing is in flight. Skip ele 4's list.**
+**READ FIRST: ele 5, 2026-11-11 ~17:50. Steps 1-4 of ele 4's list below are done, and step 5 is done apart from the owner's calls (A-C). Nothing is in flight. Skip ele 4's list.**
 - **Done (on master):**
   - **`elements.md`:**
     - Q3 is folded (`6b6a7443`).
@@ -157,13 +157,14 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
     - **0093:** the merged landing is one arrival. A thawing absorbed copy walks on. The ice releases once per breaking hit (tentative; `revisit-when` names the playtest and the fallback). A blade vertex is a shape on the node it hits. An arc pays for what it reaches.
     - **Gated out, the trim order (socket order):** it keeps what `clamp_infusion` already does, so there is nothing to supersede, and its extension to #1809's shape and ride is undecided. Its home is `elements.md` § The forge, plus #1809 and #1814.
 - **Board:**
+  - **For the owner to route:** #1818 sits in Intake. Because #1798 is blocked by #1818, the whole #1799-#1803 chain waits behind it. That is defensible, since #1798's acc 10 and its `Admits` read now assume the new order, but you may want to lift the edge.
   - **New: #1818** (aspect riders after damage, beat-scoped; the depleted-node skip; ADR 0092).
     - A child of #1716: P1, Content depth, in Intake, intended lane Ready.
     - #1798 and #1807 are blocked by #1818.
   - **To Ready:** #1798, #1804, #1805, #1806, #1807, #1808, #1812 and #1813.
-  - **#1816 is still in Designing.** The clerk refused to move it because it had no stamp. It has one now, so it needs one clerk line to move it to Ready.
+  - **#1816 is in Ready.** It got its first drift stamp, and a second clerk moved it.
   - **Still in Designing:** #1789 (its own six open questions), #1809 and #1814 (question A).
-  - **Bodies:** every owner call is in the issue bodies. All 22 children are restamped at `b75276e3`, and #1818 is stamped there.
+  - **Bodies:** every owner call is in the issue bodies. All 22 children, #1816 and #1818 are silent against `origin/master` (checked at 17:55). #1793, #1796, #1797, #1810 and #1813 are still stamped at `2cbacfa1`, which is valid because they never drifted. The rest are stamped at `b75276e3`.
     - **Gotcha:** this worktree's local `master` is stale, so run `mise run issue-drift -- <n> --base origin/master`.
 - **For the owner:**
   - **A. #1809 and #1814:** where do the shape and the ride stand in the socket order, against each other and against the aspects? When the counts or the cap cut a loadout, which gives way first? The lead's reading ("the later-socketed gives way") had nothing to compare. Shape and ride are fixed fields with no socket sequence, and #1814's NOTES state no "ride-after-aspects" order.
