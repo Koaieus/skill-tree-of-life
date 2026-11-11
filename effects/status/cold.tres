@@ -8,5 +8,5 @@ script = ExtResource("1_status_def")
 id = &"cold"
 display_name = "Cold"
 identity = ExtResource("2_identity")
-description = "Ice's terrain stack: side-less cold a node holds, read per node. Past its threshold it primes into Frozen (elements/defs/ice.tres). Uncapped here: the cap is the node's k x T (#1794)."
+description = "Cold the node holds. Past its threshold the node is Frozen."
 power_max = 0.0

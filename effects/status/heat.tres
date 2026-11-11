@@ -8,5 +8,5 @@ script = ExtResource("1_status_def")
 id = &"heat"
 display_name = "Heat"
 identity = ExtResource("2_identity")
-description = "Fire's terrain stack: side-less heat a node holds, read per node. Past its threshold it primes into Burning (elements/defs/fire.tres). Uncapped here: the cap is the node's k x T (#1794)."
+description = "Heat the node holds. Past its threshold the node is Burning."
 power_max = 0.0

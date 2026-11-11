@@ -16,7 +16,8 @@ extends GutTest
 ## stability; everything else is exact.
 ##
 ## The six literals in [constant EXPECTED] were captured on master at
-## e0b838af (the tip this child branched from), with `node_count` pinned to
+## e0b838af (the tip this child branched from), and re-captured for #1793's
+## element pool rolls (a deliberate content change), with `node_count` pinned to
 ## [constant GOLDEN_NODE_COUNT] on a private copy of each preset. Scope: the
 ## hub's serial chain (#1776..#1781). Child 5 may retire this file once the
 ## chain lands — the 2026-08 goldens were retired because content is

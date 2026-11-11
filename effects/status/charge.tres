@@ -8,5 +8,5 @@ script = ExtResource("1_status_def")
 id = &"charge"
 display_name = "Charge"
 identity = ExtResource("2_identity")
-description = "Lightning's terrain stack: side-less charge a node holds, read per node. Past its threshold it primes into Shocked (elements/defs/lightning.tres). Uncapped here: the cap is the node's k x T (#1794)."
+description = "Charge the node holds. Past its threshold the node is Shocked."
 power_max = 0.0
