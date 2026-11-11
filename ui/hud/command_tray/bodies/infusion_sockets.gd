@@ -244,7 +244,7 @@ func _mark_open() -> void:
 ## A socket with nothing to offer opens no chooser: it says so instead.
 func _on_socket_toggled(index: int) -> void:
 	if _plan != null and not InfusionChoices.entries(_plan, index).any(
-			func(e: AspectWheelEntry) -> bool: return e.is_pickable()):
+			func(e: AspectWheelEntry) -> bool: return ElementRoster.shared().by_id(e.id) == null):
 		_sockets[index].flash_hint(_NO_ASPECTS_HINT)
 		return
 	var magic := _stack.find(MagicMode) as MagicMode if _stack != null else null

@@ -106,6 +106,18 @@ func test_clicking_an_owned_socket_holding_no_aspects_opens_nothing_and_says_why
 	assert_gt(socket.label_alpha(), 0.0, "and the hint is flashing")
 
 
+func test_a_socket_whose_only_aspects_are_at_capacity_still_opens_its_chooser() -> void:
+	await _arm(10.0, 3.0)
+	var capped := _VENOM.duplicate() as SpellDef
+	capped.infusion_capacity = 0.0
+	_ctl.armed_stack.select_spell(_ctl.player, capped)
+	await wait_frames(3)
+	var entries := InfusionChoices.entries(_ctl.armed_stack.attack_plan(), 0)
+	assert_false(entries.is_empty() or entries[0].is_pickable(), "guard: poison is held but at capacity")
+	await _click(_sockets().socket(0))
+	assert_not_null(_ctl.armed_stack.find(InfusionPickMode), "an at-capacity wedge still opens the chooser")
+
+
 func test_a_mid_run_unlock_gives_a_working_socket() -> void:
 	await _arm(5.0, 3.0)
 	var sockets := _sockets()
