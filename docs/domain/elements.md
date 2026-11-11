@@ -1,6 +1,6 @@
 # Elements — the second axis, as the code has it
 
-The design is `docs/design/elements.md` (and `docs/design/elements/`); this
+design record: `docs/design/elements.md` and `docs/design/elements/`. This
 is the *what is*. Every later #1716 unit appends its part here.
 
 An **element** sits beside the aspects, never above them: an aspect is one

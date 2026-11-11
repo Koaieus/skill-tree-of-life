@@ -24,6 +24,9 @@ const _DESCRIPTIONS := {
 	&"hex": "Every stack strips 10% of this node's resistance to every status; past zero the node is vulnerable and more stacks land than were sent.",
 	&"bleeding": "Each turn the wound pays half its stacks as damage, rounded up. Using the node doubles the stacks.",
 	&"explosive": "Charges on a node. A hit on a charged node sets them off: it spends at least one into a blast that grows with the node's charges and the hit's own explosive load, carrying the hit's other effects to whatever the hit may hit around it. A hit that plants charges sets none off.",
+	&"heat": "Fire's terrain stack: side-less heat a node holds, read per node. Past its threshold it primes into Burning (elements/defs/fire.tres). Uncapped here: the cap is the node's k x T (#1794).",
+	&"cold": "Ice's terrain stack: side-less cold a node holds, read per node. Past its threshold it primes into Frozen (elements/defs/ice.tres). Uncapped here: the cap is the node's k x T (#1794).",
+	&"charge": "Lightning's terrain stack: side-less charge a node holds, read per node. Past its threshold it primes into Shocked (elements/defs/lightning.tres). Uncapped here: the cap is the node's k x T (#1794).",
 }
 
 
