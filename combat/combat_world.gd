@@ -164,7 +164,7 @@ static func live() -> CombatWorld:
 
 
 ## Drops the live world so the next live() starts with no pending removals.
-## Test-harness only: a run between tests, never mid-turn.
+## Harness only: a run between tests, or a sandbox tab entering and leaving (tab 77), never mid-turn.
 static func reset_live() -> void:
 	_live = null
 
