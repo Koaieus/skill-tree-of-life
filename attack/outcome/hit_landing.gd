@@ -157,7 +157,9 @@ func copy_facts_to(hit: HitInstance) -> void:
 ## riders after [member lead] that land BEFORE, then the landing's own block
 ## [code]hits[anchor..lead)[/code] untouched, then the riders that land PRIMARY,
 ## then AFTER — authored order kept within each (a stable partition, never a
-## sort), then runs [member stamper] over the placed span. Called once by the
+## sort), marks the span's first hit the gather head
+## ([member HitInstance.is_head], #1798), then runs [member stamper] over the
+## placed span. Called once by the
 ## landing's builder, after its effects ran.
 ## Landing-scoped: hits outside the span, another arrow's included, never move.
 func place() -> void:
@@ -179,6 +181,8 @@ func place() -> void:
 		for hit: HitInstance in bucket:
 			hits[at] = hit
 			at += 1
+	# The span's first hit is the gather head (#1798): its hit is the span.
+	hits[anchor].is_head = true
 	if stamper.is_valid():
 		for i in range(anchor, hits.size()):
 			stamper.call(hits[i])

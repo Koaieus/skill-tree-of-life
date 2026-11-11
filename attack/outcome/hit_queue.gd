@@ -15,7 +15,7 @@ extends RefCounted
 ## pushed hit joins the unlanded tail by the same key — after every unlanded
 ## hit of its own `schedule_index` and before the first of a greater one — and
 ## never ahead of the cursor: a hit pushed with an index the drain has already
-## passed lands next. Nothing pushes today; #1798's gather is the first pusher.
+## passed lands next. [HitGather] pushes a beat's copies (#1798).
 
 ## The record every hit that lands belongs to — the outcome's
 ## [member AttackOutcome.hits], by reference. [method push] appends here too,
@@ -58,3 +58,13 @@ func push(hit: HitInstance) -> void:
 	while at < _order.size() and _order[at].schedule_index <= hit.schedule_index:
 		at += 1
 	_order.insert(at, hit)
+
+
+## Every hit of [param schedule_index] in land order, landed or not: the beat
+## [HitGather] gathers, read at the beat's first landing, before any of it lands.
+func group(schedule_index: int) -> Array[HitInstance]:
+	var out: Array[HitInstance] = []
+	for hit in _order:
+		if hit.schedule_index == schedule_index:
+			out.append(hit)
+	return out

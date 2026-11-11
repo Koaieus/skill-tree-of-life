@@ -61,6 +61,7 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 	var incoming: HitInstance = null
 	var depleted := {}
 	var beat_key := NAN
+	var gathered := {}
 	while true:
 		if incoming == null and queue.has_next():
 			incoming = queue.next()
@@ -81,6 +82,12 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		if hit.schedule_index != group:
 			world.flush_removals()
 			group = hit.schedule_index
+			# Stage one (#1798): the beat's gather, over the whole group, before
+			# any of it lands; a group the drain re-enters is never gathered
+			# twice.
+			if not gathered.has(group):
+				gathered[group] = true
+				HitGather.stage_one(queue.group(group), world, queue)
 		# `advance_to` is declared `-> void`, so the analyzer calls this await
 		# redundant — it is a runtime coroutine (it parks on a timer) and
 		# dropping the await would land the whole volley on frame one.
@@ -142,9 +149,8 @@ static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dic
 ## that does not reach its landing (freed target or origin) draws nothing.
 ##
 ## [param _queue] is the worklist this landing drains from ([method drain]);
-## null = a standalone landing, which can append nothing. Accepted and unread
-## today: the seam #1798's gather head dispatches on, to [method HitQueue.push]
-## the hits it lands.
+## null = a standalone landing. Unread here: the gather (#1798) pushes a beat's
+## copies from [method drain], once per beat, not one hit at a time.
 static func land_one(hit: HitInstance, world: CombatWorld,
 		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null,
 		_queue: HitQueue = null) -> void:
@@ -192,6 +198,10 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		return
 	if crit_rng != null:
 		CritRoll.decide(hit, crit_rng, world)
+	# An element rider stage one already landed ([HitGather]): its crit draw
+	# keeps its slot in the stream, its landing does not run twice.
+	if hit.staged:
+		return
 	hit.land_on(slice, world)
 	if not recorded:
 		world.track_entries(hit.deallocations)
