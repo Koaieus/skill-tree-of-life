@@ -25,7 +25,9 @@ signal turn_ended(entity: Entity)
 ## [method adopt_turn]: a repair has no presentation semantics.
 signal round_completed(round: int)
 ## A world turn ended — one every N played turn ends, N = the living
-## initiative carriers (ADR 0055). The beat turnless hosts tick on. Never
+## initiative carriers (ADR 0055), N read through the rate rule
+## [member world_clock] ([method world_turn_period]; linear by default). The
+## beat turnless hosts, lingering rows and the terrain pass tick on. Never
 ## emitted by [method adopt_turn] or [method abandon_turn].
 signal world_turn_ended
 
@@ -97,9 +99,11 @@ var _round_open: bool = false
 ## The open round's roster members still waiting for their turn to end.
 var _round_waiting: Array[Entity] = []
 ## Played turn ends ([method end_turn] only) since the last world turn (ADR
-## 0055). The world turn ends when this reaches the count of living
-## [method _initiative_carriers] — `>=`, so a death that shrinks N below it
-## closes the world turn at the next played turn end. Counts turns, never
+## 0055). The world turn ends when this reaches the period
+## [method world_turn_period] reads off N, the count of living
+## [method _initiative_carriers], through the rate rule [member world_clock]
+## — `>=`, so a death that shrinks the period below it closes the world turn
+## at the next played turn end. Counts turns, never
 ## ticks. Bookkept on every peer by [EndTurnCommand]; the resync adopts it
 ## outright ([method adopt_turn]), like [member rounds_completed]. Read-only
 ## from outside.
@@ -129,9 +133,18 @@ enum WorldClock {
 @export_range(1, 8, 1, "or_greater") var terrain_steps_per_world_turn: int = 1
 
 
-## STUB
-static func world_turn_period(_n: int, _clock: WorldClock) -> int:
-	return 0
+## The world turn's period, in played turn ends, for [param n] living
+## carriers under [param clock]. Pure and integer: PER_CARRIER is `max(1, n)`;
+## CEIL_SQRT is the least `s >= 1` with `s * s >= n`, found by a loop, never a
+## float `sqrt` / `ceil`, so every peer gets the same int
+## (`docs/domain/rounding.md`). n stays small: the loop is a handful of steps.
+static func world_turn_period(n: int, clock: WorldClock) -> int:
+	if clock == WorldClock.CEIL_SQRT:
+		var s := 1
+		while s * s < n:
+			s += 1
+		return s
+	return maxi(1, n)
 
 
 ## Whether a round is open — the resync carries it with [method round_waiting].
@@ -412,7 +425,7 @@ func _open_round() -> void:
 ## [method _note_turn_over]. See [member world_turn_progress].
 func _note_played_turn_end() -> void:
 	_world_turn_progress += 1
-	if _world_turn_progress < _living_carriers().size():
+	if _world_turn_progress < world_turn_period(_living_carriers().size(), world_clock):
 		return
 	_world_turn_progress = 0
 	_end_world_turn()
@@ -421,7 +434,9 @@ func _note_played_turn_end() -> void:
 ## The world's turn end (ADR 0055). A world turn only ends: no start, no
 ## upkeep, no regen. Every living turnless host plays out its turn end
 ## ([method Entity.resolve_turn_end]: own statuses, owned nodes, spread) in
-## tree order, then every unowned LINGER row ticks once, then one flush. Runs
+## tree order, then every unowned LINGER row ticks once, then the terrain pass
+## ([method CombatWorld.flow_temperature]: diffusion, then decay), then one
+## flush. Runs
 ## inside [method end_turn], so [EndTurnCommand] reproduces it on every peer.
 func _end_world_turn() -> void:
 	for e in _turnless_entities():
@@ -429,6 +444,7 @@ func _end_world_turn() -> void:
 		if is_instance_valid(e) and not e.is_dead:
 			e.resolve_turn_end()
 	CombatWorld.live().tick_lingering()
+	CombatWorld.live().flow_temperature(terrain_steps_per_world_turn)
 	CombatWorld.live().flush_removals()
 	world_turn_ended.emit()
 

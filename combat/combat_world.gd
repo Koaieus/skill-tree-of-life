@@ -250,20 +250,119 @@ func terrain_nodes() -> Array[NodeCombat]:
 
 
 # ── World-turn terrain pass (#1795) ──────────────────────────────────────────
-# STUB
+#
+# [method TurnManager._end_world_turn] runs [method flow_temperature] after the
+# lingering ticks and before the flush: Heat/Cold diffusion steps on the signed
+# t, then one decay sweep of t and Charge. Both gather from the terrain index
+# above onto packed arrays (never a walk of the graph) and write only through
+# [method TerrainSettle.commit]. The only implementation: no mirror. Integer
+# only and roll-free. Live-only: a shadow world runs no world turn.
 
-func flow_temperature(_steps: int) -> void:
-	pass
+
+## One world turn's terrain: [param steps] diffusion steps, each from a fresh
+## snapshot, then one decay sweep. A shadow world refuses.
+func flow_temperature(steps: int) -> void:
+	if _shadow:
+		return
+	for _i in maxi(steps, 0):
+		diffuse_temperature()
+	decay_terrain()
 
 
+## One Heat/Cold diffusion step from one snapshot (floored Metropolis,
+## `docs/design/elements/terrain.md` § Temperature): every edge with an
+## indexed `t != 0` end moves `⌊gap / (1 + max(deg_u, deg_v))⌋` from hot to
+## cold, degree being the graph degree T reads. The flows are summed per node
+## and committed as one batch, so Σt is conserved and the index's order never
+## reaches the result. A gap at or below the larger degree moves nothing (the
+## dead band); a self-loop moves nothing. Returns the nodes whose t moved.
 func diffuse_temperature() -> Array[NodeCombat]:
-	var out: Array[NodeCombat] = []
-	return out
+	var slices: Array[NodeCombat] = []
+	if _shadow:
+		return slices
+	var order: Dictionary = {}  # NodeCombat -> dense index
+	for node in terrain_nodes():
+		if node.terrain_t() != 0:
+			order[node] = slices.size()
+			slices.append(node)
+	var hot := slices.size()
+	if hot == 0:
+		return slices
+	# Each edge once: a hot end takes its edges to receivers; of two hot ends,
+	# the earlier in the dense order takes the edge. Parallel edges each count.
+	var eu := PackedInt32Array()
+	var ev := PackedInt32Array()
+	for i in hot:
+		var real := slices[i].real()
+		var graph := real.get_graph() if real != null else null
+		if graph == null:
+			continue
+		for m in graph.get_neighbours(real):
+			if m == real:
+				continue
+			var nb := combat_for(m)
+			var j: int = order.get(nb, -1)
+			if j < 0:
+				j = slices.size()
+				order[nb] = j
+				slices.append(nb)
+			elif j < hot and j < i:
+				continue
+			eu.append(i)
+			ev.append(j)
+	var n := slices.size()
+	var t := PackedInt64Array()
+	var deg := PackedInt32Array()
+	var delta := PackedInt64Array()
+	t.resize(n)
+	deg.resize(n)
+	delta.resize(n)
+	for k in n:
+		t[k] = slices[k].terrain_t()
+		var r := slices[k].real()
+		deg[k] = r.get_graph_degree(r.get_graph()) if r != null else 0
+		delta[k] = 0
+	for e in eu.size():
+		var u := eu[e]
+		var v := ev[e]
+		var gap := t[u] - t[v]
+		if gap == 0:
+			continue
+		@warning_ignore("integer_division")
+		var q := absi(gap) / (1 + maxi(deg[u], deg[v]))
+		if gap < 0:
+			q = -q
+		delta[u] -= q
+		delta[v] += q
+	var batch := TerrainSettle.Batch.new()
+	for k in n:
+		if delta[k] != 0:
+			batch.add_net_t(slices[k], delta[k])
+	return TerrainSettle.commit(batch)
 
 
+## The decay sweep: every indexed node's t one rate toward zero and its Charge
+## one rate down, the rate [method TerrainSettle.decay_rate] reads (the band's,
+## or the element's own at or below T). Heat and Cold read Fire / Ice by t's
+## sign; Charge reads Lightning. Every rate is read before any write (one
+## snapshot), so a node past the cap loses the overflow's whole rate even
+## where that ends it below the cap. Charge never flows. Returns the nodes
+## whose ints moved.
 func decay_terrain() -> Array[NodeCombat]:
-	var out: Array[NodeCombat] = []
-	return out
+	var none: Array[NodeCombat] = []
+	if _shadow:
+		return none
+	var heat := TerrainSettle.element_on(Terrain.Axis.HEAT)
+	var cold := TerrainSettle.element_on(Terrain.Axis.COLD)
+	var charge := TerrainSettle.element_on(Terrain.Axis.CHARGE)
+	var batch := TerrainSettle.Batch.new()
+	for node in terrain_nodes():
+		var t := node.terrain_t()
+		if t != 0:
+			batch.add_toward_zero_t(node, TerrainSettle.decay_rate(node, heat if t > 0 else cold))
+		if node.charge() > 0:
+			batch.add_charge(node, -TerrainSettle.decay_rate(node, charge))
+	return TerrainSettle.commit(batch)
 
 
 ## One tick of every unowned lingering host — run once per WORLD turn end by
