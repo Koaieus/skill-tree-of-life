@@ -115,6 +115,17 @@ class _ReadAdmits extends Admits:
 		return answer
 
 
+## A crit condition (#1798 item 9): logs its landing node's Fire store when
+## evaluated, and passes.
+class _StoreCondition extends LandingCondition:
+	var element: Element = null
+	var seen: Array = []
+
+	func evaluate(lctx: LandingContext) -> bool:
+		seen.append(CombatWorld.live().combat_for(lctx.node).terrain_count(element))
+		return true
+
+
 class _LogDamage extends DamageInstance:
 	var log: Array = []
 
@@ -573,6 +584,59 @@ func test_the_whole_hit_takes_one_landing_per_channel_at_both_dedupe_settings() 
 
 		var none := _dual(dedupe, false, [])
 		assert_eq(_landed(none, _h), [[], []], "A reaching no other node: no centre copy" + why)
+
+
+# 9 ─────────────────────────────────────────────────────────────────────────────
+func test_a_spell_arrival_draws_one_crit_decided_at_its_head_pre_hit() -> void:
+	_goff.reach_of = {_h: [_n1]}
+	_set_fire(_h, _t(_h))
+	var cond := _StoreCondition.new()
+	cond.element = _fire
+	var spell := SpellDef.new()
+	spell.crit_conditions.append(cond)
+	var lctx := LandingContext.new()
+	lctx.node = _h
+	# D, then +1 Fire and Poison 2: two unpaired siblings that each drew before.
+	var span := _span(_h, 1, 2)
+	assert_gt(CritRoll.chance_for(span[0], CombatWorld.live()), 0.0, "the attacker's crit chance draws")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1798
+	for hit: HitInstance in span:
+		SpellResolver._crit_at_head(spell, lctx, hit, rng, CombatWorld.live())
+	var outcome: AttackOutcome = await _run([span], rng)
+	var once := RandomNumberGenerator.new()
+	once.seed = 1798
+	once.randf()
+	assert_eq(rng.state, once.state, "the whole arrival draws once: no sibling or copy draws")
+	assert_eq(cond.seen, [_t(_h)], "the condition is evaluated once, at the head, on the pre-hit store")
+	assert_eq(_fired_at(_h, "count"), [_t(_h) + 1], "while the same hit's GoOff is handed pre-hit + 1")
+	assert_gt(span[0].crit_tier, 0, "the passing condition crits the head")
+	assert_eq(_entries(outcome, _h).size(), 2, "the centre copy: its damage and its Poison")
+	assert_eq(_entries(outcome, _n1).size(), 2, "N1's copy: its damage and its Poison")
+	for hit: HitInstance in outcome.hits:
+		assert_eq([hit.crit_tier, hit.crit_multiplier], [span[0].crit_tier, span[0].crit_multiplier],
+				"every sibling and copy, centre copy included, carries the head's crit")
+
+
+func test_a_cast_evaluates_its_crit_conditions_once_per_landing() -> void:
+	var cond := _StoreCondition.new()
+	cond.element = _fire
+	var poison := ApplyStatusEffect.new()
+	poison.def = _POISON
+	poison.power = 2.0
+	var helper := SpellTestHelper.new()
+	var spell := helper.make_spell(helper.make_config(helper.fan_all(), null, null, {max_hops = 1}),
+			[DamageEffect.new(), poison] as Array[OnHitEffect], 1.0)
+	spell.crit_conditions.append(cond)
+	var out := SpellResolver.resolve_against(spell, _n3, null, _attacker, _w.graph, CombatWorld.live())
+	assert_gt(out.timeline.size(), 1, "the cast lands on more than one node")
+	assert_eq(cond.seen.size(), out.timeline.size(), "one condition read per landing, at its head")
+	for ev: PropagationEvent in out.timeline:
+		var head: HitInstance = ev.hits[0]
+		assert_true(head.is_head, "the landing's first hit is its head")
+		assert_eq(ev.hits.map(func(h: HitInstance) -> int: return h.crit_tier),
+				ev.hits.map(func(_h: HitInstance) -> int: return head.crit_tier),
+				"every hit of the landing carries its head's crit tier")
 
 
 # 10 ────────────────────────────────────────────────────────────────────────────

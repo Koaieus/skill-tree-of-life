@@ -341,7 +341,7 @@ static func _resolve(
 				# N places that can.
 				alctx.stamper = func(hit: HitInstance) -> void:
 					hit.attacker = ctx.caster
-					_stamp_crit_conditions(spell, alctx, hit)
+					_crit_at_head(spell, alctx, hit, crit_rng, world)
 					# Magic's structural parameter is purely ORDINAL -- which wave
 					# this landing belongs to, nothing more. The compiler turns it
 					# into seconds; this walk never names one (#543).
@@ -549,6 +549,12 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 	var def: StatDef = StatRegistry.get_def(&"spell_damage")
 	var fallback: float = def.default_value if def != null else 1.0
 	return fallback * spell.power
+
+
+## STUB (#1798 item 9, red): today's per-hit condition stamp.
+static func _crit_at_head(spell: SpellDef, lctx: LandingContext, hit: HitInstance,
+		_rng: RandomNumberGenerator, _world: CombatWorld) -> void:
+	_stamp_crit_conditions(spell, lctx, hit)
 
 
 ## Magic's OWN crit path, and the only one that is mode-specific (#507): the
