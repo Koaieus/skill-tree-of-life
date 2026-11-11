@@ -334,7 +334,7 @@ read once over all its arrivals — primed state, Frozen, and whether it
 breaks — and only then do paths leave it. If any arrival breaks the ice, it
 shatters once, with one burst, and every path through it walks on; only the
 breaking arrival or arrivals take the break's two extra landings, each of
-its own payload. A sibling of that generation that does not break the ice
+its own payload, and each sets off the node's trapped go-off (§ Pair rules). A sibling of that generation that does not break the ice
 keeps what its admit decided on arrival (an under-threshold copy stays
 absorbed) and still walks on, as an absorbed copy whose Heat thaws the ice
 does. **An absorbed copy whose Heat thaws the ice walks on** (owner,
@@ -1304,16 +1304,25 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
 asked for, *trapped until broken*): a node both Frozen and Shocked does not
 arc — the Charge sits trapped under the ice, and Charge an arrival lands joins
-it — and the hit that breaks the ice sets off the Shocked state in the same
-settle: crack the ice, release the storm, plus the shatter burst. A cast's
-shape is not muted (§ Shape and ride). Freezing a wire cuts it and stakes
-the trapped Charge as a visible bomb. One compound read, never a
-re-evaluation: the breaking hit's crit and damage are its own facts, both
-states are read after the hit's riders land, and the read says "Frozen mutes
-Shocked unless this hit shatters". The released arc's *power* follows the one power rule (§ The
-threshold model): it is read after the breaking hit's own riders land, so a
-Charge-carrying breaker feeds the storm it releases (owner, 2026-11-10,
-picked *after the hit lands* over the trapped Charge exactly as it sat).
+it. A cast's shape is not muted (§ Shape and ride). Freezing a wire cuts it
+and stakes the trapped Charge as a visible bomb. **The release is once per
+hit that breaks the ice** (owner, 2026-11-11, picked: *"The ice releases its
+trapped go-off once for each hit that breaks it."*): a Frozen node is still
+read once per generation and shatters once, with one burst, but each hit of
+that generation that breaks the ice sets off the node's trapped go-off as its
+own, the same once-per-hit count an unfrozen node goes off with (§ Landing
+resolution), crack the ice, release the storm, plus the shatter burst. Each
+release carries the payload of the hit that set it off, and its *power*
+follows the one power rule (§ The threshold model): it is read after that
+hit's own riders land, so a Charge-carrying breaker feeds the storm it
+releases (owner, 2026-11-10, picked *after the hit lands* over the trapped
+Charge exactly as it sat). A hit the ice absorbed sets nothing off, even when
+another hit of its generation breaks the ice; it still walks on. When a thaw
+leaves no ice at the read, nothing is muted and the node goes off as any
+unfrozen node does. Arrows land one beat at a time, so only a magic wave puts
+several hits in one generation. One compound read, never a re-evaluation: a
+hit's crit and damage are its own facts, and both states are read after its
+riders land.
 
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
