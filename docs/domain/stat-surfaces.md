@@ -104,7 +104,7 @@ above).
 
 ## Quiver, volleys, infusion, ammo aspects
 
-changing: element counts join the aspect rows, #1793; explosive becomes catalyst, #1801; element arrow bins beside the plain pool, #1810; see docs/design/elements/counts.md, docs/design/elements/terrain.md, docs/design/elements/forge.md
+changing: explosive becomes catalyst, #1801; element arrow bins beside the plain pool, #1810; see docs/design/elements/counts.md, docs/design/elements/terrain.md, docs/design/elements/forge.md
 
 | id | surface |
 |---|---|
@@ -114,8 +114,9 @@ changing: element counts join the aspect rows, #1793; explosive becomes catalyst
 | `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
 | `infusion_slots` | `ui/hud/command_tray/bodies/infusion_sockets.gd` (one socket per slot, plus a ghost socket labelled with the next INT threshold) |
 | `*_aspect` (`bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | caster load in `ui/hud/command_tray/bodies/readout_lines.gd` (the crucible readout's lines) and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
+| `*_element` (`fire`, `ice`, `lightning`; shown "Fire attunement") | no row yet: the two aspect surfaces above iterate `AspectRoster` and skip a held count of 0, so an element count reaches the wheel when #1800 rekeys intake rows by element (#1809 raises its default to 1); `docs/domain/elements.md` |
 | `*_stacks_per_hit` (`bleeding`, `blindness`, `corruption`, `curse`, `explosive`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
-| `*_resistance` (`bleeding`, `blindness`, `corruption`, `curse`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
+| `*_resistance` (`bleeding`, `blindness`, `charge`, `cold`, `corruption`, `curse`, `heat`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
 | `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |
 | `bounty` | no row; read by `systems/loot_system.gd` as a node's payout overlay |
 
