@@ -7,6 +7,10 @@ What *is*. The calls are ADR 0061 and ADR 0062 (the default face on
 death-blast carrier, the rejected list) stay in the
 design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive.
 
+changing: the Explosive aspect is retagged Catalyst, go-off zero is deleted and this doc becomes `catalyst.md`, #1801; see docs/design/elements/terrain.md
+
+Where a detonation sits in one hit's landing (the walk, the beat, rider order): [hit-resolution.md](hit-resolution.md) § "Go-off zero: Explosive detonation".
+
 ## Vocabulary
 
 - A **hit** is the catch-all: a blade contact, an arrow landing, a spell
@@ -18,6 +22,8 @@ design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § E
   A charge is a life: a blade piece's charges are what it spends per contact.
 
 ## Charges are a status
+
+changing: a swung blade piece no longer carries its node's charges, #1802; see docs/design/elements/go-offs.md
 
 `effects/status/explosive.tres` is a `StatusDef` (id `explosive`, tag
 `charge`, `default_face = Detonate`). Its spread, `ExplosiveSpread`
@@ -39,6 +45,8 @@ charge's boom shape: every node-centred blast asks `radius_for` /
 
 ## Three faces
 
+changing: the PlantUse skip describes the disc go-off, #1799; `FuelUse` is deleted, #1801; see docs/design/elements/go-offs.md
+
 What a hit's load does is `AspectIntake.use` (a `LoadUse`) on the spell's intake row
 (`attack/spell/aspect_intake.gd`): left null (the default) it resolves through
 the concept status's `StatusDef.default_face` (`resolved_use()`,
@@ -59,6 +67,8 @@ def, addon), never the player's; a `PlantUse` row's price is its authored
 affinity (house convention: about half a `DetonateUse` row's), no per-face knob.
 
 ## Spend and power
+
+changing: detonation is ported onto the gather as go-off zero, a disc `GoOff`, and both spend ledgers die, #1799; see docs/design/elements/go-offs.md
 
 For a `DetonateUse` hit with `load` on a node holding `present` charges
 (`attack/spell/on_hit/detonate_effect.gd`):
@@ -92,6 +102,8 @@ wave.
 
 ## The blast carries the hit
 
+changing: the blast lands through the gather as go-off zero, #1799; Burning's disc lands beside it, #1800; see docs/design/elements/go-offs.md
+
 `ExplosiveSpread.blast_for(centre, power, inners)` builds a `BlastEffect`
 (a `SplashEffect` that skips the centre and inherits the landing's mask)
 whose reach is **the bomb is the node**:
@@ -112,6 +124,8 @@ holds for damage spells only.
 
 ## Chains
 
+changing: the per-wave `detonated` scope dies with the port to the gather, #1799; see docs/design/elements/go-offs.md
+
 A blast is a zero-load hit on each node it reaches, so a charged neighbour
 goes off. `HitLanding.detonated` is the once-per-node scope: one per arrow,
 one per spell wave (`SpellResolver`), shared by every splash copy
@@ -121,6 +135,8 @@ nothing goes off twice in a scope. A blade's board blast carries a load-0
 a pop is the blade sim's event, not a hit.
 
 ## The blade contact: one contact, two sides
+
+changing: the blade's explosive path (vertex charges, the two-sided contact, the charge beads, a barrel on the blade) is removed, #1802; see docs/design/elements/go-offs.md
 
 `BladePopResolver.LiveGate._admit_explosive`
 (`attack/melee/sim/blade_pop_resolver.gd`), on a contact by piece `idx`
@@ -159,6 +175,8 @@ clean nodes: 3 → 2 → 1 → pop, three shrinking warheads.
 
 ## Knobs
 
+changing: `warhead_reach` and `shrapnel_fraction` go with the blade's explosive path, #1802; the rest with the Catalyst retag, #1801; see docs/design/elements/go-offs.md
+
 All tentative, easy to change.
 
 | knob | default | owner | what |
@@ -174,6 +192,8 @@ No `blast_radius` stat on any board: nothing targets blast size
 (`docs/domain/stat-knobs-and-bins.md` §1).
 
 ## Firecracker (`FuelUse`)
+
+changing: Firecracker's row names Fire and plants Heat; `FuelUse` and `FuelBlastReach` are deleted, #1801; see docs/design/elements/terrain.md
 
 `attack/spell/defs/firecracker.tres`: each landing is a euclidean blast
 whose hits are the next wave (`FuelBlastReach`, edges play no part); fuel is

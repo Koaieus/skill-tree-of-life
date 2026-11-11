@@ -19,6 +19,8 @@ Read this before changing `resolve()` on any `AttackPlan`, before touching
 ---
 ## The invariant
 
+changing: stage one gathers a hit's target set from terrain at land time, so landing a hit can add hits to the walk, #1798; see docs/design/elements/hit-resolution.md
+
 > **Resolution emits candidate landings in time order. One applier walks them
 > in that order and re-evaluates each landing's gate against live state before
 > applying it.**
@@ -125,6 +127,8 @@ every expansion from wave N onward.**
 
 ## What is read at which clock
 
+changing: the crit is read at the hit's head before its riders and crit conditions leave compile, #1798; a hit's riders land after its damage, #1818; see docs/design/elements/hit-resolution.md
+
 | Input | Clock |
 |---|---|
 | Candidate landing set (which nodes *could* be hit) | **Resolve** |
@@ -134,7 +138,7 @@ every expansion from wave N onward.**
 | Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit before any of the hit's payload (its first rider's landing triggers it); every rider copies it |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
 | Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
-| Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply` inside `SkillNode.take_damage` |
+| Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply_to` inside `NodeCombat.take_damage` ([hit-resolution.md](hit-resolution.md) § Mitigation) |
 | Cascade / dealloc / entity death | **Land**, synchronous |
 
 ### Offense is snapshotted at commit time
@@ -237,6 +241,8 @@ fireball story holds. `PropagationEvent.beat` × a per-wave interval is magic's
 
 ### Melee
 
+changing: a blade vertex copies its node's state on fill and a one-shot vertex lands its first contact then dies, #1804; see docs/design/elements/frozen.md
+
 **The scan stays pure, and the interleave sits one level up.** `BladeHitScan`
 never touches the applier: its `PhysicsShapeQueryParameters2D.exclude` is built
 once per resolve, and its purity is load-bearing because `ai_blade_rollout.gd`
@@ -305,53 +311,13 @@ Nothing needs suppressing, no
 shadow's state is split from its notifications and what it copies:
 `docs/domain/entity-combat.md`.
 
-### Landing against a world: `CombatWorld`
-
-```
-record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
-resolution, always:            OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
-```
-
-`combat/combat_world.gd` looks each target's state up somewhere else; the same
-`OutcomeApplier` loop, per-mode gates and mitigation run in both. **The world is
-a required parameter, never a defaulted one**
-([ADR 0079](../adr/0079-resolution-always-runs-on-a-shadow-the-world-is-a-required-parameter.md));
-same rule on `BladePopResolver.LiveGate.admit`.
-
-`HitInstance.land_on(node: NodeCombat, world: CombatWorld)` — the hit's `target`
-stays a real `SkillNode` because that is its **identity** (what a record
-serializes, what a fogged peer resolves by `stable_id`, what every VFX observer
-reads). Only the **state** it mutates is swappable, by one dictionary lookup;
-there is no preview flag anywhere in the chain.
-
-A shadow world grows on demand, at two grains. The first hit on a node whose
-owner is not yet snapshotted snapshots that owner's *entity* (stat board, effect
-twins, owned-set mirror, core board); each further owned node's board is cloned
-only when the world is first asked about that node (`EntityCombat.shadow_for`).
-Late is the same as up front because a shadow resolve never writes the real
-world, and only the entities and nodes an attack touches are paid for. The
-per-node grain ends the moment anything entity-wide runs (`cascade_set` /
-`apply_cascade`, `simulate_entity_death`, a shadow `dispatch()`, `owned()`):
-`_materialize_all` mints the rest first, so a cascade set is computed over the
-whole subgraph — a node fifty hops away is still in it.
-
-One class rather than a per-entity slice: an attack, a propagating spell above
-all, crosses territory of several entities and `EntityCombat.snapshot` is
-per-entity, so the world holds as many entity slices as the attack touches plus
-ownerless slices for unallocated conduit nodes, under one `SkillNode` ->
-`NodeCombat` index. Laziness is what makes shadows cheap (the cost is paid per
-entity actually hit and per node actually visited, rather than for the whole
-owned subgraph per hover). Every shadow needs `free_shadow` for the reference
-cycles `EntityCombat.free_shadow` documents; a live world holds and frees
-nothing.
-
-**No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
-topology never changes mid-attack, so islanding and propagation walk the *real*
-graph while only ownership and stats route through the shadow. It is pinned by
-`test_a_full_shadow_resolve_changes_no_topology`; a displacement or terraform
-mechanic that severs or adds an edge mid-cascade would break it.
+How a hit lands against either world — `CombatWorld`, how a shadow grows, `free_shadow`,
+the one-topology assumption — is [hit-resolution.md](hit-resolution.md) § "Landing against a
+world: `CombatWorld`".
 
 ### The candidate-set half: `resolve_against(world)`
+
+changing: a wave lands through the applier's worklist drain, #1797; a walk ends or goes on at a node's `Admits` answer, #1798, #1806, #1808; see docs/design/elements/hit-resolution.md
 
 `SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
@@ -416,6 +382,8 @@ in `LootSystem`, via its `preview_kill_xp` query.
 
 ## Ordering and `arrival_time`
 
+changing: the walk drains an open worklist and a hit appended mid-walk joins the unlanded tail in schedule order, #1797; see docs/design/elements/hit-resolution.md
+
 Every hit carries a real `arrival_time`, stamped by `OutcomeSchedule` from the
 structure its resolver records: with the world mutating on the reveal clock, an
 unstamped hit would mutate simultaneously with every other.
@@ -436,17 +404,6 @@ d_min, d_max   = nearest and furthest distance in the volley
 frac_i         = (d_i - d_min) / (d_max - d_min)   # 0 .. 1; 0 if the span is 0
 key_i          = (wave_i + frac_i) / waves         # 0 .. 1; == frac_i for one wave
 ```
-
-**Since #543 the resolver records only structure about timing — since #957
-that structure is `(wave, frac)`, folded into one key.** `key_i` is stamped
-onto `HitInstance.structural_key` — the resolver emits structure, never
-seconds. One volley is ONE ramp: waves sit back-to-back inside it and
-`volley_draw_time` is paid once, so the key divides by the wave count to stay
-in `[0, 1]` (the `RAMP` branch's assumption). The last shot of wave *k* and the
-first of wave *k+1* share a key; the `(structural_key, original_index)` sort
-keeps them in wave order, they merely land on one beat. Turning a key into a
-
-The ramp is metric, not ordinal: two leaves 0.1px apart launch 0.1px apart in the span (not a full `1/(n-1)` slice), so a clustered firing line reads as one salvo and a lone outlier owns the tail. Allocation order cannot influence it: distance is pure geometry off `global_position`.
 
 The resolver records only structure about timing: `key_i` is stamped onto
 `HitInstance.structural_key` — the resolver emits structure, never seconds. One
@@ -536,61 +493,8 @@ read sits in the command path, and the volley is self-describing on the wire.
   on the resource, not a pinned pair of numbers.
 - `volley_draw_time` values, and the melee analogue of a preparatory phase.
 
-## OutcomeApplier.apply: the parameters
+## Landing and crit
 
-`OutcomeApplier.apply(outcome, world, clock, alloc)` lands every hit in
-schedule order (see "Ordering and `arrival_time`"). Per-mode ramps (ranged's
-rank-authored schedule, magic's propagation beat, melee's `BladeHitEvent.t`) are
-what make that order meaningful.
-
-- **Order is the schedule's structure; the wait is its seconds.** The sort keys
-  off `HitInstance.schedule_index`, which every machine derives identically from
-  the same structure; the wait reads seconds no two machines need to agree on.
-  That separation is what lets tempo be per-peer. The loop compiles a schedule
-  when the outcome has none yet because a replayed record arrives with
-  structure and no seconds, and exactly one place must turn one into the other.
-- **The loop is the clock.** It waits out each hit's `arrival_time` on `clock`
-  before landing it, so the world mutates when the arrow arrives and everything
-  that draws reads the model on one clock, with no view store to keep in step.
-  `BeatClock.instant_clock` (the default) lands the whole outcome synchronously;
-  see `BeatClock` for why this is not frame-ordered mutation.
-- **`alloc`** is read only by a `GateFlipInstance` landing on a live world (a
-  melee fuse's real flip goes through `AllocationSystem.apply_gate_flip_recorded`).
-  Null skips such a landing with a warning rather than flipping without the
-  cascade.
-- **`world` is required**, placed ahead of the optional `clock`. Live for a real
-  launch or peer replay, shadow for resolution: the identical loop, gates and
-  arithmetic run against detached slices, and there is no `is_preview` flag
-  anywhere below
-  ([ADR 0079](../adr/0079-resolution-always-runs-on-a-shadow-the-world-is-a-required-parameter.md)).
-
-## CritRoll: the one crit implementation
-
-`CritRoll` (`attack/outcome/crit_roll.gd`) is the one crit rule shared by all
-three attack modes; `crit_chance` / `crit_multiplier` are universal entity
-stats, so a roll per mode would be three drifting implementations. A crit is
-decided per hit (owner, 2026-08-21), at the landing itself (owner, 2026-10-07):
-
-```
-Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
-                                          crit_multiplier, crit_tier
-       CritRoll.apply(hit)                amount *= crit_multiplier
-```
-
-- `OutcomeApplier.land_one` draws right before the hit lands, in landing order,
-  off `AttackOutcome.crit_stream`, reading the landing world (the shadow during
-  resolve), so a status landed earlier in the same attack (a mark rider) reaches
-  the chance of the hits behind it.
-- **A hit crits first; its payload copies it.** A lead's draw happens the moment
-  its first rider lands (riders land before their hit, ADR 0067), so the one draw
-  per lead precedes the whole payload and every rider `HitInstance.copy_crit_from`
-  it: a status rider lands its stacks times `abs(crit_multiplier)`, a paired
-  damage share its share times the multiplier. A mark rider lifts the hits behind
-  its own, never its own.
-- **A replay never draws:** a rebuilt `AttackRecord` carries no stream and lands
-  the recorded crit. Every crit reader that runs before a landing (the VFX
-  stamping `Projectile.crit_tier`, the floaters) reads a rebuilt record on the
-  live replay, i.e. after the shadow resolve settled it.
-- The multiply stays at the tail of `HitInstance.land_on`, after ranged's offense
-  read and melee's spike-pop gate, so whatever number those settled is the number
-  multiplied.
+`OutcomeApplier.apply`'s parameters and `CritRoll`, the one crit implementation, are
+[hit-resolution.md](hit-resolution.md) (§ "OutcomeApplier.apply: the parameters",
+§ "CritRoll: the one crit implementation").

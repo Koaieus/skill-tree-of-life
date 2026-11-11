@@ -4,7 +4,7 @@ The modifier pipeline, the stat and pool classes, grant routes, packs, class ide
 
 - **This doc** — what a stat *is*: the pipeline, pool and scalar classes, parent and node-local stats, modifier packs, class identity and level, notification batching, the wire form, BOOL stats, the visualizer.
 - **`docs/domain/stat-formulas.md`** — how a stat *scales*: the intrinsic tables on both boards, where a rate lives, CON, the formula classes and their descriptions.
-- **`docs/domain/stat-upkeep-and-combat.md`** — what moves `current` across a turn and a hit: turn-start upkeep, mitigation, forced-dealloc damage, DoT stacks and resistance, healing.
+- **`docs/domain/stat-upkeep-and-combat.md`** — what moves `current` across a turn and a hit: turn-start upkeep, forced-dealloc damage, DoT stacks and resistance, healing (mitigation: **`docs/domain/hit-resolution.md`**).
 
 `.claude/rules/stats-system.md` holds the silent-failure gotchas and points here; `docs/domain/stat-knobs-and-bins.md` is the decision procedure for adding a knob or a pool bin; `docs/domain/stat-surfaces.md` says where each stat shows in the HUD; `docs/domain/stat-board-classes.md` has the board-class reasoning and measurements.
 

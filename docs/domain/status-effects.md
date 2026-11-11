@@ -8,6 +8,8 @@ bypass are [defense-axes.md](defense-axes.md).
 
 ## The status slice
 
+changing: a rate rule for the world turn's clock, #1795; Catalyst rows decay once per world turn, #1801; see docs/design/elements/terrain.md
+
 - **Definition.** `StatusDef` (`effects/status/status_def.gd`) is a `.tres`-authored
   resource: id, tags, `power_max`, a `decay` slot, `reapply` policy, `on_dealloc`,
   display identity. Subclasses override `_on_applied` / `_on_tick` / `_on_removed`
@@ -125,6 +127,8 @@ bypass are [defense-axes.md](defense-axes.md).
 
 ## The DoT model
 
+changing: a curse or sunder rider no longer lifts its own hit, #1818; Explosive's decay row becomes Catalyst's, #1801; see docs/design/elements/hit-resolution.md
+
 The status slice carries
 five damage-over-time families, each named by the defensive axis it bypasses (the axes:
 [defense-axes.md](defense-axes.md)). Each def authors its own decay
@@ -181,16 +185,7 @@ stacks stats share one parent umbrella, `dot_stacks_per_hit`, which lands more
 stacks and never scales damage; bleeding, blindness, greed, mark (`mark_stacks_per_hit`), hex (`hex_stacks_per_hit`)
 and weakness each carry a parentless `<id>_stacks_per_hit` and sit outside it.
 Sunder and scout author no `StatusDef.stacks_stat_id()` (a flat landing count).
-**A rider's crit is its hit's crit.** A hit crits once, as its own fact, before
-any of its payload lands: `CritRoll.decide` draws the lead's `crit_chance` the
-moment its first rider lands (riders land before their hit) and every rider
-copies it (`HitInstance.copy_crit_from`); a status rider lands the folded stacks
-× `abs(crit_multiplier)`, so poison 1 + curse 1 on a ×2 crit land 2 + 2. A rider
-never draws. A status-only hit (a spell whose landing is a bare status, `paired`
-null) is a lead and rolls `crit_chance` on top of its stamped condition tier.
-Consequence: curse and sunder lift their own hit (they land before its damage),
-but a mark lifts the hits *behind* its own — its own hit drew before the mark
-landed — while that hit's crit still spends it.
+A rider's crit is its hit's crit: [hit-resolution.md](hit-resolution.md) § "CritRoll: the one crit implementation".
 A `StatusInstance.raw` landing (Lodestone's haul, [spell-propagation.md](spell-propagation.md)) skips this
 fold, `stack_terms`, crit and `stack_scale`; only the block gate and Greed ×2 still apply.
 
@@ -265,6 +260,8 @@ viewer_id)`; nothing reads it with a viewer yet.
   `test_status_grouping.gd` sweeps every authored `.tres`.
 
 ## StatusInstance.land_on: which slice, which host
+
+changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; a rider lands after its hit's damage and a depleted node takes no aspect rider, #1818; see docs/design/elements/hit-resolution.md
 
 `StatusInstance.land_on(node, world)` (`attack/outcome/status_instance.gd`):
 

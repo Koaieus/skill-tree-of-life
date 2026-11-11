@@ -4,7 +4,7 @@ class_name CritRoll
 ## decided per HIT at landing ([method decide], drawn off the outcome's
 ## [member AttackOutcome.crit_stream] in landing order) and its payload copies
 ## it; [method apply] multiplies `amount` at the tail of [method
-## HitInstance.land_on]. A replay never draws. See docs/domain/attack-timeline.md
+## HitInstance.land_on]. A replay never draws. See docs/domain/hit-resolution.md
 ## "CritRoll".
 
 ## Salt mixed into [member AttackPlan.resolve_seed] to derive the crit stream.

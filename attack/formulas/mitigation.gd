@@ -1,11 +1,11 @@
 class_name Mitigation
 
 ## Defensive mitigation applied at the moment of impact, inside [method
-## SkillNode.take_damage]: `final = max(min_damage_taken, raw - effective_armor)`
+## NodeCombat.take_damage]: `final = max(min_damage_taken, raw - effective_armor)`
 ## for raw > 0; TRUE damage bypasses it. Both stats are read node-locally. A
 ## NEGATIVE net `min_damage_taken` makes a glancing hit HEAL the defender, on
 ## purpose (owner 2026-09-04) -- never clamp it at zero.
-## See docs/domain/defense-axes.md "Mitigation".
+## See docs/domain/hit-resolution.md "Mitigation".
 
 static func apply(raw: DamageInstance, defender: SkillNode) -> float:
 	return apply_to(raw, defender.get_combat() if defender != null else null)

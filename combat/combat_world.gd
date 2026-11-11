@@ -5,7 +5,7 @@ extends RefCounted
 ## [SkillNode] a hit NAMES (its identity, unchanged) into the [NodeCombat] it
 ## MUTATES. [method live] serves the real world; [method shadow] grows
 ## per-entity and per-node slices on demand and must be released with
-## [method free_shadow]. See docs/domain/attack-timeline.md "Landing against
+## [method free_shadow]. See docs/domain/hit-resolution.md "Landing against
 ## a world: CombatWorld".
 
 ## Live singleton — stateless, so one instance serves every caller and the

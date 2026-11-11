@@ -61,6 +61,7 @@ Implementation companions to the design docs — read when modifying systems, no
 | [../domain/node-subtypes.md](../domain/node-subtypes.md) | Shipped subtype model — sidegrade law, authoring rows, the decision-number legend |
 | [../domain/effect-system.md](../domain/effect-system.md) | Effects, hooks, auras and the tag grant channel |
 | [../domain/status-effects.md](../domain/status-effects.md) | Status effects — the status slice, the DoT model, status rows |
+| [../domain/hit-resolution.md](../domain/hit-resolution.md) | One hit from landing to applied: the walk, the beat, mitigation, crit, a status landing, go-off zero |
 | [../domain/defense-axes.md](../domain/defense-axes.md) | The six defensive axes, their code owners, and the DoT row that bypasses each |
 | [../domain/aspect-cell-authoring.md](../domain/aspect-cell-authoring.md) | What each aspect-matrix column actually touches |
 | [../domain/stat-knobs-and-bins.md](../domain/stat-knobs-and-bins.md) | House answers for tuning rates, extra pools and forced stat values |

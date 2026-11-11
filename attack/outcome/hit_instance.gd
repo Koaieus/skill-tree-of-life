@@ -10,10 +10,10 @@ extends RefCounted
 ## (the VFX coordinators' presentation
 ## pass) and for [method AttackOutcome.damage_hits]'s filter. Defaulted by
 ## each subclass's own [code]_init()[/code], but [b]not fixed at
-## construction for damage[/b] — [method SkillNode.take_damage] reclassifies
+## construction for damage[/b] — [method NodeCombat.take_damage] reclassifies
 ## a [DamageInstance] to [constant Kind.HEAL] when post-[Mitigation] damage
 ## goes negative (a negative `min_damage_taken` underflow — see
-## `docs/domain/stat-upkeep-and-combat.md` § "Damage mitigation"). A
+## `docs/domain/hit-resolution.md` § "Mitigation"). A
 ## [HealInstance] never reclassifies; heals aren't mitigated. [StatusInstance]
 ## (#878) adds a third value — never reclassified either, and deliberately
 ## excluded from [method AttackOutcome.damage_hits]'s filter, so an AI scorer

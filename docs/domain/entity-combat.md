@@ -5,7 +5,7 @@ from the `Node` notification half so that a whole attack — the forced-dealloc
 cascade and entity death included — can resolve on a detached SHADOW without
 touching `Events`, `AllocationSystem`, or any real `SkillNode` / `Entity`. The
 timeline this serves, the shadow-world design and why cloning nodes was the
-wrong answer are in `docs/domain/attack-timeline.md` ("The world is ALWAYS a shadow");
+wrong answer are in `docs/domain/attack-timeline.md` ("The world is ALWAYS a shadow") and `docs/domain/hit-resolution.md` ("Landing against a world: `CombatWorld`");
 this page is the class contract.
 
 ## `host` is set once and never reassigned
