@@ -92,13 +92,76 @@ facet identities, band order, null go-offs and admits, verbs, light, decay).
 
 `effects/status/{heat,cold,charge}.tres`: the plain `StatusDef` script, each on
 its own identity, no tags, `power_max = 0` (uncapped here; the cap is the
-node's k × T, #1794). They are on `effects/status_roster.tres` as host rows;
-nothing plants them yet (#1794 diverts them).
+node's k × T, #1794). They stay on `effects/status_roster.tres`, but a landing
+never makes a row: `NodeCombat.apply_status` diverts them into the node's
+terrain ints (§ Terrain, below).
 
 Each member keys its own facets: `heat_resistance`, `cold_resistance`,
 `charge_resistance` (`role = RESISTANCE`, parent `status_resistance`, the
 `poison_resistance` shape), on `stat_def_roster.tres` and minted on every
 board. No `*_stacks_per_hit` facet: a member lands its authored power as-is.
+
+## Terrain: two ints of node state (#1794)
+
+Terrain is side-less node state. A band is derived at every read and never
+stored. Guards: `test/unit/combat/test_terrain_state.gd` (landing, index,
+fingerprint) and `test_terrain_bands.gd` (the band sweep, the signal).
+
+- **The facts.** `NodeState.terrain_t` is signed, Heat minus Cold.
+  `NodeState.charge` is Lightning's and never goes below 0. That is all of
+  it. `clone()` copies both, so a shadow sees live terrain on first touch.
+  Both are saved, replicated and fingerprinted.
+- **The arithmetic.** `Terrain` (`combat/terrain/terrain.gd`) is static,
+  pure and integer only:
+  - `threshold(d)` is T = `t_per_degree × d`. It always reads graph
+    degree (`degree.md`).
+  - `cap(d, k)` is `k × T`.
+  - `count_of(state, element)`: Fire = max(t, 0), Ice = max(−t, 0),
+    Lightning = charge. The axis is keyed by element id in `axis_of`,
+    since `Element` has no polarity field.
+  - `band_of(element, count, T, cap)` returns the highest band whose
+    threshold the count passes. That threshold is `threshold_multiple × T`,
+    or the cap when `at_cap`. A count ≤ T gives null.
+  - `excess` is past T and `overflow` is past the cap.
+- **The knobs** (tentative):
+  - `TerrainRules.t_per_degree` lives in `combat/terrain/terrain_rules.tres`,
+    default 2, shared with #1795, #1796 and #1798.
+  - `terrain_cap_k` is a node-board scalar: base 2 on
+    `default_node_board.tres` plus an ADD_BASE intrinsic reading
+    `stake_scaling.tres` (the stake cap, not the fill). Bare ground
+    (stake 1) holds k = 3. `NodeCombat.terrain_cap()` mints an unowned
+    node's board before it reads k.
+- **The one writer** is `NodeCombat.add_terrain(element, delta)`.
+  - A shadow (`host == null`) writes its clone's int and returns.
+  - A live slice reads the band of every element the write can move (Fire
+    and Ice share t), writes and reindexes. Then, for each element whose
+    band changed, it calls `host.notify_terrain_band_changed`, which emits
+    `SkillNode.terrain_band_changed(element, from, to)`.
+  - Drops are emitted before rises, so a sign flip of t reads as Fire's
+    band leaving and then Ice's arriving.
+- **The landing divert.** `NodeCombat.apply_status` asks
+  `ElementRoster.for_status(def)`.
+  - An element's `terrain` def becomes
+    `add_terrain(element, round_half_up(power))` and never reaches
+    `StatusHost`: no row, no camp, no applier, no `_may_host`. Unallocated
+    nodes take it.
+  - `*_resistance` does not filter it (open, #1798).
+  - Movers and every other def land as rows, unchanged.
+- **The live index.** `CombatWorld` keeps an insertion-ordered set of live
+  slices with t ≠ 0 or charge > 0, the `_lingering` shape: `note_terrain`,
+  `forget_terrain`, `reindex_terrain`, `holds_terrain` and `terrain_nodes`.
+  - `add_terrain` keeps it in step, and `GraphSnapshot` decode rebuilds it
+    per node.
+  - A shadow world refuses it.
+  - Nothing reads it yet; #1795's pass will gather from it.
+- **Replication.**
+  - `GraphSnapshot`: `_R_TERRAIN_T` = 20 and `_R_CHARGE` = 21
+    (`_ROW_SIZE` 22). A shorter row decodes as 0.
+  - `SaveFile` is v14, and a 13 still loads.
+  - `WorldFingerprint._terrain_rows` folds `[stable_id, t, charge]`. All-zero
+    nodes are skipped, so a world without terrain folds as before.
+- **Not yet.** There is no decay, diffusion or world-turn pass (#1795) and
+  no display (#1796).
 
 ## `Identity.Kind.ELEMENT`
 

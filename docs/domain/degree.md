@@ -13,6 +13,12 @@ the divergence was invisible: every wrong call still returned a plausible int.
 | `SkillNode.get_entity_degree(graph, entity = null)` | degree in the induced subgraph of `entity`'s nodes; defaults to the node's own `owned_by` | **the default for gameplay rules** — territory shape is what the player reads and plays against |
 | `GraphMirror.get_degree(node)` | degree inside that mirror (`entity.navigator` = owned subgraph, `graph.navigator` = whole board) | you already hold the mirror (cast gates: `SpellBook`, `MagicAttackPlan`) |
 
+**Terrain's T reads graph degree** (#1794): `NodeCombat.terrain_threshold()`
+is `TerrainRules.t_per_degree × real().get_graph_degree(real().get_graph())`.
+Terrain has no side, so whose territory the node sits in never moves its T.
+`SkillNode.get_graph()` (the nearest `Graph` ancestor, as `Gate.get_graph`)
+lets a slice ask when it holds only the node.
+
 **Never `graph.get_neighbours(n).size()`.** It happens to equal
 `get_graph_degree` today, but it is the idiom that produced every
 inconsistency below, and it reads as "count the neighbours" — which quietly
