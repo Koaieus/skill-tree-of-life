@@ -34,4 +34,24 @@ static func entries(plan: MagicAttackPlan, socket: int) -> Array[AspectWheelEntr
 			entry.disabled_reason = "At %s's infusion capacity (%d points)" \
 					% [spell.name, maxi(0, floori(spell.infusion_capacity))]
 		out.append(entry)
+	out.append_array(_element_entries(plan))
+	return out
+
+
+## The caster's held [ElementRoster] counts above zero, after the aspects, in
+## roster order: `identity` tints and badges the wedge, `hub_text` reads
+## "Fire attunement: N". An element count is no infusion currency, so the wedge
+## is shown but never pickable.
+static func _element_entries(plan: MagicAttackPlan) -> Array[AspectWheelEntry]:
+	var out: Array[AspectWheelEntry] = []
+	for element in ElementRoster.shared().elements:
+		if element == null or element.stat == null:
+			continue
+		var held := AspectCurrency.cap_of(plan.attacker, element.stat.id)
+		if held <= 0:
+			continue
+		var entry := AspectWheelEntry.new(element.id(), element.identity, held)
+		entry.hub_text = "%s: %d" % [element.stat.display_name, held]
+		entry.disabled_reason = "%s is not infusable" % element.stat.display_name
+		out.append(entry)
 	return out

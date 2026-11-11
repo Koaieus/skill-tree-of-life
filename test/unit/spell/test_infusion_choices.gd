@@ -115,3 +115,17 @@ func test_next_breakpoint_is_the_first_unreached_rung() -> void:
 	assert_eq(f.next_breakpoint(0.0), 10.0)
 	assert_eq(f.next_breakpoint(10.0), 100.0, "reached at equality, as compute counts")
 	assert_eq(f.next_breakpoint(100.0), INF)
+
+
+func test_element_counts_show_after_aspects_tinted_and_unpickable() -> void:
+	var plan := _plan(_caster({&"poison": 2, &"fire": 4}), _spell())
+	var entries := InfusionChoices.entries(plan, 0)
+	var by := _by_id(entries)
+	assert_true(by.has(&"fire"), "held Fire attunement is offered")
+	assert_false(by.has(&"ice"), "a zero count is skipped, as aspects are")
+	var fire: AspectWheelEntry = by[&"fire"]
+	assert_eq(fire.value, 4)
+	assert_eq(fire.hub_text, "Fire attunement: 4")
+	assert_eq(fire.identity, ElementRoster.shared().by_id(&"fire").identity)
+	assert_false(fire.is_pickable())
+	assert_eq(entries.back().id, &"fire", "elements follow the aspects")
