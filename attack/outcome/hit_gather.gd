@@ -20,9 +20,14 @@ extends RefCounted
 ##   [method StatusInstance.land_on] and are marked [member HitInstance.staged];
 ##   a copy's are ceil(r × s) of them, summed through [TerrainSettle] (the
 ##   larger ceil when two channels of one hit meet);
-## [br]- [b]read[/b], once per node per hit: each band the node sits in after the
-##   riders fires its [GoOff] ([method GoOff.fire]); the spends and transfers of
-##   the whole generation commit together through [TerrainSettle], before the
+## [br]- [b]read[/b]: first the node's second [Admits] read, once per node per
+##   generation over every arrival there ([method Admits.read]): a breaker
+##   shatters the node (one spend, one burst, its extra landings) and walks
+##   every path on, else the answer may end the paths there
+##   ([member HitInstance.path_ends] on a head); then, once per node per hit,
+##   each band the node sits in after the riders fires its [GoOff]
+##   ([method GoOff.fire]). The spends and transfers of the whole generation
+##   (the breaks' included) commit together through [TerrainSettle], before the
 ##   next generation's admit.
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
 ## copy as an entry only, and does not go off again. Stage two is the drain:
@@ -33,6 +38,32 @@ extends RefCounted
 ## The gather is the beat's only terrain writer, and it records the beat's net
 ## change on its first head ([member HitInstance.terrain_ops]); a re-drained or
 ## rebuilt beat feeds that instead of gathering ([method feed]).
+
+
+## A shatter's burst (ADR 0090 §1): [member amount] HP of TRUE damage on the
+## node's holder, landed in stage two through [method DotTick.mint], the path
+## [method CorruptionStatus._on_burst] takes, so "a burst lands" stays one
+## implementation. Pushed after its generation's entries; draws no crit.
+class _Burst:
+	extends DamageInstance
+
+	static func at(node: SkillNode, head: HitInstance, hp: float) -> _Burst:
+		var b := _Burst.new()
+		b.target = node
+		b.attacker = head.attacker
+		b.schedule_index = head.schedule_index
+		b.structural_key = head.structural_key
+		b.arrival_time = head.arrival_time
+		b.type = DamageInstance.Type.TRUE
+		b.basis = HitInstance.AmountBasis.FLAT
+		b.amount = hp
+		b.crit_decided = true
+		return b
+
+	func land_on(node: NodeCombat, _world: CombatWorld) -> void:
+		var holder := node.owner() if node != null else null
+		if holder != null:
+			DotTick.mint(holder, amount, basis)
 
 
 ## One hit of the beat: its head, its span, its once-per-node set.
@@ -51,7 +82,12 @@ var _world: CombatWorld = null
 var _hits: Dictionary = {}  # head HitInstance -> _Hit
 var _slices: Dictionary = {}  # SkillNode -> NodeCombat (null: not a node slice)
 var _pre: Dictionary = {}  # SkillNode -> [t, charge] before stage one touched it
-var _entries: Array[Arrival] = []
+## Stage two's worklist, in push order: [Arrival] entries, and each generation's
+## shatter bursts ([HitInstance]) after that generation's entries.
+var _entries: Array = []
+## `generation -> {SkillNode: true}`: the nodes whose second read in that
+## generation ended the paths through them ([method _ends_at]).
+var _ended: Dictionary = {}
 
 
 ## Stage one over one beat, [param group] in land order. Gathers every fresh
@@ -157,14 +193,16 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 			h.visited[node] = true
 		reading[node] = landing
 	TerrainSettle.commit(batch)
-	# Read once per node per hit; every spend of the generation commits together.
+	# Read: the node's second Admits answer over every arrival of the
+	# generation there, then each hit not yet read there fires its go-offs;
+	# every spend of the generation commits together.
 	var spends := TerrainSettle.Batch.new()
 	var next: Array[Arrival] = []
+	var bursts: Array[HitInstance] = []
 	for node in nodes:
-		var landing: Array = reading[node]
-		if landing.is_empty():
-			continue
 		var read := TerrainRead.of(_slice(node), node)
+		_read_node(node, read, at[node], generation, spends, bursts)
+		var landing: Array = reading[node]
 		for h: _Hit in landing:
 			var hit_load := h.head.hit_load if generation == 0 else 0
 			for e: Element in ElementRoster.shared().elements:
@@ -177,7 +215,101 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				_spend(spends, node, e, result)
 				_append_reach(h, node, result, band.go_off, generation + 1, next)
 	TerrainSettle.commit(spends)
+	_entries.append_array(bursts)
 	return next
+
+
+## The node's second [Admits] read (ADR 0083 §2; ADR 0091 §1, §4), once per node
+## per generation, before its go-offs: each band the node sits in after the
+## riders ([param read]) is asked over [param arrivals], every arrival of the
+## generation at the node (absorbed ones included), each handed its own
+## [member Arrival.amount]. A breaker shatters the node ([method _shatter]) and
+## walks every path through it on; else an answer's "paths end" ends them. The
+## verdict is kept per node per generation ([method _ends_at], the seat a
+## depth-d entry asks of its ring nodes) and rides a head arriving here
+## ([member HitInstance.path_ends]).
+func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation: int,
+		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> void:
+	var handed: Array[Arrival] = []
+	for a: Arrival in arrivals:
+		a.amount = _amount(a)
+		handed.append(a)
+	var ends := false
+	var broke := false
+	for e: Element in ElementRoster.shared().elements:
+		var band := read.band(e)
+		if band == null or band.admits == null:
+			continue
+		var answer := band.admits.read(node, read, handed)
+		if answer == null:
+			continue
+		if answer.breakers.is_empty():
+			ends = ends or answer.paths_end
+			continue
+		broke = true
+		_shatter(node, e, answer, handed, spends, bursts)
+	var path_ends := ends and not broke
+	if path_ends:
+		if not _ended.has(generation):
+			_ended[generation] = {}
+		_ended[generation][node] = true
+	for a in handed:
+		if not a.is_copy:
+			a.head.path_ends = path_ends
+
+
+## Whether [param node]'s second read in [param generation] ended the paths
+## through it: no arrival broke it and an answer said "paths end". A node not
+## read in that generation ended nothing.
+func _ends_at(node: SkillNode, generation: int) -> bool:
+	return _ended.has(generation) and _ended[generation].has(node)
+
+
+## A break (ADR 0090 §1; ADR 0091 §1, §2): [param answer]'s spend once, on
+## [param e]'s store with the generation's go-off spends; for each breaking
+## arrival only, the answer's count of extra entries on the node, each a copy
+## of that arrival's own landing (damage and aspect riders only, as every
+## entry); and one burst, pushed for stage two, when the node has a holder.
+## Several breakers still spend and burst once.
+func _shatter(node: SkillNode, e: Element, answer: AdmitsAnswer, arrivals: Array[Arrival],
+		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> void:
+	_spend_stacks(spends, node, e, answer.spend)
+	var seen: Dictionary = {}
+	for i in answer.breakers:
+		if i < 0 or i >= arrivals.size() or seen.has(i):
+			continue
+		seen[i] = true
+		for _n in maxi(answer.extra_landings, 0):
+			_entries.append(_extra(arrivals[i]))
+	var slice := _slice(node)
+	if answer.burst > 0.0 and slice != null and slice.owner() != null:
+		bursts.append(_Burst.at(node, arrivals[0].head, answer.burst))
+
+
+## An arrival's own landing's damage, before mitigation: each damage row of its
+## hit at × share + own damage (as [method _push] lands it), × the head's crit
+## multiplier (1 without a crit).
+func _amount(a: Arrival) -> float:
+	var h: _Hit = _hits[a.head]
+	var sum := 0.0
+	for src in h.span:
+		if src.kind == HitInstance.Kind.DAMAGE and not src.staged:
+			sum += src.amount * a.share + a.own_damage
+	return sum * a.head.crit_multiplier
+
+
+## A break's extra landing: [param a]'s own landing again on its node, at its
+## share and own damage, paired to its head. Never asked of [Admits].
+func _extra(a: Arrival) -> Arrival:
+	var x := Arrival.new()
+	x.node = a.node
+	x.head = a.head
+	x.generation = a.generation
+	x.is_copy = true
+	x.share = a.share
+	x.own_damage = a.own_damage
+	x.amount = a.amount
+	return x
 
 
 ## Runs once per head, before its admit / land / read: the seat the head's
@@ -238,19 +370,25 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 ## The spend [param result] returns, on [param node]'s store of [param e]
 ## (summed, clamped at 0 by the commit), and its transfers onto reached nodes.
 func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoOffResult) -> void:
-	var total := result.spend()
-	if total > 0:
-		match Terrain.axis_of(e):
-			Terrain.Axis.HEAT, Terrain.Axis.COLD:
-				batch.add_toward_zero_t(_slice(node), total)
-			Terrain.Axis.CHARGE:
-				batch.add_charge(_slice(node), -total)
+	_spend_stacks(batch, node, e, result.spend())
 	var seen: Dictionary = {}
 	for reach in result.reached:
 		if reach == null or reach.node == null or seen.has(reach.node):
 			continue
 		seen[reach.node] = true
 		_add(batch, reach.node, e, int(result.transfer.get(reach.node, 0)))
+
+
+## [param total] stacks off [param node]'s store of [param e]: summed with the
+## generation's other spends, clamped at 0 by the commit.
+func _spend_stacks(batch: TerrainSettle.Batch, node: SkillNode, e: Element, total: int) -> void:
+	if total <= 0:
+		return
+	match Terrain.axis_of(e):
+		Terrain.Axis.HEAT, Terrain.Axis.COLD:
+			batch.add_toward_zero_t(_slice(node), total)
+		Terrain.Axis.CHARGE:
+			batch.add_charge(_slice(node), -total)
 
 
 func _add(batch: TerrainSettle.Batch, node: SkillNode, e: Element, n: int) -> void:
@@ -308,7 +446,11 @@ func _ops() -> Array:
 func _push(queue: HitQueue) -> void:
 	if queue == null:
 		return
-	for a in _entries:
+	for e in _entries:
+		if e is HitInstance:
+			queue.push(e)
+			continue
+		var a: Arrival = e
 		var h: _Hit = _hits[a.head]
 		var rows: Dictionary = {}  # StatusDef -> the entry's one StatusInstance
 		var order: Array[StatusInstance] = []

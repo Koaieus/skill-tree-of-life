@@ -389,7 +389,18 @@ static func _resolve(
 		var next_wave: Array[CastSpell] = []
 		for state in merged:
 			var lctx: LandingContext = lctx_of[state]
-			if state.hops_remaining <= 0 or config.spread == null:
+			# A walk also ends at a landing whose node's second `Admits` read,
+			# in the generation its head arrived in, said paths end there
+			# (#1798; ADR 0087 §3, ADR 0091 §1): the head carries the answer,
+			# and a shatter walks every head of that read on.
+			var paths_end := false
+			var landed: PropagationEvent = event_of.get(state, null)
+			if landed != null:
+				for hit in landed.hits:
+					if hit.is_head and hit.path_ends:
+						paths_end = true
+						break
+			if state.hops_remaining <= 0 or config.spread == null or paths_end:
 				_mark_terminal(event_of, state)
 				continue
 			# Always enforce max_visits_per_node FIRST, and even if the filter
