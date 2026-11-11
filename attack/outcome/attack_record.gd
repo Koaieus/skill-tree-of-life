@@ -758,7 +758,9 @@ static func _tempo_of(path: String) -> PresentationTempo:
 ## first sight; 0 for no mark. The per-hit index rides every record like
 ## `pops`; a blastless record omits only the table keys. The go-off column
 ## starts at the first row that names one, padding the rows before it with "",
-## so a record of unnamed blasts writes no new key (#1798).
+## so a record of unnamed blasts writes no new key (#1798); the generation
+## column the same way at the first row past generation 0, padding with 0
+## (#1799).
 static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, graph: Graph) -> int:
 	if mark == null:
 		return 0
@@ -770,6 +772,10 @@ static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, 
 		r.blast_go_offs.resize(r.blast_centres.size() - 1)
 	if not named.is_empty() or not r.blast_go_offs.is_empty():
 		r.blast_go_offs.append(named)
+	if mark.generation != 0 and r.blast_generations.is_empty():
+		r.blast_generations.resize(r.blast_centres.size() - 1)
+	if mark.generation != 0 or not r.blast_generations.is_empty():
+		r.blast_generations.append(mark.generation)
 	r.blast_reach.append(mark.reach)
 	r.blast_power.append(mark.power)
 	r.blast_attackers.append(mark.attacker.entity_id if mark.attacker != null else 0)
@@ -782,7 +788,8 @@ static func _capture_blast(r: AttackRecord, mark: BlastMark, index: Dictionary, 
 
 ## The blast table back as one [BlastMark] per row, riders and the go-off
 ## resolved by id through [IdentityRoster] (authored content both peers hold).
-## A row past the go-off column, or "" in it, names no go-off.
+## A row past the go-off column, or "" in it, names no go-off; a row past the
+## generation column is generation 0.
 static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
 	var marks: Array[BlastMark] = []
 	var roster := IdentityRoster.shared() \
@@ -796,6 +803,8 @@ static func _rebuild_blasts(r: AttackRecord, graph: Graph) -> Array[BlastMark]:
 		mark.attacker = graph.get_by_entity_id(r.blast_attackers[k]) if graph != null else null
 		if roster != null and k < r.blast_go_offs.size() and not r.blast_go_offs[k].is_empty():
 			mark.go_off = roster.by_id(StringName(r.blast_go_offs[k]))
+		if k < r.blast_generations.size():
+			mark.generation = r.blast_generations[k]
 		for n in r.blast_rider_counts[k]:
 			var identity := roster.by_id(StringName(r.blast_riders[rider_at + n])) if roster != null else null
 			if identity != null:

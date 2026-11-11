@@ -389,7 +389,9 @@ func _open_head(h: _Hit) -> void:
 ## for [method _release] at g + d − 1, and, when the list holds a node and
 ## [param go_off] lands on its own node, [param node] takes the centre copy as
 ## an entry. A [param go_off] that reaches a node mints one [BlastMark] naming
-## [param named], stamped on every entry it makes; [param e] is the element
+## [param named], stamped on every entry it makes, its
+## [member BlastMark.generation] the read it fired at (g, one before
+## [param generation]; ADR 0091 §1); [param e] is the element
 ## whose store pays a parked node's cost. Every reached node joins its
 ## generation through [method _join], the dedupe switch; a cast's shape adds
 ## its list through this seat (#1812).
@@ -410,6 +412,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 				fired.mark.centre = node
 				fired.mark.attacker = h.head.attacker
 				fired.mark.go_off = named
+				fired.mark.generation = generation - 1
 		if reach.depth <= 1:
 			_join(next, _arrive(fired, reach.node, generation))
 			continue
