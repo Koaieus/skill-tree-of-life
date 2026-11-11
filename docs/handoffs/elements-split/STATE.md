@@ -1,6 +1,8 @@
 # Elements split — body pass state (2026-11-10, 21:07)
 
 > **Next lead: start at the last section, "NEXT LEAD START HERE".** Everything above it is history.
+>
+> **Context relay (every lead inherits this):** when your context nears ~150k tokens, stop taking on new units. Rewrite "NEXT LEAD START HERE" so a fresh lead can continue (done, in flight, next), push, and end with a report that starts `INCOMPLETE — resume from STATE`. A fresh lead is spawned on the same prompt. At most 5 subagents at a time; the lead delegates every read of a big file or issue body.
 
 Pick up here. The lead of this pass ran out of context budget after the review came back. Read this file, `ORDER.md` and `REVIEW-rulings.md`; delegate every other read. At most 5 subagents at a time (owner).
 
@@ -138,7 +140,22 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 - Damage breaker [Raw, as thrown: the arrival's stamped amount, crit included, × its load multiplier; armor plays no part]. Combined damage [Each arrival alone: no summing within a generation].
 - All in `deb12126` (elements.md) and ADR **0091** (`e39be560`, linked on #1716). Pass readings, tentative: a multi-hop arc advances one hop per generation; the shatter is Ice's 0D point go-off.
 
-## NEXT LEAD START HERE (written 2026-11-11, 02:45, after batch 7)
+### Owner input, 2026-11-11 02:43 (verbatim) — reopens ADR 0091 §3's damage read
+*"If dmg is checked first and then riders land that e.g. raise min dmg taken then the actual hit resolves differently compared to the check at the start. And that feels like gaslighting the player. Perhaps some subagents can patch existing or file new issues for this. Currently they're all in Designing lane iirc. And an advisor pass for more WIS. I'm heading to bed. Use any amount of subagents for tidying up to prep for continuation. I want to get these issues all clear and ready (and aligned but i think we've gotten very in terms of that, major leaps in design too, gaps closed, unification where needed, simplifications where allowed (and much needed too, most often the simple gameplay mechanics are best), etc)"*
+- The criterion: **the break reads the number the player sees.** Three shapes, none picked, all in `docs/design/elements.md` § Open (first bullet): (1) crit and blade only; (2) the arrival's own aspect riders land before the read; (3) Frozen takes damage unmitigated. Lead's lean, tentative: (1).
+- ADR 0091 is NOT edited tonight: a reversal is a morning ruling and a new ADR. Every issue body citing the damage breaker carries a NOTE at the top naming the fork, otherwise follows 0091 as it stands, and stays out of Ready.
+- *"get these issues all clear and ready"* is the go for phase 2, gated: no live `whip-*.md` swarm-train ledger, and the issue carries no open fork.
+
+## NEXT LEAD START HERE (overnight lead, 2026-11-11, from 02:50; the 02:45 notes follow below)
+**Overnight progress (update as units land):**
+- Done: the 02:43 fork in elements.md § Open and in this file (first commit of the night).
+- In flight: —
+- Next: step 2 (trajectory-hint `ui` issue), step 3 (fix round, writers per issue + the fork NOTE), one re-review, step 4 (restamp, docs-hygiene), step 5 (fresh phase-2 work order through one Haiku clerk, gated), morning questions below.
+
+**Morning questions for the owner (AskUserQuestion-ready, at most 4):**
+1. The damage breaker must read the number the player sees (02:43). Which shape? (a) Crit and blade only — drop the flat breaker [lead's lean]; (b) the arrival's own aspect riders land before the read (same `Mitigation.compute` as the landing; breaks ADR 0082's no-reach-change-in-stage-two invariant, needs an ordering rule); (c) Frozen takes damage unmitigated (new rule, thrown = shown). Answer → new ADR beside 0091; lift the NOTE from the forked issues and move them to Ready.
+
+### The 02:45 notes (previous lead)
 **Done since 02:20:** the same-beat race settled (batch 7 above; ADR 0091). Step 1 below is done; it is kept for the record.
 **Loose ends, none backed by an owner sentence yet:**
 - The forge's trim order is used but never defined.

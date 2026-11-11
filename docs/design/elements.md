@@ -269,7 +269,9 @@ right? and that doesn't sound good"*). Each triggers the shatter. **The damage r
 as thrown** (owner, 2026-11-11, picked over *mitigated, pre-hit*, *crit and
 blade only* and *actual damage after landing*): the arrival's own stamped
 amount, crit already multiplied in (`CritRoll.apply`), times its load
-multiplier, against the threshold. Armor and the damage floor
+multiplier, against the threshold. *(Reopened by the owner, 2026-11-11, 02:43: the
+break must read the number the player sees; three shapes in § Open, the
+first bullet. ADR 0091 §3 stands until the owner rules.)* Armor and the damage floor
 (`min_damage_taken`) play no part, so armor never makes ice harder to break;
 the number is already on the hit, so nothing is recomputed; and it is the
 arrival's own landing, before the break adds its channels, so the test is
@@ -1511,6 +1513,45 @@ hit; the keystone grants its element while held.
 
 ## Open
 
+- **The damage breaker reads a number the player never sees** (owner,
+  2026-11-11, 02:43; reopens the raw-as-thrown pick in § What breaks the
+  ice and ADR 0091 §3): *"If dmg is checked first and then riders land
+  that e.g. raise min dmg taken then the actual hit resolves differently
+  compared to the check at the start. And that feels like gaslighting the
+  player."* The floater shows `max(min_damage_taken, raw − armor)`
+  (`attack/formulas/mitigation.gd`) after the hit's own aspect riders land,
+  and a Curse raises `min_damage_taken` (`docs/domain/status-effects.md`,
+  the family table); the breaker reads the raw amount before either. So the
+  break and the shown number disagree both ways: armor lets a 4-damage
+  floater shatter the ice, and a Curse floor can leave a 12-damage floater
+  short of it. The owner's criterion: **the rule reads the number the
+  player sees.** Three shapes meet it; none is picked.
+  1. **Crit and blade only.** The flat damage breaker goes. Both breakers
+     left are pre-hit facts the player sees as events (the crit floater, the
+     blade snap). Owned and unowned ice get one rule (a holder-less node
+     already has no flat breaker), and the tentative reading on a
+     dedupe-merged arrival goes with it. Cost: it drops the owner's
+     2026-11-08 *"a hit that deals X amount of % max health"*, and the Cold
+     spell's concentrated seed (#1789) no longer breaks ice on damage
+     alone. That may be no loss: a Cold spell deepening its own freeze is
+     thematic, and Thermal shock carries the break after a forge swap. It
+     was one of batch 7's four options; raw, as thrown, was picked over it.
+  2. **The arrival's own aspect riders land before the read.** The break
+     runs the same `Mitigation.compute` the landing will, and stage two
+     lands that landing's damage with nothing in between. It keeps the
+     owner's breaker, and a Curse arrow visibly helps break ice. Cost: an
+     aspect rider can then change reach through Frozen, which ADR 0082's
+     invariant forbids (stage two never changes reach); and stage two needs
+     an ordering rule: the arrival's own damage lands before any other
+     entry's riders at that node.
+  3. **Frozen takes damage unmitigated.** Thrown then equals shown, so ADR
+     0091 §3 stands as written. Cost: a new damage rule the owner never
+     floated. Listed, not leaned on.
+
+  **Lead's lean, tentative, not the owner's:** shape 1, on the owner's
+  *"most often the simple gameplay mechanics are best"* (same message).
+  Reversing ADR 0091 §3 takes the owner's ruling and a new ADR; until then
+  the issue bodies follow 0091 as it stands, with a NOTE naming this fork.
 - **Catalyst, settled and what remains** (owner, 2026-11-09). Settled in § The
   threshold model: Catalyst is one element-generic converter in no family, the
   world-tick fuse is dropped (it converts at landing, so no node holds it
