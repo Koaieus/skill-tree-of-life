@@ -7,8 +7,11 @@ extends RefCounted
 
 
 ## One node a go-off reached: its hop depth (1 unless the go-off names more)
-## and, at depth 2 and up, the ring nodes it hangs behind (the hop seat). Unit
-## A of #1798 declares both and lands every reach at the next generation.
+## and, at depth 2 and up, the ring nodes it hangs behind: the reached nodes at
+## depth − 1 it neighbours, a set (the hop seat, #1798, tentative). A go-off
+## fired at generation g lands a depth-d node at g + d; its cost and transfer
+## commit at g + d − 1's read, and it drops there when every ring node ended
+## its paths or dropped ([HitGather]). #1806 fills both from its BFS.
 class Reach:
 	extends RefCounted
 	var node: SkillNode = null
@@ -39,5 +42,16 @@ func spend() -> int:
 	var total := nodeless_cost
 	for r in reached:
 		if r != null:
+			total += int(cost.get(r.node, 0))
+	return total
+
+
+## The spend that commits at the go-off's own read: the nodeless cost and each
+## depth-1 node's. A deeper node's commits later, and only when its entry is
+## not dropped (spend follows landings, ADR 0093 §5).
+func spend_at_read() -> int:
+	var total := nodeless_cost
+	for r in reached:
+		if r != null and r.depth <= 1:
 			total += int(cost.get(r.node, 0))
 	return total

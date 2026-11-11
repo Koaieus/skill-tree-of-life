@@ -9,9 +9,10 @@ extends RefCounted
 ##
 ## A head ([member HitInstance.is_head]) and the hits after it, up to the next
 ## head, are one hit. The beat lands in generations: generation 0 is the beat's
-## heads; a go-off fired at generation g's read sends its copies to g + 1, and
-## each generation starts from the terrain the one before left. At each node of
-## a generation, in order:
+## heads; a go-off fired at generation g's read sends its copies to g + 1 (a
+## node it reached at hop depth d to g + d: the hop seat, [method _release]),
+## and each generation starts from the terrain the one before left. At each
+## node of a generation, in order:
 ## [br]- [b]admit[/b]: every copy is asked of the node's bands' [Admits] against
 ##   the terrain before this generation's riders (a head and a centre copy never
 ##   are); an admitted copy is an entry, an absorbed one is not;
@@ -30,7 +31,9 @@ extends RefCounted
 ##   (the breaks' included) commit together through [TerrainSettle], before the
 ##   next generation's admit.
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
-## copy as an entry only, and does not go off again. Stage two is the drain:
+## copy as an entry only, and does not go off again. Each go-off that reaches a
+## node mints one [BlastMark] ([member BlastMark.go_off]: its band's
+## [Identity]), stamped on every entry it makes. Stage two is the drain:
 ## every entry is pushed onto the [HitQueue] as a copy of the hit's whole span
 ## (element riders excluded), [code]paired[/code] to its head, at damage × s +
 ## own damage and riders ceil(r × s), one row per status id.
@@ -48,21 +51,18 @@ class _Burst:
 	extends DamageInstance
 
 	static func at(node: SkillNode, head: HitInstance, hp: float) -> _Burst:
-		var b := _Burst.new()
+		var b := HitGather.burst(hp) as _Burst
 		b.target = node
 		b.attacker = head.attacker
 		b.schedule_index = head.schedule_index
 		b.structural_key = head.structural_key
 		b.arrival_time = head.arrival_time
-		b.type = DamageInstance.Type.TRUE
-		b.basis = HitInstance.AmountBasis.FLAT
-		b.amount = hp
-		b.crit_decided = true
 		return b
 
 	func land_on(node: NodeCombat, _world: CombatWorld) -> void:
 		var holder := node.owner() if node != null else null
-		if holder != null:
+		if holder != null and amount > 0.0:
+			effective_amount = amount
 			DotTick.mint(holder, amount, basis)
 
 
@@ -78,6 +78,21 @@ class _Hit:
 	var visited: Dictionary = {}
 
 
+## One go-off the gather fired that reached a node: its mark, and what its
+## parked deeper reaches need when [method _release] lets them on.
+class _Fired:
+	extends RefCounted
+	var hit: _Hit = null
+	## The node it went off from, and the element whose store pays.
+	var node: SkillNode = null
+	var element: Element = null
+	var result: GoOffResult = null
+	## Stamped on each of its entries; null for a list no go-off made.
+	var mark: BlastMark = null
+	## `SkillNode -> true`: the reached nodes whose entries it dropped.
+	var dropped: Dictionary = {}
+
+
 var _world: CombatWorld = null
 var _hits: Dictionary = {}  # head HitInstance -> _Hit
 var _slices: Dictionary = {}  # SkillNode -> NodeCombat (null: not a node slice)
@@ -88,6 +103,28 @@ var _entries: Array = []
 ## `generation -> {SkillNode: true}`: the nodes whose second read in that
 ## generation ended the paths through them ([method _ends_at]).
 var _ended: Dictionary = {}
+## `generation -> [[_Fired, GoOffResult.Reach], ...]`: the depth-d reaches
+## parked until that generation's read (g + d − 1), the hop seat.
+var _deep: Dictionary = {}
+## `Arrival -> BlastMark`: the go-off mark each entry carries into stage two.
+var _marks: Dictionary = {}
+
+
+## A shatter's burst of [param hp] HP, bare: what [AttackRecord] rebuilds a
+## recorded one as, so a replay lands it on the holder's pool as the live
+## landing did.
+static func burst(hp: float) -> DamageInstance:
+	var b := _Burst.new()
+	b.type = DamageInstance.Type.TRUE
+	b.basis = HitInstance.AmountBasis.FLAT
+	b.amount = hp
+	b.crit_decided = true
+	return b
+
+
+## Whether [param hit] is a shatter's burst ([method burst]).
+static func is_burst(hit: HitInstance) -> bool:
+	return hit is _Burst
 
 
 ## Stage one over one beat, [param group] in land order. Gathers every fresh
@@ -127,7 +164,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		a.head = h.head
 		arrivals.append(a)
 	var generation := 0
-	while not arrivals.is_empty():
+	while not arrivals.is_empty() or not gather._deep.is_empty():
 		arrivals = gather._generation(arrivals, generation)
 		generation += 1
 	order[0].head.terrain_ops = gather._ops()
@@ -213,7 +250,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				if result == null:
 					continue
 				_spend(spends, node, e, result)
-				_append_reach(h, node, result, band.go_off, generation + 1, next)
+				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
+	_release(generation, spends, next)
 	TerrainSettle.commit(spends)
 	_entries.append_array(bursts)
 	return next
@@ -309,6 +347,8 @@ func _extra(a: Arrival) -> Arrival:
 	x.share = a.share
 	x.own_damage = a.own_damage
 	x.amount = a.amount
+	if _marks.has(a):
+		_marks[x] = _marks[a]
 	return x
 
 
@@ -319,23 +359,99 @@ func _open_head(_h: _Hit) -> void:
 	pass
 
 
-## The one seat a reach list enters by: [param result]'s reached nodes become
-## [param h]'s arrivals of [param generation], and, when the list holds a node
-## and [param go_off] lands on its own node, [param node] takes the centre copy
-## as an entry. The dedupe switch merges here (#1798's Unit C); a cast's shape
-## adds its list through it (#1812).
+## The one seat a reach list enters by: [param result]'s depth-1 nodes become
+## [param h]'s arrivals of [param generation] (g + 1), a depth-d one is parked
+## for [method _release] at g + d − 1, and, when the list holds a node and
+## [param go_off] lands on its own node, [param node] takes the centre copy as
+## an entry. A [param go_off] that reaches a node mints one [BlastMark] naming
+## [param named], stamped on every entry it makes; [param e] is the element
+## whose store pays a parked node's cost. The dedupe switch merges here
+## (#1798's Unit C); a cast's shape adds its list through it (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
-		generation: int, next: Array[Arrival]) -> void:
-	var reached := false
+		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null) -> void:
+	var fired: _Fired = null
 	for reach in result.reached:
 		if reach == null or reach.node == null or not is_instance_valid(reach.node):
 			continue
-		reached = true
-		next.append(_copy(h, reach.node, result, generation))
-	if reached and go_off != null and go_off.lands_on_own_node:
-		var centre := _copy(h, node, result, generation)
+		if fired == null:
+			fired = _Fired.new()
+			fired.hit = h
+			fired.node = node
+			fired.element = e
+			fired.result = result
+			if go_off != null:
+				fired.mark = BlastMark.new()
+				fired.mark.centre = node
+				fired.mark.attacker = h.head.attacker
+				fired.mark.go_off = named
+		if reach.depth <= 1:
+			next.append(_arrive(fired, reach.node, generation))
+			continue
+		var at := generation + reach.depth - 2
+		if not _deep.has(at):
+			_deep[at] = []
+		_deep[at].append([fired, reach])
+	if fired != null and go_off != null and go_off.lands_on_own_node:
+		var centre := _arrive(fired, node, generation)
 		centre.centre = true
 		_entries.append(centre)
+
+
+## The hop seat (#1798, tentative; ADR 0091 §1, ADR 0093 §5): each depth-d
+## reach parked for [param generation], g + d − 1 of the go-off fired at g, now
+## that its ring nodes have had this generation's second read. It drops when
+## every ring node it hangs behind ended its paths here ([method _ends_at]) or
+## had its own entry from this go-off dropped: it never arrives, costs nothing
+## and takes no transfer, and what hangs behind it drops with it. Else its cost
+## and transfer join [param spends], so they are in before its admit, and it
+## arrives in generation + 1. An empty ring hangs behind nothing and never drops.
+func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+	var parked: Array = _deep.get(generation, [])
+	_deep.erase(generation)
+	for p: Array in parked:
+		var fired: _Fired = p[0]
+		var reach: GoOffResult.Reach = p[1]
+		if _behind_ended(fired, reach, generation):
+			fired.dropped[reach.node] = true
+			continue
+		if fired.element != null:
+			_spend_stacks(spends, fired.node, fired.element, int(fired.result.cost.get(reach.node, 0)))
+			_add(spends, reach.node, fired.element, int(fired.result.transfer.get(reach.node, 0)))
+		next.append(_arrive(fired, reach.node, generation + 1))
+
+
+func _behind_ended(fired: _Fired, reach: GoOffResult.Reach, generation: int) -> bool:
+	if reach.ring.is_empty():
+		return false
+	for ring in reach.ring:
+		if not fired.dropped.has(ring) and not _ends_at(ring, generation):
+			return false
+	return true
+
+
+## [param fired]'s copy on [param node] in [param generation], carrying its mark.
+func _arrive(fired: _Fired, node: SkillNode, generation: int) -> Arrival:
+	var a := _copy(fired.hit, node, fired.result, generation)
+	if fired.mark != null:
+		_marks[a] = fired.mark
+	return a
+
+
+## The [Identity] a go-off held by [param band] is named by: the band's own,
+## or the nearest band below it with one (#1793's fallback, which
+## `TerrainBars.shown_band` displays by; tentative). Null when none has one.
+static func _named(e: Element, band: ElementBand) -> Identity:
+	if band == null:
+		return null
+	if band.identity != null or e == null:
+		return band.identity
+	var i := e.bands.find(band) - 1
+	while i >= 0:
+		var b := e.bands[i]
+		if b != null and b.identity != null:
+			return b.identity
+		i -= 1
+	return null
 
 
 ## Land [param h]'s own element riders where they fall, through each row's own
@@ -367,13 +483,14 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 	return true
 
 
-## The spend [param result] returns, on [param node]'s store of [param e]
-## (summed, clamped at 0 by the commit), and its transfers onto reached nodes.
+## The spend [param result] returns at its own read, on [param node]'s store
+## of [param e] (summed, clamped at 0 by the commit), and its transfers onto
+## the depth-1 nodes; a deeper node's wait for [method _release].
 func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoOffResult) -> void:
-	_spend_stacks(batch, node, e, result.spend())
+	_spend_stacks(batch, node, e, result.spend_at_read())
 	var seen: Dictionary = {}
 	for reach in result.reached:
-		if reach == null or reach.node == null or seen.has(reach.node):
+		if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
 			continue
 		seen[reach.node] = true
 		_add(batch, reach.node, e, int(result.transfer.get(reach.node, 0)))
@@ -452,6 +569,7 @@ func _push(queue: HitQueue) -> void:
 			continue
 		var a: Arrival = e
 		var h: _Hit = _hits[a.head]
+		var mark: BlastMark = _marks.get(a)
 		var rows: Dictionary = {}  # StatusDef -> the entry's one StatusInstance
 		var order: Array[StatusInstance] = []
 		for src in h.span:
@@ -460,6 +578,8 @@ func _push(queue: HitQueue) -> void:
 			match src.kind:
 				HitInstance.Kind.DAMAGE, HitInstance.Kind.HEAL:
 					var c := _clone(src, a)
+					if mark != null:
+						c.blast_mark = mark
 					c.amount = src.amount * a.share
 					if src.kind == HitInstance.Kind.DAMAGE:
 						c.amount += a.own_damage
@@ -471,6 +591,8 @@ func _push(queue: HitQueue) -> void:
 					var row: StatusInstance = rows.get(s.def)
 					if row == null:
 						row = _clone(s, a) as StatusInstance
+						if mark != null:
+							row.blast_mark = mark
 						row.power = 0.0
 						rows[s.def] = row
 						order.append(row)
