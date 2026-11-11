@@ -44,6 +44,7 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 	# node stripped by the group's landings spills over their union, flushed
 	# before the next group lands (CombatWorld.flush_removals).
 	var group := -1
+	var opened := false
 	# The beat order (ADR 0092). A beat is a run of equal `structural_key`;
 	# within it every hit lands in queue order except an aspect rider
 	# ([method HitInstance.is_aspect_rider]), which is held and lands, in queue
@@ -79,7 +80,10 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 			break
 		if hit.target == null:
 			continue
-		if hit.schedule_index != group:
+		# The first hit always opens a group: a cast's walk drains its waves
+		# before `OutcomeSchedule.compile`, while every index is still -1.
+		if not opened or hit.schedule_index != group:
+			opened = true
 			world.flush_removals()
 			group = hit.schedule_index
 			# Stage one (#1798): the beat's gather, over the whole group, before
