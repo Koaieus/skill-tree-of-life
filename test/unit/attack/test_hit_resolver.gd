@@ -608,6 +608,9 @@ func test_the_second_read_is_handed_the_post_rider_store_before_the_go_off() -> 
 	assert_eq(_fire_of(_h), _t(_h) + 1 - 2 - 1, "the break spend k and the go-off spend g commit together")
 
 
+## The walk (N3 → H → N1, N2) on the live world: each wave's drain gathers its
+## heads before step 4 reads them, so every case here, the null-Admits one
+## included, runs the gather in the walk.
 func test_a_walk_ends_where_the_middle_node_says_paths_end() -> void:
 	var adm := _read_admits(_light.bands[0])
 	_set_light(_h, _t(_h) + 1)
