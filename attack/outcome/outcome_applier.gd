@@ -31,11 +31,11 @@ static func apply(outcome: AttackOutcome, world: CombatWorld,
 ## ([method SpellResolver.resolve_against]), one implementation for both. Lands
 ## [param queue] to empty, in its order, a hit [method land_one] pushes
 ## included: one [method land_one] per hit, waiting out each hit's
-## `arrival_time` on [param clock]. An instant clock never parks, so a caller
+## `arrival_time` on [param beat]. An instant clock never parks, so a caller
 ## that must not wait (the wave) calls this un-awaited and it runs to the end
 ## synchronously. [param announced] is [method apply]'s once-per-mark blast
 ## set; null = announce nothing (the wave's cast world has no audience).
-static func drain(queue: HitQueue, world: CombatWorld, clock: BeatClock,
+static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null,
 		announced: Variant = null) -> void:
 	# One `schedule_index` group is one beat for the removal collector: every
@@ -53,7 +53,7 @@ static func drain(queue: HitQueue, world: CombatWorld, clock: BeatClock,
 		# redundant — it is a runtime coroutine (it parks on a timer) and
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
-		await clock.advance_to(hit.arrival_time)
+		await beat.advance_to(hit.arrival_time)
 		land_one(hit, world, alloc, crit_rng, queue)
 		if announced != null:
 			_announce_blast(hit, world, announced)
