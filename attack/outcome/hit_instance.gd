@@ -284,6 +284,12 @@ var staged: bool = false
 ## is fed where the beat would gather ([method HitGather.stage_one]), so a
 ## replay lands the same terrain without gathering.
 var terrain_ops: Array = []
+## Paths through the head's node end here: its node's second [Admits] read
+## ([method Admits.read]), in generation 0 (the generation the head arrived
+## in), said so and no arrival broke the node. Written by [HitGather]; read by
+## [SpellResolver]'s expansion step, which mints no next wave from the landing.
+## Never shipped: the walk reads it on the authority, before the record.
+var path_ends: bool = false
 
 ## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
 ## land the receiving node's [method NodeCombat.ownership_bit] to

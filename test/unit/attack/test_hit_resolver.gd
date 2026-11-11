@@ -3,7 +3,8 @@ extends GutTest
 ## #1798 (Unit A): the two-stage hit resolver's gather core, [HitGather]. Stage
 ## one runs per beat, generation by generation, admit / land / read at each
 ## node; stage two lands each gathered entry as a copy of the whole hit.
-## Acceptance 1, 2, 2b, 3, 4, 6, 7 and 10 of the issue.
+## Acceptance 1, 2, 2b, 3, 4, 6, 7 and 10 of the issue; Unit B1 adds the
+## second [Admits] read, the shatter and the walk end: 5, 5b and 6b.
 ##
 ## Terrain is keyed by an element's axis, so the test bands sit on the roster's
 ## own Fire (a band whose test [GoOff] logs what it is handed) and Lightning (a
@@ -24,9 +25,11 @@ class _TestGoOff extends GoOff:
 	var own_damage := 0.0
 	var element: Element = null
 	var log: Array = []
+	var seq: Array = []
 	var hp: Callable = Callable()
 
 	func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+		seq.append("fire:%s" % node.name)
 		log.append({node = node, count = read.count(element), hit_load = hit_load,
 				hp = hp.call() if hp.is_valid() else 0.0})
 		var r := super(node, read, hit_load)
@@ -68,6 +71,41 @@ class _TestAdmits extends Admits:
 		return not refuse.has(node)
 
 
+## A test second read (B1): logs every admit and read into the shared
+## sequence, admits every copy, and answers from what the test sets: a breaker
+## per arrival (by its head, or all), "paths end", a spend, a burst, a count.
+class _ReadAdmits extends Admits:
+	var element: Element = null
+	var seq: Array = []
+	var admits: Array = []
+	var reads: Array = []
+	var breaks: Dictionary = {}
+	var break_all := false
+	var ends := false
+	var spend := 0
+	var burst := 0.0
+	var extra := 2
+
+	func admit(node: SkillNode, before: TerrainRead, arrival: Arrival) -> bool:
+		seq.append("admit:%s:%d" % [node.name, arrival.generation])
+		admits.append({node = node, count = before.count(element)})
+		return true
+
+	func read(node: SkillNode, after: TerrainRead, arrivals: Array[Arrival]) -> AdmitsAnswer:
+		seq.append("read:%s:%d" % [node.name, arrivals[0].generation if not arrivals.is_empty() else -1])
+		reads.append({node = node, count = after.count(element), n = arrivals.size(),
+				amounts = arrivals.map(func(a: Arrival) -> float: return a.amount)})
+		var answer := AdmitsAnswer.new()
+		for i in arrivals.size():
+			if break_all or breaks.has(arrivals[i].head):
+				answer.breakers.append(i)
+		answer.paths_end = ends
+		answer.spend = spend
+		answer.burst = burst
+		answer.extra_landings = extra
+		return answer
+
+
 class _LogDamage extends DamageInstance:
 	var log: Array = []
 
@@ -98,6 +136,7 @@ var _fire_bands: Array[ElementBand] = []
 var _light_bands: Array[ElementBand] = []
 var _goff: _TestGoOff
 var _admits: _TestAdmits
+var _seq: Array = []
 var _orig := 0
 
 
@@ -124,6 +163,8 @@ func before_each() -> void:
 	_goff = _TestGoOff.new()
 	_goff.element = _fire
 	_goff.hp = _hp_all
+	_seq = []
+	_goff.seq = _seq
 	var band := ElementBand.new()
 	band.go_off = _goff
 	var fb: Array[ElementBand] = [band]
@@ -221,10 +262,10 @@ func _gather(spans: Array) -> AttackOutcome:
 
 
 ## The whole drain: stage one per beat, then every hit and copy lands.
-func _run(spans: Array) -> AttackOutcome:
+func _run(spans: Array, rng: RandomNumberGenerator = null) -> AttackOutcome:
 	var outcome := _outcome(spans)
 	await OutcomeApplier.drain(HitQueue.over(outcome.hits), CombatWorld.live(),
-			BeatClock.instant_clock())
+			BeatClock.instant_clock(), null, rng)
 	return outcome
 
 
@@ -508,3 +549,214 @@ func test_a_record_carries_the_stage_one_terrain_and_the_staged_riders() -> void
 	_set_fire(_h, 0)
 	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
 	assert_eq(_fire_of(_h), 3, "the replay lands the recorded terrain once, never gathering again")
+
+
+# ── Unit B1: the second read, the shatter, the walk end ─────────────────────────
+
+## A [_ReadAdmits] on [param band], counting Fire (the hits' element).
+func _read_admits(band: ElementBand) -> _ReadAdmits:
+	var a := _ReadAdmits.new()
+	a.element = _fire
+	a.seq = _seq
+	band.admits = a
+	return a
+
+
+## [param n]'s Lightning store set to [param k]: the band carrying the test read.
+func _set_light(n: SkillNode, k: int) -> void:
+	_c(n).add_terrain(_light, k - _c(n).charge())
+
+
+## A crit already decided on [param h] (the head), at multiplier [param m].
+func _crit(h: HitInstance, m: float) -> void:
+	h.is_crit = true
+	h.crit_tier = 1
+	h.crit_multiplier = m
+	h.crit_decided = true
+
+
+## The node's holder's pool HP.
+func _pool(n: SkillNode) -> float:
+	return (_c(n).owner().board().get_stat(&"health") as PoolStat).current
+
+
+## Stage two's entries on [param at]: the pushed copies, each paired to its head.
+func _entries(outcome: AttackOutcome, at: SkillNode) -> Array:
+	return _copies(outcome, at).filter(func(h: HitInstance) -> bool: return h.paired != null)
+
+
+## The bursts stage one pushed: unpaired damage past the authored hits.
+func _bursts(outcome: AttackOutcome) -> Array:
+	return outcome.hits.slice(_orig).filter(func(h: HitInstance) -> bool: return h.paired == null) \
+			.map(func(h: HitInstance) -> float: return h.amount)
+
+
+# 5 ─────────────────────────────────────────────────────────────────────────────
+func test_the_second_read_is_handed_the_post_rider_store_before_the_go_off() -> void:
+	var adm := _read_admits(_fire.bands[0])
+	adm.break_all = true
+	adm.spend = 2
+	adm.extra = 0
+	_goff.lands_on_own_node = false
+	_goff.reach_of = {_h: [_n1]}
+	_set_fire(_h, _t(_h))
+	_gather([_span(_h, 1)])
+	assert_eq(adm.reads.map(func(r: Dictionary) -> int: return r.count), [_t(_h) + 1],
+			"the second read is handed S + 1, after the rider landed")
+	assert_eq(_seq, ["read:H:0", "fire:H"], "asked before the node's GoOff")
+	assert_eq(_fired_at(_h, "count"), [_t(_h) + 1], "nothing commits between the read and the go-off")
+	assert_eq(_fire_of(_h), _t(_h) + 1 - 2 - 1, "the break spend k and the go-off spend g commit together")
+
+
+func test_a_walk_ends_where_the_middle_node_says_paths_end() -> void:
+	var adm := _read_admits(_light.bands[0])
+	_set_light(_h, _t(_h) + 1)
+	var helper := SpellTestHelper.new()
+	var spell := helper.make_spell(helper.make_config(helper.fan_all(), null, null, {max_hops = 2}),
+			[DamageEffect.new()] as Array[OnHitEffect], 1.0)
+	var walk := func(ends: bool, breaks: bool) -> Dictionary:
+		adm.ends = ends
+		adm.break_all = breaks
+		adm.spend = 0
+		adm.burst = 0.0
+		adm.extra = 0
+		var out := SpellResolver.resolve_against(spell, _n3, null, _attacker, _w.graph, CombatWorld.live())
+		var by := {}
+		for ev: PropagationEvent in out.timeline:
+			by[ev.target] = ev
+		return by
+	var ended: Dictionary = walk.call(true, false)
+	assert_true(ended.has(_h) and ended[_h].is_terminal, "the middle landing's event is terminal")
+	assert_false(ended.has(_n1) or ended.has(_n2), "no wave is minted past the middle node")
+	var on: Dictionary = walk.call(false, false)
+	assert_true(on.has(_n1) and on.has(_n2), "path continues: the walk goes on")
+	assert_false(on[_h].is_terminal, "and the middle landing is not terminal")
+	var broke: Dictionary = walk.call(true, true)
+	assert_true(broke.has(_n1) and broke.has(_n2), "an arrival that breaks the node walks on")
+	_light.bands[0].admits = null
+	var today: Dictionary = walk.call(true, false)
+	assert_true(today.has(_n1) and today.has(_n2), "a null Admits runs the walk as today")
+
+
+# 5b ────────────────────────────────────────────────────────────────────────────
+func test_a_shatter_lands_the_breaker_three_times_spends_once_and_bursts_once() -> void:
+	var adm := _read_admits(_light.bands[0])
+	adm.break_all = true
+	adm.spend = 2
+	adm.burst = 3.0
+	_goff.reach_of = {}
+	var f := _n1
+	var light := _t(f) + 4
+	_set_light(f, light)
+	_set_fire(f, 0)
+	var pool := _pool(f)
+	var hp := _c(f).get_current_hp()
+	var outcome := _gather([_span(f, 1, 2)])
+	assert_eq(_damage(_entries(outcome, f)), [_D, _D], "two extra landings: 3D with the hit's own")
+	assert_eq(_poison(_entries(outcome, f)), [2.0, 2.0], "3r, one summed row on each")
+	assert_eq(_bursts(outcome), [3.0], "one burst, pushed for stage two")
+	assert_eq(_fire_of(f), 1, "the terrain rider moves the store once; the extras move none")
+	assert_eq(_c(f).charge(), light - 2, "the break spends k once")
+	assert_eq([_pool(f), _c(f).get_current_hp()], [pool, hp], "no HP has moved when stage one ends")
+
+	_set_light(f, light)
+	_set_fire(f, 0)
+	var span := _span(f, 1, 2)
+	_crit(span[0], 1.5)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	outcome = await _run([span], rng)
+	assert_eq(_entries(outcome, f).map(func(h: HitInstance) -> int: return h.crit_tier), [1, 1, 1, 1],
+			"every extra landing carries the head's crit tier")
+	assert_eq(_pool(f), pool - 3.0, "the holder takes one TRUE burst of b through DotTick.mint")
+
+	adm.extra = 0
+	_set_light(f, light)
+	outcome = _gather([_span(f, 1, 2)])
+	assert_eq(_entries(outcome, f).size(), 0, "extra landings 0: the hit lands once")
+	assert_eq(_bursts(outcome), [3.0], "and the burst still lands")
+
+	f.owned_by = null
+	_set_light(f, light)
+	outcome = _gather([_span(f, 1, 2)])
+	assert_eq(_c(f).charge(), light - 2, "an unallocated node takes the spend")
+	assert_eq(_bursts(outcome), [], "and no burst")
+
+	f.owned_by = _owner
+	_light.bands[0].admits = null
+	_set_light(f, light)
+	outcome = _gather([_span(f, 1, 2)])
+	assert_eq([_copies(outcome, f).size(), _c(f).charge()], [0, light],
+			"a null Admits breaks nothing: one landing, no spend, no burst")
+
+
+# 6b ────────────────────────────────────────────────────────────────────────────
+func test_a_generation_reads_every_node_before_the_next_admits() -> void:
+	var adm := _read_admits(_light.bands[0])
+	_goff.lands_on_own_node = false
+	_goff.reach_of = {_h: [_n1]}
+	assert_gt(_t(_n1), 2, "F never primes at 2 stacks")
+	_set_light(_n1, _t(_n1) + 1)
+	_set_fire(_n1, 0)
+	_set_fire(_h, _t(_h))
+	_gather([_span(_h, 1, 2), _span(_n1, 1, 2)])
+	assert_eq(_seq, ["fire:H", "read:N1:0", "admit:N1:1", "read:N1:1"],
+			"every generation-0 read before any generation-1 admit; each admit before its node's read")
+	assert_eq(adm.reads.map(func(r: Dictionary) -> int: return r.count), [1, 2],
+			"F is read at 1 over Y alone, then at 2 over X's copy")
+	assert_eq(adm.admits.map(func(r: Dictionary) -> int: return r.count), [1],
+			"X's copy is admitted against the store generation 0 left")
+
+
+func test_one_read_over_every_arrival_breaks_once() -> void:
+	var adm := _read_admits(_light.bands[0])
+	adm.spend = 2
+	adm.burst = 3.0
+	_goff.reach_of = {}
+	var f := _n1
+	var light := _t(f) + 4
+	var run := func(flag_x: bool, flag_y: bool, ends: bool, swap: bool) -> Array:
+		_set_light(f, light)
+		_set_fire(f, 0)
+		adm.reads.clear()
+		adm.ends = ends
+		var x := _span(f, 1, 2, _D)
+		var y := _span(f, 1, 2, _D * 3.0)
+		adm.breaks = {}
+		if flag_x:
+			adm.breaks[x[0]] = true
+		if flag_y:
+			adm.breaks[y[0]] = true
+		var out := _gather([y, x] if swap else [x, y])
+		return [adm.reads.size(), adm.reads[0].n, adm.reads[0].count, _sorted(adm.reads[0].amounts),
+				_sorted(_damage(_entries(out, f))), _sorted(_poison(_entries(out, f))),
+				_fire_of(f), _c(f).charge(), _bursts(out), x[0].path_ends, y[0].path_ends]
+	var one: Array = run.call(true, false, false, false)
+	assert_eq(one.slice(0, 4), [1, 2, 2, [_D, _D * 3.0]],
+			"one read over both arrivals at store 2, each handed its own amount, never a sum")
+	assert_eq(one.slice(4, 6), [[_D, _D], [2.0, 2.0]], "X lands 3 times, Y once")
+	assert_eq(one.slice(6), [2, light - 2, [3.0], false, false],
+			"the extras move no terrain; one spend, one burst; both heads walk on")
+	assert_eq(run.call(true, false, false, true), one, "swapping X and Y changes nothing")
+	var both: Array = run.call(true, true, false, false)
+	assert_eq(both.slice(4), [[_D, _D, _D * 3.0, _D * 3.0], [2.0, 2.0, 2.0, 2.0], 2, light - 2, [3.0], false, false],
+			"both breaking: each lands 3 times, still one spend and one burst")
+	var held: Array = run.call(false, false, true, false)
+	assert_eq(held.slice(4), [[], [], 2, light, [], true, true],
+			"neither breaking and paths end: both heads end, no spend, no burst")
+
+
+func test_the_second_read_is_handed_each_arrivals_own_amount() -> void:
+	var adm := _read_admits(_light.bands[0])
+	_goff.lands_on_own_node = false
+	_goff.reach_of = {_h: [_n1]}
+	_goff.share = 0.5
+	_goff.own_damage = 1.0
+	_set_light(_n1, _t(_n1) + 1)
+	_set_fire(_h, _t(_h))
+	var x := _span(_h, 1, 2, _D)
+	_crit(x[0], 1.5)
+	_gather([x, _span(_n1, 1, 2, _D * 3.0)])
+	assert_eq(adm.reads.map(func(r: Dictionary) -> Array: return r.amounts),
+			[[_D * 3.0], [(_D * 0.5 + 1.0) * 1.5]],
+			"a head at its stamped damage; a copy at (D × s + d) × m, its own landing's number")

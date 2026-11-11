@@ -17,3 +17,7 @@ var centre: bool = false
 ## The share the copy lands at, and the go-off's own damage it carries.
 var share: float = 1.0
 var own_damage: float = 0.0
+## Its own landing's damage, before mitigation, as the second read is handed it
+## ([method Admits.read]): (stamped damage × [member share] + [member own_damage])
+## × the head's crit multiplier. Set at the read.
+var amount: float = 0.0
