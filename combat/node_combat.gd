@@ -659,7 +659,9 @@ func terrain_band(element: Element) -> ElementBand:
 ## band of every element the write can move before and after, keeps the live
 ## index in step and emits one [signal SkillNode.terrain_band_changed] per
 ## element whose band changed — drops before rises, so a sign flip of t reads
-## as one band leaving, then the other arriving. Shadow: the int only.
+## as one band leaving, then the other arriving — then one
+## [signal SkillNode.terrain_changed] if either int moved (#1796). Shadow: the
+## int only.
 func add_terrain(element: Element, delta: int) -> void:
 	if delta == 0 or Terrain.axis_of(element) == Terrain.Axis.NONE:
 		return
@@ -678,6 +680,8 @@ func add_terrain(element: Element, delta: int) -> void:
 		var n := Terrain.count_of(_state, e)
 		counts.append(n)
 		before.append(Terrain.band_of(e, n, t, c))
+	var t0 := _state.terrain_t
+	var charge0 := _state.charge
 	Terrain.write(_state, element, delta)
 	CombatWorld.live().reindex_terrain(self)
 	var rises: Array[int] = []
@@ -692,6 +696,8 @@ func add_terrain(element: Element, delta: int) -> void:
 	for i in rises:
 		host.notify_terrain_band_changed(moved[i], before[i],
 				Terrain.band_of(moved[i], Terrain.count_of(_state, moved[i]), t, c))
+	if _state.terrain_t != t0 or _state.charge != charge0:
+		host.notify_terrain_changed()
 
 
 # ── Status slice (#872) ──────────────────────────────────────────────────────

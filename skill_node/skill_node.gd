@@ -284,12 +284,14 @@ var self_loops: Array[Edge] = []
 			_refresh_core_presence()
 
 ## Presentation-only bench knob: keep the node HP bar on screen (and bound)
-## at full HP too, instead of sprouting only on damage or hover.
+## at full HP too, instead of sprouting only on damage or hover — and the
+## terrain bars ([TerrainBars], #1796) with it.
 @export var pin_health_bar: bool = false:
 	set(value):
 		pin_health_bar = value
 		if is_node_ready():
 			_health_bar.pinned = value
+			terrain_bars.pinned = value
 
 @export_group("Lab")
 @warning_ignore("unused_private_class_variable") # editor button: the inspector holds the Callable
@@ -705,6 +707,7 @@ func _ready() -> void:
 	owner_changed.connect(_refresh_hp_binding)
 	damaged.connect(_on_damaged_flash.unbind(2))
 	statuses_changed.connect(_sync_status_tint)
+	terrain_band_changed.connect(_on_terrain_band_changed)
 	# Addons are plain direct children — no filing bin. Adopt the ones
 	# already present (scene-authored, or parented before we entered the tree),
 	# then listen for later arrivals. `child_entered_tree` fires for DIRECT
@@ -719,6 +722,7 @@ func _ready() -> void:
 	_refresh_hp_binding()
 	_sync_visuals()
 	_health_bar.pinned = pin_health_bar
+	terrain_bars.pinned = pin_health_bar
 
 
 func _refresh_core_presence() -> void:
@@ -1604,6 +1608,18 @@ func notify_terrain_band_changed(element: Element, from: ElementBand, to: Elemen
 ## node's heat/cold or Charge. Same host-hook shape as [method notify_statuses_changed].
 func notify_terrain_changed() -> void:
 	terrain_changed.emit()
+
+
+## [signal terrain_band_changed] handler (#1796): the band glow, pushed into
+## the composite like [method _sync_status_tint] pushes the status tint — the
+## element's colour into the slot of the int it counts on (Charge, or heat and
+## cold), at the band it is now in (null clears). Drops arrive before rises, so
+## a sign flip of t clears Fire's glow, then sets Ice's.
+func _on_terrain_band_changed(element: Element, _from: ElementBand, to: ElementBand) -> void:
+	if not is_node_ready() or _node_visuals == null:
+		return
+	var tint := element.identity.tint if element.identity != null else Color.WHITE
+	_node_visuals.set_terrain_glow(Terrain.axis_of(element) == Terrain.Axis.CHARGE, tint, to)
 
 
 ## [signal statuses_changed] handler — blends the strongest live status's

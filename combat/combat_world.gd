@@ -266,13 +266,23 @@ func terrain_nodes() -> Array[NodeCombat]:
 
 
 ## One world turn's terrain: [param steps] diffusion steps, each from a fresh
-## snapshot, then one decay sweep. A shadow world refuses.
+## snapshot, then one decay sweep, then one [signal terrain_settled] with every
+## node the pass moved (#1796). A shadow world refuses.
 func flow_temperature(steps: int) -> void:
 	if _shadow:
 		return
+	var passes: Array = []
 	for _i in maxi(steps, 0):
-		diffuse_temperature()
-	decay_terrain()
+		passes.append(diffuse_temperature())
+	passes.append(decay_terrain())
+	var changed: Array[NodeCombat] = []
+	var seen: Dictionary = {}
+	for moved: Array[NodeCombat] in passes:
+		for node in moved:
+			if not seen.has(node):
+				seen[node] = true
+				changed.append(node)
+	terrain_settled.emit(changed)
 
 
 ## One Heat/Cold diffusion step from one snapshot (floored Metropolis,
