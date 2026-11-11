@@ -19,8 +19,6 @@ Read this before changing `resolve()` on any `AttackPlan`, before touching
 ---
 ## The invariant
 
-changing: stage one gathers a hit's target set from terrain at land time, so landing a hit can add hits to the walk, #1798; see docs/design/elements/hit-resolution.md
-
 > **Resolution emits candidate landings in time order. One applier walks them
 > in that order and re-evaluates each landing's gate against live state before
 > applying it.**
@@ -45,6 +43,18 @@ Two halves, both load-bearing:
 - **Application is staged and live.** Each landing's *gate* — "is this target
   still allocated? still hostile? is this blade vertex still alive?" — is
   re-checked at the moment the landing applies, not when it was planned.
+
+**Landing a hit can add hits, but only in resolution's own landing.** Each
+beat's drain runs stage one first (`HitGather.stage_one`, #1798; ADR 0082,
+ADR 0083): it gathers the beat's target set from terrain as the beat lands,
+then pushes one copy of the hit per gathered entry onto the queue, which
+appends it to `outcome.hits`. That runs on the shadow: in a spell's walk
+(each wave's drain) or in an arrow's or blade's resolve-time apply. The
+outcome, and so the record, carries the copies (each `paired` to its head)
+and the beat's net terrain change (`terrain_ops` on its first head). The
+authority's live apply of the same objects (`HitInstance.gathered`) and a
+peer's rebuilt record (a rebuilt hit is no head) feed those ops and land
+those copies. Neither gathers. Application still discovers nothing:
 
 The gate is a **veto, not a re-plan.** A landing that fails its gate is
 dropped. Application never *discovers new targets*; that would make resolution
@@ -127,17 +137,16 @@ every expansion from wave N onward.**
 
 ## What is read at which clock
 
-changing: the crit is read at the hit's head before its riders and crit conditions leave compile, #1798; see docs/design/elements/hit-resolution.md
-
 | Input | Clock |
 |---|---|
-| Candidate landing set (which nodes *could* be hit) | **Resolve** |
+| Candidate landing set (which nodes *could* be hit) | **Resolve**, including the gather's copies, which stage one adds as each beat lands on the shadow; the record carries them |
+| Terrain at a gather (`Admits.admit` against the store before the generation's riders; `Admits.read` and each `GoOff` after them) | **Land**, in stage one of the beat (`HitGather`), before any of its payload. The record ships the net change as `terrain_ops`, which a replay feeds |
 | Ordering of landings (authored into `arrival_time`; `OutcomeApplier` sorts on it) | **Resolve** |
 | Landing gate (target still allocated / still hostile / vertex still alive) | **Land** |
 | Aspect riders' turn (after every other hit of their beat, a run of equal `structural_key`; `OutcomeApplier.drain`, ADR 0092) | **Land** — the list order is Resolve's, the hold is the drain's |
 | Depleted-node skip (a node its beat's hits stripped takes no aspect rider) | **Land** — the drain reads the beat's `deallocations`; shipped as `FLAG_GATED` |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
-| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit as it lands, before any of its payload (its riders land after it); every rider copies it |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | A spell's: **Resolve**. Each landing decides it once, at its head, as `place()` stamps it (`SpellResolver._crit_at_head`: the conditions, then `CritRoll.decide`), before its wave lands. That is the pre-hit node, ahead of the hit's own riders (ADR 0083 §4). A bare status head decides on the landing's first unpaired damage and copies it. Its siblings and every gather copy carry it. An arrow's or a blade's: **Land**. `land_one` draws once per lead as it lands, before any of its payload, and every rider copies it. Interim: such a head is still undecided at stage one, so its terrain stacks and its `Admits.read` amount see multiplier 1.0 (#1809, #1810) |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
 | Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply_to` inside `NodeCombat.take_damage` ([hit-resolution.md](hit-resolution.md) § Mitigation) |
@@ -210,12 +219,15 @@ would silently diverge, and damage would merely go stale with no test failing.
 either is not seen by hits already in flight.
 
 A single seeded stream serves a whole attack, so **draws are consumed in
-landing order** (the structural `schedule_index`, never seconds). The draw lives
-inside the landing itself — `OutcomeApplier.land_one` calls `CritRoll.decide`
-off the outcome's `crit_stream` right before the hit lands, reading the landing
-world — so the two orders cannot drift apart; if they did, crits would stop
-reproducing under a replayed seed. A rebuilt record carries no stream and lands
-its recorded crits.
+landing order** (the structural `schedule_index`, never seconds). For an arrow
+or a blade the draw lives inside the landing itself: `OutcomeApplier.land_one`
+calls `CritRoll.decide` off the outcome's `crit_stream` right before the hit
+lands, reading the landing world, so the two orders cannot drift apart. If they
+did, crits would stop reproducing under a replayed seed. A spell draws at
+`place()` instead, once per landing in landing order, off the walk's stream
+(`PropagationContext.rng_for_crits`). The landing's hits and its gather copies
+then arrive at `land_one` already decided, so they draw nothing more. A rebuilt
+record carries no stream and lands its recorded crits.
 
 ## Per-mode contract
 
@@ -319,7 +331,7 @@ world: `CombatWorld`".
 
 ### The candidate-set half: `resolve_against(world)`
 
-changing: a walk ends or goes on at a node's `Admits` answer, #1798, #1806, #1808; see docs/design/elements/hit-resolution.md
+changing: a walk ends or goes on at a node's `Admits` answer, #1806, #1808; see docs/design/elements/hit-resolution.md
 
 `SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
@@ -330,15 +342,26 @@ N's kills have happened. Two things move together:
    that wave, un-awaited on an instant clock — the *same* drain `apply` runs,
    and through it the same `land_one` every other path uses, so there is
    exactly one implementation of "land a hit" and one of "land a list of
-   hits". The drain's closing flush is the wave's one beat.
+   hits". The drain's closing flush is the wave's one beat. Its first hit
+   opens the group (every index is still -1 before compile), so stage one
+   gathers the whole wave before any of it lands, and the copies it pushes
+   land in the same drain.
 2. **The filters ask the world, not the node.** A hit's target stays the real
    `SkillNode`, so `to.ownership_bit(caster)` reads a node that is *still alive*
    whatever the resolver did. `PropagationContext.world` is where the question
    goes, via `ownership_bit_of` / `is_allocated_in_world`; `OwnerFilter` and
    `ExpressionFilter` are the two callers.
 
-Magic's crit roll draws as `land_one` lands each hit, wave by wave — the same
-landing-time draw ranged and melee make.
+3. **A node can end the walk.** A node's second `Admits` read in the
+   generation a head arrived in can say "paths end": the head carries
+   `path_ends`, and step 4 mints no next wave from that landing. A breaker
+   shatters the node and its paths walk on. With a null `Admits` every path
+   walks on, as before ([spell-propagation.md](spell-propagation.md) §
+   "Resolver flow").
+
+Magic's crit is decided at each landing's head as the wave's landings are
+placed, before the wave's drain, against the world the earlier waves left.
+`land_one` draws nothing more for a spell hit.
 
 **`resolve_against(world)` returns an outcome already landed in `world`** — the
 contract for all three modes. `resolve()` mints a throwaway shadow, resolves,
@@ -393,7 +416,9 @@ The applier lands by draining an open worklist, `HitQueue`
 from inside a landing) joins the unlanded tail: after every unlanded hit of its
 own `schedule_index`, before the first greater one, and never ahead of the
 cursor, so one pushed at an index already passed lands next. The crit stream
-is drawn in that order. Nothing appends today; #1798's gather is the first.
+is drawn in that order. The gather is the pusher: stage one pushes each beat's
+copies, at their head's `schedule_index`, before the beat's first landing, and a
+shatter's burst after its generation's copies.
 
 Every hit carries a real `arrival_time`, stamped by `OutcomeSchedule` from the
 structure its resolver records: with the world mutating on the reveal clock, an
