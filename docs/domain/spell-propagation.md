@@ -560,8 +560,9 @@ while wave not empty:
     #     wave is one beat (structural_key = hop_index). Its first hit opens
     #     the group, so HitGather.stage_one gathers the whole wave first
     #     (below), then every landing's damage and heals land in append
-    #     order, then every aspect rider (ADR 0092); each hit draws its crit
-    #     as it lands
+    #     order, then every aspect rider (ADR 0092); a landing's crit was
+    #     decided once at its head at place() (SpellResolver._crit_at_head),
+    #     so land_one draws nothing more for a spell hit
 
     # 4. compute next wave: reach PROPOSES, cap visits, filter NARROWS,
     #    spread SELECTS, config MINTS. The visit cap runs FIRST — the filter is set-level, so a

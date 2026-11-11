@@ -595,15 +595,16 @@ static func _crit_at_head(spell: SpellDef, lctx: LandingContext, hit: HitInstanc
 
 ## Magic's OWN crit path, and the only one that is mode-specific (#507): the
 ## [member SpellDef.crit_conditions] OR, evaluated once per landing, on its
-## head ([method _crit_at_head]). It has to live
+## head, or on the landing's first unpaired damage under a bare status head
+## ([method _crit_at_head]). It has to live
 ## here because a condition reads [CastSpell] propagation state — predecessor,
 ## incident_count, the node just landed on — which exists nowhere else.
 ##
 ## Stamps a starting [member HitInstance.crit_tier] of 1 when any condition
 ## fires. The UNIVERSAL stat roll is then layered on top by
-## [method CritRoll.decide] as each hit lands ([method OutcomeApplier.land_one],
-## step 3b of [method resolve_against]) — the same landing-time draw ranged
-## and melee make. Tier 2 ("both paths fired") means what it always did, and
+## [method CritRoll.decide], once per landing in [method _crit_at_head], pre-hit;
+## the head's unpaired siblings and riders copy it
+## ([method HitGather._open_head]). Ranged and melee draw the same roll at land. Tier 2 ("both paths fired") means what it always did, and
 ## there is still exactly one implementation of the stat roll for all three
 ## modes.
 ##
