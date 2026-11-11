@@ -44,7 +44,6 @@ class Bar:
 
 const _FADE_IN_S := 0.15
 const _FADE_OUT_S := 0.4
-const _LABEL_PX := 9
 const _FRAME := Color(1, 1, 1, 0.55)
 const _EMPTY_INERT := Color(0, 0, 0, 0.55)
 const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
@@ -69,6 +68,11 @@ const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
 @export_range(0.0, 200.0, 1.0) var south_offset: float = 46.0:
 	set(value):
 		south_offset = value
+		queue_redraw()
+## The label's font size under each bar, px. Tentative.
+@export_range(6, 24, 1) var label_size: int = 9:
+	set(value):
+		label_size = value
 		queue_redraw()
 ## The overflow tail past the frame, in blocks. Tentative.
 @export_range(0, 8, 1) var max_overflow_blocks: int = 3:
@@ -337,7 +341,7 @@ func _draw() -> void:
 	if Engine.is_editor_hint():
 		bars = _preview()
 	var font := ThemeDB.fallback_font
-	var row := bar_height + gap * 2.0 + _LABEL_PX
+	var row := bar_height + gap * 2.0 + label_size
 	for i in bars.size():
 		_draw_bar(bars[i], south_offset + i * row, font)
 
@@ -368,12 +372,12 @@ func _draw_bar(bar: Bar, y: float, font: Font) -> void:
 		var flicker := 0.6 + 0.4 * pingpong(2.0 * _time / maxf(flicker_period, 0.01) + j * 0.55, 1.0)
 		var r := Rect2(x0 + (l.frame_blocks + j) * step, y, block_size, bar_height)
 		draw_rect(r, Color(bar.color, fade * flicker))
-	var ly := y + bar_height + gap + _LABEL_PX
+	var ly := y + bar_height + gap + label_size
 	var lx := x0
 	if bar.icon != null:
-		draw_texture_rect(bar.icon, Rect2(lx, ly - _LABEL_PX, _LABEL_PX, _LABEL_PX), false)
-		lx += _LABEL_PX + gap
-	draw_string(font, Vector2(lx, ly), bar.label, HORIZONTAL_ALIGNMENT_LEFT, -1, _LABEL_PX, bar.label_color)
+		draw_texture_rect(bar.icon, Rect2(lx, ly - label_size, label_size, label_size), false)
+		lx += label_size + gap
+	draw_string(font, Vector2(lx, ly), bar.label, HORIZONTAL_ALIGNMENT_LEFT, -1, label_size, bar.label_color)
 
 
 ## Editor feedback for the knobs: a sample bar, only in this scene's own editor tab.
