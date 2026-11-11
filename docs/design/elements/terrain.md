@@ -43,6 +43,13 @@ concentrate are; it may shape the cast (Ice trading hops for payload at cast
 time) but never gives a hit a reach entry. ADR 0075 records the threshold
 model and terrain-only reach.
 
+**Sweep speed acts per contact** (owner, 2026-11-10, picked *option 1*, "seems
+best"): the temperature factor scales the speed the existing speed-to-damage
+curve reads on the node a contact touches, so a Cold node blunts a blade's hit
+and a hot one sharpens it, contact by contact. Parked aside, not decided:
+*"also maybe easiest: tune the PBD weight?"* The cost of that alternative: it
+changes the blade's whole swing, not the one contact on the cold ground.
+
 ## Catalyst: a converter, in no family (owner, 2026-11-09)
 
 **Catalyst is a converter, in no family.** Owner, 2026-11-09, on where Fuel
@@ -129,6 +136,14 @@ Burning at once with excess 2). No node holds Catalyst at a go-off that
 matters: it converts at landing (a tied leftover stays inert), so no
 world-tick fuse exists.
 
+Pass picks, tentative, not the owner's: a "round" for Catalyst's decay is one
+holder turn end on a one-carrier board, which closes one world turn, and it
+loses no more per cycle than the Fire band's decay rate. Priming converts the
+store inside the world-turn settle and is never hooked on
+`terrain_band_changed`, which is display only ([go-offs.md](go-offs.md) § Derived
+states). A payload with two or more element riders splits the store pro rata,
+as above; only a payload with none converts nothing.
+
 ## Cooling and reading the terrain (owner, 2026-11-08/09)
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
@@ -142,6 +157,14 @@ Catalyst decays per world turn too, slowly, its rate a knob. The
 Metropolis step is the discrete graph-Laplacian step; its integer floor is a
 dead band, and the decay clears it. Every warm node loses one, so spread heat
 cools faster than a lump: no board-wide budget is needed.
+
+**Overflow decay and the burn** (owner, 2026-11-10, late: *"butn 1 per stack,
+light radius same formula as explosion size would. overflow decay idk yet 2 or
+3 or proportional"*). Burning burns its holder 1 per stack above T. The
+overflow band's own decay rate is a knob at 2, undecided between 2, 3 and
+proportional to the stack: a faster flat rate shortens the owner's ladder
+(blaze, inferno), and a proportional one drops a huge overflow fastest but
+never reaches zero by itself.
 
 **Reading it: a capacity bar on hover** (owner idea, 2026-11-08: *"neat UIs
 of "element capacity" in blocks e.g. when hovering nodes. Hover leaf node and
@@ -219,6 +242,16 @@ ends (a Frozen node that holds, say) spends and transfers Charge only for
 the nodes it actually reaches. The Charge of the hops it never makes is not
 spent and is not lost into the wall; it stays on the source.
 
+**The transfer's bookkeeping** (pass readings, tentative, not the owner's): the
+spend and the transfer count nodes the walk has already visited this hit, so a
+node reached twice is paid once. A transferred stack is spend, not a terrain
+rider, so the once-per-node cap on terrain riders does not bound it: a Charge
+rider an arc copy lands on the node the transfer also reached lands both. The
+go-off's landing on its own node costs no Charge and transfers none. When the
+reached node is Frozen and absorbs the copy, the stack has already landed with
+the spend (above), so nothing is lost. What an arc released by a blade
+vertex's weight-break carries is not pinned yet ([go-offs.md](go-offs.md) § Open edges).
+
 **Charge stays put** (owner, 2026-11-08: *"charge staying put sounds
 good"*): static charge. Its travel is the arc it fires when hit, and since
 copies carry everything, an arc's Charge rider moves Charge outward. Fire
@@ -237,6 +270,12 @@ hosts and lingering rows that already ride that clock. Rejected: an
 initiative clock (a new seam in TurnManager plus a resync row), per-node
 staggered clocks (the one-snapshot Metropolis rule needs one snapshot).
 
+**The rate is a rule on the turn manager** (owner, 2026-11-10, *"Same rule,
+linear default"*): an exported rate rule, per carrier (today's: a world turn
+every N played turn ends) or integer `ceil(sqrt(N))`, default per carrier. The
+`ceil(sqrt(N))` above is the other setting and not the default, and ADR 0055
+stands, so the pass changes no behaviour until someone flips the rule.
+
 **Build note (pass, not an owner call; the owner asked, 2026-11-08).** Decay
 needs no tick: a flat decay of 1 per world turn is computable on read (stored
 count, minus world turns since it was last written, floored at 0). So Charge, which never flows, costs nothing per world turn (Catalyst is an aspect status row, not node state: it keeps its own decay rule, per world turn at its own slow rate). Only the Heat/Cold
@@ -251,9 +290,27 @@ toolchain already exists (the XPBD solver is C++), so the cost is a C++
 implementation that must stay the **only** implementation (never a GDScript
 mirror), not a new build.
 
+**Charge decays in the same pass** (owner, 2026-11-10, picked *Charge decays in
+the world-turn pass with Heat and Cold* over decay on read). Terrain is exactly
+two ints on the node: the signed `t` and Charge. The cost is one more decrement
+per Charge-holding node in the pass; it buys one place where terrain changes
+(the pass and the beat's settle), no timestamp per node, and a shadow world
+that clones two ints and nothing else. The computed-on-read form above
+describes what the decay does, not a second mechanism.
+
 Everything else coexists. Catalyst and Cold coexist: Catalyst under a Frozen
 node stays colourless until Heat, Cold or Charge lands there; a Cold hit or copy deepens the
 freeze (an absorbed copy's Cold still lands, converting the store with it), a Heat hit thaws harder. Heat never touches a Frostbite
 pack (owner, 2026-11-04: *"Heat & Cold don't make sense together. frostBITE
 is an ailment"*). Charge has no opposite. Rejected: Catalyst damped by Cold
 (terrain fighting terrain with nobody acting).
+
+## Display cues the terrain still needs
+
+The bar, label and tooltip above are specified; these looks are not, and each
+rides the mechanic it shows (a small look rides its unit, a large display
+surface is its own): a node glow per band; labels for Frozen and Shocked and
+the blaze and inferno display names on Burning's excess curve; the bar on
+unowned nodes too; Charge trapped under ice readable as such; a cue for heat
+spreading on the world turn; a cue for a blade speeding or dragging on a
+temperature; the crystal layer's pulse when Catalyst converts.

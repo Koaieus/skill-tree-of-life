@@ -7,7 +7,7 @@ Four Sonnet reviewers, one lens each, wrote play situations against `docs/design
 
 # Fire lens: play situations (Fuel medium, Heat mover, Element Matrix)
 
-Reviewer: Fire. Cites are to docs/design/elements.md ("EL"), ADRs, the four issues ("#n rK" = issue n, round K) and docs/handoffs/elements.md findings ("HF n"). Lines marked EXTRAPOLATION go beyond the text. Verdicts: covered / gap / contradiction / unfun.
+Reviewer: Fire. Cites are to docs/design/elements.md ("EL"), ADRs, the four issues ("#n rK" = issue n, round K) and docs/handoffs/elements.md (deleted 2026-11-11; `git show 9582a705:docs/handoffs/elements.md`) findings ("HF n"). Lines marked EXTRAPOLATION go beyond the text. Verdicts: covered / gap / contradiction / unfun.
 
 ## 1. The 5-goo volley (atomic 1, the happy path)
 
@@ -80,7 +80,7 @@ Reviewer: Fire. Cites are to docs/design/elements.md ("EL"), ADRs, the four issu
 
 # Ice lens: play situations (reviewer: Ice)
 
-Sources: E = docs/design/elements.md (section named), A72/A73/A70/A67 = ADRs, I1444/I1733 = issue comments, H = docs/handoffs/elements.md. "EXTRAPOLATION" marks anything the text does not say. Code check: grep finds no Frost/Frozen/Frostbite/Afterdrop anywhere in `*.gd`/`*.tres`, so every Ice mechanic below is paper only. Shipped facts used: `max_hops`/`max_visits_per_node` on `PropagationConfig` (spell_resolver.gd:217, :436); Pestilence 6 hops x2 visits, 1 poison seed, enemy-only filter; Venom Burst 15/10/5 poison, 2 hops; Cyclone 8 hops x999 visits; Trail Blazer `max_hops = inf`.
+Sources: E = docs/design/elements.md (section named), A72/A73/A70/A67 = ADRs, I1444/I1733 = issue comments, H = docs/handoffs/elements.md (deleted 2026-11-11; `git show 9582a705:docs/handoffs/elements.md`). "EXTRAPOLATION" marks anything the text does not say. Code check: grep finds no Frost/Frozen/Frostbite/Afterdrop anywhere in `*.gd`/`*.tres`, so every Ice mechanic below is paper only. Shipped facts used: `max_hops`/`max_visits_per_node` on `PropagationConfig` (spell_resolver.gd:217, :436); Pestilence 6 hops x2 visits, 1 poison seed, enemy-only filter; Venom Burst 15/10/5 poison, 2 hops; Cyclone 8 hops x999 visits; Trail Blazer `max_hops = inf`.
 
 Important context: the Ice material that is *owner-quoted* is thin: the Frost/Frostbite/Frozen role table (2026-11-04), "concentrate" as an idea (hops shrunk for more payload, "not a pure nerf"), the ranged=point triad vibe, "Frost side-less", and "Heat vs Frost is the one netting pair". The toll, shed, shatter numbers, Afterdrop, the Frozen threshold T and the concentrate multiplier are all pass proposals (I1444 round 2 or E "pass lean").
 
@@ -183,7 +183,7 @@ Important context: the Ice material that is *owner-quoted* is thin: the Frost/Fr
 # Lightning / chain-reaction play situations
 
 Lens: Lightning (Charge medium, no mover), plus fuses across media.
-Sources: `docs/design/elements.md` (EL), ADRs 0067/0070/0072/0073, issues #1733 r3 (the "Round 3" comment), #1741, `docs/handoffs/elements.md` review.
+Sources: `docs/design/elements.md` (EL), ADRs 0067/0070/0072/0073, issues #1733 r3 (the "Round 3" comment), #1741, `docs/handoffs/elements.md (deleted 2026-11-11; `git show 9582a705:docs/handoffs/elements.md`)` review.
 Tags: **[owner]** is a dated owner quote. **[pass]** is a pass proposal. **[extrap]** is my extrapolation, not text.
 
 Context for all of them: the shipped `lightning_bolt.tres` is a 3-hop `FanAllSpread` ball at x0.5 per hop with an enemy filter. Nothing elemental exists in code yet (EL header). The design's Lightning arc is a new thing.
@@ -367,7 +367,7 @@ Context for all of them: the shipped `lightning_bolt.tres` is a 3-hop `FanAllSpr
 
 # Landing resolution lens: 7 play situations
 
-Source passages: `E` = docs/design/elements.md, `H` = docs/handoffs/elements.md § Adversarial review (item numbers), `#n` = issue comments.
+Source passages: `E` = docs/design/elements.md, `H` = docs/handoffs/elements.md (deleted 2026-11-11; `git show 9582a705:docs/handoffs/elements.md`) § Adversarial review (item numbers), `#n` = issue comments.
 Marked **[extrapolation]** where I go beyond the text. Meta-finding first: E § Landing resolution is headed "ADR 0074" and the handoff says "if held, ADR 0074", but `docs/adr/` ends at 0073. The three-phase model is owner-held ("hold it") but not yet an ADR, and ADR 0073 explicitly says landing resolution is "not decided here".
 
 ---

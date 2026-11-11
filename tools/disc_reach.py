@@ -2,7 +2,7 @@
 """Design probe: how many skill-graph nodes does a Fire blast disc reach?
 
 NOT game code and not shipped. It answers the numbers in
-docs/handoffs/elements-split/cast-shapes-rates.md without launching Godot.
+docs/design/elements/casting.md (cast shapes) without launching Godot.
 Nothing is cached on disk; a run takes seconds. Needs numpy and scipy.
 
 What it ports (a Python re-implementation of the generator, not a binding):

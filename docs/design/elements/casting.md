@@ -56,6 +56,24 @@ and is infinite on every spell today, so each spell gets a finite number
 ([forge.md](forge.md) § The forge, "Overqualified casting"). A shape or ride point is bounded only
 by its element's count.
 
+**One budget per element, shared by shape and ride** (owner, 2026-11-11
+18:26: *"yeah and for spell the budget shared between reach and riders (fire
+reach, Heat riders)"*). The ride's only cost is its element count, so for a
+spell one element's count is a single budget that the shape (reach) and the
+ride (riders) both draw on: a Fire shape and Heat riders together never
+exceed the Fire count. This confirms the amendment above, that neither counts
+towards the point cap. The two budgets, in one place: aspects count towards
+the point cap (base 10, grows with overcast); a Fire shape and a Heat ride
+share one small budget capped by the Fire count ([forge.md](forge.md) § The
+forge, "Two budgets, and a trim worked").
+
+**When a remembered shape and ride share one element and its count drops,
+the ride gives up points before the shape** (owner, 2026-11-11 18:26: *"Ride
+first"*). The spell remembers its loadout; with Fire 3 split as shape 1 and
+ride 2, a count that falls to 2 leaves shape 1 and ride 1, and one that falls
+to 1 leaves shape 1 and ride 0. The reach the spell is named by is the last to
+go.
+
 **Lightning's shape talks in levels** (owner, 2026-11-10: *"Lightning reach on
 a spell talks in *level*, where level N gathers up to N hops from target.
 level 1 -> ring 1; 2->ring 2. cost: {level} aka 1, +2 (3), +3 (6), etc"*). So
@@ -111,6 +129,130 @@ was Burning/Shocked"*): the go-off's share of the seed's damage and riders,
 the seed's crit, and it is a copy to a Frozen node. The seed itself lands in
 full. The terrain riders are among them, so a Fire shape with Heat riders
 lays Heat at share over its whole disc in one cast.
+
+### What a point of shape buys: measured costs
+
+Design research, 2026-11-10, probe `tools/disc_reach.py` (a Python port of
+the Bridson sampler and the Delaunay / MST + 25% extras prune; 10 maps of 800
+nodes, 300 sources each, whole graph, min spacing 150 px, every node radius 32
+px; `--a 3 --b 0 --powers 1,2,3,4,6,8,10 --hops` reproduces the numbers,
+`--per-point 3 --fit-ladder` prices a ladder against Lightning's). Its hop
+counts match the measured table below to within 0.1 node. The game was not
+run and enemy territory is a subset, so real counts sit lower. The owner on
+the disc multiplier, 2026-11-10: *"so far no calls made, just still
+exploring. 2× sounds like a good contender, 3× might be too, depends on how
+we cost lightning?"*, and on what to fit: *"we are not here to settle on a
+shape based on the procgen settings, we just want to set a good feel of an
+explosion size, and if we change procgen node spacing settings later we might
+or might not tune the explosion size with it"*.
+
+**Why a small Fire disc reaches nothing.** Spacing is `2 × max node radius +
+padding`, 150 px on both the first level and coop / versus: about 4.7 node
+radii, not 2. Nothing sits closer than 150 px centre to centre, so a 32 px
+node needs a radius of 118 px to be touched. At A × √p alone the disc
+(radius = A × √p × 32 px) reaches **no node below power 4 at A=2** and none
+below power 2 at A=3 (today's Explosive disc); with the first reading, ×1,
+nothing until power 14. A node is hit when any part of it touches the disc.
+
+Fire, other nodes inside a disc of power p (centre excluded):
+
+| p | 1 | 2 | 3 | 4 | 6 | 8 | 10 | 20 | 40 |
+|---|---|---|---|---|---|---|---|---|---|
+| nodes, A=2 B=0 | 0 | 0 | 0 | 0.7 | 2.2 | 3.2 | 4.0 | 7.6 | 14.9 |
+| nodes, A=3 B=0 | 0 | 1.2 | 2.6 | 3.6 | 5.2 | 6.9 | 8.4 | 16.7 | 31.7 |
+| nodes, A=2 B=1 | 0.7 | 2.1 | 3.0 | 3.6 | 4.6 | 5.6 | 6.7 | 11.1 | 19.6 |
+| hits nothing, A=2 B=1 | 45% | 5% | 1% | 0.2% | 0 | 0 | 0 | 0 | 0 |
+| covers every neighbour, A=2 B=1 | 5% | 40% | 96% | 99% | 100% | 100% | 100% | 100% | 100% |
+
+Past power 8 the A=2 disc adds about 0.37 nodes per power (linear, the area),
+the A=3 disc about 0.84. A=2 B=1 equals A=3 at power 4 (192 px, 3.6 nodes
+each), is larger below it and smaller above (19.6 nodes against 31.7 at power
+40). The smallest B at which power 1 reaches the 118 px a node needs is
+0.84375 at A=2 and 0.229 at A=3; even then a power-1 cast reaches a node in 0%
+of casts, since 118 px is only the nearest possible one. The 3.6 nodes of a
+192 px disc against 3.0 graph neighbours: a disc also catches near nodes that
+share no edge. Bracket for the first level's 28 to 50 px radii, reach kept at
+32 px: at 28 px the A=2 disc hits 0.5 / 2.1 / 3.5 nodes at power 4 / 6 / 9, at
+50 px 1.8 / 3.0 / 4.2.
+
+**The offset B is why the shape's formula has one.** The owner's reason:
+*"edge hops have no min distance. euclidean has. so this might help?"* — a
+hop ring has no minimum distance, a disc does, so B puts a floor under the
+radius. In units of spacing the disc is not exactly invariant (the hit test
+subtracts the candidate's fixed radius) but is exactly invariant in (radius +
+node radius) / spacing, so a disc authored as a multiple of spacing keeps its
+meaning if spacing is retuned, and one authored in node radii keeps it only if
+node radius moves with spacing. Below radius / spacing 0.7 no node is reached
+at any spacing from 120 to 200 px; at 1.2 about 3 nodes and 98% neighbour
+cover.
+
+**Lightning, measured, hop balls.** Unique nodes within L hops of the seed
+(seed excluded), 10 maps of 800 nodes, mean degree 3.1:
+
+| L | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+|---|---|---|---|---|---|---|---|---|
+| nodes | 3.0 | 7.9 | 14.5 | 23.1 | 33.2 | 45.1 | 61 | 77 |
+| ring L alone | 3.0 | 4.9 | 6.6 | 8.6 | 10.1 | 11.9 | 14 | 16 |
+
+An L-hop ball holds about (L+1)² − 1 nodes, ring L about 2L + 1. One more hop
+on a fan-all walk of H hops buys about 2H + 3 nodes: 9 for Lightning Bolt
+(`max_hops = 3`), 15 for a 6-hop flood, 1 for a single path. A disc equals an
+L-hop ball at about 176 / 296 / 407 / 523 px for L = 1..4, so one hop ring is
+worth about 116 px (0.77 × spacing) of disc radius.
+
+**Schemes priced** (nodes reached at 1 / 3 / 6 / 10 points; the reference is
+Lightning's level ladder, 3 / 8 / 15 / 23):
+
+| Scheme | 1 | 3 | 6 | 10 | Cost |
+|---|---|---|---|---|---|
+| Fire, 1 power per point, A=2 | 0 | 0 | 2.2 | 4.0 | dead at 1 to 3 points |
+| Fire, 3 power per point, A=3 | 2.6 | 7.6 | 15.0 | 24.2 | tracks the ladder, rms 0.7 |
+| Fire, 7 power per point, A=2 | 2.7 | 7.9 | 15.6 | 25.0 | same curve, 2.3 times the price of A=3 |
+| Fire, 5 per point, A=2 B=1 | 4.1 | 8.9 | 15.6 | 23.4 | rms 0.80; 1 point is a neighbour cast in ~100% |
+| Fire, 1 power per point, best A and B (4.75, 0.25) | 3.5 | 8.3 | 15.3 | 23.6 | rms 0.45; radius 152 × (√p + 0.25) |
+| Fire, 1 power per point, A=2 B=2 / A=1 B=3 / A=1 B=4 / A=2 B=1 | 3.6 / 0.7 / 2.4 / 0.7 | 5.4 / 2.0 / 3.3 / 3.0 | 7.5 / 3.0 / 4.1 / 4.6 | 9.9 / 3.8 / 5.0 / 6.7 | rms 7.7 / 11.8 / 10.8 / 10.1: 1:1 with a Shock Arc level falls 13 to 19 nodes behind at 10 points |
+| Lightning B, ring n costs n points | 3 | 8 | 15 | 23 | points 2, 4, 5, 7 to 9 buy nothing |
+| Lightning C, level L when L² ≤ 3 × points | 3 | 15 | 33 | — | all-live ladder, 3 to 5 nodes per point at 1 to 3 |
+| Lightning D, 3 nodes per point, largest ball that fits | 3 | 8 | 23 | — | thresholds an authored list, not a recitable rule |
+| Lightning E, +1 hop on the spell's own walk | +9 | +31 | much more | — | worth swings 15-fold by spell; a single-target spell gets nothing |
+
+Nodes hit grow linearly in power (0.4 to 0.8 per power) while the ladder gives
+about 2.3 per point, which is why no 1:1 disc tracks it: the radius needs A
+about 5 with no offset (A=5.0 B=0, rms 0.80; a back-of-envelope A about 5.5 is
+confirmed to a quarter step). Burning's go-off at the best fit reads 190 /
+253 / 301 px, 3.5 / 6.0 / 8.3 nodes at excess 1 / 2 / 3, 3.2 times the A=3
+disc at excess 3. With A forced to 2 the best B is 3.75, which overshoots at 1
+point and undershoots at 10.
+
+**What the rows say.** The measured A=2, B=1 disc with a multiplier of 5 on
+the points is the fit to the Lightning ladder that is both live at 1 point and
+cheap to state, which is the multiplier the model above carries as its
+tentative default. The costs weighed:
+
+- Lightning as extra hops on the walk (E) is rejected: it is the case the
+  2026-09-02 ruling warns about ([forge.md](forge.md) § The forge, "A forge
+  load and the max_hops ruling"), it is not the symmetric explosion, and a
+  single-target spell gets nothing. Only the seed-as-hop-ball reading mirrors
+  Fire's disc and leaves `max_hops` alone.
+- Fire's radius reads the seed node's own radius (28 to 50 px on the first
+  level), so a Fire shape is target-dependent; a fixed reference radius would
+  remove that. The current model reads the node.
+- If every landing a shape adds carried the full seed payload, one Fire point
+  would be about +2.6 seed copies (A=3, 3 per point) against one Ice point's
+  +50% on one node and a lost ring; the points are "roughly the same" only
+  because shape landings carry a share (above) and because the Ice section
+  already concedes that spread is worth more than focus.
+- Burning's own power range has to start where the disc is live (power 4 at
+  A=2 B=0, power 1 to 2 at A=2 B=1); a go-off whose radius is √power × node
+  diameter would mostly hit nothing.
+
+Open: the dead points on Lightning's ladder (2, 4, 5 buy nothing) against a
+caster that holds 0 to 5; the all-live alternative (level L when L² ≤ 3 ×
+points) would move Fire to about 4 power per point at ×3 or 12 at ×2.
+
+Tentative, not the owner's: a cast's range preview draws only the shape's own
+reach from the pure functions, with no add-up and no go-offs; and the disc's
+own damage reads the node's excess only, not the shape's points.
 
 ## Ice on a cast: concentrate (owner, 2026-11-04/05/08/10)
 

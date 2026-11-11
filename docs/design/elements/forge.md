@@ -25,6 +25,19 @@ the elements so far:
 - **No use gives a hit reach.** A shape use may reshape the cast (Ice trades
   hops for payload before it leaves), but reach at a landing is read off
   the node alone.
+- **A forge load and the `max_hops` ruling.** The owner, 2026-09-02, on a
+  board-wide hop modifier: *"the latter one we should be very careful about,
+  and possibly disable entirely until we find a proper way to tune it —
+  adding max hops to a spell dramatically alters its performance"*, with the
+  conclusion that any propagation tuning is per spread strategy, not a board
+  stat (Trailblazer's 999 is a backstop, Cyclone's 8 a limiter). A forge load
+  is outside the letter, a per-cast spend on a per-spell intake row with an
+  authorable rate that a spell can refuse (as Ice does), but inside the worry:
+  "+1 hop" is worth 1 to 15 or more nodes by spell. So a Lightning shape that
+  added hops would need a per-spell rate and a refusal for unbounded or
+  self-terminating walks; one that makes the *seed* a hop ball never touches
+  `max_hops` and is the model ([casting.md](casting.md) § What a point of
+  shape buys, probe `tools/disc_reach.py`).
 - **A spell carries at most one element, and the forge adds to it or swaps
   it** (owner, 2026-11-09: *"the spell should carry at most one Element
   (fire/cold/lightning) and if a spell already has one, forge can add to it
@@ -103,6 +116,21 @@ the elements so far:
   switches on at FIGHTER and up, as the ladder's rule has it
   (`entity/controller/ai_controller.gd:74`: each rung switches habits on and
   never weighs a trick harder).
+
+  **Two budgets, and a trim worked.** Aspects count towards the point cap
+  (base 10, grows with overcast); a Fire shape and a Heat ride share one small
+  budget capped by the Fire count ([casting.md](casting.md) § Shape and ride,
+  "One budget per element"). The owner, 2026-11-11 18:33: *"so a Heat rider
+  counts towards budget capped by fire_element (small budget), aspects e.g.
+  Poison count towards the cap (10, can grow) / and for trimming: say i put 5
+  poison on slot 1, 5 greed in slot 2, 4 curse in slot 3, for a +1 overcast
+  the cap is 15 that's fine. if timming needs to be done, just reduce/pop ..
+  slot 3? like eat last slot first until reduced to lowered cap"*. Worked: 5
+  Poison + 5 Greed + 4 Curse = 14 fits a cap of 15 (base 10 plus one
+  overcast step of 5). At a cap of 10 the trim eats the last slot: Curse 4
+  goes to 0 and is popped, total 10. At 8 Curse is popped, then Greed 5 goes
+  to 3, total 8. The shape and the ride are never trimmed by it.
+
 - **An element arrow is its own ammo type, one per element** (owner,
   2026-11-09: *"arrow pools are *per type* given Fuel is now an Aspect called
   Catalyst, we can reintroduce plain fire arrows that simply add heat stacks.

@@ -71,6 +71,16 @@ retag deletes it.
 Shocked's hops: level
 L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
 
+**Go-off zero is exempt from the whole-hit landing until the retag** (pass
+reading, tentative, not the owner's; [hit-resolution.md](hit-resolution.md) § Landing resolution). The
+ported Explosive disc is authored at share 0.5 with no centre copy
+(`GoOff.lands_on_own_node` false on it, true by default), which keeps today's
+tests green: the alternative, following whole-hit now, re-points
+`test_explosive_charges` ("never the centre"), `test_blast_mark` ("the centre's
+own hits carry no mark") and `test_heal_spell_blast`, and doubles bystander
+damage. A mask-excluded charged node inside the disc does not chain, as today.
+Frozen's shatter is tuned to match the doubling, a knob left open.
+
 ## The reach rule (owner's atomics, 2026-11-04)
 
 **A hit landing on a primed node sets it off, and the go-off copies the
@@ -108,6 +118,10 @@ flat — `damage × s`, riders `ceil(r × s)`, never `s^k` (owner, 2026-11-05,
 decay. Maybe raise you: for charge arcs hitting charged nodes also just keep
 arcing (and consuming a stack ofc) and concatenating hits."*). That is how it
 is built (#1735's finding), so #1735 closes with a doc line.
+
+The gather never ends a chain by itself: what ends one is the Frozen absorb
+and the pairs mute, the cap on go-offs per node per hit, and the spend, which
+digs below T and stops a node going off again.
 
 **A go-off with no parent hit** is a **terrain hit** (owner, 2026-11-05:
 *"option 1"*): its copies carry only the blast's own damage (∝ power), no
@@ -203,6 +217,16 @@ own cast conducts through the enemy's wire, your own blast sets off your own
 Burning node. Rejected for v1 (offered as picture B): Burning denying
 allocation while it burns, Shocked self-discharging on the tick.
 
+**Conduction at 0 hops stays on** (owner, 2026-11-10: *"i forgot i designed
+that as a feature. it's rather powerful, not spending a hop. but might be just
+what it needs"*, then on keeping the 0-hops case: *"i agree with that lean."*):
+a walk that arrives on a Shocked node with no hops left still leaves it. The
+conduct cost (1 Charge per pass-through) is the knob that tunes it, and the one
+to turn if generator keystones make a wire permanent. Pass pick, tentative: the
+pass-through's Charge is spent at the head of the gather of the arriving wave.
+Rejected: conduction only while hops remain, which makes a wire a cheaper hop
+and not a wire.
+
 **Burning is a light source** (owner, 2026-11-06: *"burning being a light
 source does sound clever, could be one of the cells filled by burning"*): a
 Burning node is visible through fog to every entity and reveals its
@@ -210,6 +234,10 @@ neighbours — a VisionSystem fact, no combat rule. A Shocked "crackle"
 revealing charged nodes within its arc reach is parked as minor (owner:
 *"likely minor?"*, *"more related to the `sensor_range` system, just not sure
 how"*).
+
+Burning's light radius is the disc formula (§ Size), read from the same
+function, so a node's light grows with its excess as its blast does (owner,
+2026-11-10: *"light radius same formula as explosion size would"*).
 
 **The overflow: past the cap** (owner, 2026-11-06: *"a 2nd "post cap" state
 sounds good too … the excess is there but burns off quickly. like over-limit
@@ -228,6 +256,22 @@ along with it"*): the shatter spends the overflow with the rest of the excess
 (§ The trigger and what a go-off pays). "Chunked for the next incoming hit" is lawful only
 as the stack itself being the stored amount, as deep freeze is; a separate
 charged-up bonus would be a count, not a state.
+
+### Open edges
+
+- **Past the cap.** A build must give the overflow band the primed band's go-off
+  and travel verb (the lead call above, tentative): a band list that leaves
+  them off makes a node past k × T neither arc nor conduct, for Burning as for
+  Shocked.
+- **A row with `plants` unset** defaults to Fire's terrain (Heat). That is
+  undefined once Frostbite lands (#1444), which needs a row that names its own
+  terrain.
+- **Two rows of one concept** (a spell's authored row and a forged ride of the
+  same element): who builds the walk over both is not pinned; casting.md's
+  budget rule says they share one count.
+- **An arc released by a blade weight-break** (the vertex heavy enough to
+  break the ice, [frozen.md](frozen.md) § A blade on Frozen): what the released arc
+  carries is not pinned.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -264,3 +308,11 @@ hang off all six attributes, elements off the three attack schools. Owner,
 2026-11-04: *"It really shapes up the game content to be somewhat.. spread
 out, instead of a burning focus on just 1 group of features. which is a
 feature on it's own"*.
+
+## Display cues the go-offs still need
+
+Looks the doc does not specify, each riding its mechanic: the blast rendered
+from the record's blast table; a stagger so a cascade reads as a chain; a
+damage number per copy; the disc's effect sized by √power; the burn tick; the
+arc's flash per hop; a wire's conduction and the Charge it spends per
+pass-through.

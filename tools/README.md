@@ -5,7 +5,7 @@ Dev-time scripts, not shipped gameplay. One line each; the mise task is how you 
 | Path | What it is | Run with |
 |---|---|---|
 | `bake_svg_sdf.py` | SVG to msdfgen SDF to the carve-LUT PNGs (`docs/domain/emblem-bake.md`) | `mise run icons:update` |
-| `disc_reach.py` | Design probe: nodes a Fire blast disc reaches on simulated procgen maps, with a Lightning-ladder fit (`docs/handoffs/elements-split/cast-shapes-rates.md`) | `python3 tools/disc_reach.py --a 3 --b 0 --powers 1,2,3,4` (no task) |
+| `disc_reach.py` | Design probe: nodes a Fire blast disc reaches on simulated procgen maps, with a Lightning-ladder fit (`docs/design/elements/casting.md`) | `python3 tools/disc_reach.py --a 3 --b 0 --powers 1,2,3,4` (no task) |
 | `bake_carve_atlas.gd` | Packs the baked per-icon LUTs into the `CarveAtlas` the shader samples | `mise run icons:update` (last stage) |
 | `gen_sandbox_tabs.gd` | One-off generator for `sandbox_host.tscn` (`docs/domain/sandbox-framework.md`) | `godot --headless --script res://tools/gen_sandbox_tabs.gd` (no task) |
 | `balance/` | Balance harness: scenario table, ratio invariants, 1-D sensitivity slice (`balance/README.md`) | `mise run balance`, `mise run balance:sensitivity` |

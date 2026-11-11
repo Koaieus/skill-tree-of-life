@@ -114,7 +114,7 @@ status: settling
   serves one end only — 50 halves a late archer's every reload, 999 is the
   hoard — the knob is a multiplier on the type's own per-reload mint, pass
   default 2 (a quiver banks one spare reload), easy to change.
-- **Adversarial review, 2026-11-05** (full list in `docs/handoffs/elements.md`),
+- **Adversarial review, 2026-11-05** (its unresolved items are the entries below and the leftovers bullet at the end),
   items (a), (b) and (h) settled 2026-11-09.
   (a) **Row keys**: a row names the status it plants (owner, #1660,
   2026-10-18: *"B2: agreed"*), defaulting to its concept's only status. The
@@ -147,3 +147,43 @@ status: settling
   the one, docs may be stale"* — `BladePopResolver`'s header describes severing past a pop while
   the code pops the one vertex and only records a `Severance` for what the
   pop left unreachable; settle header against code at the Ice spec.
+- **Open by design, carried as knobs** (the pass's readings, each tentative,
+  not the owner's): shape points against the spell's capacity; the
+  hops-cut → shatter knob (how much of a breaker's cut hops feed the burst);
+  the Fire multiplier (5); the "at least 1" solo cost
+  ([casting.md](casting.md) § The node pays its solo cost); Frozen's shatter tuned to match the
+  whole-hit doubling ([frozen.md](frozen.md)).
+- **Adversarial-review leftovers** (2026-11-05 review; everything else in it is
+  settled by a design file or ADRs 0081-0093):
+  - **Explosive orphans, each still needing a destination** beyond the Catalyst
+    retag list above: `entity/blocker/faces/explosive_face.tres`, the barrel
+    addon's `first_level/content.tres` entry, `explosive_stacks_per_hit.tres`,
+    `ExplosiveSpread` (its `on_removed`), `docs/domain/explosive.md`, the
+    matrix's Explosive row, § Explosive and arrow-look row. Each is a spec-time
+    call for the first Fire issue.
+  - **Words**: "Face" means a matrix cell in the docs and DETONATE/PLANT in
+    code; the matrix Glossary still says Payload = damage plus *aspect*
+    riders. Pin one meaning at the Fire spec.
+  - **Stock cap and ratios** (nit): a stock cap is a stat only if something
+    targets it, and `AmmoType` and addons have no int:int seam; the element
+    ammo types' multiplier knob above is the one place this bites.
+- **Doc and ADR corrections owed**, none built: ADR 0082's Context is wrong
+  about today's code (it says spell shrapnel's `draws_own_crit()` is false;
+  shrapnel rolls its own crit, [hit-resolution.md](hit-resolution.md) § Landing resolution); 0081 §3
+  (the blade weight gate has no ADR of its own), 0081 §7 (an arrow is an aspect
+  subtype or an element, never both) and 0081 §1 (a node's own go-off fires
+  once per hit) are corrections the elements ADRs 0083-0085 do not carry, and
+  0081 §6's goes with them — carry all into the next element ADR, the
+  alternative being a new ADR for the weight gate alone (tentative, not the
+  owner's). `aspect_matrix.md:34` still says "side-less terrain, gives reach"
+  and has no `## Element Matrix` heading. The pair table's "for the next
+  landing" contradicts ADR 0083 §1 for a rider: a fix in the pair rules.
+- **Socket-order gap for shape and ride** (open, no owner call): the trim
+  order is socket order and the elemental slots sit outside the cap
+  ([forge.md](forge.md) § trim order), so a cap cut never touches the shape or the ride.
+  What stays unsaid is where the shape and the ride stand in the socket order
+  against each other and against the aspects: they are fixed fields with no
+  socket sequence, so "the later-socketed gives way" has nothing to compare
+  between them. The lead's reading (tentative, not the owner's) was that the
+  later-socketed gives way; the cap rule above makes it moot for trims, so
+  it matters only where a count, not the cap, cuts a loadout.
