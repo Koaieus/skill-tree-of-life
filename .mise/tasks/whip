@@ -19,7 +19,6 @@ ROOT = os.environ.get("MISE_PROJECT_ROOT") or os.getcwd()
 HDIR = os.path.join(ROOT, "docs", "handoffs")
 REPO = "Koaieus/skill-tree-of-life"
 LIVE_HOURS = 36
-MAX_RELIEFS = 2       # per train; a third launch fails the train instead
 SLEEP = time.sleep
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 
@@ -219,18 +218,12 @@ def refill(st):
 
 
 def request_relief(st, train, why):
-    """A relief for a train, bounded by MAX_RELIEFS; the third fails the train and moves the baton."""
+    """A relief for a train. Unbounded: issues left means a new lead (owner, 2026-11-12)."""
     t = train_of(st, train)
     if not t: return False
     if st.get("stopped") or capped(st):
         event(st, f"train {train}: no relief ({'owner stop' if st.get('stopped') else 'past the cap'}) — {why}")
         maybe_end_run(st); return False
-    if t.get("reliefs", 0) >= MAX_RELIEFS:
-        t["state"] = "failed"
-        l = st["leads"].get(t.get("lead"))
-        if l and l["state"] == "running": l["state"] = "failed"
-        event(st, f"train {train} FAILED: a third relief is refused ({why}); its issues fall into Orphaned In progress")
-        pass_baton(st); return False
     t["reliefs"] = t.get("reliefs", 0) + 1
     name = f"relief-{train}-{t['reliefs']}"
     t["outgoing"] = t.get("lead"); t["lead"] = name; t["state"] = "running"
