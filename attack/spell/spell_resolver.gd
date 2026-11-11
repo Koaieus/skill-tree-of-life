@@ -567,7 +567,9 @@ static func _crit_at_head(spell: SpellDef, lctx: LandingContext, hit: HitInstanc
 		rng: RandomNumberGenerator, world: CombatWorld) -> void:
 	if hit == null or not hit.is_head:
 		return
-	_stamp_crit_conditions(spell, lctx, hit)
+	# A head that rides a lead (a bare rider first in a heal's landing, paired
+	# to the heal by `ride_heal`) stamps the lead, whose crit it then copies.
+	_stamp_crit_conditions(spell, lctx, hit.paired if hit.paired != null else hit)
 	if rng != null:
 		CritRoll.decide(hit, rng, world)
 
