@@ -25,6 +25,14 @@ domain: docs/domain/<x>.md     # required when built, absent otherwise
 The index (`docs/design/index.md`) carries a Status column that mirrors the
 frontmatter, with the domain twin linked for a `built` row.
 
+**A topic too big for one file** is a hub `docs/design/<topic>.md` (indexed,
+with the frontmatter) plus a folder `docs/design/<topic>/` whose files each
+carry the frontmatter too and are listed in the hub's file table
+(`elements.md` + `elements/`). The set is promoted and archived as one: the hub
+to `archive/<yyyy-mm-dd>-<topic>.md`, the folder to
+`archive/<yyyy-mm-dd>-<topic>/`, each file with the header below. A folder with
+no hub beside it (a design-tool export) is not a doc set.
+
 ## Within a live doc vs. a whole doc
 
 - **A passage** that the code or a later call has overtaken is **deleted**, not

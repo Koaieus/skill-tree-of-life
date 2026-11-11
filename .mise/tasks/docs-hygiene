@@ -48,7 +48,12 @@ def main():
     errors, warnings, soft = [], [], []
 
     docs = sorted(p for p in glob.glob(f"{DESIGN}/*.md") if p != INDEX)
-    for p in docs:
+    # A topic too big for one file: hub `<topic>.md` + folder `<topic>/`. A
+    # folder with no hub beside it (a design-tool export) is not a doc set.
+    folder_docs = sorted(p for p in glob.glob(f"{DESIGN}/*/*.md")
+                         if not p.startswith(ARCHIVE + "/")
+                         and os.path.isfile(os.path.dirname(p) + ".md"))
+    for p in docs + folder_docs:
         fm, _ = front_matter(p)
         if fm is None:
             errors.append(f"{p}: no frontmatter (want `status: {' | '.join(STATUSES)}`)")
@@ -87,6 +92,11 @@ def main():
         name = os.path.basename(p)
         if f"]({name})" not in index:
             errors.append(f"{INDEX}: does not list {name}")
+    for p in folder_docs:
+        topic, name = p.split("/")[-2:]
+        hub = f"{DESIGN}/{topic}.md"
+        if f"]({topic}/{name})" not in open(hub, encoding="utf-8").read():
+            errors.append(f"{hub}: does not list {topic}/{name}")
 
     for p in sorted(glob.glob(f"{DOMAIN}/*.md")):
         if os.path.basename(p) in LINK_EXEMPT:
@@ -113,7 +123,7 @@ def main():
         print(f"FAIL {e}")
     for w in warnings:
         print(f"warn {w}")
-    print(f"docs-hygiene: {len(docs)} design docs, {len(errors)} violation(s), "
+    print(f"docs-hygiene: {len(docs) + len(folder_docs)} design docs, {len(errors)} violation(s), "
           f"{len(soft)} warning(s) — {'RED' if errors else 'GREEN'}")
     return 1 if errors else 0
 

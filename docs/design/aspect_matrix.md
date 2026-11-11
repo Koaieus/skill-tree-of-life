@@ -399,7 +399,7 @@ it turns it into "5 Heat" doing a 1:1 Catalyst→{incoming element} trade"*.
   spell intake is Firecracker's row. Look: purple crystals, not black goo.
 
 The trade and the colouring rule live in
-[elements.md](elements.md) § The threshold model.
+[elements/terrain.md](elements/terrain.md) § Catalyst.
 
 
 ### Four addon cells (owner, 2026-10-19)
@@ -606,7 +606,7 @@ this"*. The rules for the primaries:
   sentence above: a primary scales its own native stats (`blade_size`,
   `xp_per_turn`), never an aspect's.
 Elemental was "keep away" under this reading; since 2026-11-04 it is a
-second axis with its own schools (the reach triad, [elements.md](elements.md)),
+second axis with its own schools (the reach triad, [elements/go-offs.md](elements/go-offs.md)),
 and the same never-scales rule holds for an element's school.
 
 - **WIS is the skill-point economy; Corruption → WIS (owner, 2026-10-05).**
