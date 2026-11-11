@@ -58,7 +58,8 @@ func aspect_id() -> StringName:
 
 
 ## The status this row's load lands as: [member plants], else the concept's
-## status by concept id; null if it has none.
+## only status ([method concept_status]: by concept id for an aspect, the
+## element's terrain for an element); null if it has none.
 func status() -> StatusDef:
 	if plants != null:
 		return plants
