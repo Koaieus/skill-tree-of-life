@@ -164,6 +164,7 @@ Session of 00:37: step 0 done (doc review `00928f8f`, findings in `DOC-REVIEW.md
 2. **Q1:** spawn ONE Fable researcher (Agent, `model: "fable"`). Give it:
    - morning Q1 above, the owner's note verbatim, elements.md § Open (first bullet), ADRs 0082 and 0091 §3, and the mitigation code (`Mitigation.compute`, `min_damage_taken`);
    - its task: an opinion with the costs of each shape.
+   Then an `advisor` pass over the researcher's opinion (owner, ~12:48: *"And an advisor pass after"*), before it goes to the owner.
    **Q3:** sketch one worked example: a Frozen + Shocked node X with two neighbours, two crit arrows in one wave, landings and arcs under (a) and (b), and the same two arrows on an unfrozen X for contrast.
    Put both to the owner in one AskUserQuestion. If Q1 lands on own riders first or raw, morning Q5 (a blade contact's amount) is live.
 3. **One ADR via the `adr` skill once Q1 and Q3 are answered:** the follow-ups beside 0091 (the breaker shape, the merged landing, the absorbed thaw walks on, the release count). Let the skill gate whether the trim order and the arc spend need an ADR at all.
