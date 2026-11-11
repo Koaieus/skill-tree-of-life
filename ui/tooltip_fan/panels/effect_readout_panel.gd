@@ -14,7 +14,14 @@ extends FanPanel
 ## status state, never [NodeEffectReadout]'s entity walk. Deliberately a
 ## separate loop in [method _rebuild_rows] rather than folded into the
 ## aura/effect gather above, so the hide/rollup rules there stay untouched.
-## Both row kinds share the same cap + carousel/pagination below.
+##
+## [b]Terrain rows (#1796, sibling read).[/b] Last, one single-line row per
+## element the node carries ([method terrain_rows]) — the bars' own
+## [method TerrainBars.label_for] name, the excess past T, its REAL band's
+## travel verb — and, under it, the band's go-off share when it has one.
+## Unowned nodes read too, so terrain alone gives the panel content.
+##
+## Every row kind shares the same cap + carousel/pagination below.
 ##
 
 ## A row hides when its EFFECTIVE value, as [method StatDef.format_number] displays
@@ -59,6 +66,14 @@ const _ROLLUP_TINT := Color(0.6, 0.62, 0.68)
 ## stat's own colour first.
 const _HOSTILE_MIX := 0.35
 const _HOSTILE_TINT := Color(0.9, 0.25, 0.25)
+
+## The travel verb a terrain row appends (#1796), keyed by
+## [enum ElementBand.Travel]; [constant ElementBand.Travel.NONE] has no segment.
+const _TRAVEL_VERBS := {
+	ElementBand.Travel.ENDS: "ends here",
+	ElementBand.Travel.CONDUCTS: "conducts",
+	ElementBand.Travel.SPREADS: "spreads",
+}
 
 var _bound_node: SkillNode = null
 var _bound_graph: Graph = null
@@ -151,6 +166,12 @@ func _rebuild_rows() -> void:
 	var combat := _bound_node.get_combat()
 	for status in combat.get_statuses():
 		shown.append({"status": status, "host": combat})
+
+	# Terrain readout (#1796): a sibling read off the same combat slice — one
+	# row per element the node carries, with the shown band's go-off under it
+	# when it has one. `shown` is what has_content() follows, so an unowned
+	# node with terrain is content on its own.
+	shown.append_array(terrain_rows(_bound_node))
 
 	_has_rows = not shown.is_empty()
 	_pages = paginate(shown, max_rows_per_page)
@@ -335,6 +356,50 @@ func _build_rollup_row(stat_id: StringName, op: StatModifier.Operation, combined
 	synthetic.value = combined
 	var text := "%d minor sources: %s" % [count, synthetic.format_effective()]
 	return {"text": text, "tint": _ROLLUP_TINT}
+
+
+## The terrain rows (#1796): one row per element [param node] carries — the
+## same [method TerrainBars.label_for] name the bars read, the excess past T,
+## and the REAL band's travel verb (an overflow band answers with its own) —
+## plus the band's go-off share when it has one. Static and pure over the
+## node's accessors, so a test can read the rows without a panel.
+static func terrain_rows(node: SkillNode) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if node == null:
+		return out
+	var combat := node.get_combat()
+	if combat == null:
+		return out
+	var t := combat.terrain_threshold()
+	for e in ElementRoster.shared().elements:
+		var count := combat.terrain_count(e)
+		if count <= 0:
+			continue
+		var band := combat.terrain_band(e)
+		var text := TerrainBars.label_for(node, e)
+		if count > t:
+			text += " · excess %d" % (count - t)
+		var verb := ""
+		if band != null:
+			verb = str(_TRAVEL_VERBS.get(band.travel, ""))
+		if not verb.is_empty():
+			text += " · " + verb
+		var shown := TerrainBars.shown_band(e, band)
+		var id: Identity = null
+		if shown != null:
+			id = shown.identity
+		if id == null:
+			id = e.identity
+		var tint := Color.WHITE
+		if id != null:
+			tint = id.tint
+		out.append({"text": text, "tint": tint})
+		if band != null and band.go_off != null:
+			out.append({
+				"text": "Goes off: %d%% of the hit" % int(band.go_off.share * 100.0),
+				"tint": tint,
+			})
+	return out
 
 
 ## #621's "does this affect me": HOSTILE per [method SkillNode.ownership_bit],
