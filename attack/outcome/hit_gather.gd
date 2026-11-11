@@ -364,11 +364,24 @@ func _extra(a: Arrival) -> Arrival:
 	return x
 
 
-## Runs once per head, before its admit / land / read: the seat the head's
-## crit conditions are evaluated in, against the pre-hit node (#1798's Unit C,
-## ADR 0083 §4). Empty here.
-func _open_head(_h: _Hit) -> void:
-	pass
+## Runs once per head, before its admit / land / read: the arrival's one crit
+## (ADR 0083 §4). A head whose crit is already decided (a spell's, by its
+## landing's stamper against the pre-hit node: [method SpellResolver._crit_at_head])
+## hands it to every hit of its span that would otherwise draw or copy at land,
+## its unpaired siblings and its own riders, so the arrival draws once and a
+## sibling lands on the head's crit without being gated by it; every copy is
+## paired to the head and copies it at land. Before the riders land, so the
+## head's terrain stacks take its crit. An undecided head (an arrow's, a
+## blade's) is left to draw at land.
+func _open_head(h: _Hit) -> void:
+	var head := h.head
+	if not head.crit_decided:
+		return
+	for hit in h.span:
+		if hit == head or hit.crit_decided or (hit.paired != null and hit.paired != head):
+			continue
+		hit.copy_crit_from(head)
+		hit.crit_decided = true
 
 
 ## The one seat a reach list enters by: [param result]'s depth-1 nodes become

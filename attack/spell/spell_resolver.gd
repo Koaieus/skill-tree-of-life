@@ -330,8 +330,8 @@ static func _resolve(
 			# event (#381: was two parallel lists with a <=1-per-landing parity
 			# assert between the headless and VFX paths -- dead since #474 made
 			# VFX a pure observer of an outcome BattleSystem already applied in
-			# full; see the #381 plan). Each new hit rolls its own crit, against
-			# the arrival that appended it.
+			# full; see the #381 plan). The arrival's head decides its crit once,
+			# against the arrival that appended it (`_crit_at_head`).
 			for alctx: LandingContext in arrivals_of[state]:
 				alctx.detonated = detonated
 				# Run by `place()` over every hit this landing appended. The
@@ -371,9 +371,11 @@ static func _resolve(
 		# filter reading `ownership_bit` on the next line now sees a node this
 		# wave killed as dead.
 		#
-		# Each hit draws its crit as it lands (the stream rides into
-		# `land_one`), wave by wave: within a wave its damage and heals in
-		# append order, then its aspect riders in append order. One wave is
+		# Each arrival drew its one crit at its head, in landing order, as the
+		# landing was placed (`_crit_at_head`); the gather hands it to the
+		# head's siblings and every copy is paired to the head, so `land_one`
+		# draws nothing more for a spell hit. Within a wave its damage and
+		# heals land in append order, then its aspect riders in append order. One wave is
 		# one `structural_key` (the hop ordinal), so one beat, and the drain's
 		# beat order (ADR 0092) lands a replay in this same order.
 		#
@@ -551,14 +553,28 @@ static func impact_damage(spell: SpellDef, source: SkillNode, board: StatBoard =
 	return fallback * spell.power
 
 
-## STUB (#1798 item 9, red): today's per-hit condition stamp.
+## The arrival's crit, decided once at its head (#1798; ADR 0083 §4): the
+## spell's [member SpellDef.crit_conditions] ([method _stamp_crit_conditions]),
+## then the universal roll ([method CritRoll.decide]), one draw off
+## [param rng]. Both read [param world] before the wave lands anything, so
+## before the hit's own riders; the gather's read comes after them, on purpose.
+## Run by the landing's stamper while [param lctx] is alive, so the head keeps
+## no reference to it (no cycle through [member HitLanding.hits]). Any other
+## hit is left alone: [method HitGather._open_head] hands the head's crit to
+## its unpaired siblings, and every copy is paired to the head, so neither
+## draws nor evaluates again.
 static func _crit_at_head(spell: SpellDef, lctx: LandingContext, hit: HitInstance,
-		_rng: RandomNumberGenerator, _world: CombatWorld) -> void:
+		rng: RandomNumberGenerator, world: CombatWorld) -> void:
+	if hit == null or not hit.is_head:
+		return
 	_stamp_crit_conditions(spell, lctx, hit)
+	if rng != null:
+		CritRoll.decide(hit, rng, world)
 
 
 ## Magic's OWN crit path, and the only one that is mode-specific (#507): the
-## [member SpellDef.crit_conditions] OR, evaluated per landing. It has to live
+## [member SpellDef.crit_conditions] OR, evaluated once per landing, on its
+## head ([method _crit_at_head]). It has to live
 ## here because a condition reads [CastSpell] propagation state — predecessor,
 ## incident_count, the node just landed on — which exists nowhere else.
 ##
