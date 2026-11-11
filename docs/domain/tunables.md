@@ -61,3 +61,9 @@ still a knob: their value is the default.
     taken spends (`floor(power × spend_factor)`; 1.0 disables).
   - `GreedStatus.avarice_increase_per_stack` (default 10.0) — `bounty`
     INCREASE % per stack. (No `hoard_increase_per_stack` exists; this is it.)
+- **Terrain** (#1794; tentative, shared with #1795, #1796 and #1798):
+  - `TerrainRules.t_per_degree` (1–8, default 2) — T per point of graph
+    degree, in `combat/terrain/terrain_rules.tres`; a node primes past
+    `t_per_degree × degree`.
+  - `terrain_cap_k` (default 2, plus the stake level) — a node-board scalar on
+    `skill_node/default_node_board.tres`; the cap is k × T.
