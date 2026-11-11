@@ -47,7 +47,7 @@ history, or the next rewrite re-learns it.
   but one home for both keeps the convention uniform.
 
 Charters so far: [charter](charter.md) (the skill that revises every other),
-[drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md), [handoff](handoff.md), [pickup](pickup.md), [clean-git](clean-git.md).
+[drone](drone.md), [swarmify](swarmify.md), [spec](spec.md), [swarm](swarm.md), [sage](sage.md), [adr](adr.md), [warp](warp.md), [relay](relay.md), [relief](relief.md), [clerk](clerk.md), [whip](whip.md) (retired; corpus only), [swarm-train](swarm-train.md), [archivist](archivist.md), [triage](triage.md), [handoff](handoff.md), [pickup](pickup.md), [clean-git](clean-git.md), [opencode](opencode.md).
 
 ## Feedback boards
 
