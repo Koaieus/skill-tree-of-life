@@ -68,8 +68,6 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		if not held.is_empty() and (incoming == null
 				or incoming.structural_key != held[0].structural_key):
 			hit = held.pop_front()
-			if not hit.gated and depleted.has(hit.target):
-				hit.gated = true
 		elif incoming != null:
 			hit = incoming
 			incoming = null
@@ -88,9 +86,13 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 		# dropping the await would land the whole volley on frame one.
 		@warning_ignore("redundant_await")
 		await beat.advance_to(hit.arrival_time)
-		if not hit.is_aspect_rider() and hit.structural_key != beat_key:
+		# Any hit of a new key opens a beat, a rider-only one included: a
+		# released rider of this beat still reads the set its damage filled.
+		if hit.structural_key != beat_key:
 			beat_key = hit.structural_key
 			depleted.clear()
+		elif hit.is_aspect_rider() and not hit.gated and depleted.has(hit.target):
+			hit.gated = true
 		land_one(hit, world, alloc, crit_rng, queue)
 		for e: DeallocEntry in hit.deallocations:
 			if e != null and e.node != null and not e.was_core:

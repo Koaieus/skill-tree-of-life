@@ -587,6 +587,27 @@ func test_a_rider_on_a_hit_that_leaves_its_node_standing_lands_its_row() -> void
 	world.free_shadow()
 
 
+## The depleted set is its beat's own: a later beat holding only a rider (a
+## bare status, no damage of its own) is not dudded by an earlier beat's kill.
+func test_a_rider_only_beat_is_not_dudded_by_an_earlier_beats_kill() -> void:
+	_beat_fixture()
+	var outcome := _poisoned_hit(_n[1], _n[1].get_combat().get_current_hp())
+	var lead := DamageInstance.new()
+	lead.target = _n[1]
+	lead.attacker = _caster
+	lead.structural_key = outcome.hits[0].structural_key + 1.0
+	var scratch: Array[HitInstance] = [lead]
+	_poison_rider().apply(HitLanding.riding(lead, scratch))
+	var late := scratch[1] as StatusInstance
+	late.paired = null
+	outcome.hits.append(late)
+	var world := CombatWorld.shadow()
+	OutcomeApplier.apply(outcome, world)
+	assert_true(outcome.hits[1].gated, "fixture: beat 1's own rider duds on the node it depleted")
+	assert_false(late.gated, "beat 2 holds no damage, so beat 1's kill is not its")
+	world.free_shadow()
+
+
 ## A cracked core is not depleted for the skip: it never emits `depleted`, and
 ## its rider still falls through to the entity (ADR 0066, unchanged).
 func test_a_cracked_cores_rider_still_falls_through_to_the_entity() -> void:
