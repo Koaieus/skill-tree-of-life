@@ -127,15 +127,17 @@ every expansion from wave N onward.**
 
 ## What is read at which clock
 
-changing: the crit is read at the hit's head before its riders and crit conditions leave compile, #1798; a hit's riders land after its damage, #1818; see docs/design/elements/hit-resolution.md
+changing: the crit is read at the hit's head before its riders and crit conditions leave compile, #1798; see docs/design/elements/hit-resolution.md
 
 | Input | Clock |
 |---|---|
 | Candidate landing set (which nodes *could* be hit) | **Resolve** |
 | Ordering of landings (authored into `arrival_time`; `OutcomeApplier` sorts on it) | **Resolve** |
 | Landing gate (target still allocated / still hostile / vertex still alive) | **Land** |
+| Aspect riders' turn (after every other hit of their beat, a run of equal `structural_key`; `OutcomeApplier.drain`, ADR 0092) | **Land** — the list order is Resolve's, the hold is the drain's |
+| Depleted-node skip (a non-core node at 0 HP takes no aspect rider) | **Land**, on the authority, shipped as `FLAG_GATED`; a replay reads no HP |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
-| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit before any of the hit's payload (its first rider's landing triggers it); every rider copies it |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | **Land** — one shared `CritRoll.decide`, drawn once per hit as it lands, before any of its payload (its riders land after it); every rider copies it |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
 | Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply_to` inside `NodeCombat.take_damage` ([hit-resolution.md](hit-resolution.md) § Mitigation) |

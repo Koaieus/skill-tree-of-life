@@ -185,34 +185,59 @@ graph while only ownership and stats route through the shadow. It is pinned by
 `test_a_full_shadow_resolve_changes_no_topology`; a displacement or terraform
 mechanic that severs or adds an edge mid-cascade would break it.
 
-## A rider lands before its hit
+## A rider lands after its hit; a beat's aspect riders after all its damage
 
-changing: within a beat all damage lands before any aspect rider, and a depleted node takes none, #1818; see docs/design/elements/hit-resolution.md
+Why, and the shapes that lost: [ADR 0067](../adr/0067-a-status-rider-lands-before-its-paired-hit-and-the-hits-gate-is-a-memoized-step.md)
+for the placement and the memoized gate (§2 to §4), and [ADR 0092](../adr/0092-within-a-beat-all-damage-lands-before-any-aspect-rider-so-the-ice-reads-the-floater-and-a-depleted-node-takes-no-aspect-riders.md)
+for the order, which supersedes ADR 0067 §1 (a status rider used to land
+before its hit and lift it).
 
-Why, and the shapes that lost: [ADR 0067](../adr/0067-a-status-rider-lands-before-its-paired-hit-and-the-hits-gate-is-a-memoized-step.md).
-
-- **Priority.** `HitInstance.land_priority()` returns `LandPriority.BEFORE`
-  (−1), `PRIMARY` (0) or `AFTER` (1). Base: `AFTER` for a rider (`paired`
-  set), else `PRIMARY`. `StatusInstance` returns `BEFORE`, unless it carries a
-  `blast_mark` or a `land_mask` (a blast's status, a splash copy), which stay
-  `AFTER` like the damage-shaped riders (paired damage, splash copies, blasts,
-  detonate's cure).
+- **Priority.** `HitInstance.land_priority()` returns `LandPriority.PRIMARY`
+  (0) or `AFTER` (1); `BEFORE` (−1) stays in the enum and in `place()`, but
+  nothing returns it. Base: `AFTER` for a rider (`paired` set), else
+  `PRIMARY`. `StatusInstance` returns `AFTER` always, so every rider (a
+  status, paired damage, a splash copy, a blast, detonate's cure) lands after
+  its hit, in authored order.
 - **Placement is list position, set once by the landing's builder.**
   `HitLanding.place()` reorders only the landing's span `hits[anchor..]`: the
-  `BEFORE` riders, then the landing's own block `hits[anchor..lead)` in
-  authored order, then `PRIMARY`, then `AFTER` — a stable partition, never a
-  sort. The builders are `RangedDamageFormula.ride`, `SwingResolve` and
+  landing's own block `hits[anchor..lead)` in authored order, then `PRIMARY`,
+  then `AFTER` — a stable partition, never a sort. The builders are `RangedDamageFormula.ride`, `SwingResolve` and
   `SpellResolver`. `in_arrival_order` never reads priority, so a rider never
   jumps another arrow's hit in a shared beat.
+- **The beat order is `OutcomeApplier.drain`'s.** A beat is a run of equal
+  `HitInstance.structural_key`: a magic wave (every hit stamped
+  `float(hop_index)`), an arrow and its riders (`HitLanding.riding` copies the
+  arrow's key), a melee contact and its riders (`t / swing_duration`). It is
+  not a `schedule_index`, which ranged and melee compile one per hit. The
+  queue yields `(schedule_index, list order)`, so a beat's hits are adjacent;
+  `drain` lands them in that order except the aspect riders
+  (`HitInstance.is_aspect_rider()`, true on every `StatusInstance`, a bare one
+  included), which it holds and lands, in queue order, once the queue yields
+  another key or runs dry. Every other hit of a beat lands before any of its
+  aspect riders, each half in list order. `drain` is the one landing loop, so
+  `apply` (live, shadow, every replay of a rebuilt `AttackRecord`) and the
+  spell wave land in the same order. The hold is streamed, not an array
+  partition, because the queue is open: a same-key hit `HitQueue.push`ed
+  mid-beat still lands ahead of the held riders. A terrain rider (Heat, Cold,
+  Charge; none built) must return false and lands with the damage.
+- **A depleted node takes no aspect rider.** `StatusInstance.land_on` duds
+  itself (`gated`, power and amounts zeroed, like a gated rider) when its
+  slice is a non-core node at or below 0 HP: its beat's damage landed first
+  and depleted it. Decided on the authority (`power_resolved` unset) and
+  shipped as `AttackRecord.FLAG_GATED`; a replay honours `gated` and reads no
+  HP. A cracked core is not depleted (it never emits `depleted`); its status
+  falls through to the entity ([Statuses landing](#statuses-landing)).
 - **The gate is memoized.** `resolve_gate(world)` decides a hit's veto once;
-  the first asker decides it — the hit's own `land_on`, or a rider landing
-  ahead of it through `rider_gated`. `landed()` reads the verdict (base: not
+  the first asker decides it — the hit's own `land_on`, or a rider through
+  `rider_gated`, which asks it first (only a hand-built list puts a rider
+  ahead of its hit now). `landed()` reads the verdict (base: not
   `gated`; melee's unadmitted contact overrides it). `RangedHitInstance` runs
   its `passes_gate` there, `BladeDamageInstance` its `LiveGate.admit` with the
   spike pop and `popped_vertex`, so a pop happens once whichever lands first.
-- **What follows:** a curse or sunder rider lifts its own hit; a mark lifts
-  the hits behind it, because its own hit already drew its crit
-  ([CritRoll](#critroll-the-one-crit-implementation)).
+- **What follows:** a curse, sunder or mark rider lifts the hits of later
+  beats, never its own hit or any hit of its own beat, so a hit reads the
+  armor and floor as they stood when its beat began; a lead's crit is drawn
+  before any of its riders land ([CritRoll](#critroll-the-one-crit-implementation)).
 
 ## The beat
 
@@ -308,7 +333,7 @@ then spends crit-taken statuses (`NodeCombat.on_crit_taken`).
 
 ## CritRoll: the one crit implementation
 
-changing: the head's crit is read before its riders and crit conditions leave compile, #1798; riders land after damage, so no rider triggers its lead's draw, #1818; see docs/design/elements/hit-resolution.md
+changing: the head's crit is read before its riders and crit conditions leave compile, #1798; see docs/design/elements/hit-resolution.md
 
 `CritRoll` (`attack/outcome/crit_roll.gd`) is the one crit rule shared by all
 three attack modes; `crit_chance` / `crit_multiplier` are universal entity
@@ -323,14 +348,14 @@ Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
 
 - `OutcomeApplier.land_one` draws right before the hit lands, in landing order,
   off `AttackOutcome.crit_stream`, reading the landing world (the shadow during
-  resolve), so a status landed earlier in the same attack (a mark rider) reaches
-  the chance of the hits behind it.
-- **A hit crits first; its payload copies it.** A lead's draw happens the moment
-  its first rider lands (riders land before their hit, ADR 0067), so the one draw
-  per lead precedes the whole payload and every rider `HitInstance.copy_crit_from`
-  it: a status rider lands its stacks times `abs(crit_multiplier)`, a paired
-  damage share its share times the multiplier. A mark rider lifts the hits behind
-  its own, never its own.
+  resolve), so a status landed in an earlier beat of the same attack (a mark
+  rider) reaches the chance of the hits behind it.
+- **A hit crits first; its payload copies it.** A lead draws as it lands, and
+  its riders land after it (ADR 0092; a rider asked first would decide its lead
+  first, `CritRoll.decide`), so the one draw per lead precedes the whole payload
+  and every rider `HitInstance.copy_crit_from` it: a status rider lands its
+  stacks times `abs(crit_multiplier)`, a paired damage share its share times
+  the multiplier. A mark rider lifts the hits of later beats, never its own.
 - **A replay never draws:** a rebuilt `AttackRecord` carries no stream and lands
   the recorded crit. Every crit reader that runs before a landing (the VFX
   stamping `Projectile.crit_tier`, the floaters) reads a rebuilt record on the
@@ -340,15 +365,15 @@ Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
   multiplied.
 
 **A rider's crit is its hit's crit.** A hit crits once, as its own fact, before
-any of its payload lands: `CritRoll.decide` draws the lead's `crit_chance` the
-moment its first rider lands (riders land before their hit) and every rider
+any of its payload lands: `CritRoll.decide` draws the lead's `crit_chance` as
+the lead lands, before any of its riders (they land after it), and every rider
 copies it (`HitInstance.copy_crit_from`); a status rider lands the folded stacks
 × `abs(crit_multiplier)`, so poison 1 + curse 1 on a ×2 crit land 2 + 2. A rider
 never draws. A status-only hit (a spell whose landing is a bare status, `paired`
 null) is a lead and rolls `crit_chance` on top of its stamped condition tier.
-Consequence: curse and sunder lift their own hit (they land before its damage),
-but a mark lifts the hits *behind* its own — its own hit drew before the mark
-landed — while that hit's crit still spends it.
+Consequence: curse, sunder and mark lift only the hits of later beats (an
+aspect rider lands after every other hit of its own beat, ADR 0092), while a
+hit that reads a mark still spends it with its crit.
 
 `decide` in detail: a hit already `crit_decided` is a no-op; a rider decides
 its lead, then copies it; a lead that does not `draws_own_crit()` (a
@@ -363,11 +388,12 @@ stream; seed 0 (a preview, an AI rollout) is a fixed stream.
 
 ## Statuses landing
 
-changing: Heat, Cold and Charge land as node terrain rather than host rows, #1794; Greed neither doubles nor spends on them, #1798; aspect riders land after damage, #1818; see docs/design/elements/hit-resolution.md
+changing: Heat, Cold and Charge land as node terrain rather than host rows, #1794; Greed neither doubles nor spends on them, #1798; see docs/design/elements/hit-resolution.md
 
 A status hit is a `StatusInstance` an `ApplyStatusEffect` emitted.
-`StatusInstance.land_on` duds it through `rider_gated` like any rider; picks
-the host (the entity iff the node is its owner's cracked core); folds the
+`StatusInstance.land_on` duds it through `rider_gated` like any rider, and on
+a non-core node at or below 0 HP (its beat's damage, which lands first,
+depleted it; ADR 0092, shipped as `FLAG_GATED`); picks the host (the entity iff the node is its owner's cracked core); folds the
 attacker's `<id>_stacks_per_hit` over the authored power on the read node's
 slice, adds `stack_terms`, multiplies by `abs(crit_multiplier)` and
 `stack_scale`, rounds half-up to a whole count; zeroes it if the host blocks

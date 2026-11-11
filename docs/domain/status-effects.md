@@ -127,7 +127,7 @@ changing: a rate rule for the world turn's clock, #1795; Catalyst rows decay onc
 
 ## The DoT model
 
-changing: a curse or sunder rider no longer lifts its own hit, #1818; Explosive's decay row becomes Catalyst's, #1801; see docs/design/elements/hit-resolution.md
+changing: Explosive's decay row becomes Catalyst's, #1801; see docs/design/elements/hit-resolution.md
 
 The status slice carries
 five damage-over-time families, each named by the defensive axis it bypasses (the axes:
@@ -161,7 +161,7 @@ The load-capped sibling is `CleanseEffect` (`attack/spell/on_hit/`; Absolution):
 |---|---|---|---|
 | **Poison** | flat HP per stack per tick, unmitigated | armor, a sub-zero `min_damage_taken` | bulk |
 | **Corruption** | `T` × % of max HP per topple, unmitigated; nothing ticks | bulk (the CON stacker) | rarity and cure only |
-| **Curse** | raises `min_damage_taken` by its stacks | armor: every hit lands again | deals nothing alone |
+| **Curse** | raises `min_damage_taken` by its stacks, for the hits of later beats (ADR 0092) | armor: every hit lands again | deals nothing alone |
 | **Wither** | multiplies `healing_received` down, below zero | the heal aura and regen | nodes nobody heals |
 | **Hex** | an ADD_BONUS of −`resist_per_stack` × stacks on `status_resistance`, the parent of every `<aspect>_resistance`; below 0 the node is vulnerable (`HexStatus`) | resistance and immunity: one stack opens a 100%-resistant node | deals nothing alone; no resistance of its own |
 | **Bleeding** | ⌈stacks × `bleed_rate`⌉ flat HP per tick, unmitigated; the row ×`exert_growth` when its host exerts (`BleedingStatus`) | the kiting core and the node that keeps attacking | a host that rests: `RampDecay` closes the wound faster each still turn |
@@ -261,7 +261,7 @@ viewer_id)`; nothing reads it with a viewer yet.
 
 ## StatusInstance.land_on: which slice, which host
 
-changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; a rider lands after its hit's damage and a depleted node takes no aspect rider, #1818; see docs/design/elements/hit-resolution.md
+changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; see docs/design/elements/hit-resolution.md
 
 `StatusInstance.land_on(node, world)` (`attack/outcome/status_instance.gd`):
 
@@ -270,10 +270,18 @@ changing: Greed neither doubles nor spends on Heat, Cold or Charge, #1798; a rid
   identity, `node` is the state this landing mutates). `StatusHost.apply_status`
   is already a no-op on a null def, a non-positive power and an unallocated
   host under a `CLEAR` policy, so land_on does not re-gate any of that.
+- **Order and the depleted skip.** A status is an aspect rider
+  (`HitInstance.is_aspect_rider`): it lands after its own hit and after every
+  other hit of its beat (`OutcomeApplier.drain`, ADR 0092), so a curse or
+  sunder lifts only later beats. If its slice is then a non-core node at or
+  below 0 HP (that damage depleted it), it duds like a gated rider (`gated`,
+  power 0, no row), decided once on the authority and shipped as
+  `FLAG_GATED`; a replay honours the flag and reads no HP.
 - **Fall-through.** The status lands on the entity iff `node` is its owner's
   core and that core is cracked (`hp.current == 0`) at this moment; damage
   landed earlier in the same `outcome.hits` is visible, so an arrow that cracks
-  the core sends its own poison through. Decided once on the authority into
+  the core sends its own poison through (a cracked core is not depleted for
+  the skip above). Decided once on the authority into
   `host_kind`; a rebuilt hit lands on the shipped host without re-reading node
   HP. A row already on the core node does not stay there once the core cracks:
   the crack transition in `NodeCombat.take_damage` moves every node row onto

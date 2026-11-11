@@ -61,12 +61,13 @@ distinct mint stats, order invariants, own scene per statused type),
 
 ### On-hit shelf
 
-changing: DetonateEffect and BlastEffect die into the go-off, #1799; DetonateUse goes, #1801; a hit's statuses land after its damage (the :58 span prose), #1818; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
+changing: DetonateEffect and BlastEffect die into the go-off, #1799; DetonateUse goes, #1801; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
 
 `RangedDamageFormula.ride` builds one `HitLanding` per arrow, anchored at its
 slot in the outcome (paired to it, so a gated arrow duds every rider), runs
-each effect, then places the span: statuses just before the arrow, damage-shaped
-riders just after (ADR 0067). The arrow takes the landing's `hit_key`, and the
+each effect, then places the span: every rider just after the arrow, in authored
+order (ADR 0067 §2). An arrow and its riders are one beat, so its statuses land
+after its damage and lift the next arrow, never this one (ADR 0092). The arrow takes the landing's `hit_key`, and the
 coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 
 | effect | what it gives an arrow | example |
@@ -209,7 +210,7 @@ The design work is what else the spell does, so it is not "damage plus status" a
 
 ## Infusion (magic column — ADR 0047, ADR 0060, #1250)
 
-changing: rows named by element resolve their status, #1800; DetonateUse, FuelUse and detonate_load deleted, #1801; shape and ride fields, #1809; point cap grows with the caster node's degree, #1814; riders land after damage, #1818; see docs/design/elements/counts.md, docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/forge.md, docs/design/elements/hit-resolution.md
+changing: rows named by element resolve their status, #1800; DetonateUse, FuelUse and detonate_load deleted, #1801; shape and ride fields, #1809; point cap grows with the caster node's degree, #1814; see docs/design/elements/counts.md, docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/forge.md, docs/design/elements/hit-resolution.md
 
 Five words, one meaning each (owner, 2026-10-13, #1593):
 
@@ -230,7 +231,7 @@ A spell's status is the **load** of its intake rows, not an authored rider:
 - `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = the concept's COUNT facet id (`StatRegistry.facet_def`).
 - `attack/plan/magic_attack_plan.gd`: `infusion` (never null; innate after `set_spell`), `set_infusion(id, points)`, `aspect_overrun()` (per-aspect stat + `infusion_slots` + total over `floor(infusion_capacity)` when finite + refused points), the `"infusion"` wire key (only when points are spent; `from_dict` ungated, ADR 0035), and the preview and launch resolves both carry it.
 - `stats_system/defs/infusion_slots.tres`: derived on `entity/default_entity_board.tres` from INT, a threshold ladder at 10 / 100 / 1000 (development tuning, owner 2026-10-14; 100 / 1000 / 10000 later) — breadth. There is **no shared points pool** (#1574, owner 2026-10-12; the √INT `infusion_points` stat of #1462 is deleted): depth is the aspect held. Nothing is consumed (ADR 0047), so a socketed aspect carries the most it can — `min(<concept>_aspect, what infusion_capacity leaves)` — and `ArmedStack.clamp_infusion` (memory restore) and `AiInfusionPicker.pick` fill each kept aspect to that.
-- `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing, then places that landing's span (`HitLanding.place`): the riders' statuses land *before* the spell's own hits at that hop, their damage-shaped hits after (ADR 0067).
+- `attack/spell/spell_resolver.gd`: `resolve_against(…, infusion = null)` runs the riders after `on_hit_effects` at every landing, then places that landing's span (`HitLanding.place`): every rider lands after the spell's own hits at that hop, in authored order (ADR 0067 §2), and the riders' statuses after the whole wave's damage (one wave is one beat, ADR 0092).
 
 A status cell's spell lists one `AspectIntake` for the concept's
 `Identity`. It never authors an `ApplyStatusEffect` in `on_hit_effects`.

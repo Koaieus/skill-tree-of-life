@@ -301,9 +301,9 @@ func test_a_kill_mid_volley_gates_the_remaining_poison_and_replays_clean() -> vo
 			assert_eq(defs[i], _POISON_DEF.resource_path, "a status hit crosses as its def path")
 			if (flags[i] & AttackRecord.FLAG_GATED) != 0:
 				gated_statuses += 1
-	# A rider of a landed arrow is not a dud (StatusInstance.paired); arrow
-	# one's rider lands on the dead node, and that land is a no-op.
-	assert_eq(gated_statuses, 2, "both remaining arrows' statuses are duds after arrow one kills")
+	# Arrow one's rider lands after its arrow (ADR 0092), on the node that arrow
+	# depleted, so it duds too; the later two ride vetoed arrows.
+	assert_eq(gated_statuses, 3, "every status is a dud once arrow one kills, its own included")
 	assert_almost_eq(_poison_power(host.nodes.target), 0.0, 0.001, "the corpse holds no poison")
 	var back := CommandCodec.from_dict(bytes_to_var(var_to_bytes(command.to_dict())) as Dictionary)
 	await (peer.bs as BattleSystem).apply_launch_command(back as LaunchAttackCommand)

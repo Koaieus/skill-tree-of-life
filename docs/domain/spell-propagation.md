@@ -524,7 +524,7 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-changing: the land-time gather and beat order, #1798, #1818; conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
+changing: the land-time gather, #1798; conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
 
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.
@@ -555,6 +555,10 @@ while wave not empty:
         for eff in spell.on_hit_effects:
             eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
+
+    # 3b. land the wave through OutcomeApplier.drain: one wave is one beat
+    #     (structural_key = hop_index), so every landing's damage and heals
+    #     land in append order, then every aspect rider (ADR 0092)
 
     # 4. compute next wave: reach PROPOSES, cap visits, filter NARROWS,
     #    spread SELECTS, config MINTS. The visit cap runs FIRST — the filter is set-level, so a
