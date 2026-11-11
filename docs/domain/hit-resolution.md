@@ -13,8 +13,6 @@ child issue and its file in the design record: [`docs/design/elements.md`](../de
 
 ## The pieces: `HitLanding` and the `HitInstance` kinds
 
-changing: a head mark and the head's load, #1798; see docs/design/elements/hit-resolution.md
-
 A **hit** is one `HitInstance` (`attack/outcome/hit_instance.gd`): one landing's
 effect on one target node, held in `AttackOutcome.hits`. `target` is the hit's
 identity (what a record ships and a peer resolves by `stable_id`); the state it
@@ -51,12 +49,37 @@ calls it, as do `DetonateEffect`'s cure and `PairedDamageEffect`'s share
 (`HaulEffect` sets its own target, origin and source and does not). The
 builder calls `place()` once the effects have run (below), which orders the
 span and then runs the landing site's **`stamper`** callable over it,
-`func(hit) -> void`: a spell's stamps the caster, its crit conditions and the
-wave ordinal and files the hit on its timeline event; an arrow's stamps its
+`func(hit) -> void`. A spell's stamps the caster, decides the landing's crit at
+its head ([CritRoll](#critroll-the-one-crit-implementation)), stamps the wave
+ordinal and files the hit on its timeline event. An arrow's stamps its
 ammo id on every rider; a blade contact sets none. `SplashEffect._retargeted`
 copies a landing whole, `stamper` included. The landing also carries
 the per-compile `gather_cache`, the spell's `stack_scale` and the `detonated`
 scope ([Go-off zero](#go-off-zero-explosive-detonation)).
+
+**The head** (#1798). `place()` orders the span and marks its first hit
+`is_head`. The order is the riders' `BEFORE` hits, then the landing's own hits
+in authored order, then the other riders by `land_priority`. A head and the
+hits after it, up to the next head, are one *hit*, the unit `HitGather`
+gathers ([The walk](#the-walk-outcomeapplier)). A spell landing whose span
+opens on a bare status (an infusion's, say) has that status as its head. The
+head carries the gather's state:
+
+- `hit_load`: what its own `GoOff.fire` is handed. It is 0 unless the landing
+  site sets one (#1799), and a copy's is 0.
+- `gathered`: set once stage one ran the head, so a second drain of the same
+  objects feeds its ops instead of gathering again.
+- `terrain_ops`: the beat's net terrain change, `[node, dt, dcharge]` per
+  node, on the beat's first gathered head.
+- `path_ends`: its node's second `Admits` read ended the paths there; the
+  spell walk's step 4 reads it.
+
+`is_head`, `gathered` and `path_ends` never ship, so a rebuilt hit is no head.
+`terrain_ops` rides the record (the `tr_*` columns). An element rider stage one
+landed is `staged` (`FLAG_STAGED`). A gather **copy** is a property clone of
+its hit's span, `paired` to the head and never run through a stamper, so it is
+not on a spell's `ev.hits`. Its staged riders and non-payload kinds are
+dropped.
 
 A **rider** is any hit with `paired` set or a `land_mask`
 ([ADR 0049](../adr/0049-a-rider-is-any-hit-instance-gated-by-its-paired-hit-and-land-mask.md)): `rider_gated(node, world)` duds it iff its paired hit did
@@ -67,8 +90,6 @@ spends once per key.
 
 ## The walk: `OutcomeApplier`
 
-changing: stage one (the gather) runs per beat, #1798; see docs/design/elements/hit-resolution.md
-
 `OutcomeApplier` (`attack/outcome/outcome_applier.gd`) is the one place an
 `AttackOutcome` reaches a world, and `land_one` the only place a
 `HitInstance.land_on` is called from.
@@ -78,13 +99,34 @@ changing: stage one (the gather) runs per beat, #1798; see docs/design/elements/
   once-per-apply blast set.
 - **`drain(queue, world, beat, alloc, crit_rng, announced)`** is the one
   landing loop, `apply`'s and a spell wave's. It takes the queue's hits in
-  order, flushes the beat whenever `schedule_index` changes
-  ([The beat](#the-beat)), awaits `beat.advance_to(hit.arrival_time)`, calls
-  `land_one` with the queue, and announces a blast's `blast_mark` once per
-  `announced` set on a live world (a wave passes none). One more flush ends
-  it. On an instant clock it never parks, so `SpellResolver` calls it
-  un-awaited over a queue of one wave's hits and the wave has landed when the
-  call returns.
+  order. When `schedule_index` changes it flushes the beat
+  ([The beat](#the-beat)) and runs stage one over the new group. The first hit
+  always opens a group, since a wave's indices are -1 until compile, so a
+  wave is gathered as one group. Per hit it then awaits
+  `beat.advance_to(hit.arrival_time)`, calls `land_one`, and announces a
+  `blast_mark` once per `announced` set on a live world (a wave passes none).
+  That includes a gather go-off's mark (reach 0, power 0, no riders; its draw
+  is #1799's / #1800's). One more flush ends it. On an instant clock it never
+  parks, so `SpellResolver` calls it un-awaited over a queue of one wave's
+  hits and the wave has landed when the call returns.
+- **`HitGather.stage_one(group, world, queue)`**
+  (`attack/outcome/hit_gather.gd`, #1798; ADR 0082, ADR 0083) is stage one of
+  the two-stage resolver. `drain` runs it once per group per drain, over
+  `queue.group(schedule_index)`: every hit of the group in land order, landed
+  or not. It gathers each fresh head; every other hit carrying `terrain_ops`
+  is fed (`HitGather.feed`), never gathered. The order inside it (admit, land,
+  read, go off, generation by generation) is
+  [spell-propagation.md](spell-propagation.md) § "Resolver flow", step 3b.
+  `_open_head` runs once per head before generation 0
+  ([CritRoll](#critroll-the-one-crit-implementation)). Every reach list
+  enters through `_append_reach`. With
+  `HitGatherTunables.dedupe_dual_reach` on (`hit_gather_tunables.tres`;
+  tentative, default off), `_join` merges two reaches of one hit on one node
+  in one generation into one entry: own damages summed, the first list's mark,
+  terrain at the larger share. The hit node is never merged. Stage two is the
+  drain itself: each entry is pushed as a copy of its hit's span at damage ×
+  s + own damage, riders ceil(r × s), one row per status id, and a shatter's
+  burst is pushed after its generation's entries.
 - **`HitQueue`** (`attack/outcome/hit_queue.gd`) is the open worklist.
   `HitQueue.over(hits, from)` orders `hits[from..]` by `in_arrival_order` and
   holds a cursor at the next hit to land. `push(hit)` appends to the record
@@ -92,17 +134,17 @@ changing: stage one (the gather) runs per beat, #1798; see docs/design/elements/
   unlanded hit of its own `schedule_index` and before the first greater one,
   never ahead of the cursor: a hit pushed at an index the drain has passed
   lands next. What the queue yields is the order the crit stream is drawn
-  in. Nothing pushes yet; #1798's gather head is the first pusher.
+  in. Stage two of the gather is the one pusher.
 - **`land_one(hit, world, alloc, crit_rng, queue)`** never awaits, which is
-  why a wave can land mid-walk. `queue` is the worklist the landing drains
-  from, null for a standalone landing (the spell's exert set); it is unread
-  until a gather head dispatches on it (#1798). In order: a hit with
+  why a wave can land mid-walk. Its `_queue` parameter is kept and unread:
+  the gather dispatches from `drain`, once per beat, not per hit. In order: a hit with
   recorded `deallocations` or `settle` is a rebuilt record's and feeds the
   beat (`feed_recorded`, `feed_settle`), any other is offered to `track_hit`;
   `ADDON_DESTROY` and `GATE_FLIP` branch to their own landers; a freed `target`
   or `origin` lands nothing; `world.combat_for(target)` picks the slice;
-  `CritRoll.decide` draws iff a stream was handed in; `hit.land_on(slice,
-  world)`; a fresh hit's `deallocations` are tracked for the flush; a live
+  `CritRoll.decide` draws iff a stream was handed in; a `staged` hit stops
+  there (stage one landed it; its draw keeps its slot in the stream);
+  `hit.land_on(slice, world)`; a fresh hit's `deallocations` are tracked for the flush; a live
   world emits the recorded `popped_vertex` cue.
 - **`in_arrival_order(hits)`** sorts on `(schedule_index, original index)`,
   decorate-sort-undecorate, so ties keep list order. Never on
@@ -261,7 +303,7 @@ before its hit and lift it).
 
 ## The beat
 
-changing: a beat lands in generations, each node read once per generation over all its arrivals, #1798; a Frozen node settles once per generation, #1807; see docs/design/elements/hit-resolution.md
+changing: a Frozen node settles once per generation, #1807; see docs/design/elements/hit-resolution.md
 
 A **beat** is the unit removals spill and piles settle in. Inside an attack it
 is one `schedule_index` group of `OutcomeApplier.apply`; elsewhere it is one
@@ -269,13 +311,25 @@ dealloc command, one spell wave, one turn-end tick step, a gate-flip command
 (the full list: [status-effects.md](status-effects.md) § "The status slice",
 Spill).
 
+- **Stage one opens it.** At the group boundary, once the previous beat has
+  flushed, `drain` runs `HitGather.stage_one` over the group before any of its
+  payload lands. The beat lands in generations. Generation 0 is the beat's
+  heads; each generation starts from the terrain the one before left. Each
+  node is admitted, landed and read once per generation over all its
+  arrivals, and the generation's spends and transfers commit together
+  through `TerrainSettle` before the next generation's admit. The gather is
+  the beat's only terrain writer. A beat a spell's walk already gathered
+  (its compiled apply can split one wave over several indices) feeds its
+  heads' `terrain_ops` and gathers nothing twice.
 - **The recording hit.** `CombatWorld.track_hit(hit)` keeps the first fresh
   landing since the last flush; the flush writes the beat's sandpile settle
   onto its `HitInstance.settle` as `CombatWorld.SettleOp`s. `track_entries`
   keeps the `DeallocEntry`s a fresh landing produced; the flush writes each
   computed spill transfer onto its sender's entry.
 - **A recorded landing receives, never computes.** A rebuilt hit arrives with
-  its `deallocations` / `settle` filled; `land_one` feeds them in, and the
+  its `deallocations` / `settle` / `terrain_ops` filled. Stage one feeds the
+  terrain (a rebuilt hit is no head, so nothing gathers), `land_one` feeds the
+  rest, and the
   flush (`_land_recorded`) lands exactly those transfers and ops; removals the
   replay notes meanwhile are dropped uncomputed, and the piles they enqueued
   wait for the next computing flush.
@@ -353,23 +407,48 @@ then spends crit-taken statuses (`NodeCombat.on_crit_taken`).
 
 ## CritRoll: the one crit implementation
 
-changing: the head's crit is read before its riders and crit conditions leave compile, #1798; see docs/design/elements/hit-resolution.md
-
 `CritRoll` (`attack/outcome/crit_roll.gd`) is the one crit rule shared by all
 three attack modes; `crit_chance` / `crit_multiplier` are universal entity
 stats, so a roll per mode would be three drifting implementations. A crit is
-decided per hit (owner, 2026-08-21), at the landing itself (owner, 2026-10-07):
+decided once per hit (owner, 2026-08-21), and since #1798 once per arrival, at
+its gather head (owner, 2026-11-09; ADR 0083 §4):
 
 ```
-Land   CritRoll.decide(hit, rng, world)   draw + conditions -> is_crit,
-                                          crit_multiplier, crit_tier
-       CritRoll.apply(hit)                amount *= crit_multiplier
+Resolve  SpellResolver._crit_at_head      a spell's: conditions, then decide,
+                                          once per landing, at place()
+Land     CritRoll.decide(hit, rng, world) an arrow's or blade's: one draw per
+                                          lead -> is_crit, crit_multiplier,
+                                          crit_tier
+         CritRoll.apply(hit)              amount *= crit_multiplier
 ```
 
-- `OutcomeApplier.land_one` draws right before the hit lands, in landing order,
-  off `AttackOutcome.crit_stream`, reading the landing world (the shadow during
+- **A spell decides at its head, pre-hit.** The landing's stamper runs
+  `SpellResolver._crit_at_head` on the head as `place()` reaches it, while the
+  `LandingContext` is alive (the head keeps no reference to it). The spell's
+  `crit_conditions` are evaluated once, then the roll is drawn once, off the
+  walk's stream, in landing order. Both read the node before the wave lands,
+  ahead of the hit's own riders (stage one's `GoOff` and `Admits.read` come
+  after them, on purpose: two read points in one hit). A bare status head
+  decides on the landing's first unpaired damage and copies it, because
+  `chance_for` folds the target's overlays into a damage's chance only. A head
+  riding a lead (a bare rider first in a heal's landing, `ride_heal`) stamps
+  the lead and copies its crit. Stage one's `HitGather._open_head` then hands
+  the head's crit (`copy_crit_from`, `crit_decided`) to its unpaired siblings
+  and its own riders, never through `paired`, so none is gated by the head.
+  Every gather copy is `paired` to the head and copies it at land. This runs
+  before the head's riders land, so its terrain stacks take the crit, and
+  `Admits.read` is handed each arrival's amount × the head's
+  `crit_multiplier`. A landing with no damage decides on its bare status
+  head, without the target's overlays.
+- **An arrow or a blade draws at land.** `OutcomeApplier.land_one` draws
+  right before the hit lands, in landing order, off
+  `AttackOutcome.crit_stream`, reading the landing world (the shadow during
   resolve), so a status landed in an earlier beat of the same attack (a mark
-  rider) reaches the chance of the hits behind it.
+  rider) reaches the chance of the hits behind it. Interim: such a head is
+  undecided at stage one, so its terrain stacks and the read's amount see
+  multiplier 1.0. Closing that means handing `stage_one` the drain's
+  `crit_rng`. No production arrow or blade carries Heat, Cold or Charge yet
+  (#1809, #1810).
 - **A hit crits first; its payload copies it.** A lead draws as it lands, and
   its riders land after it (ADR 0092; a rider asked first would decide its lead
   first, `CritRoll.decide`), so the one draw per lead precedes the whole payload
@@ -389,8 +468,9 @@ any of its payload lands: `CritRoll.decide` draws the lead's `crit_chance` as
 the lead lands, before any of its riders (they land after it), and every rider
 copies it (`HitInstance.copy_crit_from`); a status rider lands the folded stacks
 × `abs(crit_multiplier)`, so poison 1 + curse 1 on a ×2 crit land 2 + 2. A rider
-never draws. A status-only hit (a spell whose landing is a bare status, `paired`
-null) is a lead and rolls `crit_chance` on top of its stamped condition tier.
+never draws. A status-only hit (a spell landing with no damage, its head a bare
+status, `paired` null) is a lead and rolls `crit_chance` on top of its stamped
+condition tier.
 Consequence: curse, sunder and mark lift only the hits of later beats (an
 aspect rider lands after every other hit of its own beat, ADR 0092), while a
 hit that reads a mark still spends it with its crit.
@@ -400,15 +480,14 @@ its lead, then copies it; a lead that does not `draws_own_crit()` (a
 `CureInstance`) or has no positive amount (save a `StatusInstance`, amount 0
 until it lands) draws nothing; otherwise one draw, and only when its folded
 chance (`chance_for`: `crit_chance` read locally off the read node's slice,
-plus the target's incoming overlays such as a mark) is above 0, so an
+plus a damage target's incoming overlays such as a mark; a heal, a status or a
+targetless hit folds none) is above 0, so an
 uninvested hit never shifts the stream. A tier above 0 is a crit at the
 attacker's `crit_multiplier` (2.0 when the board has none). The stream is
 `CritRoll.stream_for(resolve_seed)`, salted apart from magic's propagation
 stream; seed 0 (a preview, an AI rollout) is a fixed stream.
 
 ## Statuses landing
-
-changing: Greed neither doubles nor spends on terrain landings, #1798; see docs/design/elements/hit-resolution.md
 
 A status hit is a `StatusInstance` an `ApplyStatusEffect` emitted.
 `StatusInstance.land_on` duds it through `rider_gated` like any rider, and on
@@ -427,8 +506,14 @@ element's own terrain def diverts into
 `NodeCombat.add_terrain(element, round_half_up(power))` and never reaches
 `StatusHost` (no row, camp, applier or `_may_host`; unallocated nodes take
 it). Everything above the divert (the gate, the fold, crit and `stack_scale`) runs
-as for any status; `*_resistance` does not filter it, and Greed's doubling and
-spending on terrain is open (#1798). Every other def lands as a row, unchanged. The
+as for any status; `*_resistance` does not filter it. Greed neither doubles nor
+spends on it: `_greed_arms` asks for a `debuff` tag, and the Heat, Cold and
+Charge defs carry none, so it answers false before `greed_arm` is asked
+(`test_greed_landing.gd`). A head's own Heat, Cold or Charge rider lands in
+stage one, through this same `land_on`, and is `staged`. A gather copy's
+terrain never reaches `land_on`: the gather adds ceil(r × s) of the head's
+landed stacks through `TerrainSettle`. Every other def lands as a row,
+unchanged. The
 bullet-by-bullet contract:
 [status-effects.md](status-effects.md) § "StatusInstance.land_on: which slice,
 which host"; the stacks fold and resistance: § "The DoT model".
