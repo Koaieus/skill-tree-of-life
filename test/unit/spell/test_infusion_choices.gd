@@ -52,9 +52,9 @@ func test_only_held_aspects_in_roster_order_with_their_values() -> void:
 	var plan := _plan(_caster({&"poison": 5, &"curse": 3}), _spell())
 	var entries := InfusionChoices.entries(plan, 0)
 	var ids: Array[StringName] = []
-		if not ElementRoster.shared().by_id(e.id):
+	for e in entries:
+		if ElementRoster.shared().by_id(e.id) == null:
 			ids.append(e.id)
-		ids.append(e.id)
 	var expected: Array[StringName] = []
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.id() in [&"poison", &"curse"]:
