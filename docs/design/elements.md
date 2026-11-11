@@ -173,11 +173,13 @@ picked *hits and priming*: the store converts when element stacks land on
 its node (above, land phase) and when the node primes, its stack crossing T
 into Burning, Frozen or Shocked by any route, read at settle, the whole
 store into that element. Flow below T never colours it: diffusion is not a
-landing. The rule is symmetric; in practice only temperature reaches T without a hit, since Charge never flows and an arc's
+landing. Priming stays beside the pro-rata landing rule (owner, 2026-11-11,
+picked *landing + priming*: a node crossing T converts its whole store into
+the element it primed into; flow below T still never converts). The rule is symmetric; in practice only temperature reaches T without a hit, since Charge never flows and an arc's
 copy is a hit, which is Charge's "stays put" character, not a rule. A
 landing that splits the store and also primes the node (tentative, not the
-owner's): the split happens at land, and the priming at settle converts
-what is still Catalyst, a tied leftover, into the element that primed. A goo
+owner's): the split happens at land, and the priming at settle converts the
+whole store still left, a tied leftover, into the element it primed into. A goo
 arrow landing on an already-primed node lands no Heat, Cold or Charge and
 converts nothing: it is an ordinary trigger, the blast goes off at the node's current excess
 and its copies carry the Catalyst rider over the disc (barrels laid where the
@@ -222,8 +224,8 @@ a fragile snap"*. First contact pops that one vertex (the spike pop, no drain
 check, nothing severed). **A touch that breaks the ice lands as a normal
 hit, then the vertex pops** (owner, 2026-11-11: *"So basically bladd node
 should land as normal but with a guaranteed shatter (and then pop)"*): its
-payload lands, the ice shatters — the break counts as a channel and the
-burst lands (§ What breaks the ice) — and only then does the vertex snap.
+payload lands, the ice shatters — the break's channels (2 by default) and
+the burst land (§ What breaks the ice) — and only then does the vertex snap.
 **The touch breaks the ice only if the vertex is at least as heavy as the
 node** (owner, 2026-11-10: *"melee blade nodes shatter frozen nodes they hit
 *only if their radius is equal or larger than the node they hit*
@@ -235,15 +237,17 @@ temporary modifier), the node's from its own `SkillNode.radius` (stake growth
 included) by the same formula. A tie breaks (*"equal or larger"*). Nothing
 per-contact enters the weight: Cold's drag (and the parked "tune the PBD
 weight" aside, were it built) is ignored. ADR 0088 records the weight gate
-and the breaking touch. A lighter vertex still snaps and the ice holds (owner picked *snaps, ice holds*, with *deflects off the ice* —
+and the breaking touch, ADR 0090 the lighter vertex's plain hit. A lighter vertex still snaps and the ice holds (owner picked *snaps, ice holds*, with *deflects off the ice* —
 the vertex recoils like a defender plate, deals nothing, nothing breaks — as
-the fallback *"if it turns out to nerf melee too much"*). The spike pop
-refuses its contact (tentative, not the owner's), so its payload does not
-land, while its crit and damage stay facts the breakers read. Its contact
-still breaks the ice through the other two breakers (owner picked
-*only the touch is gated*), so a light vertex whose contact crits or would
-deal damage past the threshold shatters it; whether that contact then lands
-as a breaking touch does is not the owner's yet. **The burst is
+the fallback *"if it turns out to nerf melee too much"*). **Every blade
+contact lands as normal; weight decides only whether the touch breaks the
+ice** (owner, 2026-11-11, picked *lands as a plain hit*): a lighter
+vertex's contact lands its payload as a plain hit — no break, no burst, no
+extra landing — and then the vertex pops. Its contact still breaks the ice
+through the other two breakers (owner picked *only the touch is gated*), so
+a light vertex whose contact crits or would deal damage past the threshold
+shatters it, and that contact lands as a breaking hit: its payload, the
+break's channels and the burst, then the pop. **The burst is
 corruption-shaped** (owner, 2026-11-08: *"frozen side: effect removed at %maxhp propto the amount
 removed"*; earlier: *"maybe %dmg like corruption stack triggers?"*): the
 shatter removes everything above T, overflow (deep freeze) included, and
@@ -269,12 +273,15 @@ blade touch (the burst is nothing there); Heat and decay still end it.
 **Breaking the ice counts as a channel** (owner, 2026-11-10, night: *"Break
 counts as a channel (or more radical: 2, more concentrated single target
 vibes) sounds like a fitting unification"*), Frozen's match for the whole hit
-(§ Landing resolution) and the 0D case turned inward (above): the shattered
-node takes one more payload of the hit that breaks it, on top of that hit's
-own landing, plus the burst. The extra landing carries damage and aspect
-riders only, as every extra landing does; how many it is, is a knob with
-default 1. That holds for a hit, a copy or a blade touch that breaks it
-(§ A blade on Frozen). The threshold applies to direct hits and arriving copies alike — the glass
+(§ Landing resolution) and the 0D case turned inward (above). **A break
+counts as 2 channels** (owner, 2026-11-11: *"+1 is what a 1-burning node
+would get already. Shatter is aggressively single target."*, then *"2 for
+now sounds good. Can retune later, most likely a knob or const"*): the
+shattered node takes two more payloads of the hit that breaks it, on top of
+that hit's own landing, plus the burst. The extra landings carry damage and
+aspect riders only, as every extra landing does; the count is a knob or
+const, default 2 (ADR 0090). That holds for a hit, a copy or a blade touch
+that breaks it (§ A blade on Frozen). The threshold applies to direct hits and arriving copies alike — the glass
 ceiling of 2026-11-05 unified with the *"a hit that deals X amount of % max
 health"* breaker: a copy that breaks through also lands — so deep freeze
 raises the burst's stakes, never the wall's strength. Heat and decay still
@@ -299,14 +306,10 @@ shatter. **An arrival that breaks the ice walks on**
 (owner, 2026-11-10, night: *"Arrival shattering sounds like it should no
 longer be blocked tbh. But might be sensitive to race conditions e.g. during
 many nodes being hit simultaneously during a magic spell's Wave (beat)."*):
-it lands, and its path goes on past the shattered node. The order race the
-owner flags cannot arise (tentative, not the owner's), since the hits
-of one beat all start from the pre-beat store (one snapshot per beat,
-§ Landing resolution), so no arrival's absorb, break or walk depends on
-which one landed first, and the break check sits in stage one's read, which
-runs once per node per hit, so a node breaks at most once per hit. The
-owner has asked back about two hits of one beat meeting at the ice, so this
-waits on § Open, "Same-beat double break".
+it lands, and its path goes on past the shattered node. The race the owner
+flags, several hits of one beat meeting at the ice, is open: how a beat's
+hits see a node one of them shatters waits on § Open, "Same-beat double
+break", and may take this back within a beat.
 
 **Cooling.** Heat is terrain, so it rests on unallocated ground as Cold does;
 every warm or cold node decays 1 toward zero per world turn (owner: *"if we
@@ -517,7 +520,7 @@ the elements so far:
   "+N", its cap above base from the best caster reaching it, red when the
   loadout is above it, still pickable. This amends ADR 0085 §4
   (*"targets light up for those alone"*) and its consequence that a heavier
-  loadout reaches fewer targets; the next ADR on the forge records it.
+  loadout reaches fewer targets; ADR 0089 records it.
   **Once a target is picked** the forge knows the range of
   overqualification among the nodes that can fire at it (owner, 2026-11-11:
   *"When target is picked we know the full range of overqualification
@@ -1137,7 +1140,7 @@ Owner on the result: *"damage doubles or triples, neat. Frozen should match
 that but we can tune it to do so i guess. and crits can stack on top of
 that"*, and on where it leads: *"nodes with HP in the 1000s to be taken
 down — iff you debuff them properly first"*. Frozen matches by counting its
-break as a channel (§ What breaks the ice). Terrain riders still land once
+break as 2 channels (§ What breaks the ice). Terrain riders still land once
 per node per hit (stage one's cap), so the extra landings carry damage and
 aspect riders only and a fire does not feed itself. "No other node reached, no go-off"
 stands as worded: the centre landing happens only when the go-off does. The
@@ -1149,7 +1152,7 @@ unprimed node lands once on its seed, and the extra landing comes only from
 a primed node going off. A shape added into a primed node's go-off of the
 same element is that node's go-off, one channel, so the seed takes 2 (owner,
 2026-11-11, accepted when asked). ADR 0086 records the whole-hit landing
-counts, the break channel and the dedupe.
+counts, the break channel and the dedupe; ADR 0090 the break's count of 2.
 
 ## The reach triad (pass proposal, 2026-11-04; owner asked for the shape)
 
@@ -1197,7 +1200,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes (§ The threshold model) | nets before the read: a Cold rider cools it for its own hit (riders first), a flow for the next landing | |
 | **Shocked** | arcs to every neighbour; a spell walk conducts | | |
-| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (pass reading, tentative); a breaking hit or copy lands, takes one more payload (the break is a channel) and walks on; a blade vertex snaps, and one at least as heavy as the node first lands as a normal hit and breaks it | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
+| **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (pass reading, tentative); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps, and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**
 (owner, 2026-11-08: *ice wins — frozen solid*, then, after the deeper look it
@@ -1217,8 +1220,8 @@ picked *after the hit lands* over the trapped Charge exactly as it sat).
 **Frozen is a boon with two costs** (owner, 2026-11-05, asked for drawbacks
 and kept exactly these): *cold passage* — a Frostbite pack crossing it pays
 no shed and Afterdrop turns it into a pack aimed at its owner (#1444) — and
-*brittle* — a blade vertex touching it snaps, and when it is at least as
-heavy as the node it lands and breaks the ice before it snaps (§ The threshold model). The list is open to more small costs of that grain (owner:
+*brittle* — a blade vertex touching it lands its hit and snaps, and when it
+is at least as heavy as the node it breaks the ice before it snaps (§ The threshold model). The list is open to more small costs of that grain (owner:
 *"possibly we find more small things like what Cold passage to add later"*),
 and your own spells walk less far through it. Rejected: a Frozen node unable
 to launch attacks, and suspending its stat contributions.
@@ -1479,16 +1482,32 @@ hit; the keystone grants its element while held.
 - **Same-beat double break** (owner, 2026-11-11, asked back: *"Tricky, what
   if one sees ice and the other (its nb) has lv.2 Shocked (would arc out 2
   hops!), if shatter then the arc would pass through the no longer frozen,
-  if not then it should stop. Another race condition?"*). Open: whether a
-  same-beat arc passes a node another hit of that beat shatters, and whether
-  two hits of one beat that both break the same node shatter it twice (two
-  bursts and two break channels off one snapshot, the shatter's case of the
-  same-beat consequence in § Landing resolution; § What breaks the ice).
-  One snapshot per beat (ADR 0083 §5) answers both (lead's proposal, not yet
-  the owner's): every same-beat hit and copy reads the pre-beat terrain, so
-  the neighbour's arc sees the node Frozen and stops there unless its own
-  copy breaks the ice; the break commits once, one burst, each breaking hit
-  its own +1.
+  if not then it should stop. Another race condition?"*). **Open, not
+  decided:** whether a same-beat arc passes a node another hit of that beat
+  shatters, and whether two hits of one beat that both break the same node
+  shatter it twice (two bursts and two sets of break channels off one
+  snapshot; § What breaks the ice). The owner's requirement (2026-11-11):
+  *"Players see: ice on a node. Then a spell bounces on that node and the
+  shocked nb. The ice, it shatters or it doesn't, that's the primary
+  continuation we need to make clear. And if it shatters, the end state would
+  be the same no matter which hit is resolved first like if it shatters the
+  lightning arc either always passes through it or it never does, shouldn't
+  be up to the in-wave hit resolution order"* — within one beat a Frozen
+  node shatters or not once, and every path of that beat sees the same
+  answer, whatever the resolution order. One snapshot per beat alone does
+  not meet it: a node one hit shatters would still block the beat's other
+  paths. The owner's lean, not a call (2026-11-11, on the lead's proposal
+  that breaks settle first, tentative, not the owner's): *"Breaks settle
+  first sounds good but also like a spaghetti going forth between elements,
+  terrain, riders, damage, back to elements and terrain, then riders then
+  damage.. get what i mean? Possibly might need to simplify it otherwise.
+  Perhaps a frozen node remains frozen for all during the hit after all,
+  shattering as a result of combined hits, and none of these hits pass
+  through it.. maybe. Not sure"* — the node stays Frozen for every path of
+  the beat, shatters from the combined hits, and none passes through it,
+  which would take back "an arrival that breaks the ice walks on" (ADR 0087
+  §3) within a beat. The two shapes, frozen for the whole beat or breaks
+  settle first, go to the owner next.
 - **v1 spell content** (owner, 2026-11-09): `lightning_bolt` carries Charge
   (renamed, not reshaped, a Charge ride row as its innate element), and **a
   new single-target Cold spell** — *"one single target ice spell that is only

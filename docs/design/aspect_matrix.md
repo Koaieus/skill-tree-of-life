@@ -41,7 +41,7 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Primed** | A node whose terrain stack is past T (count > T, T = 2 × degree): a hit on it sets it off | a status with stacks of its own |
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
-| **Catalyst** | Inert terrain that converts its whole store 1:1 into the element of a hit that lands on its node, or of the element its node primes into: the element analogue of Greed ([elements.md](elements.md) § The threshold model) | fuel, a family member, a reach, a go-off |
+| **Catalyst** | Inert terrain that converts its whole store 1:1 into the Heat / Cold / Charge stacks landing with it on its node, pro rata over them (largest remainder; a tied leftover stays Catalyst), or into the element its node primes into: the element analogue of Greed ([elements.md](elements.md) § The threshold model) | fuel, a family member, a reach, a go-off |
 
 Further reading: Mark Rosewater's *Making Magic* columns (color pie,
 parasitic, linear vs modular); *Characteristics of Games* (Elias, Garfield,
@@ -277,7 +277,7 @@ Each cell links its cell issue (`<Concept> × <Facet>`, a child of the row hub i
 | Sunder | armor debuff | `sunder_aspect` | type shipped (#1349); feel and look #1395 | Shredder #1396 | Rend (shipped #1719: armor-share strip, armor climb, summit crit), Hell Gnaw (shipped, #1720), Fault Line (shipped, #1721: crack re-read per arrival through the Sunder rider, two armor-heaviest neighbours, weak-point crit) (#1397, § Spell faces) | #1250 | row: #395 (child 0: penetration stat #1401). Flat −1 armor per stack, uncapped, can go below zero (#1203, owner 2026-09-30). School CON (round 7). `sunder_stacks_per_hit` exists (Shredder); has no `_resistance` while the DEX pool rolls a raw `armor` −% bane that bypasses the aspect. Three spells (owner, 2026-10-20, #1397); `spells.md`'s Heavy Bolt is a library spell, not this row's |
 | Weakness | damage debuff | `weakness_aspect` | type shipped (#1349); look #1427 (Sap?) | Sapling #1428 | #1429 (Enfeeble?) | #1250 | row: #1425 (child 0: the status, #1426, shipped). Stacks cut damage dealt by attacks originating from the node, % on a saturating curve (round 7) |
 | Greed | status magnet | `greed_aspect` | type shipped; look #1422 | Midas Mark #1423 | `lodestone` shipped (#1424): out-and-back tendrils haul every debuff home to the target; look #1725 | #1250 | row: #1419 (child 0: the landing term, #1420, shipped; Avarice #1421, shipped). One Greed stack on the node doubles every negative status the next hit lands, Greed included, then one stack is spent; its Avarice face pays bonus XP per stack left when an attack removes the node (rounds 5–6) |
-| Catalyst | catalyst (converter) | `catalyst_aspect` | goo: plants Catalyst, inert purple crystals on the node | the barrel: lays Catalyst on the map | Firecracker's intake row | Catalyst is an aspect status on allocated nodes only, clearing with its holder like Poison, and inert (it never counts toward a threshold, never primes, never goes off); it converts its whole store 1:1 into the element of a hit that lands on its node, or of the element its node primes into. Owner, 2026-11-09 (§ Catalyst): *"in essence this is almost like what Greed is for Aspect Statuses, but for Elements"*. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
+| Catalyst | catalyst (converter) | `catalyst_aspect` | goo: plants Catalyst, inert purple crystals on the node | the barrel: lays Catalyst on the map | Firecracker's intake row | Catalyst is an aspect status on allocated nodes only, clearing with its holder like Poison, and inert (it never counts toward a threshold, never primes, never goes off); it converts its whole store 1:1 into the Heat / Cold / Charge stacks landing with it on its node, pro rata over them (a tied leftover stays Catalyst), or into the element its node primes into. Owner, 2026-11-09 (§ Catalyst): *"in essence this is almost like what Greed is for Aspect Statuses, but for Elements"*. The concept names the content, never the reverse (owner, 2026-10-05): *"the concept determines arrows+addons+spells etc."* |
 | Bleeding | wound, exertion | `bleeding_aspect` | shipped (#1436) | #1437 — Spike Ring refit, with #1369 | #1438 | #1250 | row: #1434 (child 0: the status + origin set, #1435, shipped). Promoted 2026-10-06. **Round 10 (owner, 2026-10-06) replaces round 9's conditional tick:** a node in an attack's origin set has its stacks ×`exert_growth` (2) **at launch**; every turn end the row pays ⌈stacks × `bleed_rate` (½)⌉ flat HP, then decays on a ramp (−1, −2, −3 … while not exerting; exertion resets it). A core exerts by *moving*, once per turn, never by attacking. Dealloc or death spills ⌊S/(N+M)⌋ to each owned neighbour, the unallocated shares soak away. STR: the price of exertion. Edgelord's **Bleeding Edge** jab takes a new name (#1449) |
 | Mark | hunter's mark, crit taken | `mark_aspect` | shipped (#1441) | #1442 | #1443 — a fresh first spell; the shipped `hex` becomes Curse's Malediction (owner, 2026-10-11) | #1250 | row: #1439 (child 0: the status, #1440, shipped). DEX's slot (owner, 2026-10-20, #1710: today's Hex renamed Mark, mechanic unchanged; it held INT's slot from 2026-10-06, round 9). The defender side of crit: per stack, hits *against* the node crit more often, a % on the saturating curve (Blindness / Weakness shape) — **Mark pass (owner, 2026-10-07, run as Hex): flat +5% per stack for now, past 100% is #197; authored as `incoming_modifiers` on the status**; attacker-side `crit_chance` / `crit_multiplier` stay DEX's native stats, never an aspect. The crit roll must open for a marked target even when the attacker's board holds no crit investment (#1280's stream note) |
 | Hex | resistance shred, vulnerability | `hex_aspect` | #1713 | #1714 | #1715 | #1250 | row: #1711 (child 0: the status, #1712). INT's slot (owner, 2026-10-20: *"hex is like wither but for resistances. Tears down immunity and perhaps even applies negative resist aka some kind of vulnerability?"*). Per stack an ADD_BONUS of −`resist_per_stack` (tentative 0.1) on `status_resistance`, so every `<aspect>_resistance` drops at once; **negative resistance is vulnerability** (owner pick over a floor at 0): below 0% more stacks land and tick than the row holds. `FlatDecay` 1. No `hex_resistance`. No ammo, ring cells or glyph of its own yet: the aspect def carries no ammo until #1713, the ring keeps its 2-per-sector table, the icon is a placeholder on Mark's |
@@ -374,15 +374,20 @@ Owner: *"maybe we should move Fuel OUT of Fire, and turn it into smth like
 (Heat, Cold, Charge)"*; *"like "3 Catalyst" has incoming hit of "2 Heat" and
 it turns it into "5 Heat" doing a 1:1 Catalyst→{incoming element} trade"*.
 
-- **One status, inert terrain.** Side-less (it rests on a node regardless of
-  owner and survives death); it never counts toward any threshold, never
-  primes, never goes off.
-- **Converts its whole store, 1:1,** into an element when (a) a hit carrying
-  that element's rider (Heat, Cold or Charge) lands on its node, or (b) its
-  node primes (crosses T into Burning / Frozen / Shocked) by any route. A hit
-  carries at most one element, hence no slice (owner: *"iff we decide a hit
-  can have at 0 or 1 Element associated with it then we don't need the
-  "slice" part and can just consume all"*).
+- **One status, inert terrain.** It lives on allocated nodes only and clears
+  with its holder, as Poison does (owner, 2026-11-09: *"i think catalyst only
+  sits on allocated nodes like most/all Aspect statuses"*); it never counts
+  toward any threshold, never primes, never goes off.
+- **Converts its whole store, 1:1,** (a) into the Heat, Cold and Charge
+  stacks that land with it on its node, however they land — pro rata over
+  them when several elements land, largest remainder, a tied leftover staying
+  Catalyst — and (b) into the element its node primes into when it crosses T
+  into Burning / Frozen / Shocked by any route; flow below T never converts
+  it. A hit's primary element plays no part (owner, 2026-11-11: *"i think
+  catalyst should not pay attention to primary attributes and *only* consider
+  cold heat charge stacks landing as siblings"*). The whole store goes, no
+  slice (owner: *"iff we decide a hit can have at 0 or 1 Element associated
+  with it then we don't need the "slice" part and can just consume all"*).
 - **Greed for elements.** Owner: *"in essence this is almost like what Greed
   is for Aspect Statuses, but for Elements (i think Greed shouldn't multiply
   incoming Heat/Cold/Charge stacks, but Catalyst may?)"*. The split of labour:
