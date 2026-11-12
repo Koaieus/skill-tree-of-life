@@ -340,14 +340,15 @@ func _describe(outcome: AttackOutcome, ammo: AmmoType, preset: Preset) -> String
 			% [ammo.id, arrows.size(), Preset.keys()[preset].capitalize(), duds, held, heals, crits]
 
 
-## The arrows of a committed volley: every hit but the status riders. Not
+## The arrows of a committed volley: every hit but the status riders and the
+## go-off copies (a copy carries its [BlastMark]). Not
 ## [method AttackOutcome.damage_hits] — that drops a hit mitigation flipped to
 ## a heal (rebuilt from the record as a [HealInstance]), which is exactly the
 ## Gained beat.
 static func arrows_of(outcome: AttackOutcome) -> Array[HitInstance]:
 	var out: Array[HitInstance] = []
 	for hit in outcome.hits:
-		if hit is DamageInstance or hit is HealInstance:
+		if (hit is DamageInstance or hit is HealInstance) and hit.blast_mark == null:
 			out.append(hit)
 	return out
 
