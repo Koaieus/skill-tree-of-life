@@ -235,6 +235,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	# Land every arrival's element riders, absorbed or not.
 	var batch := TerrainSettle.Batch.new()
 	var reading: Dictionary = {}  # SkillNode -> Array of the _Hits read there
+	var landed: Dictionary = {}  # SkillNode -> {element id: int} landing there (_convert_landing)
 	for node in nodes:
 		var landing: Array = []
 		var best: Dictionary = {}  # _Hit -> {Element: int}
@@ -245,7 +246,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 			if not landing.has(h):
 				landing.append(h)
 			if not a.is_copy:
-				_land_riders(h)
+				_land_riders(h, landed)
 				continue
 			if not best.has(h):
 				best[h] = {}
@@ -256,10 +257,17 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 		for h: _Hit in best:
 			for e: Element in best[h]:
 				_add(batch, node, e, int(best[h][e]))
+				_landed(landed, node, e, int(best[h][e]))
 		for h: _Hit in landing:
 			h.visited[node] = true
 		reading[node] = landing
-	TerrainSettle.commit(batch)
+	# Catalyst converts over each node's landing, its take committed before the
+	# write so the settle seat reads the row after it.
+	var land_rows: Dictionary = {}
+	for node: SkillNode in landed:
+		_convert_landing(node, landed[node], batch, land_rows)
+	_commit_rows(land_rows)
+	TerrainSettle.commit(batch, _seat_take)
 	# Read: the node's second Admits answer over every arrival of the
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
@@ -291,7 +299,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				_spend_row(rows, node, aspect.status, result.spend_at_read())
 				_append_reach(h, node, result, aspect.go_off, generation + 1, next, null, aspect.identity)
 	_release(generation, spends, next)
-	TerrainSettle.commit(spends)
+	TerrainSettle.commit(spends, _seat_take)
 	_commit_rows(rows)
 	_entries.append_array(bursts)
 	return next
@@ -553,8 +561,9 @@ static func _named(e: Element, band: ElementBand) -> Identity:
 
 
 ## Land [param h]'s own element riders where they fall, through each row's own
-## landing (its fold, its gate), and mark them staged for stage two.
-func _land_riders(h: _Hit) -> void:
+## landing (its fold, its gate), and mark them staged for stage two; each one's
+## stacks summed into [param landed] on its node ([method _landed]).
+func _land_riders(h: _Hit, landed: Dictionary) -> void:
 	var roster := ElementRoster.shared()
 	for hit in h.span:
 		var status := hit as StatusInstance
@@ -571,6 +580,61 @@ func _land_riders(h: _Hit) -> void:
 		status.land_on(slice, _world)
 		status.staged = true
 		h.terrain[e] = int(h.terrain.get(e, 0)) + int(status.power)
+		_landed(landed, status.target, e, int(status.power))
+
+
+## [param n] stacks of [param e] landing on [param node] this generation, summed
+## into [param landed] (`SkillNode -> {element id: int}`): a head's riders and
+## its copies' alike, what [method _convert_landing] converts over.
+static func _landed(landed: Dictionary, node: SkillNode, e: Element, n: int) -> void:
+	if n <= 0 or e == null or node == null:
+		return
+	if not landed.has(node):
+		landed[node] = {}
+	landed[node][e.id()] = int(landed[node].get(e.id(), 0)) + n
+
+
+## The land step's Catalyst hook (#1801; Composition's land conversion, ADR
+## 0083 §1): once per node per land commit, each [CatalystStatus] row
+## [param node]'s slice holds converts over [param landing] (element id → the
+## Heat, Cold and Charge stacks landing there this generation) through
+## [method CatalystStatus.convert], and the stacks it makes join
+## [param batch], the node's one terrain write, so the hit's read counts them.
+## The take goes through the row seat into [param rows], which the land step
+## commits (and records, [member HitInstance.row_ops]) before the write, so the
+## settle seat reads the row after it: nothing converts twice. Only the node's
+## own row converts; a bare core's entity-hosted row holds no terrain
+## (tentative).
+func _convert_landing(node: SkillNode, landing: Dictionary, batch: TerrainSettle.Batch,
+		rows: Dictionary) -> void:
+	var slice := _slice(node)
+	if slice == null or landing.is_empty():
+		return
+	var roster := ElementRoster.shared()
+	var seen: Dictionary = {}
+	for row: NodeStatus in slice.get_statuses():
+		var def := row.def as CatalystStatus
+		if def == null or seen.has(def) or row.power <= 0.0:
+			continue
+		seen[def] = true
+		var take := func(spent: int) -> void:
+			_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent))
+		var out := def.convert(slice, landing, take)
+		for id: Variant in out:
+			_add(batch, node, roster.by_id(id), int(out[id]))
+
+
+## The settle seat's take inside the gather ([method TerrainSettle.commit]'s
+## take, bound to the node and def): [param spent] Catalyst off
+## [param slice]'s row of [param def], committed and recorded at once, so the
+## rest of the commit and the beat's later commits read the row after it and a
+## replay takes it too.
+func _seat_take(spent: int, slice: NodeCombat, def: StatusDef) -> void:
+	if slice == null:
+		return
+	var rows: Dictionary = {}
+	_row_change(rows, slice.real(), StatusInstance.HostKind.NODE, def, -float(spent))
+	_commit_rows(rows)
 
 
 func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:

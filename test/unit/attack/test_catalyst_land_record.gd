@@ -22,6 +22,9 @@ var _def: CatalystStatus
 var _fire: Element
 var _lightning: Element
 var _shadow: CombatWorld
+## Held for the whole test: [method StatusRoster.shared] loads the roster, and
+## an unheld one is reloaded without the def the test seated.
+var _roster: StatusRoster
 
 
 func before_each() -> void:
@@ -39,10 +42,12 @@ func before_each() -> void:
 	_def.decay = FlatDecay.new()
 	_def.take_over_path(_PATH)
 	_shadow = CombatWorld.shadow()
+	_roster = StatusRoster.shared()
 
 
 func after_each() -> void:
-	StatusRoster.shared().statuses.erase(_def)
+	_roster.statuses.erase(_def)
+	_roster = null
 	if _shadow != null:
 		_shadow.free_shadow()
 		_shadow = null
@@ -162,7 +167,7 @@ func test_a_re_drained_head_converts_once() -> void:
 
 func test_a_land_that_splits_and_primes_records_both_takes() -> void:
 	var n: SkillNode = await _alone()
-	StatusRoster.shared().statuses.append(_def)
+	_roster.statuses.append(_def)
 	var live := _slice(n, CombatWorld.live())
 	var t := live.terrain_threshold()
 	assert_gte(t, 3, "fixture: 2 Charge stays inert")

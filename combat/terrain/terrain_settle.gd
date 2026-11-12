@@ -78,13 +78,18 @@ class SettleReader:
 ## owner's). Flow at or below T never converts, and a node already primed does
 ## not convert again on more of the same. It reads the ints it is handed, so a
 ## crossing in a land batch, a spend batch or a world-turn step reads alike.
-## It takes the Catalyst off the row and writes no terrain int itself.
+## It takes the Catalyst off the row, or hands the take to [member take] when
+## the commit was given one, and writes no terrain int itself.
 class PrimeConversion:
 	extends SettleReader
 	var def: CatalystStatus
+	## `take.call(spent, node, def)` commits the take instead of the row write
+	## ([method CatalystStatus.convert]'s take): #1798's gather records it.
+	var take: Callable
 
-	func _init(catalyst: CatalystStatus) -> void:
+	func _init(catalyst: CatalystStatus, row_take := Callable()) -> void:
 		def = catalyst
+		take = row_take
 
 	func read(node: NodeCombat, pre_t: int, pre_charge: int,
 			post_t: int, post_charge: int, sums: Sums) -> void:
@@ -98,7 +103,7 @@ class PrimeConversion:
 		_cross(crossed, axes, Terrain.Axis.CHARGE, pre_charge, post_charge, t)
 		if crossed.is_empty():
 			return
-		var out := def.convert(node, crossed)
+		var out := def.convert(node, crossed, take.bind(node, def) if take.is_valid() else Callable())
 		for e: Variant in out:
 			var n := int(out[e])
 			match axes[e]:
@@ -123,23 +128,26 @@ class PrimeConversion:
 
 
 ## The readers every [method commit] runs: one [PrimeConversion] per
-## [CatalystStatus] the status roster authors. None does until the retag unit's
+## [CatalystStatus] the status roster authors, each handed [param take] (see
+## [member PrimeConversion.take]). None does until the retag unit's
 ## `catalyst.tres`, so until then the seat is empty and no settle moves.
-static func seat() -> Array[SettleReader]:
+static func seat(take := Callable()) -> Array[SettleReader]:
 	var out: Array[SettleReader] = []
 	var roster := StatusRoster.shared()
 	if roster == null:
 		return out
 	for def in roster.statuses:
 		if def is CatalystStatus:
-			out.append(PrimeConversion.new(def))
+			out.append(PrimeConversion.new(def, take))
 	return out
 
 
 ## Commit [param batch] with the seat's readers. Returns the nodes whose ints
-## moved.
-static func commit(batch: Batch) -> Array[NodeCombat]:
-	return commit_with(batch, seat())
+## moved. A [param take] routes the seat's Catalyst takes to the caller
+## ([member PrimeConversion.take]); #1798's gather passes one so its commits'
+## takes are recorded, the world turn's pass none.
+static func commit(batch: Batch, take := Callable()) -> Array[NodeCombat]:
+	return commit_with(batch, seat(take))
 
 
 ## Commit [param batch] with [param readers]: per node, the post-batch ints
