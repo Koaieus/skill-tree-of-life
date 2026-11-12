@@ -49,6 +49,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	StatusRoster.shared().statuses.erase(_def)
 	CombatWorld.reset_live()
 
 
@@ -122,6 +123,8 @@ func test_the_primary_element_plays_no_part() -> void:
 			assert_eq((m.args as Array).size(), 2, "converted(store, landing): no primary element")
 	assert_eq(CatalystStatus.converted(3, {_charge_id: 1}), {_charge_id: 3},
 			"a lone Charge stack converts the store to Charge, whatever carries it")
+	_plant(3)
+	assert_eq(_def.convert(_node, {_charge_id: 1}), {_charge_id: 3}, "convert(): the row goes to Charge")
 
 
 func test_the_split_one_to_two_with_no_remainder() -> void:
@@ -252,13 +255,13 @@ func test_a_landing_that_splits_and_primes_converts_the_leftover_at_settle() -> 
 
 func test_two_bands_crossing_at_once_split_by_their_excess() -> void:
 	# Tentative (not the owner's): the store splits over the crossed elements,
-	# weighted by each one's excess past T.
+	# weighted by each one's excess past T (1 and 2 here, so 3 splits 1 : 2).
 	_put(_t() - 1, _t() - 1)
 	_plant(3)
-	_settle(2, 2)
-	assert_eq(_node.terrain_t(), _t() + 1 + 1, "Heat: its half of the tie")
-	assert_eq(_node.charge(), _t() + 1 + 1, "Charge: its half of the tie")
-	assert_eq(_store(), 1, "the tied leftover stays")
+	_settle(2, 3)
+	assert_eq(_node.terrain_t(), _t() + 1 + 1, "Heat, excess 1: one third")
+	assert_eq(_node.charge(), _t() + 2 + 2, "Charge, excess 2: two thirds")
+	assert_eq(_store(), 0, "1 : 2 leaves nothing")
 
 
 func test_converted_stacks_obey_the_cap_and_overflow() -> void:
@@ -269,9 +272,30 @@ func test_converted_stacks_obey_the_cap_and_overflow() -> void:
 	_settle(2)
 	var heat := _node.terrain_t()
 	assert_eq(heat, _t() + 1 + cap, "the conversion lands through the one writer, unclamped")
-	assert_eq(Terrain.overflow(heat, cap), heat - cap, "the stacks past k × T are the overflow")
+	assert_gt(Terrain.overflow(heat, cap), 0, "the stacks past k × T are overflow, which burns off at decay (#1795)")
 	var band := _node.terrain_band(_fire)
 	assert_true(band != null and band.at_cap, "the node reads the cap band")
+
+
+func test_the_seat_carries_one_prime_conversion_per_catalyst_def_in_the_roster() -> void:
+	var roster := StatusRoster.shared()
+	var before := _prime_readers().size()
+	roster.statuses.append(_def)
+	var readers := _prime_readers()
+	assert_eq(readers.size(), before + 1, "a CatalystStatus in the roster seats one reader")
+	assert_true(readers.any(func(r: TerrainSettle.PrimeConversion) -> bool: return r.def == _def), "over that def")
+	_put(_t() - 1, 0)
+	_plant(3)
+	var batch := TerrainSettle.Batch.new()
+	batch.add_net_t(_node, 2)
+	TerrainSettle.commit(batch)
+	assert_eq(_node.terrain_t(), _t() + 1 + 3, "commit() runs the seat: the store converts")
+	assert_eq(_store(), 0, "the row went")
+
+
+func _prime_readers() -> Array:
+	return TerrainSettle.seat().filter(
+			func(r: TerrainSettle.SettleReader) -> bool: return r is TerrainSettle.PrimeConversion)
 
 
 # ── Acceptance 3: the goo arrow ──────────────────────────────────────────────
