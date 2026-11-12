@@ -113,7 +113,7 @@ func _fixture(own_node: bool, dedupe := false) -> Array:
 	var combat := c.get_combat()
 	combat.add_terrain(_fire(), _t(c) + 1 - c.get_combat().terrain_t())
 	combat.apply_status(StatusRoster.shared().by_concept(&"explosive"), 2.0)
-	assert_lt(2, c.get_combat().terrain_threshold() + 1 + 1, "fixture sanity: C primed past T")
+	assert_eq(c.get_combat().terrain_t(), _t(c) + 1, "fixture: C sits at T + 1 before the hit")
 	assert_lt(1, n.get_combat().terrain_threshold() + 1, "fixture: N stays unprimed after both copies")
 	return [c, n, _land(_hit(c, 1))]
 
