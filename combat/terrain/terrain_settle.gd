@@ -69,6 +69,15 @@ class SettleReader:
 		pass
 
 
+## Stub (#1801 C, red first).
+class PrimeConversion:
+	extends SettleReader
+	var def: CatalystStatus
+
+	func _init(catalyst: CatalystStatus) -> void:
+		def = catalyst
+
+
 ## The readers every [method commit] runs. Empty until #1801 seats the first.
 static func seat() -> Array[SettleReader]:
 	var out: Array[SettleReader] = []
