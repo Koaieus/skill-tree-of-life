@@ -176,9 +176,14 @@ func _may_host(def: StatusDef) -> bool:
 ## one on the host before touching it — a tick can `take_damage` into a kill
 ## cascade that `release_statuses()` this very host, or a hook can remove a
 ## sibling; either way a vanished status is skipped, never resurrected.
-func tick_statuses() -> void:
+## [param world_turn] false (a holder's turn end) skips rows whose def sets
+## [member StatusDef.decay_per_world_turn]; true (the world turn's pass,
+## [method CombatWorld.tick_world_turn_decay]) ticks ONLY those rows.
+func tick_statuses(world_turn: bool = false) -> void:
 	for row in get_statuses():
 		var id := row.def.id
+		if row.def.decay_per_world_turn != world_turn:
+			continue
 		if _row(id, row.key) != row:
 			continue  # vanished mid-tick
 		var before := float(row.power)
@@ -284,6 +289,15 @@ func release_statuses(keep_lingering: bool = false) -> Array[NodeStatus]:
 		out.append(row)
 		remove_row(row.def.id, row.key)
 	return out
+
+
+## True iff any row on the host is a `decay_per_world_turn` def's.
+func has_world_turn_decay() -> bool:
+	for id in _statuses:
+		for row in (_statuses[id] as Dictionary).values():
+			if (row as NodeStatus).def.decay_per_world_turn:
+				return true
+	return false
 
 
 ## True iff any row on the host is a `LINGER` def's.

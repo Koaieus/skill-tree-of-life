@@ -444,6 +444,7 @@ func _end_world_turn() -> void:
 		if is_instance_valid(e) and not e.is_dead:
 			e.resolve_turn_end()
 	CombatWorld.live().tick_lingering()
+	CombatWorld.live().tick_world_turn_decay()
 	CombatWorld.live().flow_temperature(terrain_steps_per_world_turn)
 	CombatWorld.live().flush_removals()
 	world_turn_ended.emit()

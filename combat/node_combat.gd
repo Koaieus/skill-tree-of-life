@@ -724,8 +724,8 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 
 
 ## See [method StatusHost.tick_statuses].
-func tick_statuses() -> void:
-	_status_host.tick_statuses()
+func tick_statuses(world_turn: bool = false) -> void:
+	_status_host.tick_statuses(world_turn)
 
 
 ## Move [param def]'s raw row by [param delta] stacks — see
@@ -874,4 +874,8 @@ func _on_statuses_changed() -> void:
 			CombatWorld.live().note_lingering(self)
 		else:
 			CombatWorld.live().forget_lingering(self)
+		if _status_host.has_world_turn_decay():
+			CombatWorld.live().note_world_turn_decay(self)
+		else:
+			CombatWorld.live().forget_world_turn_decay(self)
 		host.notify_statuses_changed()

@@ -191,6 +191,17 @@ func is_shadow() -> bool:
 
 ## Insertion-ordered set: [NodeCombat] -> true.
 var _lingering: Dictionary = {}
+## Live nodes holding a `decay_per_world_turn` row; kept by
+## [method NodeCombat._on_statuses_changed], ticked by [method tick_world_turn_decay].
+var _world_turn_decay: Dictionary = {}
+
+
+func note_world_turn_decay(node: NodeCombat) -> void:
+	_world_turn_decay[node] = true
+
+
+func forget_world_turn_decay(node: NodeCombat) -> void:
+	_world_turn_decay.erase(node)
 
 
 ## [param node] holds a `LINGER` row. No-op on a shadow world.
@@ -379,6 +390,19 @@ func decay_terrain() -> Array[NodeCombat]:
 		if node.charge() > 0:
 			batch.add_charge(node, -TerrainSettle.decay_rate(node, charge))
 	return TerrainSettle.commit(batch)
+
+
+## One world-turn tick of every node row whose def sets
+## [member StatusDef.decay_per_world_turn] — run by
+## [method TurnManager._end_world_turn] right after [method tick_lingering].
+## Snapshot iteration; a host whose node is gone is dropped.
+func tick_world_turn_decay() -> void:
+	for node: NodeCombat in _world_turn_decay.keys():
+		if not is_instance_valid(node.host):
+			_world_turn_decay.erase(node)
+			continue
+		if _world_turn_decay.has(node):
+			node.tick_statuses(true)
 
 
 ## One tick of every unowned lingering host — run once per WORLD turn end by
