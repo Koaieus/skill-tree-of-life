@@ -99,8 +99,7 @@ func _play() -> void:
 	_stage.add_child(_visual)
 	_visual.radius = _reach.value
 	_visual.power = int(_power.value)
-	var fill := 0.22
-	BlastVFX.apply_look(_visual, _go_offs[maxi(_go_off.selected, 0)], _elements, fill)
+	BlastVFX.apply_look(_visual, _go_offs[maxi(_go_off.selected, 0)], _elements, BlastVFX.DEFAULT_DISC_FILL)
 	_visual.riders = _picked()
 	_visual.companions = BlastVFX.layers_for(_visual.riders, _roster, _LAYER_SCENE)
 	_visual.finished.connect(_on_finished)

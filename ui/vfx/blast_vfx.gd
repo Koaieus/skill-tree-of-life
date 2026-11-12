@@ -6,6 +6,9 @@ extends Node2D
 ## frees it when done. Bus-driven like the pop burst — the cue arrives on the
 ## mutation clock from [OutcomeApplier], on the authority and peers alike.
 
+## The disc fill default, shared with the sandbox blast tab.
+const DEFAULT_DISC_FILL := 0.22
+
 ## The one-shot per blast.
 @export var visual_scene: PackedScene = preload("res://ui/vfx/blast_visual.tscn")
 ## The layer a rider gets when its aspect authors none ([member Aspect.blast_layer]).
@@ -16,7 +19,7 @@ extends Node2D
 @export var element_roster: ElementRoster = null
 ## How opaque the filled disc under an element's blast ring is (Burning's disc
 ## reads as a disc, go-off zero's as a bare ring). Tentative, easy to change.
-@export_range(0.0, 1.0, 0.01) var element_disc_fill: float = 0.22
+@export_range(0.0, 1.0, 0.01) var element_disc_fill: float = DEFAULT_DISC_FILL
 ## Silences the ring (a headless harness, a cinematic).
 @export var muted: bool = false
 ## Seconds between a cascade's generations (tentative, #1799): a disc whose
@@ -106,6 +109,7 @@ static func look_for(go_off: Identity, elements: ElementRoster) -> Identity:
 ## The sandbox blast tab calls this too.
 static func apply_look(visual: BlastVisual, go_off: Identity, elements: ElementRoster, fill: float) -> void:
 	var look := look_for(go_off, elements)
-	if look != null:
-		visual.identity = look
-		visual.disc_fill = fill
+	if look == null:
+		return
+	visual.identity = look
+	visual.disc_fill = fill

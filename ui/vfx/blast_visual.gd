@@ -41,7 +41,8 @@ signal finished
 	set(value):
 		emissive_tier = value
 		queue_redraw()
-## Whose heat the ring carries — the explosive identity.
+## Whose colour the ring carries — the explosive identity by default, an
+## element's when [BlastVFX] restyles a disc by its go-off.
 @export var identity: Identity = null:
 	set(value):
 		identity = value
