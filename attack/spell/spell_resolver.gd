@@ -140,10 +140,10 @@ static func _resolve(
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
-	# Behind the arming rule: a landing detonates its [DetonateUse] load with
-	# whatever charges the node holds; a [FuelUse] load never passes.
+	# A [DetonateUse] load rides each head as its `hit_load` (the stamper
+	# below), which the gather's go-off reads; a [FuelUse] load never passes.
 	var load_bag := cast_infusion.bag(spell)
-	var riders := DetonateEffect.arm(load_bag.riders, load_bag.detonate_load)
+	var riders := load_bag.riders
 	# Riders are fresh per cast, so gating them in place is safe.
 	for rider in riders:
 		rider.when = spell.rider_when
@@ -293,8 +293,6 @@ static func _resolve(
 
 		# 3. Apply effects, emit a timeline event per landing, bump visit counter.
 		var wave_first := outcome.hits.size()
-		# One detonation scope per wave ("magic goes in beats").
-		var detonated: Dictionary = {}
 		# state -> the event it emitted, so step 4 can stamp `is_terminal` on
 		# the landings the walk actually ENDED at (#543 D6) rather than leaving
 		# a VFX reader to re-derive the stopping condition. Identity-keyed: two
@@ -333,7 +331,6 @@ static func _resolve(
 			# full; see the #381 plan). The arrival's head decides its crit once,
 			# against the arrival that appended it (`_crit_at_head`).
 			for alctx: LandingContext in arrivals_of[state]:
-				alctx.detonated = detonated
 				# Run by `place()` over every hit this landing appended. The
 				# caster is stamped HERE rather than inside each OnHitEffect:
 				# every effect that appends a hit needs it (the shared crit roll
