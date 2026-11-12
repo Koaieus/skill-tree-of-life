@@ -151,7 +151,8 @@ static func is_burst(hit: HitInstance) -> bool:
 
 ## Stage one over one beat, [param group] in land order. Gathers every fresh
 ## head (marked, not yet [member HitInstance.gathered]); feeds every other hit's
-## recorded [member HitInstance.terrain_ops]; pushes the entries onto
+## recorded [member HitInstance.terrain_ops] and [member HitInstance.row_ops];
+## pushes the entries onto
 ## [param queue].
 static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQueue) -> void:
 	if world == null:
