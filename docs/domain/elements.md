@@ -54,7 +54,7 @@ stores a band here: #1794's band function reads `bands` against
 | `threshold_multiple` | the threshold as a multiple of T (≥ 1) |
 | `at_cap` | true: the threshold is the node's cap k × T and `threshold_multiple` is ignored; only the last band |
 | `identity` | the band's display atom; null falls back to the band below |
-| `go_off` | a `GoOff` (`elements/go_off.gd`, an empty abstract base); null on every band. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
+| `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning band holds a `DiscGoOff` (#1800), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
 | `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); null on every band. #1807 owns the answer |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
@@ -86,7 +86,8 @@ The `AspectRoster` pattern: hard `ExtResource` edges, read through
   Catalyst is nobody's member, so it answers null.
 
 Guard: `test/unit/elements/test_element_roster.gd` (roster vs disk, lookups,
-facet identities, band order, null go-offs and admits, verbs, light, decay).
+facet identities, band order, Fire's one `DiscGoOff` and null admits, verbs,
+light, decay).
 
 ## The terrain statuses: Heat, Cold, Charge
 
@@ -228,5 +229,53 @@ through `Kind.values()`.
 
 `AspectIntake.plants` (`attack/spell/aspect_intake.gd`): when set, `status()`
 returns it; null falls back to the concept's only status through
-`StatusRoster.by_concept`. No shipped row sets it yet; #1800 rekeys
-`Infusion.load_of` / `use_of` so a row named by element resolves its status.
+`AspectIntake.concept_status` (an element's terrain, else
+`StatusRoster.by_concept`). No shipped row sets it yet; #1800 rekeys
+`Infusion.load_of` / `use_of` so a row named by element resolves its status
+(below).
+
+## Burning's disc and dual reach (#1800)
+
+Fire's Burning band authors a second `DiscGoOff` (`elements/disc_go_off.gd`) on
+`elements/defs/fire.tres`. Every seam the class adds defaults to go-off zero's
+value — `power_source = EXPLOSIVE_CHARGES`, `radius_source =
+EXPLOSIVE_SPREAD`, `spend_source = SPEND_OF`, `damage_per_power = 0` — and
+Burning sets each:
+
+- **Power.** Heat's excess over T (`Power.HEAT_EXCESS`, `Terrain.excess` on the
+  node's read), read after the hit's Heat rider has landed, the overflow past
+  the cap included. Power ≤ 0 is no go-off.
+- **Radius.** `DiscGoOff.disc_radius(power, node_radius)` =
+  `radius_a × (√power + radius_b) ×` the origin node's radius (`Radius.DISC`).
+  `radius_a` (default 2) and `radius_b` (default 1) are tentative knobs
+  (#1800).
+- **Spend.** `Spend.PER_NODE`: 1 Heat per other node reached, through
+  `GoOffResult.cost` and the gather's `TerrainSettle` batch. A disc that
+  reaches no other node spends nothing and does not go off (the base `GoOff`
+  law); it has no nodeless cost.
+- **Own damage.** `damage_per_power × power` on each copy and on the centre
+  landing; 2 on Fire's instance (tentative knob, #1800).
+- **Reach.** Shape alone (`_within`, `EuclideanRangeFinder`), the centre
+  excluded; the hit's own `target_mask` decides which reached nodes take a
+  copy. Its `BlastMark` names the band's identity (`Burning`).
+
+One read of a node fires both every band's `go_off` and every aspect's
+`go_off` (`HitGather._generation`, `attack/outcome/hit_gather.gd`) — dual
+reach. Each go-off adds its own centre entry when `lands_on_own_node` (the base
+default, true on Fire's disc). `HitGatherTunables.dedupe_dual_reach`
+(`attack/outcome/hit_gather_tunables.gd`, default false) folds a node's two
+copies of one head, in one generation, into one landing at the summed shares.
+
+**The ride row's rekeying.** An intake row named by an element resolves its
+status by that element (`AspectIntake.concept_status` asks
+`ElementRoster.by_id` first), so `Infusion.load_of` / `use_of` and its riders
+carry it. A Heat row resolves to Heat, and a `PlantUse`'s `ApplyStatusEffect`
+lands as terrain: Heat goes into the node's terrain and no status row is
+planted (§ Terrain's landing divert).
+
+**The look.** A disc's `BlastMark` names its go-off, and `BlastVFX.look_for`
+(`ui/vfx/blast_vfx.gd`) finds the element whose band identity that is, so
+`apply_look` gives the `BlastVisual` (`ui/vfx/blast_visual.gd`) that element's
+colour and a filled disc.
+
+**Not yet.** Fire's overflow band has no `go_off` authored yet.
