@@ -61,6 +61,13 @@ still a knob: their value is the default.
     taken spends (`floor(power × spend_factor)`; 1.0 disables).
   - `GreedStatus.avarice_increase_per_stack` (default 10.0) — `bounty`
     INCREASE % per stack. (No `hoard_increase_per_stack` exists; this is it.)
+  - `CatalystStatus.ratio_in` (1–10+, default 1) — Catalyst paid per
+    `ratio_out` stacks of the landing element.
+  - `CatalystStatus.ratio_out` (1–10+, default 1) — landing stacks bought per
+    `ratio_in` Catalyst; the two are the trade rate, `part × ratio_out /
+    ratio_in`, integer division.
+  - `CatalystStatus.cap_k_times_t` (default true) — caps the row at its node's
+    k × T (`NodeCombat.terrain_cap`, #1794); off, `StatusDef.power_max` alone.
 - **Terrain** (#1794; tentative, shared with #1795, #1796 and #1798):
   - `TerrainRules.t_per_degree` (1–8, default 2) — T per point of graph
     degree, in `combat/terrain/terrain_rules.tres`; a node primes past
