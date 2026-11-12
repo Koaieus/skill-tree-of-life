@@ -117,7 +117,8 @@ func _facet_id(role: StatDef.Role) -> StringName:
 ## ([method CombatWorld.tick_world_turn_decay], run by
 ## [method TurnManager._end_world_turn], beside the unowned `LINGER` ticks).
 ## Default false: the row ticks at its holder's turn end as ever. Node rows
-## only; an entity-level row is not routed.
+## only: on an entity host (a cracked core's rows move there) the row ticks
+## at the holder's turn end as ever.
 @export var decay_per_world_turn: bool = false
 ## How stacks move between hosts — a [StatusSpread] signature, shared and
 ## stateless like this def. `null` → the status never spreads.

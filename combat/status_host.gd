@@ -177,12 +177,14 @@ func _may_host(def: StatusDef) -> bool:
 ## cascade that `release_statuses()` this very host, or a hook can remove a
 ## sibling; either way a vanished status is skipped, never resurrected.
 ## [param world_turn] false (a holder's turn end) skips rows whose def sets
-## [member StatusDef.decay_per_world_turn]; true (the world turn's pass,
+## [member StatusDef.decay_per_world_turn] on a NODE host; true (the world turn's pass,
 ## [method CombatWorld.tick_world_turn_decay]) ticks ONLY those rows.
 func tick_statuses(world_turn: bool = false) -> void:
 	for row in get_statuses():
 		var id := row.def.id
-		if row.def.decay_per_world_turn != world_turn:
+		# Only a NODE host is on the world pass; an entity host (a cracked
+		# core's rows land there) keeps ticking every row at its turn end.
+		if (row.def.decay_per_world_turn and owner is NodeCombat) != world_turn:
 			continue
 		if _row(id, row.key) != row:
 			continue  # vanished mid-tick

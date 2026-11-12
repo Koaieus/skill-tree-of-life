@@ -197,7 +197,8 @@ var _world_turn_decay: Dictionary = {}
 
 
 func note_world_turn_decay(node: NodeCombat) -> void:
-	_world_turn_decay[node] = true
+	if not _shadow and node != null:
+		_world_turn_decay[node] = true
 
 
 func forget_world_turn_decay(node: NodeCombat) -> void:
@@ -395,8 +396,10 @@ func decay_terrain() -> Array[NodeCombat]:
 ## One world-turn tick of every node row whose def sets
 ## [member StatusDef.decay_per_world_turn] — run by
 ## [method TurnManager._end_world_turn] right after [method tick_lingering].
-## Snapshot iteration; a host whose node is gone is dropped.
+## Snapshot iteration; a node slice whose host is gone is dropped.
 func tick_world_turn_decay() -> void:
+	if _shadow:
+		return
 	for node: NodeCombat in _world_turn_decay.keys():
 		if not is_instance_valid(node.host):
 			_world_turn_decay.erase(node)

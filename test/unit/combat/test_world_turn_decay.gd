@@ -47,3 +47,25 @@ func test_default_def_still_decays_at_holder_turn_end() -> void:
 	_build(false)
 	_tm.end_turn()
 	assert_eq(_power(), 4.0, "default false: the holder's own turn end ticks it")
+
+
+func test_second_world_turn_decays_again_once() -> void:
+	_build(true)
+	for _i in 4:
+		_tm.end_turn()
+	assert_eq(_power(), 3.0, "two world turns: down by two, no double tick")
+
+
+func test_default_row_is_not_ticked_by_the_world_pass() -> void:
+	_build(false)
+	_tm.end_turn()
+	_tm.end_turn()  # world turn closes
+	assert_eq(_power(), 4.0, "only the holder's one turn end ticked it (A played once), no extra tick from the world pass")
+
+
+func test_flagged_row_on_an_entity_host_still_decays_at_turn_end() -> void:
+	_build(true)
+	var ent: Entity = _node.owned_by
+	ent.get_combat().apply_status(_def, 5.0)
+	ent.get_combat().tick_statuses()
+	assert_eq(ent.get_combat().get_status_power(_def.id), 4.0, "entity host ticks it")
