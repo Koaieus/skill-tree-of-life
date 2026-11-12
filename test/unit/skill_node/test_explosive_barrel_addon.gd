@@ -131,7 +131,7 @@ func test_turn_end_decay_then_turn_start_refill() -> void:
 # --- the temp face: one Explosive Status Stack on the swing's working copy ----
 # A temp barrel is inert like any barrel; on apply it adds one stack to its
 # vertex's `vertex_charges` (the swing's copy of the node's charges), and that
-# stack is what the swing spends as a blast. The node's own row is untouched.
+# stack is what the swing spends as the head's load. The node's own row is untouched.
 
 func _temp_barrels(n: SkillNode, count: int) -> Array[ExplosiveBarrelAddon]:
 	var out: Array[ExplosiveBarrelAddon] = []
@@ -197,7 +197,7 @@ func test_a_temp_barrel_never_writes_the_carriers_status_nor_counts_as_a_barrel(
 	assert_eq(map[0].barrel_count(), 1, "barrel_count skips the temp")
 
 
-func test_a_swing_spends_a_temp_barrels_stack_as_exactly_one_blast() -> void:
+func test_a_swing_spends_a_temp_barrels_stack_off_the_piece_once() -> void:
 	var f := await VolleyBoardFixture.build(self, true)
 	var piece := f.leaves[0]
 	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0, "no live charges")
@@ -216,12 +216,9 @@ func test_a_swing_spends_a_temp_barrels_stack_as_exactly_one_blast() -> void:
 	di.type = DamageInstance.Type.PHYSICAL
 	di.target = f.target
 	di.attacker = f.attacker
-	var hits: Array[HitInstance] = []
-	gate.arm_blasts(ev, di, hits, CombatWorld.live(), [])
+	gate.stamp_load(ev, di)
+	assert_eq(di.hit_load, 1, "the head carries the temp's one stack as its load")
 	gate.admit(ev, CombatWorld.live())
-	assert_eq(gate.blast_of(ev), BladePopResolver.LiveGate.BLAST, "the contact set the blast off")
 	assert_eq(state.vertex_charges[1], 0, "the stack is spent")
-	var spends := gate.take_spends()
-	assert_eq(spends.size(), 1, "exactly one spend")
 	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0,
 			"nothing reached the board's status rows")

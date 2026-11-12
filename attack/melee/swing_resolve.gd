@@ -328,7 +328,6 @@ func advance(max_steps: int) -> bool:
 
 
 func _finish() -> void:
-	_flush_spends()
 	_done = true
 	_state.speed_history = _speed_history
 	# One coherent timeline over every batch. The record carries each hit's
@@ -367,41 +366,6 @@ func _knock_off_bunkers() -> void:
 		var t := float(maxi(_obstacles.impact_step(z), 0)) * _dt
 		hit.structural_key = t / maxf(0.001, _ctx.swing_duration)
 		_outcome.hits.append(hit)
-
-
-## The explosive charges the gate spent and has not handed over yet, as one
-## cleanse per spend appended to [param hits] — outcomes on the record, never
-## a live write. Keyed at the contact's own time.
-func _append_spends(hits: Array[HitInstance], gate: BladePopResolver.LiveGate) -> void:
-	var spends := gate.take_spends()
-	if spends.is_empty():
-		return
-	var def := BladePopResolver.LiveGate.explosive_def()
-	for spend in spends:
-		var cure := CureInstance.new()
-		cure.add(def, float(spend.count))
-		cure.attacker = _ctx.attacker
-		cure.source = _ctx.hit_source
-		cure.origin = _ctx.origin
-		cure.target = spend.node
-		cure.structural_key = spend.t / maxf(0.001, _ctx.swing_duration)
-		hits.append(cure)
-
-
-## Land the spends the gate decided and has not handed over, on the
-## resolve's world, appended to the outcome. A no-op when there are none.
-func _flush_spends() -> void:
-	var sub := AttackOutcome.new()
-	sub.cadence = ScheduleEntry.Cadence.SWING
-	sub.resolve_seed = _ctx.resolve_seed
-	_append_spends(sub.hits, _gate)
-	if sub.hits.is_empty():
-		return
-	sub.schedule = OutcomeSchedule.compile(sub)
-	OutcomeApplier.apply(sub, _world)
-	for hit in sub.hits:
-		_outcome.hits.append(hit)
-		_hits.append(hit)
 
 
 ## Cut every fused gate's blade edge at [param step] through the bunker-break
@@ -477,6 +441,8 @@ func _land_batch(
 		di.armor_pierce = _pierce_for(di.read_node)
 		di.source = _ctx.hit_source
 		di.attacker = _ctx.attacker
+		# The head's load for the gather's go-off: the piece's charges left.
+		gate.stamp_load(ev, di)
 		# Melee is #543's honest caveat: its structural parameter IS continuous
 		# time the sim produced, so it is NORMALIZED against the swing rather
 		# than "not timing at all". The compiler scales it back out by
@@ -498,16 +464,6 @@ func _land_batch(
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
 			landing.place()
-		# A charged piece's board blast (the striker's side): armed here, fired iff
-		# the gate decides it as this contact lands.
-		if gate.piece_charges(ev.particle_idx) > 0:
-			var overlays := Callable()
-			if _ctx.overlays_for.is_valid():
-				var piece: SkillNode = di.read_node
-				var look: Callable = _ctx.overlays_for
-				overlays = func(sid: StringName) -> Array[ModifierBins]:
-					return look.call(piece, sid)
-			gate.arm_blasts(ev, di, sub.hits, world, riders, overlays)
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)
@@ -524,9 +480,6 @@ func _land_batch(
 	for hit in sub.hits:
 		outcome.hits.append(hit)
 		hits.append(hit)
-	# The charges this batch's contacts spent land now, behind its hits, so
-	# the next batch's arming and gate both read them off the world.
-	_flush_spends()
 
 
 ## [param drivers] minus every driver on a vertex the swing has stopped

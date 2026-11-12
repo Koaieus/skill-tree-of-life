@@ -72,12 +72,12 @@ class Severance extends RefCounted:
 		vertices = vertices_
 
 
-## One explosive blade contact's two sides, as the gate decided them: the
-## striker's side (the piece's load plus the shared chunk) blasts the board,
-## the node's side (the node's charges plus the shared chunk) reaches the
-## blade pieces around the struck node. Recorded so the swing's replay draws
-## it as a pure function of time, like [member Result.dead_at]; nothing reads
-## it to decide anything.
+## One charged blade contact as the gate decided it: the piece's spend and
+## verdict, with both sides' powers kept for the bead read. No side blasts the
+## board or reaches the blade pieces, so [member piece_reach] stays 0.0 and no
+## piece is SHRUGGED. Recorded so the swing's replay draws it as a pure
+## function of time, like [member Result.dead_at]; nothing reads it to decide
+## anything.
 class Contact extends RefCounted:
 	## What the node's-side pass did to one piece it considered.
 	enum Verdict { POPPED, SPENT, SHRUGGED }
@@ -98,44 +98,6 @@ class Contact extends RefCounted:
 		t = t_
 		struck = struck_
 		centre = struck_.global_position if struck_ != null else Vector2.ZERO
-
-
-## One explosive charge spend a blade contact decided: [member count]
-## charges off [member node] at [member t]. Recorded, never written: the
-## resolve lands it as a 1-stack-per-charge cleanse on the attack record.
-class Spend extends RefCounted:
-	var node: SkillNode
-	var count: int
-	var t: float
-
-	func _init(node_: SkillNode, count_: int, t_: float) -> void:
-		node = node_
-		count = count_
-		t = t_
-
-
-## The [member HitInstance.paired] of a blade contact's blast landing: it
-## "landed" iff the gate decided this contact's [member blast_kind] of blast when
-## the contact itself landed (same beat, earlier index). Never in a hit list —
-## only [method HitInstance.rider_gated] ever reads it. Carries the contact's
-## crit so a [PairedDamageInstance] riding it inherits the contact's.
-class BlastToken extends HitInstance:
-	var _gate: LiveGate
-	var _event: BladeHitEvent
-	var blast_kind: StringName
-	var _contact: HitInstance
-
-	## Rides the contact ([member HitInstance.paired]) so a blast rider's
-	## [method CritRoll.decide] reaches the contact's crit through the token.
-	func _init(gate: LiveGate, event: BladeHitEvent, kind_: StringName, contact: HitInstance) -> void:
-		_gate = gate
-		_event = event
-		blast_kind = kind_
-		_contact = contact
-		paired = contact
-
-	func landed() -> bool:
-		return _gate.blast_of(_event) == blast_kind
 
 
 ## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
@@ -222,24 +184,6 @@ class LiveGate extends RefCounted:
 	## one O(E) build instead of one O(E) rescan per dequeued BFS vertex.
 	var _adjacency: Dictionary = {}
 	var _adjacency_built: bool = false
-	## Melee's reach share (owner: "just a bit for fun"): both sides of a
-	## contact reach this share of [method ExplosiveSpread.radius_for] on the
-	## struck node at that side's power. Tentative, easy to change.
-	@export_range(0.0, 2.0, 0.05) var warhead_reach: float = 0.5
-	## The share of the contact's raw damage the board blast's shrapnel deals
-	## (the power sizes the reach, not the damage). Tentative, easy to change.
-	@export_range(0.0, 2.0, 0.05) var shrapnel_fraction: float = 0.5
-	## BladeHitEvent -> [constant BLAST]: the contact set its board blast off,
-	## decided in [method admit] and read by its [BlastToken]s.
-	var _blasts: Dictionary = {}
-	## Real SkillNode -> charges this swing already spent off it. A struck
-	## node's charges are its world power minus this, until the resolve lands
-	## the recorded [Spend]s.
-	var _node_spent: Dictionary = {}
-	## Spends decided and not yet handed to the resolve ([method take_spends]).
-	var _spends: Array[Spend] = []
-	## Finder per warhead reach, so one reach gathers once per landing cache.
-	var _finders: Dictionary = {}
 
 	## `vertex_blunting` is an OPTIONAL particle_idx -> blunting override,
 	## consulted BEFORE the state's own
@@ -311,38 +255,28 @@ class LiveGate extends RefCounted:
 	const _EXPLOSIVE_NONE := 0
 	const _EXPLOSIVE_REFUSE := 1
 	const EXPLOSIVE := &"explosive"
-	const BLAST := &"blast"
 
-	## The explosive cause: one contact, two sides. With the piece's charges
-	## N (the swing's working copy), the struck node's M and
-	## `shared = min(N, M)`, each side that holds charges spends
-	## `max(1, shared)`; the striker's side `N + r·shared` blasts the board
-	## ([method arm_blasts]), the node's side `M + r·shared` reaches the blade
-	## pieces ([method _piece_pass]). One [Contact] row per explosive contact.
-	## REFUSE when the contact's own piece ends at 0; NONE lets the spike
-	## ladder run on.
+	## The explosive cause, the piece's side alone. With the piece's charges
+	## N (the swing's working copy), the struck node's M read live and
+	## `shared = min(N, M)`, a charged piece spends `max(1, shared)` of its
+	## own; the node's charges are the gather's to spend, never the gate's. One
+	## [Contact] row per charged contact. REFUSE when the contact's own piece
+	## ends at 0; NONE lets the spike ladder run on.
 	func _admit_explosive(ev: BladeHitEvent, real_node: SkillNode, node: NodeCombat) -> int:
 		var spread := explosive_spread()
 		if spread == null:
 			return _EXPLOSIVE_NONE
 		var idx := ev.particle_idx
 		var n := piece_charges(idx)
-		var m := node_charges(node)
-		if n <= 0 and m <= 0:
+		if n <= 0:
 			return _EXPLOSIVE_NONE
+		var m := node_charges(node)
 		var shared := mini(n, m)
 		var row := Contact.new(ev.t, real_node)
 		row.striker_power = side_power(n, shared, spread)
 		row.node_power = side_power(m, shared, spread)
-		if n > 0:
-			_blasts[ev] = BLAST
-			_spend_piece(idx, maxi(1, shared), ev.t)
-		if m > 0:
-			_spend_node(real_node, maxi(1, shared), ev.t)
+		_spend_piece(idx, maxi(1, shared))
 		result.contacts.append(row)
-		if row.node_power > 0:
-			row.piece_reach = warhead_reach * spread.radius_for(real_node.radius, row.node_power)
-			_piece_pass(ev, real_node, row)
 		if piece_charges(idx) <= 0:
 			row.verdicts[idx] = Contact.Verdict.POPPED
 			_kill(idx, ev.t, real_node, 0.0)
@@ -354,23 +288,6 @@ class LiveGate extends RefCounted:
 	## [member ExplosiveSpread.resonance]; 0 for a side that holds none.
 	static func side_power(own: int, shared: int, spread: ExplosiveSpread) -> int:
 		return own + spread.resonance * shared if own > 0 else 0
-
-	## The node's side: every live blade piece within [member Contact.piece_reach]
-	## of the struck node — a plain one pops; a charged one is armed, not
-	## fragile, and shrugs; a shielded one ([member BladeState.vertex_shielded])
-	## shrugs too, and nothing here spends either. The contact's own piece is
-	## the caller's.
-	func _piece_pass(ev: BladeHitEvent, struck: SkillNode, row: Contact) -> void:
-		for v in _state.positions.size():
-			if v == ev.particle_idx or v == _state.pivot_index or _removed.has(v):
-				continue
-			if _state.positions[v].distance_to(row.centre) > row.piece_reach:
-				continue
-			if piece_charges(v) > 0 or piece_shielded(v):
-				row.verdicts[v] = Contact.Verdict.SHRUGGED
-			else:
-				row.verdicts[v] = Contact.Verdict.POPPED
-				_kill(v, ev.t, struck, 0.0)
 
 	## The piece's charges left this swing.
 	func piece_charges(idx: int) -> int:
@@ -384,38 +301,16 @@ class LiveGate extends RefCounted:
 			return false
 		return _state.vertex_shielded[idx] != 0
 
-	## [param node]'s charges on its own world, minus what this swing spent.
+	## [param node]'s charges on its own world.
 	func node_charges(node: NodeCombat) -> int:
 		if node == null:
 			return 0
-		return maxi(0, int(node.get_status_power(EXPLOSIVE)) - int(_node_spent.get(node.real(), 0)))
+		return maxi(0, int(node.get_status_power(EXPLOSIVE)))
 
-	## The blast [param ev] set off: [constant BLAST] or &"" — what each
-	## [BlastToken] gates on.
-	func blast_of(ev: BladeHitEvent) -> StringName:
-		return _blasts.get(ev, &"")
-
-	## Every [Spend] decided since the last call, in decision order; clears.
-	## The caller lands them on this gate's world before the next
-	## [method admit], so from here the world's own power carries them and
-	## the in-swing ledger lets go.
-	func take_spends() -> Array[Spend]:
-		var out := _spends
-		_spends = []
-		for spend in out:
-			if _node_spent.has(spend.node):
-				_node_spent[spend.node] = maxi(0, int(_node_spent[spend.node]) - spend.count)
-		return out
-
-	func _spend_piece(idx: int, count: int, t: float) -> void:
+	## Spends off the swing's working copy alone; nothing is written to the
+	## piece's source node.
+	func _spend_piece(idx: int, count: int) -> void:
 		_state.vertex_charges[idx] = maxi(0, _state.vertex_charges[idx] - count)
-		var source: SkillNode = _state.vertex_node[idx] if idx < _state.vertex_node.size() else null
-		if source != null:
-			_spends.append(Spend.new(source, count, t))
-
-	func _spend_node(node: SkillNode, count: int, t: float) -> void:
-		_node_spent[node] = int(_node_spent.get(node, 0)) + count
-		_spends.append(Spend.new(node, count, t))
 
 	## The explosive status's spread, or null if the roster has none.
 	static func explosive_spread() -> ExplosiveSpread:
@@ -426,70 +321,11 @@ class LiveGate extends RefCounted:
 		var roster := StatusRoster.shared()
 		return roster.by_concept(EXPLOSIVE) if roster != null else null
 
-	## Arm [param ev]'s board blast on a landing riding [param contact],
-	## appended to [param hits]: the striker's side `N + r·min(N, M)` (M read
-	## on [param world] now), centred on the struck node, landing only if
-	## [method admit] decides it ([BlastToken]). Inners are shrapnel plus the
-	## piece's [param riders] with explosive stripped, armed with a load-0
-	## [DetonateEffect] so the blast chains like any blast — a charged board
-	## node in reach goes off once. [param read_overlays] is copied onto the
-	## landing.
-	func arm_blasts(
-			ev: BladeHitEvent,
-			contact: HitInstance,
-			hits: Array[HitInstance],
-			world: CombatWorld,
-			riders: Array,
-			read_overlays: Callable = Callable()) -> void:
-		var n := piece_charges(ev.particle_idx)
-		# The contact's load for the gather's go-off (#1799).
-		contact.hit_load = n
-		var struck := ev.target as SkillNode
-		var spread := explosive_spread() if n > 0 and struck != null else null
-		if spread == null:
-			return
-		var plain: Array[OnHitEffect] = []
-		for r in riders:
-			var effect := r as OnHitEffect
-			if effect != null and not effect is DetonateEffect:
-				plain.append(effect)
-		var armed := DetonateEffect.arm(DetonateEffect.strip(plain))
-		var m := node_charges(world.combat_for(struck))
-		var power := side_power(n, mini(n, m), spread)
-		var blast := BlastEffect.new()
-		blast.inners = _with_shrapnel(armed, shrapnel_fraction)
-		blast.power = power
-		blast.range_finder = _finder(warhead_reach * spread.radius_for(struck.radius, power))
-		_ride(blast, BLAST, ev, contact, hits, read_overlays)
-
-	func _ride(
-			blast: BlastEffect,
-			kind: StringName,
-			ev: BladeHitEvent,
-			contact: HitInstance,
-			hits: Array[HitInstance],
-			read_overlays: Callable) -> void:
-		var landing := HitLanding.riding(contact, hits)
-		landing.paired = BlastToken.new(self, ev, kind, contact)
-		landing.target_mask = SkillNode.Ownership.HOSTILE
-		if read_overlays.is_valid():
-			landing.read_overlays = read_overlays
-		blast.apply(landing)
-
-	static func _with_shrapnel(plain: Array[OnHitEffect], fraction: float) -> Array[OnHitEffect]:
-		var shrapnel := PairedDamageEffect.new()
-		shrapnel.fraction = fraction
-		var out: Array[OnHitEffect] = [shrapnel]
-		out.append_array(plain)
-		return out
-
-	func _finder(reach: float) -> EuclideanRangeFinder:
-		var finder: EuclideanRangeFinder = _finders.get(reach)
-		if finder == null:
-			finder = EuclideanRangeFinder.new()
-			finder.max_distance = reach
-			_finders[reach] = finder
-		return finder
+	## Stamp [param contact]'s [member HitInstance.hit_load], the load the
+	## gather's go-off reads: the piece's charges left this swing, 0 for a plain
+	## piece. Called before the contact lands.
+	func stamp_load(ev: BladeHitEvent, contact: HitInstance) -> void:
+		contact.hit_load = piece_charges(ev.particle_idx)
 
 	## The edge branch of [method admit]. Under [b]ADR 0005[/b] an edge is not a
 	## blunting element at all — [b]spikes pop vertices, bunkers break edges[/b] —
