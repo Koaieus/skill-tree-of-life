@@ -414,7 +414,8 @@ func _open_head(h: _Hit) -> void:
 ## element whose store pays a parked node's cost (none for an aspect's go-off,
 ## whose reaches are depth 1). The go-off reaches by shape alone; the hit's
 ## own [member HitInstance.target_mask] then decides who takes a copy: a
-## reached node whose [method SkillNode.ownership_bit] to the attacker misses
+## reached node whose ownership to the attacker on the gather's world (its
+## slice's [method NodeCombat.ownership_bit], a cast's shadow included) misses
 ## it is skipped, takes no entry and does not chain (as a [SplashEffect]
 ## gathers; mask 0 skips none). Every reached node joins its
 ## generation through [method _join], the dedupe switch; a cast's shape adds
@@ -426,8 +427,10 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 	for reach in result.reached:
 		if reach == null or reach.node == null or not is_instance_valid(reach.node):
 			continue
-		if mask != 0 and (reach.node.ownership_bit(h.head.attacker) & mask) == 0:
-			continue
+		if mask != 0:
+			var at := _slice(reach.node)
+			if at != null and (at.ownership_bit(h.head.attacker) & mask) == 0:
+				continue
 		if fired == null:
 			fired = _Fired.new()
 			fired.hit = h
