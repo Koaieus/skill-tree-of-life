@@ -156,5 +156,5 @@ func test_dedupe_off_keeps_both_entries_on_n_and_on_folds_them_c_unchanged() -> 
 	_blue = _w.add_entity("Blue")
 	await get_tree().process_frame
 	var on: Array = await _fixture(false, true)
-	assert_eq(_damage_entries(_on(on[2], on[1])), 1, "on: N takes one landing at its summed multipliers")
+	assert_eq(_damage_entries(_on(on[2], on[1])), 1, "on: N folds to one entry")
 	assert_eq(_damage_entries(_on(on[2], on[0])), 2, "on: C's count does not change")
