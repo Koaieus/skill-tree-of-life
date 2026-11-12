@@ -112,6 +112,13 @@ func _facet_id(role: StatDef.Role) -> StringName:
 ## sibling [StatusDecay] (#1258). Shared and stateless like this def. Defaults
 ## to a flat `1` per tick; `null` means the status never decays.
 @export var decay: StatusDecay = FlatDecay.new()
+## True: an OWNED node row skips its holder's turn-end tick
+## ([method NodeCombat.tick_statuses]) and ticks once per WORLD turn instead
+## ([method CombatWorld.tick_world_turn_decay], run by
+## [method TurnManager._end_world_turn], beside the unowned `LINGER` ticks).
+## Default false: the row ticks at its holder's turn end as ever. Node rows
+## only; an entity-level row is not routed.
+@export var decay_per_world_turn: bool = false
 ## How stacks move between hosts — a [StatusSpread] signature, shared and
 ## stateless like this def. `null` → the status never spreads.
 @export var spread: StatusSpread = null
