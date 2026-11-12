@@ -20,7 +20,10 @@ extends RefCounted
 ##   or not, once per node per hit: a head's own rows land through their own
 ##   [method StatusInstance.land_on] and are marked [member HitInstance.staged];
 ##   a copy's are ceil(r × s) of them, summed through [TerrainSettle] (the
-##   larger ceil when two channels of one hit meet);
+##   larger ceil when two channels of one hit meet); then the node's Catalyst
+##   converts over everything that landed there, heads' and copies' alike
+##   ([method _convert_landing], #1801), the stacks it makes joining the same
+##   write and its take committed through the row seat before it;
 ## [br]- [b]read[/b]: first the node's second [Admits] read, once per node per
 ##   generation over every arrival there ([method Admits.read]): a breaker
 ##   shatters the node (one spend, one burst, its extra landings) and walks
@@ -33,7 +36,9 @@ extends RefCounted
 ##   not set it off). The spends and transfers of the whole generation (the
 ##   breaks' included) commit together through [TerrainSettle], an aspect
 ##   go-off's on its holder's row of [member Aspect.status] beside them
-##   ([method _spend_row]), before the next generation's admit.
+##   ([method _spend_row]), before the next generation's admit. A Catalyst take
+##   the settle seat makes inside either commit goes through the row seat too
+##   ([method _seat_take]).
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
 ## copy as an entry only, and does not go off again. Each go-off that reaches a
 ## node mints one [BlastMark] ([member BlastMark.go_off]: its band's
