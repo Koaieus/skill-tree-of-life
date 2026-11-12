@@ -155,6 +155,10 @@ func _poison_of(hits: Array) -> Array:
 			.map(func(h: HitInstance) -> float: return h.power)
 
 
+func _heat_riders(hits: Array) -> int:
+	return hits.filter(func(h: HitInstance) -> bool: return h is StatusInstance and h.def == _fire().terrain).size()
+
+
 ## The marks on [param n]'s entries whose go-off went off at [param centre].
 func _marks(hits: Array, n: SkillNode, centre: SkillNode) -> Array:
 	var out: Array = []
@@ -309,6 +313,8 @@ func test_the_whole_hit_lands_once_per_channel_and_terrain_once_per_node() -> vo
 	assert_eq(_poison_of(_on(got[2], n)), [_POISON], "with Poison")
 	assert_eq(_heat(n), 1, "N's Heat moves by h")
 	assert_eq(_heat(c), _t(c) + 1 + 1 - 1, "C's Heat moves by h − 1, never 2h − 1")
+	assert_eq(_heat_riders(_on(got[2], c)), 1, "C's centre landing carries no Heat rider: only the hit's own")
+	assert_eq(_heat_riders(_on(got[2], n)), 0, "N's copy lands its Heat in stage one, not as a later rider")
 
 
 func test_the_own_damage_rides_the_centre_landing_and_every_copy() -> void:
@@ -396,9 +402,11 @@ func test_the_overflow_band_keeps_burnings_travel() -> void:
 ## Acceptance 5c's go-off half: one line in `fire.tres` (the overflow band's
 ## `go_off = SubResource("burning_disc")`) turns it on.
 func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
-	if not is_same(_fire().bands[-1].go_off, _fire().bands[0].go_off):
+	if _fire().bands[-1].go_off == null:
 		pending("5c: the overflow band's go_off waits on the lead (see the note above)")
 		return
+	assert_true(is_same(_fire().bands[-1].go_off, _fire().bands[0].go_off),
+			"the overflow band's go_off is Burning's instance")
 	var disc := _disc()
 	if disc == null:
 		return
