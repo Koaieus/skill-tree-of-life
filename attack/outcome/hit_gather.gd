@@ -412,14 +412,21 @@ func _open_head(h: _Hit) -> void:
 ## [param generation]; ADR 0091 §1), its reach and power the result's
 ## ([member GoOffResult.reach], [member GoOffResult.power]); [param e] is the
 ## element whose store pays a parked node's cost (none for an aspect's go-off,
-## whose reaches are depth 1). Every reached node joins its
+## whose reaches are depth 1). The go-off reaches by shape alone; the hit's
+## own [member HitInstance.target_mask] then decides who takes a copy: a
+## reached node whose [method SkillNode.ownership_bit] to the attacker misses
+## it is skipped, takes no entry and does not chain (as a [SplashEffect]
+## gathers; mask 0 skips none). Every reached node joins its
 ## generation through [method _join], the dedupe switch; a cast's shape adds
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null) -> void:
 	var fired: _Fired = null
+	var mask := h.head.target_mask
 	for reach in result.reached:
 		if reach == null or reach.node == null or not is_instance_valid(reach.node):
+			continue
+		if mask != 0 and (reach.node.ownership_bit(h.head.attacker) & mask) == 0:
 			continue
 		if fired == null:
 			fired = _Fired.new()
@@ -748,6 +755,10 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	c.gathered = false
 	c.staged = false
 	c.hit_load = 0
+	# The head's mask, rechecked at land as a splash copy's is (#1799).
+	if a.head.target_mask != 0:
+		c.land_mask = a.head.target_mask
+	c.target_mask = 0
 	c.gated = false
 	c.is_crit = false
 	c.crit_multiplier = 1.0

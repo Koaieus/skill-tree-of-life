@@ -75,7 +75,9 @@ var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
 ## Who this landing's attack may hit, as [NodeTargeting]'s ownership flag set —
 ## hostile for an arrow or a blade, the spell's targeting filter for a spell.
 ## A [SplashEffect] with filter 0 splashes with it. 0 = unknown: such a splash
-## reaches nothing. Stamped by the landing's builder.
+## reaches nothing. Stamped by the landing's builder; [method place] hands it
+## to the head ([member HitInstance.target_mask]), whose go-offs' copies land
+## under it.
 var target_mask: int = 0
 ## The dedupe scope of explosive detonations: every node this landing's hit
 ## already set off, `SkillNode -> true`. Built once per arrow (each
@@ -86,7 +88,8 @@ var detonated: Dictionary = {}
 ## What the landing site stamps onto each hit of its span, as
 ## `func(hit: HitInstance) -> void` — run by [method place] over
 ## [code]hits[anchor..][/code] once ordered, in placed order. A spell's stamps
-## the caster, its crit conditions and the wave ordinal, and files the hit on
+## the caster, its crit conditions, the wave ordinal and the head's
+## [member HitInstance.hit_load], and files the hit on
 ## its timeline event; an arrow's stamps its ammo id onto every rider. Unset =
 ## nothing stamped (a blade contact).
 var stamper: Callable = Callable()
@@ -181,8 +184,10 @@ func place() -> void:
 		for hit: HitInstance in bucket:
 			hits[at] = hit
 			at += 1
-	# The span's first hit is the gather head (#1798): its hit is the span.
+	# The span's first hit is the gather head (#1798): its hit is the span, and
+	# its go-offs' copies land under this landing's mask (#1799).
 	hits[anchor].is_head = true
+	hits[anchor].target_mask = target_mask
 	if stamper.is_valid():
 		for i in range(anchor, hits.size()):
 			stamper.call(hits[i])
