@@ -75,23 +75,33 @@ func _heals(outcome: AttackOutcome, centre: SkillNode) -> Array:
 	return [primary, blasts]
 
 
+## Land [param outcome] on the live world; the go-off copies in it (a spell's
+## waves gather as they resolve, so its copies are in the outcome already).
+func _land(outcome: AttackOutcome) -> Array[HitInstance]:
+	await OutcomeApplier.drain(HitQueue.over(outcome.hits), CombatWorld.live(), BeatClock.instant_clock())
+	return outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
+
+
+## Go-off zero's share, as Explosive's aspect authors it.
+func _share() -> float:
+	return (load("res://aspects/defs/explosive.tres") as Aspect).go_off.share
+
+
 func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -> void:
 	var b := _board()
 	var n: Array = b.n
-	var got := _heals(_cast(b, _heal_spell(_FRIENDLY)), n[1])
-	var primary: HealInstance = got[0]
-	var blasts: Array[HitInstance] = got[1]
-	assert_eq(blasts.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
-	for hit in blasts:
-		assert_almost_eq(hit.amount, PairedDamageEffect.new().fraction * primary.amount, 0.0001,
-				"the blast heals the fraction of the spell's raw heal")
-		assert_eq(hit.paired, primary, "the blast rides the spell's heal")
+	var outcome := _cast(b, _heal_spell(_FRIENDLY))
+	var raw: float = _heals(outcome, n[1])[0].amount
+	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
+	assert_eq(heals.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
+	for hit in heals:
+		assert_almost_eq(hit.amount, _share() * raw, 0.0001, "the blast heals the disc's share of the spell's raw heal")
 
 
 func test_a_heal_spell_under_an_any_mask_blasts_heals_and_deals_no_damage() -> void:
 	var b := _board()
 	var outcome := _cast(b, _heal_spell(_ANY))
-	var blasts: Array = _heals(outcome, b.n[1])[1]
-	assert_false(blasts.is_empty(), "the healing beam's own mask mints blast heals")
+	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
+	assert_false(heals.is_empty(), "the healing beam's own mask lands blast heals")
 	for hit in outcome.hits:
 		assert_false(hit is DamageInstance, "a heal's blast never damages: %s" % hit)
