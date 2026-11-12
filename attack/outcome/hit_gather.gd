@@ -196,9 +196,9 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 
 
 ## Land [param hit]'s recorded stage-one terrain on [param world], then its
-## recorded status-row changes ([member HitInstance.row_ops]) in commit order,
-## as [method _generation] commits rows after terrain: the replay of a gather,
-## never a second one.
+## recorded status-row changes ([member HitInstance.row_ops]) in commit order
+## (terrain and rows are separate stores, so the beat's net change on each is
+## what a replay needs): the replay of a gather, never a second one.
 static func feed(hit: HitInstance, world: CombatWorld) -> void:
 	var heat := TerrainSettle.element_on(Terrain.Axis.HEAT)
 	var charge := TerrainSettle.element_on(Terrain.Axis.CHARGE)
@@ -634,8 +634,9 @@ func _spend_row(rows: Dictionary, node: SkillNode, def: StatusDef, total: int) -
 ## The gather's one seat for a status-row change: [param delta] on the row of
 ## [param def] held by [param node]'s slice, or by its owner's entity rows when
 ## [param kind] is [code]ENTITY[/code] (the caller resolves which), summed into
-## [param rows] with the generation's other changes on that holder. Committed
-## and recorded by [method _commit_rows], so a replay changes the row too.
+## [param rows] with the generation's other changes on that node and kind.
+## Committed and recorded by [method _commit_rows], so a replay changes the row
+## too.
 func _row_change(rows: Dictionary, node: SkillNode, kind: StatusInstance.HostKind,
 		def: StatusDef, delta: float) -> void:
 	if delta == 0.0 or def == null or node == null:

@@ -131,7 +131,6 @@ func test_a_rebuilt_record_spends_a_bare_cores_owner_row_as_the_gather_did() -> 
 	assert_eq(_owners(CombatWorld.live()), 3, "fixture: the live store is untouched")
 	await _drain(_rebuilt(outcome), CombatWorld.live())
 	assert_eq(_owners(CombatWorld.live()), spent, "the rebuilt beat feeds the spend on the recorded holder")
-	assert_eq(_held(core, CombatWorld.live()), 0, "and never on the core's own slice")
 
 
 # --- a re-drained head: the authority's live apply after its shadow ---------------

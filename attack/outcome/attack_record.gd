@@ -733,9 +733,14 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 				var at := row_at + k
 				if at < r.row_deltas.size():
 					var path := r.row_defs[at]
+					var def: StatusDef = null
+					if not path.is_empty():
+						if ResourceLoader.exists(path):
+							def = load(path) as StatusDef
+						else:
+							push_warning("AttackRecord: row def %s not found on this machine" % path)
 					hit.row_ops.append([_node_of(r.row_nodes[at], graph),
-							r.row_hosts[at] as StatusInstance.HostKind,
-							load(path) as StatusDef if not path.is_empty() else null, r.row_deltas[at]])
+							r.row_hosts[at] as StatusInstance.HostKind, def, r.row_deltas[at]])
 			row_at += r.row_counts[i]
 		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated
