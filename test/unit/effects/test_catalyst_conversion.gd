@@ -118,9 +118,12 @@ func test_a_landing_with_no_terrain_stack_leaves_catalyst_alone() -> void:
 
 func test_the_primary_element_plays_no_part() -> void:
 	var script: Script = load("res://effects/status/catalyst.gd")
+	var found := false
 	for m: Dictionary in script.get_script_method_list():
 		if m.name == &"converted":
+			found = true
 			assert_eq((m.args as Array).size(), 2, "converted(store, landing): no primary element")
+	assert_true(found, "converted() is on the script")
 	assert_eq(CatalystStatus.converted(3, {_charge_id: 1}), {_charge_id: 3},
 			"a lone Charge stack converts the store to Charge, whatever carries it")
 	_plant(3)
