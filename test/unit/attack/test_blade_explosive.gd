@@ -216,3 +216,33 @@ func test_3_on_5_the_piece_spends_3_and_dies() -> void:
 	assert_eq(row.striker_power, 3 + 3 * res, "3 + 3r")
 	assert_eq(row.node_power, 5 + 3 * res, "5 + 3r")
 	assert_eq(row.verdicts[1], BladePopResolver.Contact.Verdict.POPPED, "the striker ends at 0")
+
+
+# ── 2. the struck node's side: the gather's ─────────────────────────────────
+
+## Two contacts of one sample on one charged node are hits of one beat, both
+## in generation 0: each goes off off the pre-beat charges, and their spends
+## are summed and clamped at 0 (it used to be sequential, through the gate).
+func test_two_contacts_of_one_sample_on_a_charged_node_read_the_pre_beat_charges() -> void:
+	_f.target.base_radius = 40.0
+	_charge(_f.target, 3.0)
+	var state := _blade([Vector2(430, 0), Vector2(430, 20)], [0, 0])
+	var gate := BladePopResolver.LiveGate.new(state, _f.attacker)
+	var hits: Array[HitInstance] = []
+	for idx in [1, 2]:
+		var c := _contact(gate, idx, _f.target)
+		_stamp(gate, c)
+		var head: HitInstance = c[1]
+		head.is_head = true
+		head.target_mask = SkillNode.Ownership.HOSTILE
+		head.schedule_index = 0
+		hits.append(head)
+	var authored := hits.size()
+	await OutcomeApplier.drain(HitQueue.over(hits), CombatWorld.live(), BeatClock.instant_clock())
+	var marks: Array = []
+	for h in hits.slice(authored):
+		if h.blast_mark != null and not marks.has(h.blast_mark):
+			marks.append(h.blast_mark)
+	assert_eq(marks.map(func(m: BlastMark) -> int: return m.power), [3, 3], "both read the pre-beat 3")
+	assert_almost_eq(_f.target.get_combat().get_status_power(&"explosive"), 1.0, 0.0001,
+			"their spends summed: 3 − 1 − 1")

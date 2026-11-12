@@ -220,7 +220,11 @@ func _damage_of(hits: Array) -> Array:
 
 
 func test_go_off_zero_lands_one_copy_per_disc_node_and_none_on_the_struck_node() -> void:
-	var disc := _authored(0.5, false)
+	var disc := AspectRoster.shared().by_id(&"explosive").go_off as DiscGoOff
+	assert_not_null(disc, "Explosive's aspect authors go-off zero's disc")
+	if disc == null:
+		return
+	assert_false(disc.lands_on_own_node, "go-off zero adds no centre copy (the lead call)")
 	var got: Array = await _three_a()
 	var copies: Array = got[2]
 	assert_true(_at(copies, got[0]).is_empty(), "the struck node takes the arrow alone: no copy, no mark")
