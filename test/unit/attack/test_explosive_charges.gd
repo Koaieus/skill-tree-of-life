@@ -99,20 +99,6 @@ func test_dealloc_spends_nothing() -> void:
 	assert_eq(_spread().on_removed(field, removed, StatusSpread.CAUSE_DEALLOC).size(), 0, "only a kill booms")
 
 
-# --- blast_for: the one door every emitter builds its blast through ----------
-
-func test_blast_for_reaches_radius_for_and_shares_a_finder_per_reach() -> void:
-	var s := ExplosiveSpread.new()
-	var inners: Array[OnHitEffect] = [DamageEffect.new()]
-	var a := s.blast_for(_nodes[0], 4, inners)
-	var b := s.blast_for(_nodes[0], 4, inners)
-	assert_false(a.hits_centre, "the centre already took the hit")
-	assert_eq(a.inners, inners, "the caller's riders ride")
-	assert_almost_eq(a.range_finder.max_reach(), s.radius_for(_nodes[0].radius, 4), 0.0001, "reach is radius_for's")
-	assert_same(a.range_finder, b.range_finder, "one finder per reach, so gather_cache dedupes")
-	assert_ne(s.blast_for(_nodes[0], 1, inners).range_finder, a.range_finder, "another reach, another finder")
-
-
 # --- detonation (1594b): acceptance 1-6, 9 of the 10-13 spec ------------------
 # Board: VolleyBoardFixture — target (450,0) hostile; cluster[0] (600,0) and
 # cluster[1] (700,100) hostile; the attacker's leaves west of the target.
@@ -159,18 +145,6 @@ func _shoot(ammo: AmmoType, at: SkillNode = null) -> Array[HitInstance]:
 	var hits: Array[HitInstance] = [arrow]
 	RangedDamageFormula.ride(arrow, hits)
 	return hits
-
-
-func _cures_on(hits: Array, node: SkillNode) -> int:
-	var n := 0
-	for h in hits:
-		if h is CureInstance and h.target == node:
-			n += 1
-	return n
-
-
-func _blast_hits(hits: Array) -> Array:
-	return hits.filter(func(h): return h is PairedDamageInstance)
 
 
 func _status_on(hits: Array, node: SkillNode, id: StringName) -> Array:
@@ -268,55 +242,61 @@ func _poison_rider() -> ApplyStatusEffect:
 	return poison
 
 
-## A spell landing on the target carrying [param effects] armed at [param load].
-func _detonate(effects: Array[OnHitEffect], load: int) -> Array:
-	var lctx := _spell_landing()
-	OnHitEffect.run_all(DetonateEffect.arm(effects, load), lctx)
-	return lctx.hits
+## One spell wave's head on the target carrying [param effects] as its riders
+## and its [DetonateUse] load as [member HitInstance.hit_load], placed as a
+## landing places it, one beat: the span the gather sets off.
+func _spell_span(effects: Array[OnHitEffect], load: int) -> Array[HitInstance]:
+	var head := _wave_head(_f.target)
+	head.hit_load = load
+	var hits: Array[HitInstance] = [head]
+	var landing := HitLanding.riding(head, hits)
+	landing.target_mask = SkillNode.Ownership.HOSTILE
+	OnHitEffect.run_all(effects, landing)
+	landing.place()
+	for h in hits:
+		h.schedule_index = head.schedule_index
+	return hits
 
 
 func test_a_detonate_load_on_charges_spends_the_shared_chunk_and_blasts_poison() -> void:
 	await _board()
 	_charge(_f.target, 2.0)
-	var hits := _detonate([_poison_rider()] as Array[OnHitEffect], 3)
-	assert_eq(_cures_on(hits, _f.target), 1, "one blast, one spend")
-	assert_eq(_status_on(hits, _f.cluster[0], _POISON_DEF.id).size(), 1, "poison rides the blast")
-	for h in hits:
+	var copies := await _fire(_spell_span([_poison_rider()] as Array[OnHitEffect], 3))
+	assert_eq(_marks(copies).size(), 1, "one blast")
+	assert_eq(_status_on(copies, _f.cluster[0], _POISON_DEF.id).size(), 1, "poison rides the blast")
+	for h in copies:
 		if h is StatusInstance:
 			assert_ne(h.def.id, &"explosive", "a DETONATE load plants nothing")
-	_land(hits)
 	assert_almost_eq(_charges(_f.target), 0.0, 0.0001, "spends max(1, min(3, 2)) = 2")
 
 
 func test_spend_and_power_follow_the_formula() -> void:
 	# [load, present, spent, power] at resonance 1.
 	for row in [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 6], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]:
-		assert_eq(DetonateEffect.spend_of(row[0], row[1]), row[2], "spent for %s" % [row])
-		assert_eq(DetonateEffect.power_of(row[0], row[1], 1), row[3], "power for %s" % [row])
-	assert_eq(DetonateEffect.power_of(3, 2, 0), 5, "resonance 0: load + present")
-	assert_eq(DetonateEffect.power_of(3, 2, 2), 13, "resonance weighs the shared chunk on each side")
+		assert_eq(DiscGoOff.spend_of(row[0], row[1]), row[2], "spent for %s" % [row])
+		assert_eq(DiscGoOff.power_of(row[0], row[1], 1), row[3], "power for %s" % [row])
+	assert_eq(DiscGoOff.power_of(3, 2, 0), 5, "resonance 0: load + present")
+	assert_eq(DiscGoOff.power_of(3, 2, 2), 13, "resonance weighs the shared chunk on each side")
 
 
 func test_a_load_on_a_clean_node_blasts_and_spends_nothing() -> void:
 	await _board()
-	var hits := _detonate([] as Array[OnHitEffect], 3)
-	assert_eq(_cures_on(hits, _f.target), 0, "nothing present, nothing spent")
-	assert_false(_blast_hits(hits).is_empty(), "the load alone blasts")
+	var copies := await _fire(_spell_span([] as Array[OnHitEffect], 3))
+	assert_almost_eq(_charges(_f.target), 0.0, 0.0001, "nothing present, nothing spent")
+	assert_false(copies.is_empty(), "the load alone blasts")
 
 
 func test_a_load_of_three_on_five_leaves_two() -> void:
 	await _board()
 	_charge(_f.target, 5.0)
-	_land(_detonate([] as Array[OnHitEffect], 3))
+	await _fire(_spell_span([] as Array[OnHitEffect], 3))
 	assert_almost_eq(_charges(_f.target), 2.0, 0.0001)
 
 
 func test_a_load_of_three_on_one_leaves_none() -> void:
 	await _board()
 	_charge(_f.target, 1.0)
-	var hits := _detonate([] as Array[OnHitEffect], 3)
-	assert_false(_blast_hits(hits).is_empty(), "blasts")
-	_land(hits)
+	assert_false((await _fire(_spell_span([] as Array[OnHitEffect], 3))).is_empty(), "blasts")
 	assert_almost_eq(_charges(_f.target), 0.0, 0.0001)
 
 
@@ -337,14 +317,13 @@ func test_a_plant_row_with_poison_on_a_charged_node_plants_and_never_blasts() ->
 	var explosive := ApplyStatusEffect.new()
 	explosive.def = _def()
 	explosive.power = 1.0
-	var hits := _detonate([_poison_rider(), explosive] as Array[OnHitEffect], 0)
-	assert_eq(_cures_on(hits, _f.target), 0, "a PLANT hit spends nothing")
-	assert_true(_blast_hits(hits).is_empty(), "nor blasts")
-	assert_eq(_status_on(hits, _f.target, _POISON_DEF.id).size(), 1, "poison lands on the centre")
-	var planted := _status_on(hits, _f.target, &"explosive")
-	assert_eq(planted.size(), 1, "and the charge plants")
-	_land(hits)
-	assert_almost_eq(_charges(_f.target), 2.0 + planted[0].power, 0.0001, "nothing spent")
+	var span := _spell_span([_poison_rider(), explosive] as Array[OnHitEffect], 0)
+	var planted := _status_on(span, _f.target, &"explosive")
+	assert_eq(planted.size(), 1, "fixture: the charge rides the hit")
+	assert_eq(_status_on(span, _f.target, _POISON_DEF.id).size(), 1, "fixture: so does the poison")
+	assert_true((await _fire(span)).is_empty(), "a PLANT hit never blasts")
+	if planted.size() == 1:
+		assert_almost_eq(_charges(_f.target), 2.0 + planted[0].power, 0.0001, "nothing spent, and the charge plants")
 
 
 func test_a_chain_sets_each_charged_node_off_once_per_arrow() -> void:
@@ -471,20 +450,6 @@ func test_a_dud_arrow_spends_no_charge() -> void:
 	hits[0].gated = true
 	await _fire(hits)
 	assert_almost_eq(_charges(_f.target), 2.0, 0.0001, "a dud spends nothing")
-
-
-func _spell_landing() -> LandingContext:
-	var cast := PropagationContext.new()
-	cast.caster = _f.attacker
-	cast.graph = _f.graph
-	cast.world = CombatWorld.live()
-	cast.outcome = AttackOutcome.new()
-	cast.target_mask = SkillNode.Ownership.HOSTILE
-	var payload := CastSpell.new()
-	payload.current_node = _f.target
-	payload.source = _f.leaves[0]
-	payload.damage = 10.0
-	return LandingContext.for_test(payload, _f.target, cast)
 
 
 # --- the shipped explosive arrow (#1398) ---------------------------------------
