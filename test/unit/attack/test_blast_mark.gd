@@ -146,8 +146,9 @@ func test_two_marks_announce_twice() -> void:
 
 
 # The generation index (#1799) ─────────────────────────────────────────────────
-## Two links on fresh linked nodes (a threshold is read off the degree) of a
-## default-board owner: a head on H, H's go-off reaching N1 and N1's reaching N2, both
+## A two-link go-off chain on three fresh nodes of a default-board owner, all
+## edge-linked to each other only so each has a threshold (read off the
+## degree): a head on H, H's go-off reaching N1 and N1's reaching N2, both
 ## primed on Fire (whose band the test go-off holds).
 ## Returns `[outcome, H, N1, N2, authored hit count]`.
 func _chain() -> Array:

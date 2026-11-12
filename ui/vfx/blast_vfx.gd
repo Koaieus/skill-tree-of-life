@@ -33,7 +33,13 @@ func _on_blast_landed(mark: BlastMark) -> void:
 	if delay <= 0.0 or not is_inside_tree():
 		spawn(mark)
 		return
-	get_tree().create_timer(delay, false).timeout.connect(spawn.bind(mark))
+	get_tree().create_timer(delay, false).timeout.connect(_on_stagger_elapsed.bind(mark))
+
+
+## A staggered ring's cue at its time: none if muted or out of the tree since.
+func _on_stagger_elapsed(mark: BlastMark) -> void:
+	if not muted and is_inside_tree():
+		spawn(mark)
 
 
 ## How long after its cue [param mark]'s ring waits: its generation ×
