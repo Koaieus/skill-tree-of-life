@@ -69,6 +69,7 @@ ALLOWED_PRIMITIVES = {
 # `--json` lists every file:line. None = no issue retires it yet.
 ALLOWLIST = {
     "archetypes→skill_node": (None, "no retiring issue — CarveShape"),
+    "attack→aspects": ("#1801", "Aspect, AspectRoster — HitGather reads Aspect.go_off, go-off zero's transitional seat (#1799 Composition); the Catalyst retag deletes the seat"),
     "attack→command": (None, "no retiring issue — codec types, not submission: AttackRecord builds on WireFields (38 refs), OutcomeFixture on CommandCodec/LaunchAttackCommand. Moving command below attack was measured and rejected: it trades this line for command→attack/systems/session. Retire by moving WireFields down."),
     "attack→session": (None, "no retiring issue — SeatPolicy"),
     "attack→systems": (None, "no retiring issue — BattleSystem, VisionSystem"),
