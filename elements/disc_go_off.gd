@@ -28,9 +28,9 @@ enum Power { EXPLOSIVE_CHARGES }
 enum Radius { EXPLOSIVE_SPREAD }
 
 ## The disc's power source (see [enum Power]).
-@export var power_source := Power.EXPLOSIVE_CHARGES
+@export var power_source: Power = Power.EXPLOSIVE_CHARGES
 ## The disc's radius source (see [enum Radius]).
-@export var radius_source := Radius.EXPLOSIVE_SPREAD
+@export var radius_source: Radius = Radius.EXPLOSIVE_SPREAD
 
 const EXPLOSIVE := &"explosive"
 
