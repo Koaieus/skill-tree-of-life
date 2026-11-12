@@ -124,7 +124,7 @@ the map's barrels are the Catalyst addon on map nodes, as the Explosive
 barrel addon is today. **Catalyst is an
 aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
 option 1. w/visually like purple crystals or smth instead of black goo"*; the
-line behind it: *"Aspects do anything else"*): one status, side-less terrain,
+line behind it: *"Aspects do anything else"*): one status,
 count `catalyst_aspect`, school DEX (where Explosive sits), facets
 `catalyst_stacks_per_hit` / `catalyst_resistance`. The goo arrow plants it, a
 plain arrow with a Catalyst rider (owner, 2026-11-11: *"Catalyst arrow is
