@@ -22,8 +22,8 @@ carries `int(kind)`, and 3 is a retired value:
 
 | `Kind` | Classes | Lands on |
 |---|---|---|
-| `DAMAGE` (0) | `DamageInstance`; `RangedHitInstance` (`attack/formulas/ranged_damage.gd`), `BladeDamageInstance` (`attack/melee/sim/`), `PairedDamageInstance`, `CleansePriceInstance` | `NodeCombat.take_damage`, through [Mitigation](#mitigation); a negative result flips the hit to `HEAL` |
-| `HEAL` (1) | `HealInstance`, `PairedHealInstance` | `NodeCombat.heal_damage`; never mitigated, never reclassified |
+| `DAMAGE` (0) | `DamageInstance`; `RangedHitInstance` (`attack/formulas/ranged_damage.gd`), `BladeDamageInstance` (`attack/melee/sim/`), `CleansePriceInstance` | `NodeCombat.take_damage`, through [Mitigation](#mitigation); a negative result flips the hit to `HEAL` |
+| `HEAL` (1) | `HealInstance` | `NodeCombat.heal_damage`; never mitigated, never reclassified |
 | `STATUS` (2) | `StatusInstance` (plus private copies in `FluxEffect` and `MultiplyRowEffect`) | `NodeCombat.apply_status`, or the entity on a cracked core ([Statuses landing](#statuses-landing)) |
 | `GATE_FLIP` (4) | `GateFlipInstance` | the topology: a melee fuse's gate flip (`land_flip(world, alloc)`) |
 | `EXERT` (5) | `ExertInstance` | `StatusDef._on_exerted` on an origin-set node's rows |
@@ -41,12 +41,10 @@ every hit it emits shares — `attacker`, `source`, `origin`, `read_node`,
 whatever mode produced it ([ADR 0044](../adr/0044-one-on-hit-vocabulary-for-every-attack-mode.md)). A spell's landing is the
 `LandingContext` subclass; an arrow's or a blade contact's is
 `HitLanding.riding(primary, hits, gather_cache)`, which sets `paired` to the
-primary hit, stamps the landing's `hit_key` on it, and takes `raw_amount` /
-`raw_type` off it. Effects append through `emit(hit)` in authored order. A
+primary hit and stamps the landing's `hit_key` on it. Effects append through `emit(hit)` in authored order. A
 hit an effect mints takes the eight shared facts in one call,
 `landing.copy_facts_to(hit)`: `StatusInstance.stamp_landing` sets the def and
-calls it, as do `DetonateEffect`'s cure and `PairedDamageEffect`'s share
-(`HaulEffect` sets its own target, origin and source and does not). The
+calls it (`HaulEffect` sets its own target, origin and source and does not). The
 builder calls `place()` once the effects have run (below), which orders the
 span and then runs the landing site's **`stamper`** callable over it,
 `func(hit) -> void`. A spell's stamps the caster, decides the landing's crit at
@@ -54,8 +52,7 @@ its head ([CritRoll](#critroll-the-one-crit-implementation)), stamps the wave
 ordinal and files the hit on its timeline event. An arrow's stamps its
 ammo id on every rider; a blade contact sets none. `SplashEffect._retargeted`
 copies a landing whole, `stamper` included. The landing also carries
-the per-compile `gather_cache`, the spell's `stack_scale` and the `detonated`
-scope ([Go-off zero](#go-off-zero-explosive-detonation)).
+the per-compile `gather_cache` and the spell's `stack_scale`.
 
 **The head** (#1798). `place()` orders the span and marks its first hit
 `is_head`. The order is the riders' `BEFORE` hits, then the landing's own hits
@@ -66,7 +63,8 @@ opens on a bare status (an infusion's, say) has that status as its head. The
 head carries the gather's state:
 
 - `hit_load`: what its own `GoOff.fire` is handed. It is 0 unless the landing
-  site sets one (#1799), and a copy's is 0.
+  site sets one (a spell's `DetonateUse` load, a blade piece's charges), and a
+  copy's is 0.
 - `gathered`: set once stage one ran the head, so a second drain of the same
   objects feeds its ops instead of gathering again.
 - `terrain_ops`: the beat's net terrain change, `[node, dt, dcharge]` per
@@ -105,8 +103,9 @@ spends once per key.
   wave is gathered as one group. Per hit it then awaits
   `beat.advance_to(hit.arrival_time)`, calls `land_one`, and announces a
   `blast_mark` once per `announced` set on a live world (a wave passes none).
-  That includes a gather go-off's mark (reach 0, power 0, no riders; its draw
-  is #1799's / #1800's). One more flush ends it. On an instant clock it never
+  Every mark is a gather go-off's: the gather fills its reach, power, status
+  riders and generation, and `BlastVFX` staggers a cascade's discs by
+  generation. One more flush ends it. On an instant clock it never
   parks, so `SpellResolver` calls it un-awaited over a queue of one wave's
   hits and the wave has landed when the call returns.
 - **`HitGather.stage_one(group, world, queue)`**
@@ -403,7 +402,7 @@ then spends crit-taken statuses (`NodeCombat.on_crit_taken`).
 
 ### Armor pierce, worked
 
-`sunder` works **inside** the defender's armor bins (a −1 per stack, can go negative). `armor_pierce` works **on its output** (ADR 0065): the hit carries the attacker's pierce as `FoldTerms` (`DamageInstance.armor_pierce`, stamped by its producer via `Mitigation.pierce_terms` off the attacking node), and `Mitigation.effective_armor` folds it over the defender's *final* armor only when that is > 0, clamped at 0 and floored to whole; the `min_damage_taken` floor still applies last. Fixture: defender 4 / +50% / +2 = 8 → −3 ADD_BASE lands 5, −50% INC 4, ×0.5 4, SET 0 0. Producers opt out (`uses_board_pierce`) or add their own (`armor_pierce_modifiers`): `DamageEffect`, `PairedDamageEffect`, `AmmoType`, and the blade via `SwingContext`.
+`sunder` works **inside** the defender's armor bins (a −1 per stack, can go negative). `armor_pierce` works **on its output** (ADR 0065): the hit carries the attacker's pierce as `FoldTerms` (`DamageInstance.armor_pierce`, stamped by its producer via `Mitigation.pierce_terms` off the attacking node), and `Mitigation.effective_armor` folds it over the defender's *final* armor only when that is > 0, clamped at 0 and floored to whole; the `min_damage_taken` floor still applies last. Fixture: defender 4 / +50% / +2 = 8 → −3 ADD_BASE lands 5, −50% INC 4, ×0.5 4, SET 0 0. Producers opt out (`uses_board_pierce`) or add their own (`armor_pierce_modifiers`): `DamageEffect`, `AmmoType`, and the blade via `SwingContext`.
 
 ## CritRoll: the one crit implementation
 
@@ -453,7 +452,7 @@ Land     CritRoll.decide(hit, rng, world) an arrow's or blade's: one draw per
   its riders land after it (ADR 0092; a rider asked first would decide its lead
   first, `CritRoll.decide`), so the one draw per lead precedes the whole payload
   and every rider `HitInstance.copy_crit_from` it: a status rider lands its
-  stacks times `abs(crit_multiplier)`, a paired damage share its share times
+  stacks times `abs(crit_multiplier)`, a gather copy its damage share times
   the multiplier. A mark rider lifts the hits of later beats, never its own.
 - **A replay never draws:** a rebuilt `AttackRecord` carries no stream and lands
   the recorded crit. Every crit reader that runs before a landing (the VFX
@@ -520,17 +519,27 @@ which host"; the stacks fold and resistance: § "The DoT model".
 
 ## Go-off zero: Explosive detonation
 
-changing: detonation is ported onto the gather as a disc `GoOff`, #1799; Burning's disc lands beside it, #1800; the Catalyst retag deletes it, #1801; the blade's explosive path goes, #1802; see docs/design/elements/go-offs.md
+changing: the Catalyst retag deletes it, #1801; the blade's explosive path goes, #1802; see docs/design/elements/go-offs.md
 
-Today's only go-off is an Explosive detonation, and it is a hit like any
-other. `DetonateEffect.arm(riders, load)` adds a detonation to a landing's
-effects (a spell's `DetonateUse` load, an arrow or a blade's board blast at
-load 0, unless a rider plants explosive); landing, it spends the charges the
-node holds and, when its power is above 0, builds a `BlastEffect` whose hits
-are appended to the same landing and placed after its hit, each stamped with
-the blast's `blast_mark`, which `OutcomeApplier.apply` announces once. A blast replicates
-the hit with explosive stripped, so a charged node it reaches goes off in turn,
-once per node per `HitLanding.detonated` scope. A blade contact's two sides
-are decided in `BladePopResolver.LiveGate`. The formula, reach, chains, the
-blade contact and the knobs: [explosive.md](explosive.md); the calls:
-[ADR 0061](../adr/0061-a-hits-explosive-load-resolves-through-the-intake-rows-face-and-a-blast-replicates-the-hit.md), [ADR 0062](../adr/0062-the-default-face-lives-on-the-status-def-and-a-blade-contact-lands-its-two-sides-on-two-target-sets.md).
+Go-off zero is the Explosive detonation, ported onto the gather as a disc
+`GoOff`. `DiscGoOff` (`elements/disc_go_off.gd`) is authored as
+`Aspect.go_off` on `aspects/defs/explosive.tres`, and `HitGather` fires it
+beside the element bands at each node's read, once per node per hit, with no
+band test. It is handed the head's `hit_load` (a spell's `DetonateUse` load,
+a blade piece's charges, an arrow's 0; a copy's 0). It reads the node's stored
+Explosive row as the arrival's generation starts, so no rider of the
+triggering hit joins its power. A hit whose span plants the Explosive row does
+not set it off (`HitGather._plants`, the PlantUse skip). Its spend,
+`spend_of`, is committed on the holder's row (the node's, or a bare core's
+entity row) whatever the disc reaches, summed with the generation's other
+spends and clamped at 0. Its copies land one generation later at `share` 0.5,
+none on the struck node (`lands_on_own_node` false). Each copy is stamped with
+the go-off's `BlastMark`, which `OutcomeApplier.apply` announces once.
+Burning's disc is a second instance of the same class, on Fire's band
+([elements.md](elements.md)). Stage one fires go-offs before any head's own
+gate runs at land, so a head its gate refuses (a dud arrow) has still set the
+node off. Whether it should is an open owner question (#1799;
+`test_a_dud_arrow_spends_no_charge` is held pending). A blade contact's gate
+in `BladePopResolver.LiveGate` spends the piece alone. The formula, reach,
+chains, the blade contact and the knobs: [explosive.md](explosive.md); the
+calls: [ADR 0061](../adr/0061-a-hits-explosive-load-resolves-through-the-intake-rows-face-and-a-blast-replicates-the-hit.md), [ADR 0062](../adr/0062-the-default-face-lives-on-the-status-def-and-a-blade-contact-lands-its-two-sides-on-two-target-sets.md).

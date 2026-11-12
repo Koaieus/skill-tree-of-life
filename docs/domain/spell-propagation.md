@@ -161,8 +161,6 @@ walk is over.** Both are authored elsewhere:
 
 ### `LandingCondition`
 
-changing: DetonateEffect.arm goes with the detonation port, #1799, #1801; see docs/design/elements/go-offs.md
-
 ```gdscript
 @tool
 @abstract
@@ -185,8 +183,8 @@ than an answer. Two consumers:
   `when` evaluates false (null = always). On a non-spell `HitLanding` (arrow,
   blade) a non-null `when` is an authoring error: one `push_error`, and the
   effect runs ungated. `SpellDef.rider_when` is the same gate for the intake
-  riders: the resolver puts it on every rider of the cast (armed or plain)
-  once, right after `DetonateEffect.arm`.
+  riders: the resolver puts it on every rider of the cast
+  once, as it takes them from the cast's `LoadBag`.
 
 Stock subclasses: `LeafCondition`, `SelfLoopCondition`, `CycleCondition`,
 `ConvergenceCondition`, `JunctionCondition` (entity degree > 2),

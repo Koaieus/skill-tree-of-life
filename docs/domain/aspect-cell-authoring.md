@@ -61,7 +61,7 @@ distinct mint stats, order invariants, own scene per statused type),
 
 ### On-hit shelf
 
-changing: DetonateEffect and BlastEffect die into the go-off, #1799; DetonateUse goes, #1801; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
+changing: DetonateUse goes, #1801; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
 
 `RangedDamageFormula.ride` builds one `HitLanding` per arrow, anchored at its
 slot in the outcome (paired to it, so a gated arrow duds every rider), runs
@@ -73,16 +73,19 @@ coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 | effect | what it gives an arrow | example |
 |---|---|---|
 | `ApplyStatusEffect` | `def` + `power` stacks on the landed node, folded through the read node's `<family>_stacks_per_hit` | every statused arrow |
-| `SplashEffect` | runs its `inners` (via `OnHitEffect.run_all`) on the target unless `hits_centre` is off, then again on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches the mask — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder. The mask is `ownership_filter`, or at **0 the landing's own `target_mask`** (hostile for an arrow or blade, the spell's targeting filter for a spell): a splash hits what its hit may hit. Each copy keeps the hit key, pairing, raw amount and mask, and every hit a copy emits re-checks the same mask at land (`land_mask`, ADR 0049); the gather goes through the landing's `gather_cache` — one per volley, keyed (target, finder, reach), pre-mask — so a volley's splashes on one node sweep the board once | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
-| `PairedDamageEffect` | a `PairedDamageInstance` (a `PairedHealInstance` when the landing's `paired` is a heal) on the landed node worth `fraction` × the landing's `raw_amount` (the arrow's or contact's amount, a spell payload's damage), fixed at compile (pre-crit, pre-mitigation, so each node mitigates it once by its own armour); with a `paired` hit it duds with it and copies its crit at land, on a damage spell landing it stands alone; a heal spell's landing rides its heal (`LandingContext.ride_heal`) | Explosive's shrapnel, inside a `BlastEffect` |
-| `BlastEffect` | a `SplashEffect` preset: `hits_centre = false` (the centre already took the main hit), `ownership_filter = 0` (inherit the landing's mask). Its reach is its finder's, built by whoever emits it — one finder per distinct radius, so `gather_cache` still dedupes a volley | Explosive's blast: `BlastEffect(EuclideanRangeFinder, [PairedDamageEffect])`, built only by `ExplosiveSpread.blast_for` (the explosive status's spread owns the boom: reach = node radius × `reach_per_radius` × power^`charge_exponent`, via `radius_for`; see `docs/domain/explosive.md`) |
-| `DetonateEffect` | never authored: `DetonateEffect.arm(riders, load)` (the arming rule's one owner) prepends it at the hit's detonate `load` to every arrow's riders (`RangedDamageFormula.riders_for`, load 0) and a cast's riders (`SpellResolver`, `Infusion.detonate_load`), unless any rider lands explosive (a `PlantUse` hit, which never blasts); a riderless hit still detonates. With `present` charges on the target (a core with none reads its entity host), not yet set off in `HitLanding.detonated` (per arrow, per spell wave, shared by a splash copy), it blasts iff `power_of(load, present, resonance) > 0`: a `spend_of` = `max(1, min(load, present))`-stack `CureInstance` spend when `present > 0`, then `ExplosiveSpread.blast_for(target, power, [chained Detonate, PairedDamageEffect] + riders minus explosive)` — so a blast chains through charged nodes and never plants. The formula: `docs/domain/explosive.md` | Explosive's detonation |
+| `SplashEffect` | runs its `inners` (via `OnHitEffect.run_all`) on the target unless `hits_centre` is off, then again on every other node its `range_finder` gathers around the target (over the global `Navigator`, unscaled) whose ownership bit matches the mask — `NodeTargeting`'s mask + finder pair, the caller sets the radius on the finder. The mask is `ownership_filter`, or at **0 the landing's own `target_mask`** (hostile for an arrow or blade, the spell's targeting filter for a spell): a splash hits what its hit may hit. Each copy keeps the hit key, pairing and mask, and every hit a copy emits re-checks the same mask at land (`land_mask`, ADR 0049); the gather goes through the landing's `gather_cache` — one per volley, keyed (target, finder, reach), pre-mask — so a volley's splashes on one node sweep the board once | blindness's flare: `HopRangeFinder(max_hops = 1)` + Hostile |
 | `OnHitEffect.status_def()` | the seam a wrapper answers through, so `AmmoType.first_status_def()` (tint, card swatch, scout check) never type-switches; a new wrapper overrides it | `SplashEffect` |
 
 **Not on the shelf:** `DamageEffect`, `HealEffect`, `ScaleDamageEffect` and
 `AddStackTermDamageEffect` extend `SpellOnHitEffect`, which the `on_hit_effects` setter refuses at load
 (`attack/ammo/ammo_type.gd`). An arrow's damage is the arrow itself
-(`damage_scale`); a damage-dealing rider is `PairedDamageEffect`.
+(`damage_scale`); no damage-dealing rider exists.
+
+**A blast is not on the shelf.** An Explosive detonation is go-off zero, a
+`DiscGoOff` on the Explosive `Aspect` (`Aspect.go_off`). `HitGather` fires
+it when a hit reaches a charged node, so nothing authors it on an arrow, and
+an arrow that plants explosive never sets it off
+(`docs/domain/explosive.md`).
 
 **Markers need no plumbing.** A volley lands in `order`, and every landing
 reads the target's live slice, so a status an early arrow landed is already
@@ -90,7 +93,7 @@ there when the arrows behind it hit: curse lifts their damage floor, mark their
 crit chance. Crit rolls *at landing* (one draw per hit, in landing order, off
 `AttackOutcome.crit_stream` — local, never on the wire, null on a rebuilt
 `AttackRecord`, which lands its recorded crits); `docs/domain/attack-timeline.md`.
-Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd`, `test_splash_gather_cache.gd`, `test_paired_damage_effect.gd`, `test_blast_effect.gd` — all on `test/support/volley_board_fixture.gd`.
+Guards: `test_marker_arrows.gd`, `test_crit_at_landing.gd`, `test_splash_effect.gd`, `test_splash_reach.gd`, `test_splash_gather_cache.gd` — all on `test/support/volley_board_fixture.gd`.
 
 ### Look shelf
 

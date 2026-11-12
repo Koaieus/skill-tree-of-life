@@ -732,17 +732,15 @@ changing: section deleted, the blade's explosive path is removed, #1802; see doc
 `BladeState.vertex_charges` is the swing's **working copy** of each source
 node's Explosive charges, filled at swing start by `BladeVertexFill`. A
 charge is a life: `BladePopResolver.LiveGate._admit_explosive` spends from it
-mid-swing, a piece at 0 dies, and the resolve lands the recorded `Spend`s on
-the source nodes as cleanses; nothing writes the board from this array.
+mid-swing and a piece at 0 dies. Nothing is written back to the source node,
+and nothing writes the board from this array.
 
-A contact by a piece with `n` charges on a node with `m` is one DETONATE hit
-at load `n` with two sides: each side holding charges spends
-`max(1, min(n, m))`; the striker's side blasts the **board** under the
-landing's mask (`arm_blasts`, chaining like any blast), the node's side
-reaches the **blade pieces** around the struck node (`_piece_pass`: a plain
-piece pops, a charged one shrugs) and never the board. Each explosive contact
-records one `Contact` row in `Result.contacts` for the replay. The formula,
-reach and knobs (`warhead_reach`, `shrapnel_fraction`):
+A contact by a piece with `n` charges on a node with `m` spends
+`max(1, min(n, m))` off the piece alone and stamps `n` as the contact's
+`hit_load` (`LiveGate.stamp_load`). The struck node's charges are the
+gather's to read and spend, as for any hit, and its go-off zero blasts the
+board under the contact's mask. Each charged contact records one `Contact`
+row in `Result.contacts` for the replay. The formula, reach and knobs:
 [explosive.md](explosive.md).
 
 ## Open questions
