@@ -35,6 +35,11 @@ var nodeless_cost: int = 0
 var transfer: Dictionary = {}
 var share: float = 1.0
 var own_damage: float = 0.0
+## What the go-off's [BlastMark] draws: its reach in px and its power, filled
+## by a go-off that has them (#1799's disc: its radius and power at the read);
+## 0 when it does not.
+var reach: float = 0.0
+var power: int = 0
 
 
 ## The whole spend: every reached node's cost, plus the nodeless one.

@@ -127,6 +127,7 @@ func test_a_copy_sets_a_node_off_again_reading_the_store_the_generation_before_l
 	await get_tree().process_frame
 	_charge(a, 5)
 	_charge(b, 3)
+	_disc.lands_on_own_node = false  # go-off zero's shape: every entry is a reached node's
 	var x := _head(a)
 	var y := _head(b)
 	var copies := _gather([x, y] as Array[HitInstance])

@@ -27,9 +27,13 @@ extends RefCounted
 ##   every path on, else the answer may end the paths there
 ##   ([member HitInstance.path_ends] on a head); then, once per node per hit,
 ##   each band the node sits in after the riders fires its [GoOff]
-##   ([method GoOff.fire]). The spends and transfers of the whole generation
-##   (the breaks' included) commit together through [TerrainSettle], before the
-##   next generation's admit.
+##   ([method GoOff.fire_in], on the gather's world), and each [Aspect] with a
+##   [member Aspect.go_off] fires that, by no band test (go-off zero's seat
+##   until the Catalyst retag, #1799; a hit planting the aspect's own row does
+##   not set it off). The spends and transfers of the whole generation (the
+##   breaks' included) commit together through [TerrainSettle], an aspect
+##   go-off's on its holder's row of [member Aspect.status] beside them
+##   ([method _spend_row]), before the next generation's admit.
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
 ## copy as an entry only, and does not go off again. Each go-off that reaches a
 ## node mints one [BlastMark] ([member BlastMark.go_off]: its band's
@@ -119,6 +123,10 @@ var _marks: Dictionary = {}
 ## `Arrival -> float`: a merged arrival's largest single share, the one its
 ## terrain riders land at ([method _join]).
 var _rider_share: Dictionary = {}
+## The aspects whose go-off the read fires ([method _aspect_go_offs]), read
+## off the roster once per gather.
+var _aspects: Array[Aspect] = []
+var _aspects_read := false
 
 
 ## A shatter's burst of [param hp] HP, bare: what [AttackRecord] rebuilds a
@@ -246,6 +254,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
 	var spends := TerrainSettle.Batch.new()
+	var rows: Dictionary = {}  # holder -> {StatusDef: int}: the aspect go-offs' spends
 	var next: Array[Arrival] = []
 	var bursts: Array[HitInstance] = []
 	for node in nodes:
@@ -258,13 +267,22 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				var band := read.band(e)
 				if band == null or band.go_off == null:
 					continue
-				var result := band.go_off.fire(node, read, hit_load)
+				var result := band.go_off.fire_in(_world, node, read, hit_load)
 				if result == null:
 					continue
 				_spend(spends, node, e, result)
 				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
+			for aspect: Aspect in _aspect_go_offs():
+				if _plants(h, aspect.status):
+					continue
+				var result := aspect.go_off.fire_in(_world, node, read, hit_load)
+				if result == null:
+					continue
+				_spend_row(rows, node, aspect.status, result.spend_at_read())
+				_append_reach(h, node, result, aspect.go_off, generation + 1, next, null, aspect.identity)
 	_release(generation, spends, next)
 	TerrainSettle.commit(spends)
+	_commit_rows(rows)
 	_entries.append_array(bursts)
 	return next
 
@@ -391,8 +409,10 @@ func _open_head(h: _Hit) -> void:
 ## an entry. A [param go_off] that reaches a node mints one [BlastMark] naming
 ## [param named], stamped on every entry it makes, its
 ## [member BlastMark.generation] the read it fired at (g, one before
-## [param generation]; ADR 0091 §1); [param e] is the element
-## whose store pays a parked node's cost. Every reached node joins its
+## [param generation]; ADR 0091 §1), its reach and power the result's
+## ([member GoOffResult.reach], [member GoOffResult.power]); [param e] is the
+## element whose store pays a parked node's cost (none for an aspect's go-off,
+## whose reaches are depth 1). Every reached node joins its
 ## generation through [method _join], the dedupe switch; a cast's shape adds
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
@@ -413,6 +433,8 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 				fired.mark.attacker = h.head.attacker
 				fired.mark.go_off = named
 				fired.mark.generation = generation - 1
+				fired.mark.reach = result.reach
+				fired.mark.power = result.power
 		if reach.depth <= 1:
 			_join(next, _arrive(fired, reach.node, generation))
 			continue
@@ -546,6 +568,58 @@ func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoO
 			continue
 		seen[reach.node] = true
 		_add(batch, reach.node, e, int(result.transfer.get(reach.node, 0)))
+
+
+## The aspects whose [member Aspect.go_off] the read fires beside the bands:
+## go-off zero's seat until the Catalyst retag deletes it (#1799, #1801).
+func _aspect_go_offs() -> Array[Aspect]:
+	if _aspects_read:
+		return _aspects
+	_aspects_read = true
+	var roster := AspectRoster.shared()
+	if roster == null:
+		return _aspects
+	for aspect in roster.aspects:
+		if aspect != null and aspect.go_off != null and aspect.status != null:
+			_aspects.append(aspect)
+	return _aspects
+
+
+## Whether [param h] plants [param def]'s row: a hit landing that aspect's own
+## status does not set it off (today's PlantUse skip, ported as go-off zero's;
+## #1801 deletes it with the aspect seat).
+static func _plants(h: _Hit, def: StatusDef) -> bool:
+	for hit in h.span:
+		var s := hit as StatusInstance
+		if s != null and s.def != null and s.def.id == def.id:
+			return true
+	return false
+
+
+## [param total] stacks off the row of [param def] that [param node] holds,
+## summed into [param rows] with the generation's other spends on that holder:
+## the node's slice, or on a core with none its owner's entity-hosted row
+## ([method DiscGoOff.present_on]'s rule), resolved at the read.
+func _spend_row(rows: Dictionary, node: SkillNode, def: StatusDef, total: int) -> void:
+	if total <= 0 or def == null:
+		return
+	var slice := _slice(node)
+	if slice == null:
+		return
+	var holder: Object = slice
+	if slice.get_status_power(def.id) <= 0.0 and slice.is_core() and slice.owner() != null:
+		holder = slice.owner()
+	if not rows.has(holder):
+		rows[holder] = {}
+	rows[holder][def] = int(rows[holder].get(def, 0)) + total
+
+
+## Commit [param rows]: each holder's summed spend off its row, clamped at 0 (a
+## row spent to 0 or under is removed, [method StatusHost.adjust_power]).
+static func _commit_rows(rows: Dictionary) -> void:
+	for holder: Object in rows:
+		for def: StatusDef in rows[holder]:
+			holder.adjust_status_power(def, -float(rows[holder][def]))
 
 
 ## [param total] stacks off [param node]'s store of [param e]: summed with the

@@ -35,6 +35,14 @@ func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
 	return out
 
 
+## [method fire] on [param world]'s store: the call [HitGather] makes, handing
+## the world it gathers on (a cast's shadow included). Base: [method fire],
+## which reads nothing off a store; a go-off that reads one (#1799's disc)
+## overrides this and has [method fire] read the live world.
+func fire_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+	return fire(node, read, hit_load)
+
+
 ## The shape: the other nodes this go-off reaches from [param node], by shape
 ## alone, allocated or not (ADR 0084 §7). Base: none.
 func _reach(_node: SkillNode, _read: TerrainRead, _hit_load: int) -> Array[GoOffResult.Reach]:

@@ -38,45 +38,55 @@ const EXPLOSIVE := &"explosive"
 var _finder: EuclideanRangeFinder = null
 
 
+## The disc on the live world ([method fire_in] with none).
 func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+	return fire_in(null, node, read, hit_load)
+
+
+## The disc going off at [param node], reading the store of [param world] (the
+## gather's; live when null): its spend, its reach, and the [BlastMark]'s
+## reach and power ([member GoOffResult.reach], [member GoOffResult.power]).
+func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
 	if node == null:
 		return out
-	var power := power_at(node, read, hit_load)
+	var power := power_at(node, read, hit_load, world)
 	if power <= 0:
 		return out
-	out.nodeless_cost = spend_at(node, read, hit_load)
-	for n in _within(node, radius_at(node, power)):
+	out.power = power
+	out.reach = radius_at(node, power)
+	out.nodeless_cost = spend_at(node, read, hit_load, world)
+	for n in _within(node, out.reach):
 		out.reached.append(GoOffResult.Reach.new(n))
 	return out
 
 
 ## The disc's power at [param node]: its one power read, through
-## [member power_source]. The gather may re-ask it (the mark's power).
-func power_at(node: SkillNode, _read: TerrainRead, hit_load: int) -> int:
+## [member power_source], off [param world]'s store (live when null).
+func power_at(node: SkillNode, _read: TerrainRead, hit_load: int, world: CombatWorld = null) -> int:
 	match power_source:
 		Power.EXPLOSIVE_CHARGES:
 			var spread := _spread()
 			if spread == null:
 				return 0
-			return power_of(maxi(hit_load, 0), _charges_at(node), spread.resonance)
+			return power_of(maxi(hit_load, 0), _charges_at(node, world), spread.resonance)
 	return 0
 
 
 ## What the disc spends going off at [param node], through
 ## [member power_source]: go-off zero's [method spend_of] off the stored
-## charges ([method present_on] names the holder it comes off).
-func spend_at(node: SkillNode, _read: TerrainRead, hit_load: int) -> int:
+## charges of [param world] (live when null; [method present_on] names the
+## holder it comes off, and [HitGather] commits it there).
+func spend_at(node: SkillNode, _read: TerrainRead, hit_load: int, world: CombatWorld = null) -> int:
 	match power_source:
 		Power.EXPLOSIVE_CHARGES:
-			return spend_of(maxi(hit_load, 0), _charges_at(node))
+			return spend_of(maxi(hit_load, 0), _charges_at(node, world))
 	return 0
 
 
 ## The disc's radius in px at [param node] for [param power]: its one radius
-## read, through [member radius_source]. The gather may re-ask it (the mark's
-## reach).
+## read, through [member radius_source] (the mark's reach).
 func radius_at(node: SkillNode, power: int) -> float:
 	if node == null:
 		return 0.0
@@ -115,15 +125,16 @@ static func present_on(slice: NodeCombat) -> Array:
 	return [slice, power]
 
 
-## The store go-off zero reads at [param node]: the live slice. A spell's cast
-## world is a shadow, so whoever calls the disc on one must point this read at
-## the gather's world (#1799 Unit F).
-func _store(node: SkillNode) -> NodeCombat:
-	return CombatWorld.live().combat_for(node) if node != null else null
+## The store go-off zero reads at [param node]: [param world]'s slice, the
+## gather's (a spell resolves on a shadow); live when null.
+func _store(node: SkillNode, world: CombatWorld = null) -> NodeCombat:
+	if node == null:
+		return null
+	return (world if world != null else CombatWorld.live()).combat_for(node)
 
 
-func _charges_at(node: SkillNode) -> int:
-	return maxi(int(present_on(_store(node))[1]), 0)
+func _charges_at(node: SkillNode, world: CombatWorld = null) -> int:
+	return maxi(int(present_on(_store(node, world))[1]), 0)
 
 
 ## Every node whose hitbox touches the disc of [param reach] around
