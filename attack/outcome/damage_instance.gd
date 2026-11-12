@@ -36,8 +36,7 @@ func _init() -> void:
 ## The tail end of resolution: the crit multiplier goes on HERE (#507), not at
 ## resolve, because a subclass override runs before this `super` call and may
 ## veto the landing (`RangedHitInstance.land_on`, `BladeDamageInstance.land_on`)
-## or set the crit it carries ([PairedDamageInstance] copies its arrow's). A
-## normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
+## or set the crit it carries (a go-off copy carries its head's). A normal hit multiplies by 1.0, so there is no `if is_crit` to forget.
 ## A DAMAGE crit then spends crit-taken statuses ([method NodeCombat.on_crit_taken]).
 ## A damage RIDER (ADR 0049) gates first, like a status: [method
 ## HitInstance.rider_gated] makes it a power-0 dud flagged [member

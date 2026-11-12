@@ -66,12 +66,6 @@ var gather_cache: Dictionary = {}
 ## spell context writes it (the reducer's seed in [SpellResolver],
 ## [ScaleStacksEffect]). Per landing, so it never compounds across hops.
 var stack_scale: float = 1.0
-## The landing's own amount, raw (pre-crit, pre-mitigation) — the arrow's or
-## the contact's damage, a ridden heal's amount, a spell payload's damage — and
-## its damage type (unread for a heal). What a [PairedDamageEffect] takes its
-## share of; 0 when the landing carries none.
-var raw_amount: float = 0.0
-var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
 ## Who this landing's attack may hit, as [NodeTargeting]'s ownership flag set —
 ## hostile for an arrow or a blade, the spell's targeting filter for a spell.
 ## A [SplashEffect] with filter 0 splashes with it. 0 = unknown: such a splash
@@ -79,12 +73,6 @@ var raw_type: DamageInstance.Type = DamageInstance.Type.PHYSICAL
 ## to the head ([member HitInstance.target_mask]), whose go-offs' copies land
 ## under it.
 var target_mask: int = 0
-## The dedupe scope of explosive detonations: every node this landing's hit
-## already set off, `SkillNode -> true`. Built once per arrow (each
-## [method riding] starts empty) and once per spell wave ([SpellResolver]
-## stamps one dict on every landing of the wave); a blast's chained
-## [DetonateEffect] shares its parent's, so a chain never sets a node off twice.
-var detonated: Dictionary = {}
 ## What the landing site stamps onto each hit of its span, as
 ## `func(hit: HitInstance) -> void` — run by [method place] over
 ## [code]hits[anchor..][/code] once ordered, in placed order. A spell's stamps
@@ -102,9 +90,8 @@ static var _next_hit_key: int = 1
 ## [param primary] (so every rider is gated by it); [param hits] and
 ## [param gather_cache] by reference. Stamps the landing's [member hit_key]
 ## onto [param primary] too, so the primary and its riders are one hit to a
-## host. [member raw_amount] comes off [param primary] when it is damage or a
-## heal, [member raw_type] when it is damage. Anything mode-specific ([member read_overlays],
-## [member target_mask]) is caller-set after.
+## host. Anything mode-specific ([member read_overlays], [member target_mask])
+## is caller-set after.
 static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache: Dictionary = {}) -> HitLanding:
 	var landing := HitLanding.new()
 	landing.attacker = primary.attacker
@@ -120,20 +107,14 @@ static func riding(primary: HitInstance, hits: Array[HitInstance], gather_cache:
 	landing.lead = landing.anchor + 1 if slot >= 0 else landing.anchor
 	landing.gather_cache = gather_cache
 	primary.hit_key = landing.hit_key
-	var damage := primary as DamageInstance
-	if damage != null:
-		landing.raw_amount = damage.amount
-		landing.raw_type = damage.type
-	elif primary is HealInstance:
-		landing.raw_amount = primary.amount
 	return landing
 
 
 ## Emit [param hit] into this landing — what every [OnHitEffect] writer calls.
 ## Appends in authored order; the landing's builder calls [method place] once
 ## its effects have run, which orders the span by priority. Deferred on
-## purpose: a [SplashEffect] / [BlastEffect] stamps the hits its inners
-## appended by index range, which an insert ahead of it would miss.
+## purpose: a [SplashEffect] stamps the hits its inners appended by index
+## range, which an insert ahead of it would miss.
 func emit(hit: HitInstance) -> void:
 	hits.append(hit)
 
@@ -142,9 +123,8 @@ func emit(hit: HitInstance) -> void:
 ## [member source], [member origin], [member read_node], [member target],
 ## [member structural_key], [member paired], [member hit_key] — onto
 ## [param hit]: the one landing-to-hit stamping an effect's minted hit takes
-## ([method StatusInstance.stamp_landing], [DetonateEffect]'s cure,
-## [PairedDamageEffect]'s share). Anything kind-specific is the caller's own
-## write.
+## ([method StatusInstance.stamp_landing]). Anything kind-specific is the
+## caller's own write.
 func copy_facts_to(hit: HitInstance) -> void:
 	hit.attacker = attacker
 	hit.source = source

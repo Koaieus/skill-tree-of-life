@@ -8,5 +8,5 @@ extends RefCounted
 ## Effects the cast runs after the spell's own [member SpellDef.on_hit_effects]
 ## at every landing — a [PlantUse]'s [ApplyStatusEffect]s.
 var riders: Array[OnHitEffect] = []
-## The load the hit spends as a blast ([DetonateEffect]) — a [DetonateUse]'s.
+## The load the hit spends as a blast ([DiscGoOff]'s head load) — a [DetonateUse]'s.
 var detonate_load: int = 0

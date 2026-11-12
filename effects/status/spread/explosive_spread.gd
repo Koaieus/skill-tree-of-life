@@ -3,11 +3,11 @@ class_name ExplosiveSpread
 extends StatusSpread
 
 ## The explosive status's spread and the ONE owner of a charge's boom shape:
-## every node-centred blast (detonation, barrel pop, warhead, exchange, death)
-## asks [method radius_for] / [method blast_for] and never computes a reach
-## itself. The bomb is the node: reach = node radius × [member reach_per_radius]
-## × power^[member charge_exponent], uncapped — area grows linearly in
-## the blast's power, and the charge economy bounds it. No stat targets it, so it lives
+## go-off zero's disc ([DiscGoOff]) asks [method radius_for] and never computes
+## a reach itself. The bomb is the
+## node: reach = node radius × [member reach_per_radius] ×
+## power^[member charge_exponent], uncapped — area grows linearly in the
+## blast's power, and the charge economy bounds it. No stat targets it, so it lives
 ## here as knobs (`docs/domain/stat-knobs-and-bins.md` §1).
 ##
 ## Death ([method on_removed]): a killed node spends every charge at once —
@@ -26,17 +26,11 @@ extends StatusSpread
 @export_range(0.0, 2.0, 0.5) var charge_exponent: float = 0.5
 ## The shared chunk's weight on each side of a detonation's power:
 ## `power = load + present + 2 × resonance × min(load, present)`
-## ([method DetonateEffect.power_of]). Tentative, easy to change.
+## ([method DiscGoOff.power_of]). Tentative, easy to change.
 @export_range(0, 5, 1, "or_greater") var resonance: int = 1
 ## Which removal causes spend the charges, as [constant StatusSpread.CAUSE_DEATH]
 ## / [constant StatusSpread.CAUSE_DEALLOC] bits. Default: a kill only.
 @export_flags("Death", "Dealloc") var triggers: int = CAUSE_DEATH
-
-## Finder per distinct reach: [member HitLanding.gather_cache] keys on finder
-## identity, so two blasts of one size on one node must share a finder to
-## sweep the board once. A cache of immutable values, never per-node state.
-var _finders: Dictionary = {}  # float reach -> EuclideanRangeFinder
-
 
 ## The reach in px of a blast on a node of [param node_radius] px holding
 ## a blast of [param charges] power: every caller passes the formula's power
@@ -58,27 +52,6 @@ func _charge_scale(charges: int) -> float:
 	if halves % 2 == 1:
 		scale *= sqrt(float(charges))
 	return scale
-
-
-## The [BlastEffect] for [param centre] holding [param charges] charges before
-## the spend, landing [param inners] on everything in reach (never the centre;
-## the mask is the landing's own). The caller strips explosive from
-## [param inners] — a blast never plants charges.
-func blast_for(centre: SkillNode, charges: int, inners: Array[OnHitEffect]) -> BlastEffect:
-	var blast := BlastEffect.new()
-	blast.inners = inners
-	blast.power = charges
-	blast.range_finder = _finder(radius_for(centre.radius if centre != null else 0.0, charges))
-	return blast
-
-
-func _finder(reach: float) -> EuclideanRangeFinder:
-	var finder: EuclideanRangeFinder = _finders.get(reach)
-	if finder == null:
-		finder = EuclideanRangeFinder.new()
-		finder.max_distance = reach
-		_finders[reach] = finder
-	return finder
 
 
 ## A removed node's charges all go at once: one burn of the whole row per

@@ -29,7 +29,9 @@ func before_each() -> void:
 
 func _blast(finder: CountingFinder) -> AmmoType:
 	var splash := SplashEffect.new()
-	splash.inners = [PairedDamageEffect.new()] as Array[OnHitEffect]
+	var poison := ApplyStatusEffect.new()
+	poison.def = preload("res://effects/status/poison.tres")
+	splash.inners = [poison] as Array[OnHitEffect]
 	splash.ownership_filter = SkillNode.Ownership.HOSTILE
 	splash.range_finder = finder
 	var ammo := AmmoType.new()

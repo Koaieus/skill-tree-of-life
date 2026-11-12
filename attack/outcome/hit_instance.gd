@@ -221,8 +221,8 @@ var deallocations: Array[DeallocEntry] = []
 ## and hands a peer the pop cue it never used to get at all.
 var popped_vertex: SkillNode = null
 
-## The board blast this hit belongs to — minted and stamped by [BlastEffect]
-## on every hit its blast appends; null on every other hit. Like
+## The board blast this hit belongs to — minted by [HitGather] where a go-off
+## fires and stamped on every copy it sends; null on every other hit. Like
 ## [member popped_vertex] a recorded cue: [OutcomeApplier] announces it on the
 ## live landing, never from the sim.
 var blast_mark: BlastMark = null
