@@ -135,3 +135,110 @@ func test_a_core_with_no_charges_reads_its_owners_entity_rows() -> void:
 
 
 # --- acceptance 3a: go-off zero and the whole hit, end to end (Unit F) ---------
+## Through [HitGather]'s stage one, on a disc the test authors on the Explosive
+## [Aspect] (F-c authors it on explosive.tres): an arrow-shaped hit (a load-0
+## damage head, 3 Poison) on a 2-charge node with one hostile inside the disc.
+## The knobs are read from the instance, never literals.
+
+const _RAW := 4.0
+
+var _aspect: Aspect = null
+var _was: GoOff = null
+
+
+func after_each() -> void:
+	if _aspect != null:
+		_aspect.go_off = _was
+	_aspect = null
+	CombatWorld.reset_live()
+
+
+func _authored(share: float, own_node: bool) -> DiscGoOff:
+	_aspect = AspectRoster.shared().by_id(&"explosive")
+	_was = _aspect.go_off
+	var disc := DiscGoOff.new()
+	disc.share = share
+	disc.lands_on_own_node = own_node
+	_aspect.go_off = disc
+	return disc
+
+
+func _arrow_on(at: SkillNode, by: Entity, heat := 0) -> Array[HitInstance]:
+	var d := DamageInstance.new()
+	d.amount = _RAW
+	d.type = DamageInstance.Type.TRUE
+	d.is_head = true
+	var poison := StatusInstance.new()
+	poison.def = preload("res://effects/status/poison.tres")
+	poison.power = 3.0
+	poison.raw = true
+	var span: Array[HitInstance] = [d, poison]
+	if heat > 0:
+		var h := StatusInstance.new()
+		h.def = ElementRoster.shared().by_id(&"fire").terrain
+		h.power = float(heat)
+		h.raw = true
+		span.append(h)
+	for hit in span:
+		hit.target = at
+		hit.attacker = by
+		hit.schedule_index = 0
+	return span
+
+
+## `[struck, disc node, copies]` after stage one on the 3a fixture.
+func _three_a(heat := 0) -> Array:
+	var struck := _w.add_node(&"Struck", Vector2.ZERO)
+	var red := _w.add_entity("Red")
+	var blue := _w.add_entity("Blue")
+	var other := _east_of(struck, &"Other", _spread().radius_for(struck.radius, 2) * 0.5)
+	_w.allocate(red, [struck, other])
+	await get_tree().process_frame
+	_charge(struck, 2)
+	var span := _arrow_on(struck, blue, heat)
+	var all: Array[HitInstance] = span.duplicate()
+	HitGather.stage_one(span.duplicate(), CombatWorld.live(), HitQueue.over(all))
+	return [struck, other, all.slice(span.size())]
+
+
+func _at(copies: Array, n: SkillNode) -> Array:
+	return copies.filter(func(h: HitInstance) -> bool: return h.target == n)
+
+
+func _poison_of(hits: Array) -> Array:
+	return hits.filter(func(h: HitInstance) -> bool: return h is StatusInstance and h.def.id == &"poison") \
+			.map(func(h: HitInstance) -> float: return h.power)
+
+
+func _damage_of(hits: Array) -> Array:
+	return hits.filter(func(h: HitInstance) -> bool: return h is DamageInstance) \
+			.map(func(h: HitInstance) -> float: return h.amount)
+
+
+func test_go_off_zero_lands_one_copy_per_disc_node_and_none_on_the_struck_node() -> void:
+	var disc := _authored(0.5, false)
+	var got: Array = await _three_a()
+	var copies: Array = got[2]
+	assert_true(_at(copies, got[0]).is_empty(), "the struck node takes the arrow alone: no copy, no mark")
+	var other := _at(copies, got[1])
+	assert_eq(_damage_of(other), [_RAW * disc.share], "the disc node's copy deals raw × share")
+	assert_eq(_poison_of(other), [ceilf(3.0 * disc.share)], "and Poison ceil(3 × share)")
+	for c: HitInstance in other:
+		assert_not_null(c.blast_mark, "every copy carries the go-off's mark")
+
+
+func test_the_whole_hit_alternative_lands_a_centre_copy_and_the_terrain_rider_once() -> void:
+	var disc := _authored(1.0, true)
+	var got: Array = await _three_a(1)
+	var copies: Array = got[2]
+	var struck: SkillNode = got[0]
+	var own := _at(copies, struck)
+	assert_eq(_damage_of(own), [_RAW * disc.share], "the struck node's centre copy at share × raw")
+	assert_eq(_poison_of(own), [ceilf(3.0 * disc.share)], "with its Poison: two landings with the arrow's")
+	var other := _at(copies, got[1])
+	assert_eq(_damage_of(other), [_RAW * disc.share], "the disc node takes one copy")
+	assert_eq(_poison_of(other), [ceilf(3.0 * disc.share)], "with 3 Poison")
+	var fire := ElementRoster.shared().by_id(&"fire")
+	assert_eq(CombatWorld.live().combat_for(struck).terrain_count(fire), 1, "the terrain rider lands once")
+	assert_true(copies.all(func(h: HitInstance) -> bool: return not (h is StatusInstance and h.def == fire.terrain)),
+			"no copy carries the terrain rider")
