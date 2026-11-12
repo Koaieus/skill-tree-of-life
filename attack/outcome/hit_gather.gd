@@ -365,14 +365,18 @@ func _shatter(node: SkillNode, e: Element, answer: AdmitsAnswer, arrivals: Array
 
 
 ## An arrival's own landing's damage, before mitigation: each damage row of its
-## hit at × share + own damage (as [method _push] lands it), × the head's crit
-## multiplier (1 without a crit).
+## hit at × share, plus its own damage once per entry on the first damage row
+## (as [method _push] lands it), × the head's crit multiplier (1 without a crit).
 func _amount(a: Arrival) -> float:
 	var h: _Hit = _hits[a.head]
 	var sum := 0.0
+	var own := true
 	for src in h.span:
 		if src.kind == HitInstance.Kind.DAMAGE and not src.staged:
-			sum += src.amount * a.share + a.own_damage
+			sum += src.amount * a.share
+			if own:
+				sum += a.own_damage
+				own = false
 	return sum * a.head.crit_multiplier
 
 
@@ -741,7 +745,8 @@ func _ops() -> Array:
 
 
 ## Stage two: each entry, a copy of its hit's span (staged element riders and
-## non-payload kinds excluded) on the entry's node, pushed onto [param queue].
+## non-payload kinds excluded) on the entry's node, pushed onto [param queue];
+## its go-off's own damage lands once per entry, on the first damage row.
 func _push(queue: HitQueue) -> void:
 	if queue == null:
 		return
@@ -754,6 +759,7 @@ func _push(queue: HitQueue) -> void:
 		var mark: BlastMark = _marks.get(a)
 		var rows: Dictionary = {}  # StatusDef -> the entry's one StatusInstance
 		var order: Array[StatusInstance] = []
+		var own := true
 		for src in h.span:
 			if src.staged:
 				continue
@@ -763,8 +769,9 @@ func _push(queue: HitQueue) -> void:
 					if mark != null:
 						c.blast_mark = mark
 					c.amount = src.amount * a.share
-					if src.kind == HitInstance.Kind.DAMAGE:
+					if src.kind == HitInstance.Kind.DAMAGE and own:
 						c.amount += a.own_damage
+						own = false
 					queue.push(c)
 				HitInstance.Kind.STATUS:
 					var s := src as StatusInstance
@@ -798,6 +805,7 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	var no_settle: Array[CombatWorld.SettleOp] = []
 	c.settle = no_settle
 	c.terrain_ops = []
+	c.row_ops = []
 	c.target = a.node
 	c.paired = a.head
 	c.is_head = false
