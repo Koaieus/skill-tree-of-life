@@ -6,7 +6,7 @@ extends DamageInstance
 ## cleanse multiplies the stacks cleared, and the price follows the clears,
 ## so rolling it again would charge the crit twice. A rebuilt record never
 ## sees this class: a peer lands a plain [DamageInstance] with the
-## authority's number and crit flags, as for [PairedDamageInstance].
+## authority's number and crit flags.
 
 
 func draws_own_crit() -> bool:

@@ -67,15 +67,12 @@ func fill_landing() -> void:
 	origin = payload.predecessor if payload.predecessor != null else payload.source
 	read_node = payload.source
 	structural_key = float(payload.hop_index)
-	raw_amount = payload.damage
-	raw_type = DamageInstance.Type.MAGIC
 
 
 ## Ride the [HealInstance] the spell's own effects appended for this landing
 ## at or after index [param from] of [member HitLanding.hits], if any — the
-## spell-route twin of [method HitLanding.riding] for a heal: what a rider's
-## blast reads to pair a heal rather than MAGIC damage. A heal never gates, so
-## riding one gates nothing. Call between the spell's effects and its riders.
+## spell-route twin of [method HitLanding.riding] for a heal: the landing's
+## riders pair the heal. A heal never gates, so riding one gates nothing. Call between the spell's effects and its riders.
 func ride_heal(from: int) -> void:
 	for i in range(from, hits.size()):
 		var heal := hits[i] as HealInstance
