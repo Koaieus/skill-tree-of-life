@@ -4,7 +4,7 @@ extends Resource
 
 ## What a primed node does when a hit sets it off: the element's reach (#1798
 ## gives the contract; #1799 the disc, #1806 the edge). [HitGather] calls
-## [method fire] at a node's read, handing it the node's terrain after the
+## [method fire_in] (which defaults to [method fire]) at a node's read, handing it the node's terrain after the
 ## generation's element riders landed as sums (never the pre-beat snapshot;
 ## ADR 0083 §1, §5) and the hit's load (the head's; 0 on a copy). The gather
 ## commits the spend it returns as returned, and makes entries (each reached
