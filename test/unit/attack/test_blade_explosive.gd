@@ -47,8 +47,7 @@ func _blade(at: Array[Vector2], charges: Array[int]) -> BladeState:
 
 ## The head's load stamped as [SwingResolve] does before it lands.
 func _stamp(gate: BladePopResolver.LiveGate, contact: Array) -> void:
-	var hits: Array[HitInstance] = []
-	gate.arm_blasts(contact[0], contact[1], hits, CombatWorld.live(), [])
+	gate.stamp_load(contact[0], contact[1])
 
 
 func _contact(gate: BladePopResolver.LiveGate, idx: int, target: SkillNode) -> Array:
