@@ -22,15 +22,25 @@ extends GoOff
 ## Where the disc's power comes from. [code]EXPLOSIVE_CHARGES[/code] is go-off
 ## zero's: [method power_of] over the stored Explosive charges and the head's
 ## load, the terrain read ignored.
-enum Power { EXPLOSIVE_CHARGES }
+enum Power { EXPLOSIVE_CHARGES, HEAT_EXCESS }
 ## Where the disc's radius comes from. [code]EXPLOSIVE_SPREAD[/code] is go-off
 ## zero's: [method ExplosiveSpread.radius_for] (node radius × 3 × √power).
-enum Radius { EXPLOSIVE_SPREAD }
+enum Radius { EXPLOSIVE_SPREAD, DISC }
+## What the disc spends going off.
+enum Spend { SPEND_OF, PER_NODE }
 
 ## The disc's power source (see [enum Power]).
 @export var power_source: Power = Power.EXPLOSIVE_CHARGES
 ## The disc's radius source (see [enum Radius]).
 @export var radius_source: Radius = Radius.EXPLOSIVE_SPREAD
+## The disc's spend (see [enum Spend]).
+@export var spend_source: Spend = Spend.SPEND_OF
+## [method disc_radius]'s A.
+@export_range(0.1, 5.0, 0.05) var radius_a := 2.0
+## [method disc_radius]'s B.
+@export_range(0.1, 5.0, 0.05) var radius_b := 1.0
+## The disc's own damage per power.
+@export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
 
 const EXPLOSIVE := &"explosive"
 
@@ -94,6 +104,12 @@ func radius_at(node: SkillNode, power: int) -> float:
 		Radius.EXPLOSIVE_SPREAD:
 			var spread := _spread()
 			return spread.radius_for(node.radius, power) if spread != null else 0.0
+	return 0.0
+
+
+## STUB (#1800 U3, red): the disc's radius for [param power] off an origin node
+## of [param node_radius].
+func disc_radius(_power: float, _node_radius: float) -> float:
 	return 0.0
 
 
