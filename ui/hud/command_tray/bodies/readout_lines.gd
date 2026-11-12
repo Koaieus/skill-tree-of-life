@@ -107,10 +107,11 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 	return out
 
 
-## The status concept [param id] lands for [param spell]: the concept's roster
-## status — the lookup [method Infusion.riders] makes.
-static func status_of(_spell: SpellDef, id: StringName) -> StatusDef:
-	return StatusRoster.shared().by_concept(id)
+## The status concept [param id] lands as on [param spell] — [method
+## Infusion.status_of], so a ride row keyed by element resolves its `plants`
+## (or its element's terrain status), not a lookup by [param id].
+static func status_of(spell: SpellDef, id: StringName) -> StatusDef:
+	return Infusion.status_of(spell, id)
 
 
 static func _board_of(plan: MagicAttackPlan) -> StatBoard:

@@ -6,6 +6,7 @@ extends GutTest
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 const _POISON_STATUS: StatusDef = preload("res://effects/status/poison.tres")
+const _HEAT: StatusDef = preload("res://effects/status/heat.tres")
 
 var h: SpellTestHelper
 
@@ -82,6 +83,21 @@ func test_previewing_a_socket_reads_the_plan_as_if_socketed() -> void:
 		return
 	assert_eq(preview[0].socket, 0)
 	assert_eq(preview[0].infused, 80)
+
+
+func test_a_fire_ride_row_yields_a_line_carrying_fires_status() -> void:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = ElementRoster.shared().by_id(&"fire").identity
+	row.innate = 3
+	spell.intakes = [row]
+	var caster := _caster(0.0)
+	var lines := ReadoutLines.for_infusion(spell, caster.stat_board, null)
+	assert_eq(lines.size(), 1, "a Fire ride row is in play")
+	if lines.size() != 1:
+		return
+	assert_eq(lines[0].aspect_id, &"fire")
+	assert_eq(lines[0].status, _HEAT)
 
 
 func test_a_socketed_line_reads_its_exchange_and_phrase() -> void:
