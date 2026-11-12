@@ -64,14 +64,13 @@ static func _read_pierce(firing_slice: NodeCombat, ammo_type: AmmoType) -> FoldT
 ## The riders pass of a typed arrow's landing: every one of the arrow's
 ## [member AmmoType.on_hit_effects], in authored order, run against ONE
 ## [HitLanding] anchored at [param hit]'s slot in [param hits] (where the
-## caller has already put it), behind the [method DetonateEffect.arm] rule —
-## so even an untyped or riderless arrow sets off one explosive charge on a
-## charged node. The landing is paired to the arrow, so each emitted rider is
+## caller has already put it). An arrow's `hit_load` is 0, so on a charged
+## node the gather's go-off zero spends one charge, even for an untyped or
+## riderless arrow. The landing is paired to the arrow, so each emitted rider is
 ## a dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
 ## with the arrow's [member HitInstance.ammo_type_id], and the arrow takes the
 ## landing's [member HitInstance.hit_key] — its riders are the hits sharing
-## it. An arrow with no riders that sets nothing off emits nothing and stays
-## keyless (`0`).
+## it. An arrow with no riders emits nothing and stays keyless (`0`).
 ## The landing then [method HitLanding.place]s its span: a status rider lands
 ## before its own arrow, damage-shaped riders after it (ADR 0067); the copied
 ## [member HitInstance.structural_key] puts them all on the arrow's beat, where
@@ -100,7 +99,7 @@ static func ride(hit: DamageInstance, hits: Array[HitInstance], gather_cache: Di
 	landing.stamper = func(h: HitInstance) -> void:
 		if h != arrow:
 			h.ammo_type_id = arrow.ammo_type_id
-	OnHitEffect.run_all(DetonateEffect.arm(effects), landing)
+	OnHitEffect.run_all(effects, landing)
 	landing.place()
 	if hits.size() - landing.anchor <= 1 and effects.is_empty():
 		arrow.hit_key = 0

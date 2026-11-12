@@ -26,6 +26,12 @@ func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
 	_gate = gate
 
 
+## A go-off copy lands as a plain [DamageInstance], as a record rebuilds one:
+## it never re-runs this contact's gate on the node it reaches.
+func blank_copy() -> HitInstance:
+	return DamageInstance.new()
+
+
 func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	resolve_gate(world)
 	if not admitted:

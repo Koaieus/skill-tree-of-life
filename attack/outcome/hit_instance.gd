@@ -382,6 +382,13 @@ func draws_own_crit() -> bool:
 	return paired == null
 
 
+
+## The fresh instance a go-off copy of this hit starts from ([HitGather]): this
+## script's own, whose `_init` takes no argument. A subclass whose `_init` takes
+## some overrides it with the plain class its copy lands as.
+func blank_copy() -> HitInstance:
+	return get_script().new()
+
 ## Take [param lead]'s settled crit as this hit's own — the one way a rider
 ## gets a crit, so "what tier T multiplies by" has one owner,
 ## [method CritRoll._settle]. What the copy MEANS is each kind's

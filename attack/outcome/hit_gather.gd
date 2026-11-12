@@ -865,7 +865,7 @@ func _push(queue: HitQueue) -> void:
 ## the entry's target, the head as [member HitInstance.paired], and every
 ## landing result reset.
 static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
-	var c: HitInstance = src.get_script().new()
+	var c: HitInstance = src.blank_copy()
 	for p: Dictionary in src.get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			c.set(p.name, src.get(p.name))

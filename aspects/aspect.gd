@@ -31,10 +31,9 @@ extends Resource
 ## the identity-tinted generic ([RiderBlastLayer]).
 @export var blast_layer: PackedScene = null
 ## What a node primed by this concept does when a hit sets it off: the same
-## field as [member ElementBand.go_off]. Null for a concept with none, and
-## authored nowhere yet: #1799 authors Explosive's, go-off zero, a [DiscGoOff]
-## (until the Catalyst retag, #1801, deletes it), and has the gather read it
-## beside the element bands.
+## field as [member ElementBand.go_off], read by [HitGather] beside the element
+## bands. Null for a concept with none; Explosive's alone is authored, go-off
+## zero's [DiscGoOff], until the Catalyst retag deletes it.
 @export var go_off: GoOff = null
 
 
