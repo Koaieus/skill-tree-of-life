@@ -45,8 +45,9 @@ extends RefCounted
 ## own damage and riders ceil(r × s), one row per status id.
 ##
 ## The gather is the beat's only terrain writer, and it records the beat's net
-## change on its first head ([member HitInstance.terrain_ops]); a re-drained or
-## rebuilt beat feeds that instead of gathering ([method feed]).
+## change on its first head ([member HitInstance.terrain_ops]), beside every
+## status-row change it commits ([member HitInstance.row_ops]); a re-drained or
+## rebuilt beat feeds those instead of gathering ([method feed]).
 
 
 ## A shatter's burst (ADR 0090 §1): [member amount] HP of TRUE damage on the
@@ -109,6 +110,8 @@ var _world: CombatWorld = null
 var _hits: Dictionary = {}  # head HitInstance -> _Hit
 var _slices: Dictionary = {}  # SkillNode -> NodeCombat (null: not a node slice)
 var _pre: Dictionary = {}  # SkillNode -> [t, charge] before stage one touched it
+## Every status-row change committed, in order ([member HitInstance.row_ops]).
+var _row_ops: Array = []
 ## Stage two's worklist, in push order: [Arrival] entries, and each generation's
 ## shatter bursts ([HitInstance]) after that generation's entries.
 var _entries: Array = []
@@ -163,7 +166,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		var fresh := hit.is_head and not hit.gathered
 		if hit.is_head:
 			current = null
-		if not fresh and not hit.terrain_ops.is_empty():
+		if not fresh and not (hit.terrain_ops.is_empty() and hit.row_ops.is_empty()):
 			feed(hit, world)
 		if fresh:
 			hit.gathered = true
@@ -188,10 +191,14 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		generation += 1
 	order[0].head.terrain_ops = gather._ops()
 	gather._push(queue)
+	# After the push: a copy clones its head's fields, and only the head feeds.
+	order[0].head.row_ops = gather._row_ops
 
 
-## Land [param hit]'s recorded stage-one terrain on [param world]: the replay
-## of a gather, never a second one.
+## Land [param hit]'s recorded stage-one terrain on [param world], then its
+## recorded status-row changes ([member HitInstance.row_ops]) in commit order,
+## as [method _generation] commits rows after terrain: the replay of a gather,
+## never a second one.
 static func feed(hit: HitInstance, world: CombatWorld) -> void:
 	var heat := TerrainSettle.element_on(Terrain.Axis.HEAT)
 	var charge := TerrainSettle.element_on(Terrain.Axis.CHARGE)
@@ -204,6 +211,8 @@ static func feed(hit: HitInstance, world: CombatWorld) -> void:
 			continue
 		slice.add_terrain(heat, int(op[1]))
 		slice.add_terrain(charge, int(op[2]))
+	for op: Array in hit.row_ops:
+		_apply_row(world, op)
 
 
 func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
@@ -254,7 +263,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
 	var spends := TerrainSettle.Batch.new()
-	var rows: Dictionary = {}  # holder -> {StatusDef: int}: the aspect go-offs' spends
+	var rows: Dictionary = {}  # [SkillNode, HostKind] -> {StatusDef: delta}: the row changes (_row_change)
 	var next: Array[Arrival] = []
 	var bursts: Array[HitInstance] = []
 	for node in nodes:
@@ -616,20 +625,55 @@ func _spend_row(rows: Dictionary, node: SkillNode, def: StatusDef, total: int) -
 	var slice := _slice(node)
 	if slice == null:
 		return
-	var holder: Object = slice
+	var kind := StatusInstance.HostKind.NODE
 	if slice.get_status_power(def.id) <= 0.0 and slice.is_core() and slice.owner() != null:
+		kind = StatusInstance.HostKind.ENTITY
+	_row_change(rows, node, kind, def, -float(total))
+
+
+## The gather's one seat for a status-row change: [param delta] on the row of
+## [param def] held by [param node]'s slice, or by its owner's entity rows when
+## [param kind] is [code]ENTITY[/code] (the caller resolves which), summed into
+## [param rows] with the generation's other changes on that holder. Committed
+## and recorded by [method _commit_rows], so a replay changes the row too.
+func _row_change(rows: Dictionary, node: SkillNode, kind: StatusInstance.HostKind,
+		def: StatusDef, delta: float) -> void:
+	if delta == 0.0 or def == null or node == null:
+		return
+	var at := [node, kind]
+	if not rows.has(at):
+		rows[at] = {}
+	rows[at][def] = float(rows[at].get(def, 0.0)) + delta
+
+
+## Commit [param rows]: each holder's summed change on its row, a spend clamped
+## at 0 (a row spent to 0 or under is removed, [method StatusHost.adjust_power]),
+## each change recorded in commit order for the beat's first head
+## ([member HitInstance.row_ops]).
+func _commit_rows(rows: Dictionary) -> void:
+	for at: Array in rows:
+		for def: StatusDef in rows[at]:
+			var op := [at[0], at[1], def, float(rows[at][def])]
+			_row_ops.append(op)
+			_apply_row(_world, op)
+
+
+## One recorded row change ([member HitInstance.row_ops]) on [param world]: the
+## node's slice, or its owner's entity rows; nothing when the node or the
+## owner is gone (a replay whose node lost its owner to an earlier cascade).
+static func _apply_row(world: CombatWorld, op: Array) -> void:
+	var node: SkillNode = op[0]
+	if node == null or not is_instance_valid(node):
+		return
+	var slice := world.combat_for(node) as NodeCombat
+	if slice == null:
+		return
+	var holder: Object = slice
+	if int(op[1]) == StatusInstance.HostKind.ENTITY:
 		holder = slice.owner()
-	if not rows.has(holder):
-		rows[holder] = {}
-	rows[holder][def] = int(rows[holder].get(def, 0)) + total
-
-
-## Commit [param rows]: each holder's summed spend off its row, clamped at 0 (a
-## row spent to 0 or under is removed, [method StatusHost.adjust_power]).
-static func _commit_rows(rows: Dictionary) -> void:
-	for holder: Object in rows:
-		for def: StatusDef in rows[holder]:
-			holder.adjust_status_power(def, -float(rows[holder][def]))
+	if holder == null or op[2] == null:
+		return
+	holder.adjust_status_power(op[2], float(op[3]))
 
 
 ## [param total] stacks off [param node]'s store of [param e]: summed with the

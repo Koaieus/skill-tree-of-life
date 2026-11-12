@@ -293,6 +293,14 @@ var staged: bool = false
 ## is fed where the beat would gather ([method HitGather.stage_one]), so a
 ## replay lands the same terrain without gathering.
 var terrain_ops: Array = []
+
+## Stage one's status-row changes for this hit's beat, in commit order, as
+## `[SkillNode, StatusInstance.HostKind, StatusDef, delta]`: the holder the
+## gather resolved (the node's slice, or its owner's entity rows) and the
+## signed power change it committed ([method HitGather._row_change]). Written
+## onto the beat's first gathered head beside [member terrain_ops] and fed after
+## them ([method HitGather.feed]), so a replay changes the same rows once.
+var row_ops: Array = []
 ## Paths through the head's node end here: its node's second [Admits] read
 ## ([method Admits.read]), in generation 0 (the generation the head arrived
 ## in), said so and no arrival broke the node. Written by [HitGather]; read by

@@ -183,6 +183,18 @@ const KEY_TERRAIN_COUNT := "tr_n"
 const KEY_TERRAIN_NODE := "tr_node"
 const KEY_TERRAIN_DT := "tr_dt"
 const KEY_TERRAIN_DC := "tr_dc"
+## Stage one's recorded status-row changes ([member HitInstance.row_ops],
+## #1799): one count per hit slicing flat per-op columns, the node's stable id,
+## the holder the gather resolved ([enum StatusInstance.HostKind], as
+## [constant KEY_HIT_STATUS_HOST] records a status hit's), the def as its
+## resource_path (as [member status_defs]) and the signed power change. All
+## omitted when no hit carries any, so a record without one is dict-identical
+## to an older one.
+const KEY_ROW_COUNT := "rw_n"
+const KEY_ROW_NODE := "rw_node"
+const KEY_ROW_HOST := "rw_host"
+const KEY_ROW_DEF := "rw_def"
+const KEY_ROW_DELTA := "rw_d"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
@@ -290,6 +302,11 @@ var terrain_counts := PackedInt32Array()
 var terrain_nodes := PackedInt32Array()
 var terrain_dt := PackedInt32Array()
 var terrain_dc := PackedInt32Array()
+var row_counts := PackedInt32Array()
+var row_nodes := PackedInt32Array()
+var row_hosts := PackedInt32Array()
+var row_defs := PackedStringArray()
+var row_deltas := PackedFloat64Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -360,6 +377,11 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"terrain_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_NODE).omitted_at_default(),
 		WireFields.Field.new(&"terrain_dt", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DT).omitted_at_default(),
 		WireFields.Field.new(&"terrain_dc", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DC).omitted_at_default(),
+		WireFields.Field.new(&"row_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"row_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_NODE).omitted_at_default(),
+		WireFields.Field.new(&"row_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_HOST).omitted_at_default(),
+		WireFields.Field.new(&"row_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_DEF).omitted_at_default(),
+		WireFields.Field.new(&"row_deltas", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_ROW_DELTA).omitted_at_default(),
 		WireFields.Field.new(&"blasts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_BLAST).omitted_at_default(),
 		WireFields.Field.new(&"blast_centres", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_CENTRE).omitted_at_default(),
 		WireFields.Field.new(&"blast_reach", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_BLAST_REACH).omitted_at_default(),
@@ -404,6 +426,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	for hit in outcome.hits:
 		if not hit.terrain_ops.is_empty():
 			any_terrain = true
+			break
+	var any_rows := false
+	for hit in outcome.hits:
+		if not hit.row_ops.is_empty():
+			any_rows = true
 			break
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
@@ -463,6 +490,14 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.terrain_nodes.append(_id_of(op[0], graph))
 				r.terrain_dt.append(int(op[1]))
 				r.terrain_dc.append(int(op[2]))
+		if any_rows:
+			r.row_counts.append(hit.row_ops.size())
+			for op: Array in hit.row_ops:
+				var def: StatusDef = op[2]
+				r.row_nodes.append(_id_of(op[0], graph))
+				r.row_hosts.append(int(op[1]))
+				r.row_defs.append(def.resource_path if def != null else "")
+				r.row_deltas.append(float(op[3]))
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -550,6 +585,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var settle_at := 0
 	# Running offset over the flattened terrain ops, advanced per hit.
 	var terrain_at := 0
+	# Running offset over the flattened row changes, advanced per hit.
+	var row_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -691,6 +728,15 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 					hit.terrain_ops.append([_node_of(r.terrain_nodes[at], graph),
 							r.terrain_dt[at], r.terrain_dc[at]])
 			terrain_at += r.terrain_counts[i]
+		if i < r.row_counts.size():
+			for k in r.row_counts[i]:
+				var at := row_at + k
+				if at < r.row_deltas.size():
+					var path := r.row_defs[at]
+					hit.row_ops.append([_node_of(r.row_nodes[at], graph),
+							r.row_hosts[at] as StatusInstance.HostKind,
+							load(path) as StatusDef if not path.is_empty() else null, r.row_deltas[at]])
+			row_at += r.row_counts[i]
 		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated
 		hit.structural_key = r.structural[i]
