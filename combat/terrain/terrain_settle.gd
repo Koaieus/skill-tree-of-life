@@ -60,7 +60,8 @@ class Batch:
 
 ## The settle seat: a reader sees one node's ints before the batch and after
 ## it, and may add to that node's [param sums] before the one write (#1801's
-## prime conversion is the first). It writes nothing itself and rolls nothing.
+## [PrimeConversion] is the first). It writes no terrain int itself and rolls
+## nothing.
 class SettleReader:
 	extends RefCounted
 
@@ -69,7 +70,15 @@ class SettleReader:
 		pass
 
 
-## Stub (#1801 C, red first).
+## #1801's prime conversion: when a commit takes a node's Heat, Cold or Charge
+## from inert (count <= T) to primed (> T), the node's whole Catalyst row left
+## converts into that element through [method CatalystStatus.convert] and joins
+## the same write, folded into [param sums]. Two counts crossing in one commit
+## split the store weighted by each one's excess past T (tentative, not the
+## owner's). Flow at or below T never converts, and a node already primed does
+## not convert again on more of the same. It reads the ints it is handed, so a
+## crossing in a land batch, a spend batch or a world-turn step reads alike.
+## It takes the Catalyst off the row and writes no terrain int itself.
 class PrimeConversion:
 	extends SettleReader
 	var def: CatalystStatus
@@ -77,10 +86,53 @@ class PrimeConversion:
 	func _init(catalyst: CatalystStatus) -> void:
 		def = catalyst
 
+	func read(node: NodeCombat, pre_t: int, pre_charge: int,
+			post_t: int, post_charge: int, sums: Sums) -> void:
+		if def == null or node == null or node.get_status_power(def.id) <= 0.0:
+			return
+		var t := node.terrain_threshold()
+		var crossed := {}
+		var axes := {}
+		_cross(crossed, axes, Terrain.Axis.HEAT, maxi(pre_t, 0), maxi(post_t, 0), t)
+		_cross(crossed, axes, Terrain.Axis.COLD, maxi(-pre_t, 0), maxi(-post_t, 0), t)
+		_cross(crossed, axes, Terrain.Axis.CHARGE, pre_charge, post_charge, t)
+		if crossed.is_empty():
+			return
+		var out := def.convert(node, crossed)
+		for e: Variant in out:
+			var n := int(out[e])
+			match axes[e]:
+				Terrain.Axis.HEAT:
+					sums.net_t += n
+				Terrain.Axis.COLD:
+					sums.net_t -= n
+				Terrain.Axis.CHARGE:
+					sums.charge += n
 
-## The readers every [method commit] runs. Empty until #1801 seats the first.
+	## Records [param axis]'s element in [param crossed] (weight: its excess
+	## past [param t]) iff its count went from <= T to > T.
+	static func _cross(crossed: Dictionary, axes: Dictionary, axis: Terrain.Axis,
+			pre: int, post: int, t: int) -> void:
+		if pre > t or post <= t:
+			return
+		var e := TerrainSettle.element_on(axis)
+		if e == null:
+			return
+		crossed[e.id()] = Terrain.excess(post, t)
+		axes[e.id()] = axis
+
+
+## The readers every [method commit] runs: one [PrimeConversion] per
+## [CatalystStatus] the status roster authors. None does until the retag unit's
+## `catalyst.tres`, so until then the seat is empty and no settle moves.
 static func seat() -> Array[SettleReader]:
 	var out: Array[SettleReader] = []
+	var roster := StatusRoster.shared()
+	if roster == null:
+		return out
+	for def in roster.statuses:
+		if def is CatalystStatus:
+			out.append(PrimeConversion.new(def))
 	return out
 
 
