@@ -46,6 +46,13 @@ signal finished
 	set(value):
 		identity = value
 		queue_redraw()
+## Opacity of a filled disc under the ring, in the ring's colour; 0 = a bare
+## ring (go-off zero). [BlastVFX] raises it for an element's disc (Burning).
+## Tentative, easy to change.
+@export_range(0.0, 1.0, 0.01) var disc_fill: float = 0.0:
+	set(value):
+		disc_fill = value
+		queue_redraw()
 ## Rider layers, instantiated as children at [method play]; each gets
 ## [member riders], [member radius] and [member duration] if it declares them,
 ## and companion i also `rider` = riders[i] and `layer` = i ([BlastVFX] lays
@@ -121,5 +128,9 @@ func _draw() -> void:
 	var base := identity.tint if identity != null else Color.WHITE
 	var color := Emissive.tint(base, Emissive.stops(emissive_tier))
 	color.a *= clampf(fade, 0.0, 1.0) if _playing else 1.0
+	if disc_fill > 0.0:
+		var fill := color
+		fill.a *= disc_fill
+		draw_circle(Vector2.ZERO, radius * maxf(sweep, 0.02), fill)
 	var width := thickness + power_width * float(power)
 	draw_arc(Vector2.ZERO, radius * maxf(sweep, 0.02), 0.0, TAU, 96, color, width, true)

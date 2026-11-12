@@ -34,6 +34,14 @@ min_value = 10.0
 max_value = 800.0
 value = 160.0
 
+[node name="GoOffLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+layout_mode = 2
+text = "Go-off"
+
+[node name="GoOff" type="OptionButton" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="PowerLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
 layout_mode = 2
 text = "Power"

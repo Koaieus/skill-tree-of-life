@@ -15,12 +15,16 @@ const _LAYER_SCENE := preload("res://ui/vfx/rider_blast_layer.tscn")
 @onready var _replay: Button = %Replay
 @onready var _loop: CheckBox = %Loop
 @onready var _readout: Label = %Readout
+@onready var _go_off: OptionButton = %GoOff
 @onready var _riders: VBoxContainer = %Riders
 @onready var _stage: Node2D = %Stage
 @onready var _world: SubViewport = %World
 
 var _visual: BlastVisual = null
 var _roster: AspectRoster = AspectRoster.shared()
+var _elements: ElementRoster = ElementRoster.shared()
+## Go-off identity per [member _go_off] item; null = go-off zero's plain ring.
+var _go_offs: Array[Identity] = []
 ## Rider identity per picker box, in roster order.
 var _picks: Dictionary[CheckBox, Identity] = {}
 
@@ -34,6 +38,8 @@ func _ready() -> void:
 		slider.value_changed.connect(_on_knob.unbind(1))
 	_replay.pressed.connect(_play)
 	_build_picker()
+	_build_go_offs()
+	_go_off.item_selected.connect(_play.unbind(1))
 	_world.size_changed.connect(_centre)
 	_centre()
 	_on_knob()
@@ -51,6 +57,19 @@ func _build_picker() -> void:
 		box.toggled.connect(_play.unbind(1))
 		_riders.add_child(box)
 		_picks[box] = aspect.identity
+
+
+## "Go-off zero" (the plain ring), then each element band that names an identity.
+func _build_go_offs() -> void:
+	_go_off.add_item("Go-off zero (Explosive)")
+	_go_offs.append(null)
+	for element in _elements.elements:
+		if element == null:
+			continue
+		for band in element.bands:
+			if band != null and band.identity != null:
+				_go_off.add_item("%s (%s)" % [band.identity.noun if not band.identity.noun.is_empty() else String(band.identity.id), element.id()])
+				_go_offs.append(band.identity)
 
 
 func _picked() -> Array[Identity]:
@@ -80,6 +99,8 @@ func _play() -> void:
 	_stage.add_child(_visual)
 	_visual.radius = _reach.value
 	_visual.power = int(_power.value)
+	var fill := 0.22
+	BlastVFX.apply_look(_visual, _go_offs[maxi(_go_off.selected, 0)], _elements, fill)
 	_visual.riders = _picked()
 	_visual.companions = BlastVFX.layers_for(_visual.riders, _roster, _LAYER_SCENE)
 	_visual.finished.connect(_on_finished)

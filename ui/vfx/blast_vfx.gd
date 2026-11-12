@@ -12,6 +12,11 @@ extends Node2D
 @export var rider_layer_scene: PackedScene = preload("res://ui/vfx/rider_blast_layer.tscn")
 ## Where a rider identity finds its aspect's bespoke layer; null = the shared roster.
 @export var roster: AspectRoster = null
+## Where a go-off's band finds its element; null = the shared [ElementRoster].
+@export var element_roster: ElementRoster = null
+## How opaque the filled disc under an element's blast ring is (Burning's disc
+## reads as a disc, go-off zero's as a bare ring). Tentative, easy to change.
+@export_range(0.0, 1.0, 0.01) var element_disc_fill: float = 0.22
 ## Silences the ring (a headless harness, a cinematic).
 @export var muted: bool = false
 ## Seconds between a cascade's generations (tentative, #1799): a disc whose
@@ -59,6 +64,8 @@ func spawn(mark: BlastMark) -> BlastVisual:
 	add_child(visual)
 	visual.global_position = mark.centre.global_position
 	visual.setup(mark)
+	apply_look(visual, mark.go_off,
+			element_roster if element_roster != null else ElementRoster.shared(), element_disc_fill)
 	visual.companions = layers_for(mark.riders,
 			roster if roster != null else AspectRoster.shared(), rider_layer_scene)
 	visual.finished.connect(visual.queue_free)
@@ -76,3 +83,29 @@ static func layers_for(riders: Array[Identity], roster: AspectRoster, generic: P
 		var bespoke := aspect.blast_layer if aspect != null else null
 		out.append(bespoke if bespoke != null else generic)
 	return out
+
+
+## The element identity whose band holds [param go_off] (Fire for Burning), so
+## a disc plays in its element's colour; null for go-off zero's Explosive, a
+## null go-off (a [BlastEffect] blast) or a band no element holds: the visual
+## keeps its scene default.
+static func look_for(go_off: Identity, elements: ElementRoster) -> Identity:
+	if go_off == null or elements == null:
+		return null
+	for element in elements.elements:
+		if element == null:
+			continue
+		for band in element.bands:
+			if band != null and band.identity != null and band.identity.id == go_off.id:
+				return element.identity
+	return null
+
+
+## Restyle [param visual] by the [GoOff] identity its mark names: the element's
+## colour and a filled disc of [param fill] opacity, or the plain ring.
+## The sandbox blast tab calls this too.
+static func apply_look(visual: BlastVisual, go_off: Identity, elements: ElementRoster, fill: float) -> void:
+	var look := look_for(go_off, elements)
+	if look != null:
+		visual.identity = look
+		visual.disc_fill = fill
