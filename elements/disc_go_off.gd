@@ -14,8 +14,8 @@ extends GoOff
 ## the own damage is [member damage_per_power]: the class is reused with other
 ## values, never subclassed for them. Every read's class default and the own
 ## damage's is go-off zero's value ([member radius_a] and [member radius_b]
-## feed [code]Radius.DISC[/code] alone, so they are inert there). Go-off zero (#1799) is today's explosive detonation
-## ported onto the gather: power is [method power_of] over the node's stored
+## feed [code]Radius.DISC[/code] alone, so they are inert there). Go-off zero
+## (#1799) is today's explosive detonation ported onto the gather: power is [method power_of] over the node's stored
 ## Explosive charges and the head's load, the radius
 ## [method ExplosiveSpread.radius_for], and the spend [method spend_of] —
 ## committed whatever the disc reaches, a lone charged node included, so it
