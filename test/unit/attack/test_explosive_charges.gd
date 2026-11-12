@@ -152,11 +152,12 @@ func _explosive_arrow() -> AmmoType:
 	return ammo
 
 
-## One arrow off leaf_0 onto [param at] typed [param ammo] (null = plain).
+## One arrow off leaf_0 onto [param at] typed [param ammo] (null = plain), its
+## span placed as a volley places it: status riders ahead of their arrow.
 func _shoot(ammo: AmmoType, at: SkillNode = null) -> Array[HitInstance]:
 	var arrow := RangedDamageFormula.compute(_f.attacker, _f.leaves[0], at if at != null else _f.target, ammo)
 	var hits: Array[HitInstance] = [arrow]
-	hits.append_array(RangedDamageFormula.riders_for(arrow))
+	RangedDamageFormula.ride(arrow, hits)
 	return hits
 
 
