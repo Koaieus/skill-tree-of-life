@@ -268,7 +268,9 @@ var hit_key: int = 0
 ## the recorded [member terrain_ops] instead of gathering.
 var is_head: bool = false
 ## The hit's load, handed to [method GoOff.fire] on the head's own arrival: 0
-## unless the landing site sets one (#1799). A copy's is 0.
+## unless the landing site sets one (#1799) — a spell landing's head carries its
+## cast's [member LoadBag.detonate_load], a blade contact its piece's charges,
+## an arrow stays 0. A copy's is 0.
 var hit_load: int = 0
 ## Set once [HitGather] ran this head's stage one, so a second drain of the
 ## same outcome (the authority's live apply after its shadow) feeds the

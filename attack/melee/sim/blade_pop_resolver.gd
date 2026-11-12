@@ -442,6 +442,8 @@ class LiveGate extends RefCounted:
 			riders: Array,
 			read_overlays: Callable = Callable()) -> void:
 		var n := piece_charges(ev.particle_idx)
+		# The contact's load for the gather's go-off (#1799).
+		contact.hit_load = n
 		var struck := ev.target as SkillNode
 		var spread := explosive_spread() if n > 0 and struck != null else null
 		if spread == null:

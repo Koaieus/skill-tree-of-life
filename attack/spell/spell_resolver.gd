@@ -341,6 +341,9 @@ static func _resolve(
 				# N places that can.
 				alctx.stamper = func(hit: HitInstance) -> void:
 					hit.attacker = ctx.caster
+					# The head's load for the gather's go-off (#1799); a copy's is 0.
+					if hit.is_head:
+						hit.hit_load = load_bag.detonate_load
 					_crit_at_head(spell, alctx, hit, crit_rng, world)
 					# Magic's structural parameter is purely ORDINAL -- which wave
 					# this landing belongs to, nothing more. The compiler turns it
