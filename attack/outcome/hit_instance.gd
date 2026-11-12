@@ -272,6 +272,14 @@ var is_head: bool = false
 ## cast's [member LoadBag.detonate_load], a blade contact its piece's charges,
 ## an arrow stays 0. A copy's is 0.
 var hit_load: int = 0
+## The hit's target mask, over [enum SkillNode.Ownership]: who its go-offs'
+## copies may land on (#1799). [method HitLanding.place] stamps the landing's
+## [member HitLanding.target_mask] on the head; [HitGather] keeps only the
+## reached nodes whose [method SkillNode.ownership_bit] to [member attacker]
+## intersects it and hands it to each copy as its [member land_mask], as a
+## [SplashEffect] does. `0` = no filter. Head only (a copy's is 0); never
+## shipped: the gather runs on the authority.
+var target_mask: int = 0
 ## Set once [HitGather] ran this head's stage one, so a second drain of the
 ## same outcome (the authority's live apply after its shadow) feeds the
 ## recorded [member terrain_ops] rather than gathering again.

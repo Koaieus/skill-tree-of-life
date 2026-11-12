@@ -214,6 +214,49 @@ func test_the_go_off_reads_and_spends_the_gathers_world_a_casts_shadow_included(
 
 # --- what sets it off ------------------------------------------------------------
 
+func test_the_heads_target_mask_picks_which_reached_nodes_take_a_copy() -> void:
+	var n := _w.add_node(&"N", Vector2.ZERO)
+	var edge := _spread().radius_for(n.radius, 3) * 0.5
+	var m := _east_of(n, &"M", edge)
+	var k := _w.add_node(&"K")
+	k.global_position = n.global_position - Vector2(edge + k.radius, 0.0)
+	_w.allocate(_red, [n, m])
+	_w.allocate(_blue, [k])
+	await get_tree().process_frame
+	var x := _head(n, 3)
+	x.target_mask = SkillNode.Ownership.HOSTILE
+	var copies := _gather([x] as Array[HitInstance])
+	assert_eq(_marks_on(copies, x, m).size(), 1, "Red's M is hostile to Blue: it takes the copy")
+	assert_eq(_marks_on(copies, x, k).size(), 0, "Blue's own K is reached by shape but the mask excludes it")
+	for c in copies:
+		if c.target == m:
+			assert_eq(c.land_mask, SkillNode.Ownership.HOSTILE, "a copy rechecks the head's mask at land")
+			assert_eq(c.target_mask, 0, "a copy is no head: it carries no target mask")
+
+
+func test_a_head_with_no_target_mask_filters_nothing() -> void:
+	var n := _w.add_node(&"N", Vector2.ZERO)
+	var k := _east_of(n, &"K", _spread().radius_for(n.radius, 3) * 0.5)
+	_w.allocate(_red, [n])
+	_w.allocate(_blue, [k])
+	await get_tree().process_frame
+	var x := _head(n, 3)
+	var copies := _gather([x] as Array[HitInstance])
+	assert_eq(_marks_on(copies, x, k).size(), 1, "mask 0 is no filter, as land_mask's 0 is no recheck")
+
+
+func test_place_stamps_the_landings_target_mask_on_the_head() -> void:
+	var n := _w.add_node(&"N", Vector2.ZERO)
+	var x := _head(n)
+	x.is_head = false
+	var hits: Array[HitInstance] = [x]
+	var landing := HitLanding.riding(x, hits)
+	landing.target_mask = SkillNode.Ownership.HOSTILE
+	landing.place()
+	assert_true(x.is_head, "fixture: the span's first hit is the head")
+	assert_eq(x.target_mask, SkillNode.Ownership.HOSTILE, "the head carries its landing's mask")
+
+
 func test_a_loaded_hit_sets_off_a_clean_node_and_spends_nothing() -> void:
 	var n := _w.add_node(&"N", Vector2.ZERO)
 	var m := _east_of(n, &"M", _spread().radius_for(n.radius, 3) * 0.5)
