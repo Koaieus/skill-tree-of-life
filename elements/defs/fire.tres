@@ -31,7 +31,6 @@ excess_names = Dictionary[int, String]({
 [sub_resource type="Resource" id="band_overflow"]
 script = ExtResource("2_band")
 at_cap = true
-go_off = SubResource("burning_disc")
 travel = 3
 decay_per_world_turn = 2
 

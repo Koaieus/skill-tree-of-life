@@ -96,9 +96,9 @@ func test_bands_ascend_and_only_the_last_is_at_cap() -> void:
 			assert_eq(bands[0].threshold_multiple, 1, "%s primes at ×1" % id)
 
 
-## Fire's bands hold Burning's disc (#1800): one [DiscGoOff] instance, the
-## overflow band's the same as Burning's (acceptance 5c, a lead call). Every
-## other element's go_off lands with #1806; no admits is authored yet.
+## Fire's Burning band holds Burning's disc (#1800), a [DiscGoOff]; the
+## overflow band's go_off (acceptance 5c, a lead call) is not authored yet.
+## Every other element's go_off lands with #1806; no admits is authored yet.
 func test_only_fires_bands_hold_a_go_off_and_no_admits_is_authored_yet() -> void:
 	for element in _elements():
 		for band in element.bands:
@@ -107,8 +107,6 @@ func test_only_fires_bands_hold_a_go_off_and_no_admits_is_authored_yet() -> void
 				assert_null(band.go_off, "%s: go_off lands with #1806" % element.id())
 		if element.id() == &"fire":
 			assert_true(element.bands[0].go_off is DiscGoOff, "fire: Burning's band holds a DiscGoOff")
-			assert_true(is_same(element.bands[-1].go_off, element.bands[0].go_off),
-					"fire: the overflow band shares Burning's disc instance")
 
 
 ## The overflow band keeps its primed band's verb (lead call, tentative: this
