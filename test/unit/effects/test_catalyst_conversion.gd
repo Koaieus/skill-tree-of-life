@@ -12,6 +12,9 @@ extends GutTest
 
 var _w: TestWorld
 var _node: NodeCombat
+var _b: SkillNode
+var _holder: Entity
+var _attacker: Entity
 var _def: CatalystStatus
 var _fire: Element
 var _ice: Element
@@ -25,6 +28,8 @@ func before_each() -> void:
 	CombatWorld.reset_live()
 	_w = TestWorld.create(self)
 	var holder := _w.add_entity("P")
+	_holder = holder
+	_attacker = _w.add_entity("Q")
 	var a := _w.add_node(&"A")
 	var b := _w.add_node(&"B")
 	var c := _w.add_node(&"C")
@@ -34,6 +39,7 @@ func before_each() -> void:
 	holder.navigator.mirror_add(b)
 	await get_tree().process_frame
 	_node = b.get_combat()
+	_b = b
 	var roster := ElementRoster.shared()
 	_fire = roster.by_id(&"fire")
 	_ice = roster.by_id(&"ice")
@@ -193,10 +199,181 @@ func test_the_ratio_scales_the_result() -> void:
 
 
 # ── Acceptance 1 through #1798's land step ───────────────────────────────────
-# Waits for F-a (#1799, attack/outcome/hit_gather.gd): the land step calls
-# CatalystStatus.convert(node, landing) and folds its output into the land batch
-# before the terrain write. Its cases (the hit's own primed-ness and power, a
-# centre landing, a copy's rider) are the land-hook unit's.
+# HitGather.stage_one on the live world: the land step converts the node's
+# Catalyst over everything landing there, through CatalystStatus.convert, and
+# the converted stacks join that node's terrain write. The record of the take
+# (row_ops, a rebuilt or re-drained beat) is test/unit/attack/
+# test_catalyst_land_record.gd's.
+
+## A head by Q on [param n]: TRUE damage and one raw terrain rider per
+## [param riders] entry (Element → stacks).
+func _hit_on(n: SkillNode, riders: Dictionary) -> Array[HitInstance]:
+	var d := DamageInstance.new()
+	d.amount = 1.0
+	d.type = DamageInstance.Type.TRUE
+	d.is_head = true
+	var span: Array[HitInstance] = [d]
+	for e: Element in riders:
+		var s := StatusInstance.new()
+		s.def = e.terrain
+		s.power = float(riders[e])
+		s.raw = true
+		span.append(s)
+	for hit in span:
+		hit.target = n
+		hit.attacker = _attacker
+		hit.schedule_index = 0
+	return span
+
+
+## Stage one on the live world: [param span] plus every entry it gathered.
+func _land(span: Array[HitInstance]) -> Array[HitInstance]:
+	var all: Array[HitInstance] = span.duplicate()
+	HitGather.stage_one(span.duplicate(), CombatWorld.live(), HitQueue.over(all))
+	return all
+
+
+func _on(hits: Array, n: SkillNode) -> Array:
+	return hits.filter(func(h: HitInstance) -> bool: return h.target == n)
+
+
+## B on three more far neighbours (degree 5): room under T for the land
+## step's numbers, and nothing B primes reaches them.
+func _widen() -> void:
+	for i in 3:
+		_w.link(_b, _w.add_node(StringName("B_far%d" % i), Vector2(30000.0 + 5000.0 * i, 0.0)))
+
+
+## N and M, P's, far from A - B - C, each on three far anchors of its own
+## (degree 3: T leaves room for the numbers); M's hitbox inside Burning's disc
+## of [param power] around N.
+func _pair(power: float) -> Array[SkillNode]:
+	var disc := _fire.bands[0].go_off as DiscGoOff
+	var n := _w.add_node(&"N", Vector2(0.0, 40000.0))
+	var m := _w.add_node(&"M")
+	m.global_position = n.global_position \
+			+ Vector2(disc.disc_radius(power, n.radius) * 0.5 + m.radius, 0.0)
+	for x: SkillNode in [n, m]:
+		for i in 3:
+			var anchor := _w.add_node(StringName("%s_anchor%d" % [x.name, i]),
+					x.global_position + Vector2(5000.0 * i, 20000.0))
+			_w.link(x, anchor)
+	_w.allocate(_holder, [n, m])
+	await get_tree().process_frame
+	return [n, m]
+
+
+func test_land_three_catalyst_and_a_two_heat_hit_give_five_heat() -> void:
+	_widen()
+	assert_gte(_t(), 5, "fixture: B's T holds 5 Heat inert")
+	_plant(3)
+	_land(_hit_on(_b, {_fire: 2}))
+	assert_eq(_node.terrain_t(), 5, "the hit's 2 Heat plus the 3 Catalyst converted")
+	assert_eq(_store(), 0, "the row ends at 0")
+
+
+func test_land_cold_and_charge_convert_the_same_way() -> void:
+	_widen()
+	assert_gte(_t(), 5, "fixture: B's T holds 5 Cold and 5 Charge inert")
+	_plant(3)
+	_land(_hit_on(_b, {_ice: 2}))
+	assert_eq(_node.terrain_t(), -5, "Cold: the hit's 2 plus the 3 converted")
+	assert_eq(_store(), 0, "Cold takes the whole store")
+	_put(0, 0)
+	_plant(3)
+	_land(_hit_on(_b, {_lightning: 2}))
+	assert_eq(_node.charge(), 5, "a hit carrying only Charge converts the store to Charge")
+	assert_eq(_node.terrain_t(), 0, "and no Heat: the primary element plays no part")
+	assert_eq(_store(), 0, "Charge takes the whole store")
+
+
+func test_land_a_hit_with_no_terrain_rider_leaves_catalyst_alone() -> void:
+	_widen()
+	_plant(3)
+	_land(_hit_on(_b, {}))
+	assert_eq(_store(), 3, "no Heat, Cold or Charge landed: the store stays")
+	assert_eq(_node.terrain_t(), 0, "and no Heat moves")
+	assert_eq(_node.charge(), 0, "and no Charge")
+
+
+func test_land_the_split_one_to_two() -> void:
+	_widen()
+	assert_gte(_t(), 4, "fixture: B's T holds 4 Charge inert")
+	_plant(3)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 2}))
+	assert_eq(_node.terrain_t(), 2, "1 Heat landed and 1 converted")
+	assert_eq(_node.charge(), 4, "2 Charge landed and 2 converted")
+	assert_eq(_store(), 0, "the row ends at 0")
+
+
+func test_land_the_split_hands_the_leftover_to_the_largest_remainder() -> void:
+	_widen()
+	assert_gte(_t(), 5, "fixture: B's T holds 5 Charge inert")
+	_plant(5)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 2}))
+	assert_eq(_node.terrain_t(), 3, "1 Heat landed and 2 converted")
+	assert_eq(_node.charge(), 5, "2 Charge landed and 3 converted")
+	assert_eq(_store(), 0, "the row ends at 0")
+
+
+func test_land_a_tied_leftover_stays_catalyst() -> void:
+	_widen()
+	assert_gte(_t(), 2, "fixture: B's T holds 2 of each inert")
+	_plant(3)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	assert_eq(_node.terrain_t(), 2, "1 Heat landed and 1 converted")
+	assert_eq(_node.charge(), 2, "1 Charge landed and 1 converted")
+	assert_eq(_store(), 1, "the tied leftover stays Catalyst")
+	_put(0, 0)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	assert_eq(_node.terrain_t(), 1, "1 Catalyst over a tie converts nothing: only the hit's Heat")
+	assert_eq(_node.charge(), 1, "and only the hit's Charge")
+	assert_eq(_store(), 1, "the 1 stays")
+
+
+func test_land_the_ratio_scales_the_result() -> void:
+	_widen()
+	assert_gte(_t(), 8, "fixture: B's T holds 8 Heat inert")
+	_def.ratio_out = 2
+	_plant(3)
+	_land(_hit_on(_b, {_fire: 2}))
+	assert_eq(_node.terrain_t(), 8, "the hit's 2 Heat plus 3 Catalyst at 1 : 2")
+	assert_eq(_store(), 0, "the row ends at 0")
+
+
+func test_land_converted_stacks_count_toward_the_hits_own_priming() -> void:
+	var pair: Array[SkillNode] = await _pair(1.0)
+	var n := pair[0]
+	var m := pair[1]
+	var nc := CombatWorld.live().combat_for(n)
+	var t := nc.terrain_threshold()
+	assert_gte(t, 4, "fixture: N's T leaves room for T - 4")
+	nc.add_terrain(_fire, t - 4)
+	var bare := _land(_hit_on(n, {_fire: 2}))
+	assert_eq(nc.terrain_t(), t - 2, "with no Catalyst the hit stays under T")
+	assert_eq(_on(bare, m).size(), 0, "and does not set off")
+	nc.add_terrain(_fire, -2)
+	nc.apply_status(_def, 3.0)
+	var hits := _land(_hit_on(n, {_fire: 2}))
+	assert_gt(_on(hits, m).size(), 0, "the 3 converted take N to T + 1: it sets off within the same hit")
+	assert_eq(int(nc.get_status_power(_def.id)), 0, "the row ends at 0")
+
+
+func test_land_a_copys_heat_rider_converts_the_reached_nodes_catalyst() -> void:
+	var pair: Array[SkillNode] = await _pair(1.0)
+	var n := pair[0]
+	var m := pair[1]
+	var nc := CombatWorld.live().combat_for(n)
+	var mc := CombatWorld.live().combat_for(m)
+	var disc := _fire.bands[0].go_off as DiscGoOff
+	var rider := ceili(2.0 * disc.share)
+	assert_gte(mc.terrain_threshold(), rider + 3, "fixture: M stays inert after the copy")
+	nc.add_terrain(_fire, nc.terrain_threshold() - 1)
+	mc.apply_status(_def, 3.0)
+	var hits := _land(_hit_on(n, {_fire: 2}))
+	assert_gt(_on(hits, m).size(), 0, "fixture: N's disc reached M")
+	assert_eq(mc.terrain_t(), rider + 3, "the copy's Heat rider plus M's 3 Catalyst converted")
+	assert_eq(int(mc.get_status_power(_def.id)), 0, "copies are hits: M's row is taken")
 
 
 # ── Acceptance 2: the settle routine called directly ─────────────────────────
