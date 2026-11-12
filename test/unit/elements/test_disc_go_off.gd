@@ -186,12 +186,16 @@ func _arrow_on(at: SkillNode, by: Entity, heat := 0) -> Array[HitInstance]:
 	return span
 
 
-## `[struck, disc node, copies]` after stage one on the 3a fixture.
+## `[struck, disc node, copies]` after stage one on the 3a fixture. The two
+## are linked so the struck node's T (one degree's worth) sits past the arrow's
+## Heat: a lone node has T = cap = 0, and its first Heat would set Burning's
+## disc off from the overflow band, which this go-off zero fixture is not about.
 func _three_a(heat := 0) -> Array:
 	var struck := _w.add_node(&"Struck", Vector2.ZERO)
 	var red := _w.add_entity("Red")
 	var blue := _w.add_entity("Blue")
 	var other := _east_of(struck, &"Other", _spread().radius_for(struck.radius, 2) * 0.5)
+	_w.link(struck, other)
 	_w.allocate(red, [struck, other])
 	await get_tree().process_frame
 	_charge(struck, 2)
