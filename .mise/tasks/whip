@@ -190,6 +190,16 @@ def title_of(n):
     return sh(f"gh issue view {n} --json title --jq .title").strip()
 
 
+def hand_ready(nums):
+    """`start --ready`: the Ready snapshot handed in by a session that cannot read the board (a cloud session)."""
+    return [{"number": n, "title": title_of(n)} for n in nums]
+
+
+def closed_since(st):
+    """Issue numbers a commit on master since the run's start closes."""
+    return {int(n) for n in re.findall(r"[Cc]loses #(\d+)", sh(f"git log {st['start_sha']}..master", cwd=ROOT))}
+
+
 def milestone_of(n):
     out = sh(f"gh issue view {n} --json milestone --jq '.milestone.title // \"\"'")
     return out.strip()
@@ -209,6 +219,7 @@ def refill(st):
     """Tree: the watch ends when Ready is empty, not when the snapshot is — with no train queued or running,
     issues that turned Ready since the snapshot (never a drop) become new trains. Stop and the cap still end it."""
     if st.get("stopped") or capped(st) or any(t.get("state") in ("queued", "running") for t in st["trains"]): return
+    if st.get("ready_source") == "hand": return  # no board to refill from: the hand-given snapshot is the whole run
     seen = set(st["ready"]) | set(st.get("dropped", []))
     fresh = [i for i in ready_issues() if i["number"] not in seen]
     if not fresh: return
@@ -323,12 +334,12 @@ def cmd_start(a):
             sys.exit(f"a LIVE run is on disk: {p} (started {old.get('started')}). A start would inherit its trains and stale "
                      "Ready set. `mise run whip -- show` to see it; `mise run whip -- retire --force` to archive it, then start again.")
         print(f"previous run {p} was done — retired to {retire_ledger(old, 'start of a new run')}")
-    ready = ready_issues()
+    ready = hand_ready(a.ready) if a.ready else ready_issues()
     sha = sh("git rev-parse master", cwd=ROOT).strip()
     st = {"_path": p, "date": time.strftime("%Y-%m-%d"), "started": now(), "started_ts": time.time(),
           "cap_h": a.cap, "max_leads": a.max_leads, "stall_minutes": a.stall_minutes, "start_sha": sha,
           "ready": [i["number"] for i in ready], "ready_titles": {str(i["number"]): i["title"] for i in ready},
-          "trains": [], "leads": {}, "notes": [], "events": [], "dropped": [], "done": False, "stopped": None,
+          "ready_source": "hand" if a.ready else "board", "trains": [], "leads": {}, "notes": [], "events": [], "dropped": [], "done": False, "stopped": None,
           "console": os.environ.get("CLAUDE_CODE_SESSION_ID", ""), "transport": "tree", "tick_minutes": a.tick_minutes}
     save(st)
     event(st, f"start (tree): {len(ready)} Ready, master {sha[:7]}, cap {a.cap}h, stall {a.stall_minutes} min, tick {a.tick_minutes} min")
@@ -489,7 +500,10 @@ def cmd_needs_owner(a):
 
 # ---------------------------------------------------------------- done-check + report
 def remaining_ready(st):
-    return [i["number"] for i in ready_issues() if i["number"] in set(st["ready"]) - set(st.get("dropped", []))]
+    left = set(st["ready"]) - set(st.get("dropped", []))
+    if st.get("ready_source") == "hand":  # no board to ask: still Ready is what no landed commit closes
+        return sorted(left - closed_since(st))
+    return [i["number"] for i in ready_issues() if i["number"] in left]
 
 
 def cmd_done_check(a):
@@ -524,7 +538,7 @@ def collapse(lines):
 def write_report(st):
     rem = set(remaining_ready(st)); start = st["start_sha"]; dropped = st.get("dropped", [])
     log = sh(f"git log --oneline {start}..master", cwd=ROOT).strip().splitlines()
-    closes = {int(n) for n in re.findall(r"[Cc]loses #(\d+)", sh(f"git log {start}..master", cwd=ROOT))}
+    closes = closed_since(st)
     landed = [n for n in st["ready"] if n in closes]
     nd = board_lane("needs-design"); ip = board_lane("in-progress")
     back = [n for n in st["ready"] if n in nd and n not in dropped and n not in landed]
@@ -580,6 +594,7 @@ def main():
     s.add_argument("--cap", type=float, default=15); s.add_argument("--max-leads", type=int, default=1)
     s.add_argument("--stall-minutes", type=int, default=45, help="disk silence that counts as a stall")
     s.add_argument("--size", type=size_arg, default=None, help="max singletons per train, or `all`: every Ready issue in one train (default: all)")
+    s.add_argument("--ready", type=int, nargs="+", help="the Ready snapshot by hand, for a session that cannot read the board (a cloud session): never refilled from the board")
     s.add_argument("--no-issue", action="store_true")
     s.add_argument("--tree", action="store_true", help="accepted and redundant: the tree is the only transport")
     s.add_argument("--tick-minutes", type=tick_minutes, default=45, help="the top's tick interval, [15, 55] (inside the prompt-cache hour)")
