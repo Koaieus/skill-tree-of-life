@@ -390,21 +390,16 @@ func test_the_defs_knobs_move_the_disc_and_the_function_together() -> void:
 
 # --- 5c: the overflow band ----------------------------------------------------
 
-## The overflow band keeps Burning's travel verb. Its go_off is NOT authored
-## yet: sharing Burning's instance moves go-off zero's whole-hit pin in
-## `test_disc_go_off.gd` (a degree-0 node has T = cap = 0, so its first Heat
-## reads the overflow band), which acceptance 7 keeps green. The lead's call.
+## The overflow band keeps Burning's travel verb and its disc (lead call,
+## tentative: only its decay differs).
 func test_the_overflow_band_keeps_burnings_travel() -> void:
 	var bands := _fire().bands
 	assert_eq(bands[-1].travel, bands[0].travel, "the overflow band keeps Burning's travel verb")
 
 
-## Acceptance 5c's go-off half: one line in `fire.tres` (the overflow band's
-## `go_off = SubResource("burning_disc")`) turns it on.
+## Acceptance 5c's go-off half: past its cap k × T a node reads the overflow
+## band, which answers with Burning's own disc at the whole excess, Heat − T.
 func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
-	if _fire().bands[-1].go_off == null:
-		pending("5c: the overflow band's go_off waits on the lead (see the note above)")
-		return
 	assert_true(is_same(_fire().bands[-1].go_off, _fire().bands[0].go_off),
 			"the overflow band's go_off is Burning's instance")
 	var disc := _disc()
