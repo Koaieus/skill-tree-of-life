@@ -46,31 +46,40 @@ func _rider(def: StatusDef) -> ApplyStatusEffect:
 	return e
 
 
-## A DETONATE spell landing (load 3) on the charged target with two inners.
+## A DETONATE spell head (load 3) on the charged target carrying two status
+## riders, placed as a landing places it: the span the gather sets off.
 func _detonate() -> Array[HitInstance]:
-	var cast := PropagationContext.new()
-	cast.caster = _f.attacker
-	cast.graph = _f.graph
-	cast.world = CombatWorld.live()
-	cast.outcome = AttackOutcome.new()
-	cast.target_mask = SkillNode.Ownership.HOSTILE
-	var payload := CastSpell.new()
-	payload.current_node = _f.target
-	payload.source = _f.leaves[0]
-	payload.damage = 10.0
-	var lctx := LandingContext.for_test(payload, _f.target, cast)
-	var effects: Array[OnHitEffect] = [_rider(_POISON), _rider(_BLIND)]
-	OnHitEffect.run_all(DetonateEffect.arm(effects, 3), lctx)
-	return lctx.hits
+	var head := DamageInstance.new()
+	head.target = _f.target
+	head.attacker = _f.attacker
+	head.amount = 10.0
+	head.type = DamageInstance.Type.TRUE
+	head.is_head = true
+	head.hit_load = 3
+	var hits: Array[HitInstance] = [head]
+	var landing := HitLanding.riding(head, hits)
+	landing.target_mask = SkillNode.Ownership.HOSTILE
+	OnHitEffect.run_all([_rider(_POISON), _rider(_BLIND)] as Array[OnHitEffect], landing)
+	landing.place()
+	return hits
 
 
-## The hits the blast appended: everything off the centre.
-func _inner(hits: Array[HitInstance]) -> Array[HitInstance]:
-	var out: Array[HitInstance] = []
-	for h in hits:
-		if h.target != _f.target:
-			out.append(h)
-	return out
+## One hand-minted mark stamped on a hit on each hostile cluster node: the
+## announcer's input, with no go-off behind it.
+func _marked() -> Array[HitInstance]:
+	var mark := BlastMark.new()
+	mark.centre = _f.target
+	mark.attacker = _f.attacker
+	var hits: Array[HitInstance] = []
+	for n: SkillNode in _f.cluster:
+		var d := DamageInstance.new()
+		d.target = n
+		d.attacker = _f.attacker
+		d.amount = 1.0
+		d.type = DamageInstance.Type.TRUE
+		d.blast_mark = mark
+		hits.append(d)
+	return hits
 
 
 func _outcome(hits: Array[HitInstance]) -> AttackOutcome:
@@ -81,7 +90,9 @@ func _outcome(hits: Array[HitInstance]) -> AttackOutcome:
 
 func test_one_mark_rides_every_inner_hit_at_the_sims_reach() -> void:
 	var hits := _detonate()
-	var inner := _inner(hits)
+	var authored := hits.size()
+	await OutcomeApplier.drain(HitQueue.over(hits), CombatWorld.live(), BeatClock.instant_clock())
+	var inner := hits.slice(authored)
 	assert_gt(inner.size(), 1, "fixture: the blast lands inner hits")
 	var mark: BlastMark = inner[0].blast_mark
 	assert_not_null(mark, "the blast stamps its hits")
@@ -90,16 +101,15 @@ func test_one_mark_rides_every_inner_hit_at_the_sims_reach() -> void:
 	for h in inner:
 		assert_true(is_same(h.blast_mark, mark), "one mark on every inner hit")
 	var spread := _EXPLOSIVE.spread as ExplosiveSpread
-	var power := DetonateEffect.power_of(3, 2, spread.resonance)
+	var power := DiscGoOff.power_of(3, 2, spread.resonance)
 	assert_almost_eq(mark.reach, spread.radius_for(_f.target.radius, power), 0.001, "the sim's reach")
 	assert_eq(mark.power, power, "the detonation's power reaches the mark")
 	assert_true(is_same(mark.centre, _f.target), "centred on the struck node")
 	assert_true(is_same(mark.attacker, _f.attacker), "the attacker's blast")
 	assert_eq(mark.riders, [_POISON.identity, _BLIND.identity] as Array[Identity],
-			"riders are the inners' status identities, explosive stripped")
-	for h in hits:
-		if h.target == _f.target:
-			assert_null(h.blast_mark, "the centre's own hits carry no mark")
+			"riders are the identities of the status rows its copies carry")
+	for h in hits.slice(0, authored):
+		assert_null(h.blast_mark, "the centre's own hits carry no mark")
 
 
 func test_a_live_apply_announces_the_blast_once() -> void:
@@ -117,7 +127,7 @@ func test_a_shadow_apply_never_announces() -> void:
 
 
 func test_a_blast_whose_hits_all_gated_never_announces() -> void:
-	var hits := _detonate()
+	var hits := _marked()
 	for h in hits:
 		h.gated = true
 	watch_signals(Events)
@@ -126,23 +136,22 @@ func test_a_blast_whose_hits_all_gated_never_announces() -> void:
 
 
 func test_a_later_ungated_hit_still_announces_a_mark_gated_hits_shared() -> void:
-	var hits := _detonate()
-	var inner := _inner(hits)
-	inner[0].gated = true
+	var hits := _marked()
+	assert_gt(hits.size(), 1, "fixture: a later hit shares the mark")
+	hits[0].gated = true
 	watch_signals(Events)
 	await OutcomeApplier.apply(_outcome(hits), CombatWorld.live())
 	assert_signal_emit_count(Events, "blast_landed", 1, "the gated hit does not spend the mark")
 
 
 func test_two_marks_announce_twice() -> void:
-	var hits := _detonate()
-	var second := _detonate()
-	assert_ne(_inner(second)[0].blast_mark, _inner(hits)[0].blast_mark, "fixture: two marks")
+	var hits := _marked()
+	var second := _marked()
+	assert_ne(second[0].blast_mark, hits[0].blast_mark, "fixture: two marks")
 	hits.append_array(second)
 	watch_signals(Events)
 	await OutcomeApplier.apply(_outcome(hits), CombatWorld.live())
 	assert_signal_emit_count(Events, "blast_landed", 2, "once per mark, not once per apply")
-
 
 
 # The generation index (#1799) ─────────────────────────────────────────────────

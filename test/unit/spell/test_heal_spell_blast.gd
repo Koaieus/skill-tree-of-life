@@ -4,8 +4,8 @@ extends GutTest
 ## charged node with a DETONATE explosive load blasts a share of its heal —
 ## never damage — onto the nodes in reach its own mask admits. A spell
 ## landing rides its own heal the way an arrow's landing rides its arrow, so
-## the shrapnel pairs a [PairedHealInstance]. Geometry is derived from the
-## shipped explosive knobs, never literals.
+## the go-off's copies are heals. Geometry is derived from the shipped
+## explosive knobs, never literals.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _EXPLOSIVE: StatusDef = preload("res://effects/status/explosive.tres")
@@ -47,7 +47,7 @@ func _board() -> Dictionary:
 	h.assign_owner(graph, def, [3])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
-	var power := DetonateEffect.power_of(_LOAD, _CHARGES, _spread().resonance)
+	var power := DiscGoOff.power_of(_LOAD, _CHARGES, _spread().resonance)
 	var reach := _spread().radius_for(n[1].radius, power)
 	assert_between(reach, 101.0, 90000.0, "fixture: the blast reaches nodes 2 and 3, never 0")
 	n[1].get_combat().apply_status(_EXPLOSIVE, float(_CHARGES))
@@ -62,17 +62,14 @@ func _cast(b: Dictionary, spell: SpellDef) -> AttackOutcome:
 	return SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, inf)
 
 
-## [primary heal on node 1, the blast heals].
-func _heals(outcome: AttackOutcome, centre: SkillNode) -> Array:
+## The spell's own heal on [param centre].
+func _primary_heal(outcome: AttackOutcome, centre: SkillNode) -> HealInstance:
 	var primary: HealInstance = null
-	var blasts: Array[HitInstance] = []
 	for hit in outcome.hits:
-		if hit is PairedHealInstance:
-			blasts.append(hit)
-		elif hit is HealInstance and hit.target == centre:
+		if hit is HealInstance and hit.target == centre and hit.blast_mark == null:
 			primary = hit
 	assert_not_null(primary, "the spell heals the node it lands on")
-	return [primary, blasts]
+	return primary
 
 
 ## Land [param outcome] on the live world; the go-off copies in it (a spell's
@@ -91,7 +88,7 @@ func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -
 	var b := _board()
 	var n: Array = b.n
 	var outcome := _cast(b, _heal_spell(_FRIENDLY))
-	var raw: float = _heals(outcome, n[1])[0].amount
+	var raw: float = _primary_heal(outcome, n[1]).amount
 	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
 	assert_eq(heals.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
 	for hit in heals:

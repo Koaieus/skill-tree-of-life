@@ -78,7 +78,7 @@ func _hits_on(outcome: AttackOutcome, node: SkillNode) -> Array:
 
 
 func _is_main_hit(x: HitInstance, node: SkillNode) -> bool:
-	return x.target == node and not (x is CureInstance or x is StatusInstance or x is PairedDamageInstance)
+	return x.target == node and not (x is CureInstance or x is StatusInstance)
 
 
 ## The default node radius every fixture node keeps; [method _board] pins it.
