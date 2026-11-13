@@ -365,6 +365,24 @@ check("next-train over only-empty trains says nothing queued and marks every one
       code == 0 and "nothing queued" in out and all(t["state"] == "empty" for t in state()["trains"]) and "lead-b" not in state()["leads"])
 run("retire", "--force")
 
+# --- start --ready: a hand-given snapshot for a session that cannot read the board
+fx["ready"] = [77]; fx["blocked_by"] = {11: [10]}; fx["milestone"] = {}
+wh.title_of = lambda n: f"hand {n}"
+code, out = run("start", "--no-issue", "--ready", "10", "11", "12", me="feedface-0000")
+st = state() if os.path.exists(jpath) else {}
+check("start --ready snapshots the hand-given issues with titles, not the board's, marked ready_source hand",
+      code == 0 and st.get("ready") == [10, 11, 12] and st.get("ready_source") == "hand"
+      and st.get("ready_titles", {}).get("11") == "hand 11" and [t["issues"] for t in st.get("trains", [])] == [[10, 11, 12]])
+run("next-train", "--lead", "lead-a", me="feedface-0000")
+code, out = run("done", "--lead", "lead-a", SHA, "2/3", me="feedface-0000")
+st = state() if os.path.exists(jpath) else {}
+notes = " ".join(st.get("notes", []))
+check("a hand-snapshot run never refills from the board and ends on its last done",
+      st.get("done") is True and 77 not in st.get("ready", []))
+check("a hand-snapshot run's still-Ready is the snapshot minus what a landed commit closes",
+      "still-ready #12" in notes and "still-ready #10" not in notes and "still-ready #11" not in notes and "#77" not in notes)
+run("retire", "--force")
+
 # --- the fence held --------------------------------------------------------
 check("the only gh calls were answered by the fake, never posting", all(c.startswith("gh issue list") for c in calls if c.startswith("gh ")))
 real_after = {p: os.path.getmtime(os.path.join(real, p)) for p in os.listdir(real) if p.startswith("whip-")} if os.path.isdir(real) else {}

@@ -4,8 +4,8 @@ extends GutTest
 ## charged node with a DETONATE explosive load blasts a share of its heal —
 ## never damage — onto the nodes in reach its own mask admits. A spell
 ## landing rides its own heal the way an arrow's landing rides its arrow, so
-## the shrapnel pairs a [PairedHealInstance]. Geometry is derived from the
-## shipped explosive knobs, never literals.
+## the go-off's copies are heals. Geometry is derived from the shipped
+## explosive knobs, never literals.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _EXPLOSIVE: StatusDef = preload("res://effects/status/explosive.tres")
@@ -47,7 +47,7 @@ func _board() -> Dictionary:
 	h.assign_owner(graph, def, [3])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
-	var power := DetonateEffect.power_of(_LOAD, _CHARGES, _spread().resonance)
+	var power := DiscGoOff.power_of(_LOAD, _CHARGES, _spread().resonance)
 	var reach := _spread().radius_for(n[1].radius, power)
 	assert_between(reach, 101.0, 90000.0, "fixture: the blast reaches nodes 2 and 3, never 0")
 	n[1].get_combat().apply_status(_EXPLOSIVE, float(_CHARGES))
@@ -62,36 +62,43 @@ func _cast(b: Dictionary, spell: SpellDef) -> AttackOutcome:
 	return SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, inf)
 
 
-## [primary heal on node 1, the blast heals].
-func _heals(outcome: AttackOutcome, centre: SkillNode) -> Array:
+## The spell's own heal on [param centre].
+func _primary_heal(outcome: AttackOutcome, centre: SkillNode) -> HealInstance:
 	var primary: HealInstance = null
-	var blasts: Array[HitInstance] = []
 	for hit in outcome.hits:
-		if hit is PairedHealInstance:
-			blasts.append(hit)
-		elif hit is HealInstance and hit.target == centre:
+		if hit is HealInstance and hit.target == centre and hit.blast_mark == null:
 			primary = hit
 	assert_not_null(primary, "the spell heals the node it lands on")
-	return [primary, blasts]
+	return primary
+
+
+## Land [param outcome] on the live world; the go-off copies in it (a spell's
+## waves gather as they resolve, so its copies are in the outcome already).
+func _land(outcome: AttackOutcome) -> Array[HitInstance]:
+	await OutcomeApplier.drain(HitQueue.over(outcome.hits), CombatWorld.live(), BeatClock.instant_clock())
+	return outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
+
+
+## Go-off zero's share, as Explosive's aspect authors it.
+func _share() -> float:
+	return (load("res://aspects/defs/explosive.tres") as Aspect).go_off.share
 
 
 func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -> void:
 	var b := _board()
 	var n: Array = b.n
-	var got := _heals(_cast(b, _heal_spell(_FRIENDLY)), n[1])
-	var primary: HealInstance = got[0]
-	var blasts: Array[HitInstance] = got[1]
-	assert_eq(blasts.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
-	for hit in blasts:
-		assert_almost_eq(hit.amount, PairedDamageEffect.new().fraction * primary.amount, 0.0001,
-				"the blast heals the fraction of the spell's raw heal")
-		assert_eq(hit.paired, primary, "the blast rides the spell's heal")
+	var outcome := _cast(b, _heal_spell(_FRIENDLY))
+	var raw: float = _primary_heal(outcome, n[1]).amount
+	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
+	assert_eq(heals.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
+	for hit in heals:
+		assert_almost_eq(hit.amount, _share() * raw, 0.0001, "the blast heals the disc's share of the spell's raw heal")
 
 
 func test_a_heal_spell_under_an_any_mask_blasts_heals_and_deals_no_damage() -> void:
 	var b := _board()
 	var outcome := _cast(b, _heal_spell(_ANY))
-	var blasts: Array = _heals(outcome, b.n[1])[1]
-	assert_false(blasts.is_empty(), "the healing beam's own mask mints blast heals")
+	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
+	assert_false(heals.is_empty(), "the healing beam's own mask lands blast heals")
 	for hit in outcome.hits:
 		assert_false(hit is DamageInstance, "a heal's blast never damages: %s" % hit)

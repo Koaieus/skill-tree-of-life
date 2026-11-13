@@ -221,8 +221,8 @@ var deallocations: Array[DeallocEntry] = []
 ## and hands a peer the pop cue it never used to get at all.
 var popped_vertex: SkillNode = null
 
-## The board blast this hit belongs to — minted and stamped by [BlastEffect]
-## on every hit its blast appends; null on every other hit. Like
+## The board blast this hit belongs to — minted by [HitGather] where a go-off
+## fires and stamped on every copy it sends; null on every other hit. Like
 ## [member popped_vertex] a recorded cue: [OutcomeApplier] announces it on the
 ## live landing, never from the sim.
 var blast_mark: BlastMark = null
@@ -381,6 +381,13 @@ func rider_gated(node: NodeCombat, world: CombatWorld) -> bool:
 func draws_own_crit() -> bool:
 	return paired == null
 
+
+
+## The fresh instance a go-off copy of this hit starts from ([HitGather]): this
+## script's own, whose `_init` takes no argument. A subclass whose `_init` takes
+## some overrides it with the plain class its copy lands as.
+func blank_copy() -> HitInstance:
+	return get_script().new()
 
 ## Take [param lead]'s settled crit as this hit's own — the one way a rider
 ## gets a crit, so "what tier T multiplies by" has one owner,

@@ -472,6 +472,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 				fired.mark.generation = generation - 1
 				fired.mark.reach = result.reach
 				fired.mark.power = result.power
+				fired.mark.riders = _rider_ids(h)
 		if reach.depth <= 1:
 			_join(next, _arrive(fired, reach.node, generation))
 			continue
@@ -546,6 +547,20 @@ func _arrive(fired: _Fired, node: SkillNode, generation: int) -> Arrival:
 	if fired.mark != null:
 		_marks[a] = fired.mark
 	return a
+
+
+## The identities of the status rows [param h]'s copies carry ([method _push]:
+## its span's status riders less the staged element riders), once each in span
+## order: the riders a [BlastMark] shows its audience.
+static func _rider_ids(h: _Hit) -> Array[Identity]:
+	var out: Array[Identity] = []
+	for hit in h.span:
+		var s := hit as StatusInstance
+		if s == null or s.staged or s.def == null or s.def.identity == null:
+			continue
+		if not out.has(s.def.identity):
+			out.append(s.def.identity)
+	return out
 
 
 ## The [Identity] a go-off held by [param band] is named by: the band's own,
@@ -865,7 +880,7 @@ func _push(queue: HitQueue) -> void:
 ## the entry's target, the head as [member HitInstance.paired], and every
 ## landing result reset.
 static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
-	var c: HitInstance = src.get_script().new()
+	var c: HitInstance = src.blank_copy()
 	for p: Dictionary in src.get_property_list():
 		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE:
 			c.set(p.name, src.get(p.name))

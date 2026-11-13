@@ -78,7 +78,7 @@ func _hits_on(outcome: AttackOutcome, node: SkillNode) -> Array:
 
 
 func _is_main_hit(x: HitInstance, node: SkillNode) -> bool:
-	return x.target == node and not (x is CureInstance or x is StatusInstance or x is PairedDamageInstance)
+	return x.target == node and not (x is CureInstance or x is StatusInstance)
 
 
 ## The default node radius every fixture node keeps; [method _board] pins it.
@@ -272,7 +272,9 @@ func test_a_cast_over_uncharged_nodes_plants_nothing() -> void:
 	assert_false(outcome.hits.any(func(x): return x is CureInstance), "nothing to set off")
 
 
-func test_a_charged_node_pops_once_per_wave_and_its_blast_carries_poison() -> void:
+## Three hits of one wave on A each go off off one read of the pre-beat 2
+## (it used to pop once per wave); their spends sum and clamp at 0.
+func test_a_charged_node_goes_off_per_arrival_off_one_read_and_its_blast_carries_poison() -> void:
 	var b := _three_blasts({7: Vector2(0, -(2.0 * _rad() + 8.0))})
 	var n: Array = b.n
 	var a: SkillNode = n[5]
@@ -284,13 +286,14 @@ func test_a_charged_node_pops_once_per_wave_and_its_blast_carries_poison() -> vo
 	(b.graph as Graph).navigator.reconcile()
 	var inf := Infusion.for_cast(FIRECRACKER, {_POISON: 2})
 	var outcome := _resolve(b, 1, FIRECRACKER, inf)
-	var cures := outcome.hits.filter(func(x): return x is CureInstance and x.target == a)
-	assert_eq(cures.size(), 1, "three hits, one pop")
 	assert_eq(_hits_on(outcome, a).size(), 3, "fixture: A took three hits")
-	var a_ev: Array = _landings(outcome).filter(func(ev): return ev.target == a)
-	assert_eq(a_ev.size(), 1)
-	if a_ev.size() != 1:
-		return
-	var blast_poison: Array = (a_ev[0] as PropagationEvent).hits.filter(
-			func(x): return x is StatusInstance and x.def.id == _POISON and x.target != a)
-	assert_false(blast_poison.is_empty(), "the pop's blast carries poison outward")
+	await OutcomeApplier.drain(HitQueue.over(outcome.hits), CombatWorld.live(), BeatClock.instant_clock())
+	var copies := outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
+	var powers: Array = []
+	for h: HitInstance in copies:
+		if h.blast_mark != null and h.blast_mark.centre == a and not powers.has(h.blast_mark):
+			powers.append(h.blast_mark)
+	assert_eq(powers.map(func(m: BlastMark) -> int: return m.power), [2, 2, 2], "three hits, three go-offs off the pre-beat 2")
+	assert_almost_eq(a.get_combat().get_status_power(&"explosive"), 0.0, 0.0001, "their spends summed, clamped at 0")
+	var blast_poison := copies.filter(func(x): return x is StatusInstance and x.def.id == _POISON and x.target != a)
+	assert_false(blast_poison.is_empty(), "the blast carries poison outward")

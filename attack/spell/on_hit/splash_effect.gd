@@ -140,9 +140,6 @@ static func _retargeted(landing: HitLanding, node: SkillNode) -> HitLanding:
 	copy.hits = landing.hits
 	copy.gather_cache = landing.gather_cache
 	copy.hit_key = landing.hit_key
-	copy.raw_amount = landing.raw_amount
-	copy.raw_type = landing.raw_type
 	copy.target_mask = landing.target_mask
-	copy.detonated = landing.detonated
 	copy.stamper = landing.stamper
 	return copy

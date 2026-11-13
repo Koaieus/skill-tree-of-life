@@ -81,8 +81,7 @@ func _blade_contact(charges: int) -> HitInstance:
 	di.type = DamageInstance.Type.PHYSICAL
 	di.target = _f.target
 	di.attacker = _f.attacker
-	var hits: Array[HitInstance] = [di]
-	gate.arm_blasts(ev, di, hits, CombatWorld.live(), [])
+	gate.stamp_load(ev, di)
 	return di
 
 

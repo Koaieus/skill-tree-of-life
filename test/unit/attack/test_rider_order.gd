@@ -262,23 +262,6 @@ func test_a_toxic_vertexs_status_lands_after_its_contact() -> void:
 	assert_gt(checked, 0, "fixture: the tip's contact carries a status")
 
 
-func test_a_damage_rider_still_lands_after_its_contact_and_copies_its_crit() -> void:
-	var paired := PairedDamageEffect.new()
-	paired.fraction = 0.5
-	var outcome: AttackOutcome = await _swing([_poison_rider(), paired] as Array[OnHitEffect])
-	var checked := 0
-	for hit in outcome.hits:
-		if hit is PairedDamageInstance and hit.paired != null:
-			assert_gt(_land_index(outcome, hit), _land_index(outcome, hit.paired),
-				"a damage rider lands after its contact")
-			assert_eq(hit.is_crit, hit.paired.is_crit, "and copies its crit")
-			checked += 1
-	assert_gt(checked, 0, "fixture: the tip's contact carries a paired damage rider")
-	for hit in outcome.hits:
-		if hit is StatusInstance and hit.paired != null:
-			assert_gt(_land_index(outcome, hit), _land_index(outcome, hit.paired))
-
-
 ## Unit level, against [BladePopResolver.LiveGate] directly (test_spike_pop.gd's
 ## shape): a contact's gate, and the status the landing places after it.
 func _gate_fixture() -> Dictionary:
