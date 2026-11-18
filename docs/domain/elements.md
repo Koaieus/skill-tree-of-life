@@ -489,3 +489,48 @@ seams and settles the answer (hit-resolution.md § The beat).
   The source node is only read.
 - Guards: `test/unit/attack/test_frozen_admits.gd`,
   `test/unit/attack/test_ice_shatter.gd`, `test/unit/attack/test_blade_frozen.gd`.
+
+## Pair rules: Frozen mutes, the break releases (#1808)
+
+What needs two elements at once (`docs/design/elements/frozen.md` § Pair rules),
+as built. One branch of code, the rest pins on what Fire, Lightning and Ice built.
+
+- **The mute** is `HitGather._read_node`'s return, read by the go-off loop of
+  `_generation`. The node's second `Admits` read (once per node per generation,
+  after every arrival's terrain riders landed) yields one verdict, keyed on the
+  `AdmitsAnswer`, never on Ice by name: no answer → every hit there goes off as
+  before; an answer that ends paths and has no breaker → **no hit goes off
+  there** (the node's other bands' go-offs are dropped: nothing spent, nothing
+  reached, no centre landing; Charge landed meanwhile, a rider's or an arc's
+  transfer, stays on the node — "trapped"); a break → only the hits owning a
+  breaking arrival go off, **once each, each with its own payload** (ADR 0093
+  §3, tentative pending playtest), a hit the ice absorbed sets nothing off. The
+  shatter's spend and the released go-offs' spends commit in the same batch.
+- Riders first: a Heat rider that thaws the node lifts the mute for its own
+  generation (no shatter: a thaw is no breaker), a Cold rider that freezes a
+  Shocked node mutes it. The released arc reads its level after the breaker's
+  riders, so a breaker carrying Charge feeds the arc it releases.
+- A blade vertex's shape on a muted node runs alone (`_fire_vertex_arc` /
+  `_fire_vertex_disc` with `muted`): the node's own arc stays trapped, the
+  vertex arcs with no centre copy and no node spend.
+- A spell walk's conduct is not a go-off and is not muted; a Frozen node that
+  holds ends the walk anyway (`path_ends`).
+- **Landing counts** (b = `FrozenAdmits.break_channels`, 2): a Frozen + Shocked
+  node hit under the threshold takes 1; broken, 1 + b + 1 (the released arc's
+  centre) plus the burst, each neighbour 1; two breakers in one beat: one
+  burst and one shatter spend, 2 + 2b + 2, each neighbour 2, the arcs' spends
+  summed and clamped at 0. A Burning + Shocked node takes 3, a node both reach
+  2 (two marks; one landing at share × 2 with `dedupe_dual_reach` on), the
+  terrain riders once per node per hit. A copy onto a Frozen node is absorbed
+  under the threshold (its Heat, Cold and Charge still land, the go-off still
+  pays for it); a breaking copy lands and takes b, two breaking copies of one
+  hit take 2 + 2b with one burst.
+- Catalyst under a Frozen node converts with whatever terrain lands there, an
+  absorbed copy's Cold included.
+- **The look**: `TerrainBars.is_trapped(node, element)` — the element's band
+  goes off and another band the node sits in answers `Admits` — read from the
+  bands alone. A trapped bar's fill leans toward the holding band's tint
+  (`trapped_frost`, tentative), its Charge blips dim, its frame takes the
+  tint, and `label_for` ends in `TRAPPED_SUFFIX`, so the tooltip's terrain row
+  reads it too.
+- Guards: `test/unit/attack/test_element_pairs.gd`.

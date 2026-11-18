@@ -348,11 +348,9 @@ world: `CombatWorld`".
 
 ### The candidate-set half: `resolve_against(world)`
 
-changing: a walk ends or goes on at a node's `Admits` answer, #1808; see docs/design/elements/hit-resolution.md
-
 `SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
-N's kills have happened. Two things move together:
+N's kills have happened. Four things move together:
 
 1. **The wave loop lands.** Between "reduce incidents" and "expand next wave",
    the wave's hits go through `OutcomeApplier.drain` over a `HitQueue` of just
@@ -372,8 +370,11 @@ N's kills have happened. Two things move together:
 3. **A node can end the walk.** A node's second `Admits` read in the
    generation a head arrived in can say "paths end": the head carries
    `path_ends`, and step 4 mints no next wave from that landing. A breaker
-   shatters the node and its paths walk on. With a null `Admits` every path
-   walks on, as before ([spell-propagation.md](spell-propagation.md) §
+   shatters the node and its paths walk on. The same answer mutes the node's
+   own go-offs while it holds and releases them for the breaking hits only
+   ([elements.md](elements.md) § Pair rules); a walk's conduct (step 4) is not
+   a go-off and is not muted. With a null `Admits` every path walks on, as
+   before ([spell-propagation.md](spell-propagation.md) §
    "Resolver flow").
 4. **A node can carry the walk on.** A head whose walk can leave its landing
    (`walk_spreads`: the config has a spread) reaching a node whose band
