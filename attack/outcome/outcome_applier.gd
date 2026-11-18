@@ -142,15 +142,18 @@ static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dic
 ## concern, so a mid-walk caller pays no coroutine and cannot accidentally
 ## stagger a wave it meant to land at once.
 ##
-## [b]The crit is a landing fact.[/b] Given [param crit_rng] — a fresh
-## resolve's [member AttackOutcome.crit_stream] — the hit draws its crit
-## ([method CritRoll.decide]) right before it lands, reading [param world] as
-## the landings before it left it, so a status landed earlier in the same
-## attack reaches its chance. A rider draws its LEAD's crit instead (once,
-## ahead of the lead's own landing) and copies it. Null on a replay (a rebuilt record carries no
-## stream): the recorded crit lands as-is. Never key that off a per-hit field
-## — a recorded hit with no dealloc would read as fresh and re-draw. A hit
-## that does not reach its landing (freed target or origin) draws nothing.
+## [b]The crit is a fact of the hit, fixed before its riders land.[/b] Given
+## [param crit_rng] — a fresh resolve's [member AttackOutcome.crit_stream] —
+## a gather head has already drawn its crit as its beat opened
+## ([method HitGather.stage_one], handed the same stream by [method drain]), and
+## its span and copies carry it, so here [method CritRoll.decide] is a no-op for
+## them. A lead that is no gather head draws here, right before it lands,
+## reading [param world] as the landings before it left it. A rider draws its
+## LEAD's crit (once) and copies it. Null on a replay (a rebuilt record carries
+## no stream): the recorded crit lands as-is. Never key that off a per-hit field
+## — a recorded hit with no dealloc would read as fresh and re-draw. A hit that
+## does not reach its landing (freed target or origin) draws nothing here; a
+## gather head drew at beat open regardless.
 ##
 ## [param _queue] is the worklist this landing drains from ([method drain]);
 ## null = a standalone landing. Unread here: the gather (#1798) pushes a beat's

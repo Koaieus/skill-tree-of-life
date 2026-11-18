@@ -1,9 +1,9 @@
 class_name CritRoll
 
 ## The one crit implementation, shared by all three attack modes. A crit is
-## decided per HIT at landing ([method decide], drawn off the outcome's
-## [member AttackOutcome.crit_stream] in landing order) and its payload copies
-## it; [method apply] multiplies `amount` at the tail of [method
+## decided once per HIT before its riders land ([method decide], drawn off the
+## outcome's [member AttackOutcome.crit_stream] in landing order: a gather head
+## as its beat opens, any other lead as it lands) and its payload copies it; [method apply] multiplies `amount` at the tail of [method
 ## HitInstance.land_on]. A replay never draws. See docs/domain/hit-resolution.md
 ## "CritRoll".
 
@@ -28,8 +28,10 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 
 ## Roll one hit's universal `crit_chance` and settle its crit fields.
 ##
-## Called by [method OutcomeApplier.land_one] as the hit lands; [param world]
-## is the landing world. Any condition-path tier already stamped on the hit
+## Called by [method HitGather.stage_one] for a gather head as its beat opens
+## (after its raw amount is stamped), and by [method OutcomeApplier.land_one]
+## as any hit lands (a no-op once decided); [param world] is the world at that
+## moment. Any condition-path tier already stamped on the hit
 ## (magic's [member SpellDef.crit_conditions]) is carried in — this only ADDS
 ## the universal stat path on top. The draw order is the landing order
 ## ([method OutcomeApplier.in_arrival_order], the structural index, never
@@ -37,8 +39,8 @@ static func stream_for(resolve_seed: int) -> RandomNumberGenerator:
 ##
 ## A rider ([member HitInstance.paired] set) decides its LEAD first — memoised
 ## by [member HitInstance.crit_decided], so the lead's own later call is a
-## no-op and the stream is consumed exactly once per lead, at the moment its
-## first payload element lands — then copies the lead's crit and draws
+## no-op and the stream is consumed exactly once per lead, at its first
+## decision — then copies the lead's crit and draws
 ## nothing itself. A lead consumes exactly one draw from [param rng], and only
 ## when its folded chance ([method chance_for]) is non-zero — a hit with no
 ## crit investment behind it must not shift the stream for everyone else. A

@@ -191,7 +191,7 @@ func test_preview_and_plan_fill_agree_on_the_copy() -> void:
 
 func test_a_plain_head_answers_no_source_and_the_signatures_stand() -> void:
 	assert_null(DamageInstance.new().go_off_source(), "a plain DamageInstance answers null")
-	assert_eq(_arg_count(HitGather, &"stage_one"), 3, "stage_one keeps its parameter list")
+	assert_eq(_arg_count(HitGather, &"stage_one"), 4, "stage_one: the group, the world, the queue, the crit stream")
 	assert_eq(_arg_count(OutcomeApplier, &"apply"), 4, "apply keeps its parameter list")
 	assert_eq(_arg_count(OutcomeApplier, &"drain"), 6, "drain keeps its parameter list")
 

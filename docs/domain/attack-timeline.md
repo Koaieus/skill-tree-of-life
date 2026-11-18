@@ -146,7 +146,7 @@ every expansion from wave N onward.**
 | Aspect riders' turn (after every other hit of their beat, a run of equal `structural_key`; `OutcomeApplier.drain`, ADR 0092) | **Land** — the list order is Resolve's, the hold is the drain's |
 | Depleted-node skip (a node its beat's hits stripped takes no aspect rider) | **Land** — the drain reads the beat's `deallocations`; shipped as `FLAG_GATED` |
 | Attacker offense (`ranged_damage`, blade vertex damage, spell damage) | **Commit** |
-| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | A spell's: **Resolve**. Each landing decides it once, at its head, as `place()` stamps it (`SpellResolver._crit_at_head`: the conditions, then `CritRoll.decide`), before its wave lands. That is the pre-hit node, ahead of the hit's own riders (ADR 0083 §4). A bare status head decides on the landing's first unpaired damage and copies it. Its siblings and every gather copy carry it. An arrow's or a blade's: **Land**. `land_one` draws once per lead as it lands, before any of its payload, and every rider copies it. Interim: such a head is still undecided at stage one, so its terrain stacks and its `Admits.read` amount see multiplier 1.0 (#1809, #1810) |
+| Crit *decision* (`crit_chance` roll, `SpellDef.crit_conditions`) | A spell's: **Resolve**. Each landing decides it once, at its head, as `place()` stamps it (`SpellResolver._crit_at_head`: the conditions, then `CritRoll.decide`), before its wave lands. That is the pre-hit node, ahead of the hit's own riders (ADR 0083 §4). A bare status head decides on the landing's first unpaired damage and copies it. Its siblings and every gather copy carry it. An arrow's or a blade's: **Land, in stage one of its beat**. `HitGather.stage_one` draws the head's crit off the resolve's stream as the beat opens, after its raw amount is stamped and before its admit / land / read, against the world as it stood before the beat; its span and its gather copies carry it, so its terrain stacks and both `Admits` reads see the crit amount (ADR 0092 §2). `land_one` then finds it decided and draws nothing; it still draws for a lead that is no gather head |
 | Crit *multiplier* (`amount ×= crit_multiplier`) | **Land** — base `DamageInstance`/`HealInstance.land_on` |
 | Amount *basis* (`HitInstance.basis` — FLAT HP, `PERCENT_MAX` of the target's max hp, or `PERCENT_CURRENT` of its current hp) | **Land** — `HitInstance.resolve_amount`, ahead of the crit multiply; resolves once and flips itself to FLAT, so a rebuilt record never re-scales. Sizes the number *before* `Mitigation` — bypass is `Type.TRUE`'s axis, not this one |
 | Defender mitigation (`armor`, `min_damage_taken`) | **Land** — `Mitigation.apply_to` inside `NodeCombat.take_damage` ([hit-resolution.md](hit-resolution.md) § Mitigation) |
@@ -219,11 +219,18 @@ would silently diverge, and damage would merely go stale with no test failing.
 either is not seen by hits already in flight.
 
 A single seeded stream serves a whole attack, so **draws are consumed in
-landing order** (the structural `schedule_index`, never seconds). For an arrow
-or a blade the draw lives inside the landing itself: `OutcomeApplier.land_one`
-calls `CritRoll.decide` off the outcome's `crit_stream` right before the hit
-lands, reading the landing world, so the two orders cannot drift apart. If they
-did, crits would stop reproducing under a replayed seed. A spell draws at
+landing order** (the structural `schedule_index`, never seconds): beat by beat,
+heads in list order within a beat. For an arrow or a blade the draw opens the
+beat: `HitGather.stage_one`, handed the outcome's `crit_stream` by
+`OutcomeApplier.drain`, calls `CritRoll.decide` on each undecided head in list
+order, reading the world as the beat opens, so an earlier beat's status reaches
+the chance and the beat's own landings do not. `land_one` keeps its own
+`decide` call: a no-op for a decided head, the draw for a lead that is no
+gather head (today those are amount-0 Exert, AddonDestroy and GateFlip hits,
+which draw nothing). If the orders drifted, crits would stop reproducing under
+a replayed seed. A head whose target or origin is gone by the time it would
+land has already drawn at beat open; that is deterministic, since only the
+authority draws. A spell draws at
 `place()` instead, once per landing in landing order, off the walk's stream
 (`PropagationContext.rng_for_crits`). The landing's hits and its gather copies
 then arrive at `land_one` already decided, so they draw nothing more. A rebuilt
