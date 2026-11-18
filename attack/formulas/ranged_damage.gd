@@ -117,9 +117,10 @@ static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Ar
 
 ## Ranged's GATE — the arrow's; its riders follow it through
 ## [member HitInstance.paired], so the two never disagree on whether an
-## arrival is a dud. Read once, against the world as the arrow's beat opens
-## ([method RangedHitInstance.resolve_gate]): false if the target is no longer allocated/hostile to [param attacker], or the firing
-## node's slice ([param origin_slice], looked up in the landing world) is
+## arrival is a dud. Decided once, by its first asker
+## ([method RangedHitInstance.resolve_gate]): on a fresh resolve, as the
+## arrow's beat opens. False if the target is no longer allocated/hostile to
+## [param attacker], or the firing node's slice ([param origin_slice], looked up in the landing world) is
 ## gone. A veto is a veto, not a re-plan — callers mark
 ## [member HitInstance.gated] and mutate nothing.
 static func passes_gate(attacker: Entity, node: NodeCombat, origin_slice: NodeCombat) -> bool:
@@ -167,8 +168,9 @@ static func _read_offense(firing_slice: NodeCombat) -> float:
 
 
 ## Ranged's gated hit — the ranged sibling of [BladeDamageInstance]
-## (`attack/melee/sim/blade_damage_instance.gd`). Its gate is decided once as
-## its beat opens ([method resolve_gate]); [method land_on] is called once per
+## (`attack/melee/sim/blade_damage_instance.gd`). Its gate is decided once, by
+## its first asker ([method resolve_gate]): on a fresh resolve, as its beat
+## opens. [method land_on] is called once per
 ## hit by [OutcomeApplier] in [member HitInstance.arrival_time] order
 ## (docs/domain/attack-timeline.md).
 ##
@@ -194,8 +196,8 @@ class RangedHitInstance extends DamageInstance:
 		super.land_on(node, world)
 
 	## The veto, decided once against this arrow's own target slice, by its
-	## first asker: [method HitGather.stage_one] as the arrow's beat opens (the
-	## arrow heads its own span), else a rider landing ahead of it
+	## first asker: [method HitGather.stage_one] as a fresh arrow's beat opens
+	## (the arrow heads its own span: its paired riders land after it), else a rider landing ahead of it
 	## ([method HitInstance.rider_gated]), else [method land_on]. Vetoed if the
 	## target is no longer allocated/hostile, or the firing node
 	## ([member HitInstance.origin]) is no longer allocated — an earlier beat's cascade can deallocate either: the target (this
