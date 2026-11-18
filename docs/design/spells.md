@@ -142,9 +142,9 @@ These have an issue; the issue is the design's home, not this doc.
 
 ---
 
-### Catalyst's spells: Firecracker
+### Catalyst's spells: Firecracker and Flamestrike
 
-Built: `docs/domain/catalyst.md` § Firecracker; the design record is `aspect_matrix.md` § Catalyst.
+Firecracker is built: `docs/domain/catalyst.md` § Firecracker; the design record is `aspect_matrix.md` § Catalyst. Flamestrike (a divided damage pool in a shrinking circle) is #1596.
 
 ---
 
