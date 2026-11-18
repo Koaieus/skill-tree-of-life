@@ -1,18 +1,17 @@
 extends GutTest
 
 ## A heal SPELL (the healing beam's shape: one [HealEffect]) landing on a
-## charged node with a DETONATE catalyst load blasts a share of its heal —
-## never damage — onto the nodes in reach its own mask admits. A spell
-## landing rides its own heal the way an arrow's landing rides its arrow, so
-## the go-off's copies are heals. Geometry is derived from the shipped
-## catalyst knobs, never literals.
+## Burning node (Heat T + 1) blasts a share of its heal — never damage — onto
+## the nodes in reach its own mask admits, the centre's own landing included.
+## A spell landing rides its own heal the way an arrow's landing rides its
+## arrow, so the go-off's copies are heals. Geometry is derived from Burning's
+## shipped knobs, never literals.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
-const _CATALYST: StatusDef = preload("res://effects/status/catalyst.tres")
 const _ANY := 15
 const _FRIENDLY := SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
-const _LOAD := 3
-const _CHARGES := 2
+## Heat over T on the landing node: the disc's power.
+const _EXCESS := 1
 const FAR := Vector2(-100000, 0)
 
 var h: SpellTestHelper
@@ -22,8 +21,12 @@ func before_each() -> void:
 	h = H.new()
 
 
-func _spread() -> CatalystSpread:
-	return _CATALYST.spread as CatalystSpread
+func _fire() -> Element:
+	return ElementRoster.shared().by_id(&"fire")
+
+
+func _disc() -> DiscGoOff:
+	return _fire().bands[0].go_off as DiscGoOff
 
 
 func _heal_spell(mask: int) -> SpellDef:
@@ -34,7 +37,7 @@ func _heal_spell(mask: int) -> SpellDef:
 	return spell
 
 
-## Node 0 = the caster's far home, 1 = the charged friendly landing, 2 = a
+## Node 0 = the caster's far home, 1 = the Burning friendly landing, 2 = a
 ## friendly in reach, 3 = a hostile in reach, both adjacent to 1.
 func _board() -> Dictionary:
 	var graph := h.make_graph([[0, 1], [1, 2], [1, 3]], self,
@@ -47,19 +50,17 @@ func _board() -> Dictionary:
 	h.assign_owner(graph, def, [3])
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var n := graph.get_skill_nodes()
-	var power := DiscGoOff.power_of(_LOAD, _CHARGES, _spread().resonance)
-	var reach := _spread().radius_for(n[1].radius, power)
+	var reach := _disc().disc_radius(_EXCESS, n[1].radius)
 	assert_between(reach, 101.0, 90000.0, "fixture: the blast reaches nodes 2 and 3, never 0")
-	n[1].get_combat().apply_status(_CATALYST, float(_CHARGES))
+	var c: NodeCombat = n[1].get_combat()
+	c.add_terrain(_fire(), c.terrain_threshold() + _EXCESS - c.terrain_t())
 	graph.navigator.reconcile()
 	return {graph = graph, atk = atk, n = n}
 
 
 func _cast(b: Dictionary, spell: SpellDef) -> AttackOutcome:
 	var n: Array = b.n
-	var inf := Infusion.for_cast(spell, {&"catalyst": _LOAD})
-	assert_eq(inf.detonate_load(spell), _LOAD, "fixture: the catalyst load detonates")
-	return SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, inf)
+	return SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, Infusion.innate(spell))
 
 
 ## The spell's own heal on [param centre].
@@ -79,9 +80,9 @@ func _land(outcome: AttackOutcome) -> Array[HitInstance]:
 	return outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
 
 
-## Go-off zero's share, as Catalyst's aspect authors it.
+## Burning's share, as Fire's def authors it.
 func _share() -> float:
-	return (load("res://aspects/defs/catalyst.tres") as Aspect).go_off.share
+	return _disc().share
 
 
 func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -> void:
@@ -90,7 +91,8 @@ func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -
 	var outcome := _cast(b, _heal_spell(_FRIENDLY))
 	var raw: float = _primary_heal(outcome, n[1]).amount
 	var heals := (await _land(outcome)).filter(func(x): return x is HealInstance)
-	assert_eq(heals.map(func(x): return x.target), [n[2]], "one blast heal, on the friendly in reach")
+	assert_eq(heals.map(func(x): return x.target), [n[1], n[2]],
+			"a blast heal on the centre's own landing and on the friendly in reach")
 	for hit in heals:
 		assert_almost_eq(hit.amount, _share() * raw, 0.0001, "the blast heals the disc's share of the spell's raw heal")
 
