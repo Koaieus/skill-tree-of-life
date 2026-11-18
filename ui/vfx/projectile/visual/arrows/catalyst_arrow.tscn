@@ -35,6 +35,8 @@ tier = 3
 density = 0.5
 
 [node name="Tip" parent="."]
+length = 15.0
+width = 6.0
 tier = 3
-pulse_hz = 6.0
-pulse_depth = 0.5
+pulse_hz = 3.0
+pulse_depth = 0.35

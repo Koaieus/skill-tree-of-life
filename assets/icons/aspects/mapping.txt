@@ -17,7 +17,7 @@ wither	lorc/dead-wood.svg
 sunder	lorc/cracked-shield.svg
 blindness	skoll/sight-disabled.svg
 scout	delapouite/binoculars.svg
-catalyst	lorc/spiky-explosion.svg
+catalyst	lorc/crystal-cluster.svg
 weakness	skoll/drop-weapon.svg
 greed	delapouite/coins-pile.svg
 bleeding	lorc/bleeding-wound.svg

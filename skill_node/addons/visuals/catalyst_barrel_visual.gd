@@ -1,11 +1,11 @@
 @tool
 class_name CatalystBarrelVisual
 extends AddonVisual
-## One segment of the barrel stack: barrels draw a "database flowchart"
-## cylinder pile standing in elevation on the carrier's rim, one segment per
-## barrel, segment i drawn by barrel i and stacked below the ones before it.
-## A segment is lit (filled in the addon's identity hue) while the carrier
-## holds more than i charges, and a hollow outline once that charge is spent.
+## One segment of the barrel stack: barrels draw a pile of violet crystals
+## standing in elevation on the carrier's rim, one crystal per barrel, crystal
+## i drawn by barrel i and stacked below the ones before it. A crystal is lit
+## (a faceted fill in the addon's identity hue) while the carrier holds more
+## than i charges, and a hollow outline once that charge is spent.
 ## A structure, so it stands on a bearing off the rim, never on the centre
 ## (docs/domain/addon-visual-registers.md); lower-left, clear of the
 ## watchtower's lower-right default and the bars straight up. The index and
@@ -34,17 +34,18 @@ extends AddonVisual
 		queue_redraw()
 
 const _STAND_RADIUS := 1.0
-const _RIM_SQUASH := 0.32  # ellipse ry / rx for the cylinder rims
+const _SHOULDER := 0.28  # where the facets break, as a fraction of the body height
 const _SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.35)
 const _SPENT_ALPHA := 0.55
 const _SIDE_DARKEN := 0.35
+const _FACET_LIGHTEN := 0.3
 
 
 func _draw() -> void:
 	var addon := get_parent() as CatalystBarrelAddon
 	var index := 0
 	var lit := true
-	var hue := Color(0.95, 0.55, 0.2)
+	var hue := Color(0.67, 0.5, 1.0)
 	if addon != null:
 		hue = addon.tint
 		if addon.carrier != null:
@@ -53,42 +54,29 @@ func _draw() -> void:
 	var r := radius
 	var hw := r * segment_width * 0.5
 	var h := r * segment_height
-	var ry := hw * _RIM_SQUASH
 	var foot := Vector2.from_angle(deg_to_rad(stand_bearing_deg)) * (r * _STAND_RADIUS)
-	# Segment i hangs i bodies below the footing segment.
+	# Crystal i hangs i bodies below the footing crystal; its tips overshoot the body.
 	var top := foot + Vector2(0.0, float(index) * h - h)
 	var bottom := top + Vector2(0.0, h)
+	var tip := h * 0.6
+	var shoulder := top.y + h * _SHOULDER
+	var apex := Vector2(top.x, top.y - tip)
+	var base := Vector2(top.x, bottom.y + tip * 0.4)
+	var left_s := Vector2(top.x - hw, shoulder)
+	var right_s := Vector2(top.x + hw, shoulder)
+	var left_b := Vector2(top.x - hw, bottom.y)
+	var right_b := Vector2(top.x + hw, bottom.y)
 	if index == 0:
-		_ellipse(foot + Vector2(0.0, ry), hw * 1.25, ry * 1.1, _SHADOW_COLOR)
+		draw_colored_polygon(PackedVector2Array([foot + Vector2(-hw * 1.2, h * 0.5),
+				foot + Vector2(0.0, h * 0.5 + hw * 0.3), foot + Vector2(hw * 1.2, h * 0.5),
+				foot + Vector2(0.0, h * 0.5 - hw * 0.3)]), _SHADOW_COLOR)
 	if lit:
 		var side := hue.darkened(_SIDE_DARKEN)
-		_ellipse(bottom, hw, ry, side)
-		draw_rect(Rect2(top.x - hw, top.y, hw * 2.0, h), side)
-		_ellipse(top, hw, ry, hue)
+		draw_colored_polygon(PackedVector2Array([apex, right_s, right_b, base, left_b, left_s]), side)
+		draw_colored_polygon(PackedVector2Array([apex, left_s, left_b, base]), hue)
+		draw_colored_polygon(PackedVector2Array([apex, left_s, Vector2(top.x, shoulder)]),
+				hue.lightened(_FACET_LIGHTEN))
 	else:
 		var line := Color(hue, _SPENT_ALPHA)
-		_ellipse_outline(top, hw, ry, line)
-		_ellipse_outline(bottom, hw, ry, line, true)
-		draw_line(top + Vector2(-hw, 0.0), bottom + Vector2(-hw, 0.0), line, outline_width)
-		draw_line(top + Vector2(hw, 0.0), bottom + Vector2(hw, 0.0), line, outline_width)
-
-
-func _ellipse(centre: Vector2, rx: float, ry: float, color: Color) -> void:
-	draw_colored_polygon(_ellipse_points(centre, rx, ry, 0.0, TAU), color)
-
-
-func _ellipse_outline(centre: Vector2, rx: float, ry: float, color: Color, lower_half := false) -> void:
-	var pts := _ellipse_points(centre, rx, ry, 0.0, PI) if lower_half \
-			else _ellipse_points(centre, rx, ry, 0.0, TAU)
-	if not lower_half:
-		pts.append(pts[0])
-	draw_polyline(pts, color, outline_width, true)
-
-
-func _ellipse_points(centre: Vector2, rx: float, ry: float, from: float, to: float) -> PackedVector2Array:
-	var pts := PackedVector2Array()
-	var steps := 20
-	for i in steps + (0 if is_equal_approx(to - from, TAU) else 1):
-		var t := from + (to - from) * float(i) / float(steps)
-		pts.append(centre + Vector2(cos(t) * rx, sin(t) * ry))
-	return pts
+		var ring := PackedVector2Array([apex, right_s, right_b, base, left_b, left_s, apex])
+		draw_polyline(ring, line, outline_width, true)

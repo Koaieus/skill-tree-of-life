@@ -13,7 +13,7 @@ Licensed under [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/). Recolo
 | sunder.png | sunder | cracked-shield.svg | Lorc |
 | blindness.png | blindness | sight-disabled.svg | Skoll |
 | scout.png | scout | binoculars.svg | Delapouite |
-| catalyst.png | catalyst | spiky-explosion.svg | Lorc |
+| catalyst.png | catalyst | crystal-cluster.svg | Lorc |
 | weakness.png | weakness | drop-weapon.svg | Skoll |
 | greed.png | greed | coins-pile.svg | Delapouite |
 | bleeding.png | bleeding | bleeding-wound.svg | Lorc |

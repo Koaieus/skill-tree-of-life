@@ -55,6 +55,20 @@ class IconEntry:
 	set(v):
 		critical_pulse_period = v
 		queue_redraw()
+## Crystal edge (width), px: one violet crystal per Catalyst stack, standing
+## on the icon row. Tentative, easy to change.
+@export_range(2.0, 16.0, 0.5) var crystal_size: float = 5.0:
+	set(v):
+		crystal_size = v
+		refresh()
+## Most crystals drawn for one Catalyst row; more stacks show as this many.
+## Tentative, easy to change.
+@export_range(1, 12, 1) var crystal_cap: int = 6:
+	set(v):
+		crystal_cap = v
+		refresh()
+## Seconds a conversion pulse takes to fade. Tentative, easy to change.
+@export_range(0.05, 2.0, 0.05) var conversion_pulse_seconds: float = 0.5
 ## How far the corruption tint darkens for a pending chunk. Tentative.
 @export_range(0.0, 1.0, 0.05) var chunk_darken: float = 0.45:
 	set(v):
@@ -75,6 +89,11 @@ var icons: Array[IconEntry] = []
 var chunks: Array[Rect2] = []
 var ghost: Rect2 = Rect2()
 var blips: Array[Rect2] = []
+## The Catalyst layer (node hosts only): one crystal per stack, and the tint
+## its conversion pulse flashes in.
+var crystals: Array[Rect2] = []
+var _crystal_tint: Color = Color.WHITE
+var _pulse_left: float = 0.0
 ## `N == T − 1`: one more stack, or one lost degree, cashes the chunks in.
 var critical: bool = false
 
@@ -97,6 +116,8 @@ func _notification(what: int) -> void:
 func bind(host: Object, changed: Signal = Signal()) -> void:
 	_subs.clear()
 	_host = host
+	if _host is NodeCombat:
+		_subs.on(Events.catalyst_converted, _on_catalyst_converted)
 	if _host != null and not changed.is_null():
 		_subs.on(changed, _on_rows_changed)
 	_on_rows_changed()
@@ -119,21 +140,54 @@ func refresh() -> void:
 	icons.clear()
 	chunks.clear()
 	blips.clear()
+	crystals.clear()
 	ghost = Rect2()
 	critical = false
 	var rows := _rows()
-	visible = not rows.is_empty()
+	visible = not rows.is_empty() or _pulse_left > 0.0
 	if rows.is_empty():
-		set_process(false)
+		set_process(_pulse_left > 0.0)
+		queue_redraw()
 		return
 	_build_segments(rows)
 	_build_icons(rows)
-	set_process(not blips.is_empty())
+	_build_crystals(rows)
+	set_process(not blips.is_empty() or _pulse_left > 0.0)
 	queue_redraw()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _pulse_left > 0.0:
+		_pulse_left = maxf(_pulse_left - delta, 0.0)
+		if _pulse_left == 0.0:
+			refresh()
+			return
 	queue_redraw()
+
+
+## The cue: [param node] is this overlay's own node. The tint is the Catalyst
+## crystal violet; the landing element's colour is not carried by the cue yet.
+func _on_catalyst_converted(node: SkillNode, _spent: int) -> void:
+	var slice := _host as NodeCombat if _host != null and is_instance_valid(_host) else null
+	if slice == null or slice.real() != node:
+		return
+	_pulse_left = conversion_pulse_seconds
+	visible = true
+	set_process(true)
+
+
+## One crystal per stack of the node's Catalyst row, above the icon row.
+func _build_crystals(rows: Array[NodeStatus]) -> void:
+	if not (_host is NodeCombat):
+		return
+	for row in rows:
+		if not (row.def is CatalystStatus) or row.power <= 0.0:
+			continue
+		_crystal_tint = row.def.tint
+		var y := -icon_size - icon_gap - crystal_size * 1.6
+		for i in mini(roundi(row.power), crystal_cap):
+			crystals.append(Rect2(i * (crystal_size + icon_gap), y, crystal_size, crystal_size * 1.6))
+		return
 
 
 func _on_rows_changed() -> void:
@@ -259,6 +313,12 @@ func _draw() -> void:
 		draw_rect(s.rect, s.color)
 	if not blips.is_empty():
 		_draw_corruption()
+	for r in crystals:
+		_draw_crystal(r)
+	if _pulse_left > 0.0:
+		var glow := _crystal_tint.lerp(Color.WHITE, 0.5)
+		glow.a = _pulse_left / maxf(conversion_pulse_seconds, 0.01)
+		draw_rect(Rect2(Vector2.ZERO, size), glow)
 	var font := ThemeDB.fallback_font
 	var font_size := maxi(int(icon_size * 0.8), 6)
 	for e in icons:
@@ -289,3 +349,17 @@ func _draw_corruption() -> void:
 	for i in blips.size():
 		var last := i == blips.size() - 1
 		draw_rect(blips[i], hot.lerp(dark, 1.0 - pulse) if critical and last else _corruption_tint)
+
+
+## A faceted violet crystal filling [param r]: a lit left half, a darker right.
+func _draw_crystal(r: Rect2) -> void:
+	var mid := r.position.x + r.size.x * 0.5
+	var shoulder := r.position.y + r.size.y * 0.3
+	var apex := Vector2(mid, r.position.y)
+	var base := Vector2(mid, r.end.y)
+	var left := Vector2(r.position.x, shoulder)
+	var right := Vector2(r.end.x, shoulder)
+	draw_colored_polygon(PackedVector2Array([apex, right, Vector2(r.end.x, r.end.y - r.size.y * 0.2), base,
+			Vector2(r.position.x, r.end.y - r.size.y * 0.2), left]), _crystal_tint.darkened(0.35))
+	draw_colored_polygon(PackedVector2Array([apex, left, Vector2(r.position.x, r.end.y - r.size.y * 0.2), base]),
+			_crystal_tint)
