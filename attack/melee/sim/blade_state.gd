@@ -82,18 +82,11 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
-## Per-particle explosive charges: the swing's WORKING COPY of each source
-## node's own charges, filled at swing start by [BladeVertexFill] (whatever
-## planted them). A charge is a life — [BladePopResolver.LiveGate] spends from
-## here mid-swing, a piece at 0 dies, and the resolve records the spends on
-## the source nodes as cleanses; nothing writes the board from this array.
-## Zero-initialised in build(): a hand-built state carries no charges.
-var vertex_charges: PackedInt32Array
-## Per-particle blast shield: 1 iff the source node's local `deflection` is
-## true, filled at swing start by [BladeVertexFill]. A shielded piece shrugs
-## a defensive explosion in [BladePopResolver.LiveGate] spending nothing —
-## keyed on the stat, so whatever grants `deflection` shields. Zero-initialised
-## in build(): a hand-built state is unshielded.
+## Per-particle shield: 1 iff the source node's local `deflection` is true,
+## filled at swing start by [BladeVertexFill] — keyed on the stat, so
+## whatever grants `deflection` shields. Read through
+## [method BladePopResolver.LiveGate.piece_shielded]. Zero-initialised in
+## build(): a hand-built state is unshielded.
 var vertex_shielded: PackedByteArray
 ## Per-particle coefficient of restitution against a deflecting plate: the
 ## share of a disc's approach speed along the plate normal it leaves with. 0 —
@@ -234,8 +227,6 @@ static func build(
 	s.vertex_node.resize(positions_.size())  # null-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
-	s.vertex_charges = PackedInt32Array()
-	s.vertex_charges.resize(positions_.size())
 	s.vertex_shielded = PackedByteArray()
 	s.vertex_shielded.resize(positions_.size())
 	s.vertex_restitution = PackedFloat32Array()

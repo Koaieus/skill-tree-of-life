@@ -7,15 +7,13 @@ extends SkillNodeAddon
 ## never stat-scaled — a count of explosions, not a magnitude), and a barrel
 ## leaving spends one charge if there is one. The blast's size is the node's
 ## own (the bomb is the node, [CatalystSpread]); a barrel carries no radius
-## logic and no blade code — a swung piece's lives are its node's charges.
+## logic and no blade code.
 ##
 ## Charge writes go through the carrier's status host: the refill lands as
 ## an apply of the deficit, the removal moves the row down by one.
 ##
 ## A temp barrel is the same addon for one swing: no refill, no removal
-## spend, and the carrier's row is never written. On apply it adds one
-## stack to its vertex's swing copy of the charges, which the swing spends
-## like any other charge — one temp barrel, one blast.
+## spend, and the carrier's row is never written — it adds nothing to a swing.
 
 ## The charge this barrel refills — the Catalyst aspect's status.
 @export var charge_status: StatusDef = null
@@ -49,17 +47,6 @@ func on_detached() -> void:
 	if charge_status == null or carrier == null or carrier.is_queued_for_deletion():
 		return
 	carrier.get_combat().adjust_status_power(charge_status, -1.0)
-
-
-## A temp barrel's one stack lands on the swing's working copy only; a map
-## barrel's stacks are already the node's status the fill read.
-func apply_to_blade(state: BladeState, particle_idx: int) -> void:
-	if is_temporary:
-		# Packed arrays copy on read: bump the copy, then set it back.
-		var charges := state.vertex_charges
-		charges[particle_idx] += 1
-		state.vertex_charges = charges
-	super.apply_to_blade(state, particle_idx)
 
 
 ## Non-temporary barrels currently on the carrier — the refill target.

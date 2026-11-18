@@ -84,7 +84,6 @@ func test_plan_and_skill_blade_build_the_same_state() -> void:
 	assert_eq(view.edges, resolve.edges, "edges")
 	assert_eq(view.vertex_damage, resolve.vertex_damage, "vertex_damage")
 	assert_eq(view.vertex_blunting, resolve.vertex_blunting, "vertex_blunting")
-	assert_eq(view.vertex_charges, resolve.vertex_charges, "vertex_charges")
 	assert_eq(_constraint_pairs(view), _constraint_pairs(resolve), "constraint set")
 
 

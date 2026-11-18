@@ -441,8 +441,6 @@ func _land_batch(
 		di.armor_pierce = _pierce_for(di.read_node)
 		di.source = _ctx.hit_source
 		di.attacker = _ctx.attacker
-		# The head's load for the gather's go-off: the piece's charges left.
-		gate.stamp_load(ev, di)
 		# Melee is #543's honest caveat: its structural parameter IS continuous
 		# time the sim produced, so it is NORMALIZED against the swing rather
 		# than "not timing at all". The compiler scales it back out by
@@ -450,20 +448,22 @@ func _land_batch(
 		# picture be stretched without re-simulating the blade.
 		di.structural_key = ev.t / maxf(0.001, _ctx.swing_duration)
 		sub.hits.append(di)
-		# #951: a toxic vertex's riders run on a landing paired to this
+		# Every contact is its own landing's head, riders or not, so a primed
+		# struck node goes off through the gather like any hit sets it off.
+		# #951: a toxic vertex's riders run on that landing, paired to this
 		# contact — same beat — and apply iff it was admitted. The landing
 		# places its statuses just before the contact, damage riders after.
+		var landing := HitLanding.riding(di, sub.hits)
+		landing.target_mask = SkillNode.Ownership.HOSTILE
 		var riders: Array = state.vertex_on_hit[ev.particle_idx]
 		if not riders.is_empty():
-			var landing := HitLanding.riding(di, sub.hits)
-			landing.target_mask = SkillNode.Ownership.HOSTILE
 			if _ctx.overlays_for.is_valid():
 				var carrier: SkillNode = di.read_node
 				var lookup: Callable = _ctx.overlays_for
 				landing.read_overlays = func(sid: StringName) -> Array[ModifierBins]:
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
-			landing.place()
+		landing.place()
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)

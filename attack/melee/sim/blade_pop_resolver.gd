@@ -72,34 +72,6 @@ class Severance extends RefCounted:
 		vertices = vertices_
 
 
-## One charged blade contact as the gate decided it: the piece's spend and
-## verdict, with both sides' powers kept for the bead read. No side blasts the
-## board or reaches the blade pieces, so [member piece_reach] stays 0.0 and no
-## piece is SHRUGGED. Recorded so the swing's replay draws it as a pure
-## function of time, like [member Result.dead_at]; nothing reads it to decide
-## anything.
-class Contact extends RefCounted:
-	## What the node's-side pass did to one piece it considered.
-	enum Verdict { POPPED, SPENT, SHRUGGED }
-	## The contact time.
-	var t: float
-	var struck: SkillNode
-	## The struck node's position: the bomb is the node.
-	var centre: Vector2
-	## The node's-side reach in px; 0.0 when the node held no charges.
-	var piece_reach: float
-	var striker_power: int
-	var node_power: int
-	## particle_idx -> [enum Verdict], for every piece the pass considered,
-	## the contact's own piece included.
-	var verdicts: Dictionary = {}
-
-	func _init(t_: float, struck_: SkillNode) -> void:
-		t = t_
-		struck = struck_
-		centre = struck_.global_position if struck_ != null else Vector2.ZERO
-
-
 ## `dead_at`: particle_idx -> time a spike DESTROYED it. A hit by that vertex
 ## at `ev.t >= dead_at[idx]` must be dropped. This holds destroyed
 ## vertices only — a vertex that merely lost its path to the handle coasts on
@@ -119,8 +91,6 @@ class Result extends RefCounted:
 	## are coasting, not destroyed, and they go on hitting things in the same
 	## trajectory. Each vertex appears in at most one entry.
 	var severances: Array[Severance] = []
-	## Every explosive contact in time order, one row each.
-	var contacts: Array[Contact] = []
 
 	func is_dead(particle_idx: int, t: float) -> bool:
 		return dead_at.has(particle_idx) and t >= dead_at[particle_idx]
@@ -232,9 +202,6 @@ class LiveGate extends RefCounted:
 			return true
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
-		match _admit_explosive(ev, real_node, node):
-			_EXPLOSIVE_REFUSE:
-				return false  # the piece spent its last life on this contact
 		var pool := _spikes_pool(node)
 		var remaining := float(pool.current) if pool != null else 0.0
 		if remaining <= 0.0:
@@ -252,80 +219,11 @@ class LiveGate extends RefCounted:
 		_mark_spent(node, w)
 		return true
 
-	const _EXPLOSIVE_NONE := 0
-	const _EXPLOSIVE_REFUSE := 1
-	const EXPLOSIVE := &"catalyst"
-
-	## The explosive cause, the piece's side alone. With the piece's charges
-	## N (the swing's working copy), the struck node's M read live and
-	## `shared = min(N, M)`, a charged piece spends `max(1, shared)` of its
-	## own; the node's charges are the gather's to spend, never the gate's. One
-	## [Contact] row per charged contact. REFUSE when the contact's own piece
-	## ends at 0; NONE lets the spike ladder run on.
-	func _admit_explosive(ev: BladeHitEvent, real_node: SkillNode, node: NodeCombat) -> int:
-		var spread := explosive_spread()
-		if spread == null:
-			return _EXPLOSIVE_NONE
-		var idx := ev.particle_idx
-		var n := piece_charges(idx)
-		if n <= 0:
-			return _EXPLOSIVE_NONE
-		var m := node_charges(node)
-		var shared := mini(n, m)
-		var row := Contact.new(ev.t, real_node)
-		row.striker_power = side_power(n, shared, spread)
-		row.node_power = side_power(m, shared, spread)
-		_spend_piece(idx, maxi(1, shared))
-		result.contacts.append(row)
-		if piece_charges(idx) <= 0:
-			row.verdicts[idx] = Contact.Verdict.POPPED
-			_kill(idx, ev.t, real_node, 0.0)
-			return _EXPLOSIVE_REFUSE
-		row.verdicts[idx] = Contact.Verdict.SPENT
-		return _EXPLOSIVE_NONE
-
-	## One side's power: its own charges plus the shared chunk weighted by
-	## [member CatalystSpread.resonance]; 0 for a side that holds none.
-	static func side_power(own: int, shared: int, spread: CatalystSpread) -> int:
-		return own + spread.resonance * shared if own > 0 else 0
-
-	## The piece's charges left this swing.
-	func piece_charges(idx: int) -> int:
-		if _state == null or idx < 0 or idx >= _state.vertex_charges.size():
-			return 0
-		return _state.vertex_charges[idx]
-
-	## The piece's source node grants `deflection`: it shrugs a blast.
+	## The piece's source node grants `deflection` ([member BladeState.vertex_shielded]).
 	func piece_shielded(idx: int) -> bool:
 		if _state == null or idx < 0 or idx >= _state.vertex_shielded.size():
 			return false
 		return _state.vertex_shielded[idx] != 0
-
-	## [param node]'s charges on its own world.
-	func node_charges(node: NodeCombat) -> int:
-		if node == null:
-			return 0
-		return maxi(0, int(node.get_status_power(EXPLOSIVE)))
-
-	## Spends off the swing's working copy alone; nothing is written to the
-	## piece's source node.
-	func _spend_piece(idx: int, count: int) -> void:
-		_state.vertex_charges[idx] = maxi(0, _state.vertex_charges[idx] - count)
-
-	## The explosive status's spread, or null if the roster has none.
-	static func explosive_spread() -> CatalystSpread:
-		var def := explosive_def()
-		return def.spread as CatalystSpread if def != null else null
-
-	static func explosive_def() -> StatusDef:
-		var roster := StatusRoster.shared()
-		return roster.by_concept(EXPLOSIVE) if roster != null else null
-
-	## Stamp [param contact]'s [member HitInstance.hit_load], the load the
-	## gather's go-off reads: the piece's charges left this swing, 0 for a plain
-	## piece. Called before the contact lands.
-	func stamp_load(ev: BladeHitEvent, contact: HitInstance) -> void:
-		contact.hit_load = piece_charges(ev.particle_idx)
 
 	## The edge branch of [method admit]. Under [b]ADR 0005[/b] an edge is not a
 	## blunting element at all — [b]spikes pop vertices, bunkers break edges[/b] —
