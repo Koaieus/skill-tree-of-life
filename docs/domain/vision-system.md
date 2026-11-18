@@ -61,8 +61,6 @@ Per-entity, derived from each allocated node:
 
 ### The vision RULE is one class, shared by every caller
 
-changing: a Burning source kind, one disc per lit node, #1805; see docs/design/elements/go-offs.md
-
 The scene carries exactly **one** `VisionSystem` instance, and its `viewers` is the
 **camp-mates** — every entity, AI or human, sharing the bound hero's `faction.id`. The
 rule lives in `SeatPolicy.vision_group` (`session/seat_policy.gd`, see
@@ -91,10 +89,12 @@ geometry at a second call site.
 
 **Which discs, one answer: `VisionSystem.sources_for(viewers)`.** It returns
 `Array[VisionSource]` (`systems/vision_source.gd`, RefCounted: `node`, `center`,
-`radius`, `kind`), pure — it reads the graph and the nodes' scout rows, never the eased
-`_circles`. Kinds: `OWNED` (each node a viewer owns, at its local `vision_range`) and
-`SCOUT` (each node holding a `scout` row keyed by a viewer's camp, at
-`ScoutStatus.radius_for(node, power)`). `_recompute()` builds its `VisionCircles` *and*
+`radius`, `kind`), pure — it reads the graph, the nodes' scout rows and their terrain,
+never the eased `_circles`. Kinds: `OWNED` (each node a viewer owns, at its local
+`vision_range`), `SCOUT` (each node holding a `scout` row keyed by a viewer's camp, at
+`ScoutStatus.radius_for(node, power)`) and `BURNING` (each node whose Fire band has
+`light`, for every viewer, at `DiscGoOff.disc_radius(excess, node.radius)`; § Burning
+nodes). All three are gathered in one pass over the nodes. `_recompute()` builds its `VisionCircles` *and*
 its `_circles` fog targets from `sources_for(_effective_viewers())` — there is no
 second gathering path; `get_vision_sources()` is the fog's eased, local-view render
 list built on those targets. A new kind of sight is one `Kind` value plus one gather
@@ -148,6 +148,29 @@ one stack on the host owner's turn end like any node status, and rides the
 
 Tests: `test/unit/systems/test_vision_scout_marks.gd`,
 `test/unit/systems/test_vision_sources.gd`, `test/unit/attack/test_scout_arrow.gd`.
+
+## Burning nodes
+
+A Burning node is a light source (owner, 2026-11-06): it is visible through fog
+to **every** viewer, whatever its camp, and its disc reveals its neighbours the
+way any disc does. This is a vision fact with no combat rule.
+
+- **The read.** In the same graph pass, `sources_for` asks each node with
+  `t > 0` for its Fire band (`NodeCombat.terrain_band`). A band with `light`
+  (Burning, and the overflow band as a lead call) adds a `BURNING` source of
+  radius `DiscGoOff.disc_radius(Heat − T, node.radius)`. That is Fire's
+  `bands[0].go_off`, the same function Burning's disc reaches with, so a change
+  to `radius_a` / `radius_b` moves the light and the blast together. The read is
+  `VisionSystem._burning_radius`. `_recompute` treats a `BURNING` source as it
+  treats a scout one: it is fed into `VisionCircles`, and its `_circles` target
+  is `max`ed against an owned circle on the same node. It sets no `scouted` flag.
+- **The trigger.** `terrain_band_changed` fires only on a band crossing, so the
+  watch is `SkillNode.terrain_changed`. It is emitted at `NodeCombat.add_terrain`,
+  the one terrain writer, whenever an int moves, and never on a shadow. It is
+  connected per node beside `statuses_changed`. The handler requests the
+  deferred recompute only for a node that is lit now or drew a `BURNING` disc at
+  the last recompute (`_lit_nodes`). So entering Burning, leaving it and an
+  excess change inside it all refresh, and a write on an unlit node does not.
 
 ## Input gating
 

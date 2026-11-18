@@ -179,7 +179,7 @@ what make that order meaningful.
 
 ## Landing against a world: `CombatWorld`
 
-changing: the live world runs the world turn's temperature flow and burn, #1795, #1805; see docs/design/elements/terrain.md
+changing: the live world runs the world turn's temperature flow, #1795; see docs/design/elements/terrain.md
 
 ```
 record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
@@ -224,7 +224,17 @@ of the live node slices with `t != 0` or `charge > 0`
 (`note_terrain` / `forget_terrain` / `reindex_terrain` / `holds_terrain` /
 `terrain_nodes`). `NodeCombat.add_terrain`, the one terrain writer, keeps it in
 step and a `GraphSnapshot` decode rebuilds it per node; a shadow world refuses
-it, since no shadow runs a world turn. Nothing reads it yet (#1795's pass will).
+it, since no shadow runs a world turn. The world turn reads it: Burning's
+burn (`burn_terrain`) and the temperature pass (`flow_temperature`).
+
+**Burning's burn** (`CombatWorld.burn_terrain`) is the one terrain effect that
+lands damage outside a hit. Every allocated indexed node whose Fire band sets
+`ElementBand.burn_per_excess` takes that × its excess (Heat − T) through
+`DotTick.mint`: TRUE damage with no record and no attacker, landing by
+`DamageInstance.land_on` on the live slice the way a poison tick does. It runs on
+the world turn's clock and is never a hit (ADR 0081 §9). `_end_world_turn` calls
+it before the flow, so it reads the pre-diffusion t. A shadow world refuses it.
+`docs/domain/elements.md` § Burning burns and lights.
 
 **No shared shadow `GraphMirror` is needed, and that rests on one assumption:**
 topology never changes mid-attack, so islanding and propagation walk the *real*

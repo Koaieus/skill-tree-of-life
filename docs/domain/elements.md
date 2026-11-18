@@ -58,14 +58,15 @@ stores a band here: #1794's band function reads `bands` against
 | `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); null on every band. #1807 owns the answer |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
-| `light` | the band is a light source |
+| `light` | the band is a light source: every viewer sees a disc of `DiscGoOff.disc_radius(excess, R)` (§ Burning burns and lights) |
+| `burn_per_excess` | world-turn TRUE damage per stack of excess on an allocated node (default 0, so only Fire's bands burn) |
 
 The authored bands (tentative numbers are knobs on the `.tres`):
 
 | element | band | threshold | identity | travel | decay | light |
 |---|---|---|---|---|---|---|
 | Fire | primed | ×1 | `burning` | SPREADS | 1 (tentative) | yes |
-| Fire | overflow | at cap | — | SPREADS (lead call, tentative) | 2 (tentative) | #1805's |
+| Fire | overflow | at cap | — | SPREADS (lead call, tentative) | 2 (tentative) | yes (lead call, tentative) |
 | Ice | primed | ×1 | `frozen` | ENDS | 1 (tentative) | no |
 | Ice | overflow | at cap | `deep_freeze` | ENDS (tentative) | 2 (tentative) | no |
 | Lightning | primed | ×1 | `shocked` | CONDUCTS | 1 (tentative) | no |
@@ -306,3 +307,32 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
 - **What stays with the callers.** The caller routes the answer through
   `HitGather`: the one Fire channel, whether a centre copy lands (ADR 0086 §4,
   §5), and who spends what.
+
+## Burning burns and lights (#1805)
+
+Both are reads of a node's Fire band; nothing stores Burning. Fire's two
+bands each author `burn_per_excess = 1.0` (the owner's "1 per stack", read as
+per stack above T; tentative knob), and both have `light`. The overflow band
+burning and lighting like Burning is a lead call (tentative): it uses the
+whole excess, Heat − T, never Heat − k × T. Guards:
+`test/unit/elements/test_burning_burn.gd` and
+`test/unit/systems/test_vision_sources.gd`.
+
+- **The burn.** `CombatWorld.burn_terrain()` walks the live terrain index
+  (`terrain_nodes()`). Every allocated node whose Fire band sets
+  `burn_per_excess` takes `burn_per_excess × excess` through `DotTick.mint`.
+  That is TRUE damage with no record, so the floater and a kill come from
+  the same door a poison tick uses. The burn ignores camps and lands nothing
+  on an unallocated node. Amounts come from one snapshot; a node that an
+  earlier burn in the pass left unheld takes nothing. `TurnManager._end_world_turn`
+  calls it after `tick_lingering` and before `tick_world_turn_decay` /
+  `flow_temperature`, so it reads the pre-diffusion t. It is not in
+  `TerrainSettle`, which stays pure (a grep pin). `EndTurnCommand` replays it
+  on every peer, and its removals go out in the turn's one `flush_removals`.
+  A holder's death, a dealloc or a retake never touch t, so the next holder
+  burns.
+- **The light.** `VisionSource.Kind.BURNING`: `VisionSystem.sources_for`
+  gives one disc per node whose Fire band has `light`, for every viewer.
+  The radius is `DiscGoOff.disc_radius(excess, the node's own radius)`,
+  called through Fire's `bands[0].go_off` and never copied. Detail and the
+  refresh trigger are in `docs/domain/vision-system.md` § Burning nodes.
