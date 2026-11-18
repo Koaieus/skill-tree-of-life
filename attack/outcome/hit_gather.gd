@@ -691,6 +691,8 @@ func _commit_rows(rows: Dictionary) -> void:
 ## One recorded row change ([member HitInstance.row_ops]) on [param world]: the
 ## node's slice, or its owner's entity rows; nothing when the node or the
 ## owner is gone (a replay whose node lost its owner to an earlier cascade).
+## A Catalyst take on a live world also announces
+## [signal Events.catalyst_converted] (the replay's cue; a shadow stays silent).
 static func _apply_row(world: CombatWorld, op: Array) -> void:
 	var node: SkillNode = op[0]
 	if node == null or not is_instance_valid(node):

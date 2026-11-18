@@ -185,6 +185,8 @@ func _build_crystals(rows: Array[NodeStatus]) -> void:
 			continue
 		_crystal_tint = row.def.tint
 		var y := -icon_size - icon_gap - crystal_size * 1.6
+		if not blips.is_empty():
+			y -= blip_size + blip_gap
 		for i in mini(roundi(row.power), crystal_cap):
 			crystals.append(Rect2(i * (crystal_size + icon_gap), y, crystal_size, crystal_size * 1.6))
 		return
