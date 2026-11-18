@@ -534,6 +534,7 @@ it as `Events.catalyst_converted`, peers included, and a shadow stays silent. A 
 or Charge and converts nothing. A node the landing primes converts its
 leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
 go-offs before any head's own gate runs at land, so a head its gate refuses
-(a dud arrow, a popped or refused blade contact) has still set the node off; whether it should is an open owner
-question (#1799). The trade, both triggers and the knobs:
+(a dud arrow, a popped or refused blade contact) has still set the node off: it pays the go-off's
+full spend and every copy lands as a power-0 dud. That is not the rule: a refused arrival leaves the
+node alone, arrows included (owner, 2026-11-18, #1802); the fix is owed. The trade, both triggers and the knobs:
 [catalyst.md](catalyst.md).
