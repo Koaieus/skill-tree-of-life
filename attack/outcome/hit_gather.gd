@@ -32,7 +32,9 @@ extends RefCounted
 ##   every path on, else the answer may end the paths there
 ##   ([member HitInstance.path_ends] on a head); then, once per node per hit,
 ##   each band the node sits in after the riders fires its [GoOff]
-##   ([method GoOff.fire_in], on the gather's world). The spends and transfers
+##   ([method GoOff.fire_in], on the gather's world), unless the answer mutes
+##   it: a node that holds (Frozen) fires none, a broken one only for the hits
+##   that broke it, once each ([method _read_node]). The spends and transfers
 ##   of the whole generation (the breaks' included) commit together through
 ##   [TerrainSettle] before the next generation's admit. A Catalyst take the
 ##   settle seat makes inside either commit goes through the row seat
@@ -308,13 +310,14 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	var bursts: Array[HitInstance] = []
 	for node in nodes:
 		var read := TerrainRead.of(_slice(node), node)
-		_read_node(node, read, at[node], generation, spends, bursts)
+		var fires: Variant = _read_node(node, read, at[node], generation, spends, bursts)
 		var landing: Array = reading[node]
 		for h: _Hit in landing:
+			var muted: bool = fires != null and not (fires as Dictionary).has(h)
 			for e: Element in ElementRoster.shared().elements:
 				var band := read.band(e)
 				_conduct(h, node, e, band, spends)
-				if band == null or band.go_off == null:
+				if band == null or band.go_off == null or muted:
 					continue
 				if _vertex_disc(h, node, e) != null and band.go_off is DiscGoOff:
 					continue  # adds up with the vertex's shape ([method _fire_vertex_disc])
@@ -326,7 +329,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				_spend(spends, node, e, result)
 				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
 			if h.source != null and node == h.head.target:
-				_fire_source(h, node, generation, spends, next)
+				_fire_source(h, node, generation, spends, next, muted)
 	_release(generation, spends, next)
 	TerrainSettle.commit(spends, _seat_take)
 	_entries.append_array(bursts)
@@ -360,13 +363,20 @@ func _conduct(h: _Hit, node: SkillNode, e: Element, band: ElementBand,
 ## verdict is kept per node per generation ([method _ends_at], the seat a
 ## depth-d entry asks of its ring nodes) and rides a head arriving here
 ## ([member HitInstance.path_ends]).
+## [br]Returns the mute (ADR 0081 §4, ADR 0091 §1, ADR 0093 §3): null when no
+## answer holds the node (every hit there goes off as usual); else
+## `_Hit -> true` over the hits allowed to go off here: none while the node
+## holds (Frozen mutes its own go-offs, the Charge stays trapped), and on a
+## break only the hits owning a breaking arrival, each releasing once with its
+## own payload. A hit the ice absorbed sets nothing off.
 func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation: int,
-		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> void:
+		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> Variant:
 	var handed: Array[Arrival] = []
 	for a: Arrival in arrivals:
 		handed.append(a)
 	var ends := false
 	var broke := false
+	var fires: Dictionary = {}  # _Hit -> true: owns a breaking arrival
 	for e: Element in ElementRoster.shared().elements:
 		var band := read.band(e)
 		if band == null or band.admits == null:
@@ -378,6 +388,9 @@ func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation:
 			ends = ends or answer.paths_end
 			continue
 		broke = true
+		for i in answer.breakers:
+			if i >= 0 and i < handed.size():
+				fires[_hits[handed[i].head]] = true
 		_shatter(node, e, answer, handed, spends, bursts)
 	var path_ends := ends and not broke
 	if path_ends:
@@ -387,6 +400,11 @@ func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation:
 	for a in handed:
 		if not a.is_copy:
 			a.head.path_ends = path_ends
+	if broke:
+		return fires
+	if ends:
+		return {}
+	return null
 
 
 ## Whether [param node]'s second read in [param generation] ended the paths
@@ -763,7 +781,7 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 ## transfer still lands on the reached nodes. Once per hit, as the node's own
 ## go-offs are. An inert source sits in no band, fires nothing, spends nothing.
 func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSettle.Batch,
-		next: Array[Arrival]) -> void:
+		next: Array[Arrival], muted := false) -> void:
 	var read := h.source.read
 	if read == null:
 		return
@@ -772,10 +790,10 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 		if band == null or band.go_off == null:
 			continue
 		if band.go_off is DiscGoOff:
-			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next)
+			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next, muted)
 			continue
 		if band.go_off is EdgeGoOff:
-			_fire_vertex_arc(h, node, e, band.go_off as EdgeGoOff, generation, spends, next)
+			_fire_vertex_arc(h, node, e, band.go_off as EdgeGoOff, generation, spends, next, muted)
 			continue
 		var result := band.go_off.fire_in(_world, node, read)
 		if result == null:
@@ -807,16 +825,17 @@ func _vertex_disc(h: _Hit, node: SkillNode, e: Element) -> DiscGoOff:
 ## [param node], sized by the node: on a node whose own [param e] band goes
 ## off by a [DiscGoOff] (Burning) the two add up as ONE channel
 ## ([method DiscGoOff.fire_shaped_in]): one mark, the centre copy, the node's
-## solo spend off its store; on any other node (Frozen included) the shape runs
+## solo spend off its store; on any other node, or a muted one (Frozen holding,
+## [method _read_node]: [param muted]), the shape runs
 ## alone: a mark, no centre copy, no node spend. Either way the copy pays 1 per
 ## node the disc reaches, through the source's spend; reaching no one is no
 ## go-off and spends nothing. The node's own plain go-off is skipped in the
 ## go-off loop on the same predicate ([method _vertex_disc]).
 func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOff,
-		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival], muted := false) -> void:
 	var read := TerrainRead.of(_slice(node), node)
 	var own := read.band(e)
-	var burning := own != null and own.go_off is DiscGoOff
+	var burning := not muted and own != null and own.go_off is DiscGoOff
 	var disc: DiscGoOff = own.go_off as DiscGoOff if burning else copy_disc
 	var shape := float(disc.power_at(null, h.source.read))
 	var result := disc.fire_shaped_in(_world, node, read, shape)
@@ -847,15 +866,16 @@ func _vertex_arc(h: _Hit, node: SkillNode, e: Element) -> EdgeGoOff:
 ## level plus the copy's ([method EdgeGoOff.fire_level_in]), one mark, the
 ## centre copy, the node paying its solo cost and transfer off its store. On
 ## any other node the copy's arc runs alone: a mark, no centre copy, no node
-## spend, its transfer onto each node reached. Either way the copy pays 1 per
+## spend, its transfer onto each node reached; a [param muted] node (Frozen
+## holding, [method _read_node]) is any other node: its own arc stays trapped. Either way the copy pays 1 per
 ## node reached, through the source's spend: depth 1 at this read, deeper ones
 ## as [method _release] lets them on. Reaching no one is no go-off. The node's
 ## own plain arc is skipped in the go-off loop on [method _vertex_arc].
 func _fire_vertex_arc(h: _Hit, node: SkillNode, e: Element, copy_edge: EdgeGoOff,
-		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival], muted := false) -> void:
 	var read := TerrainRead.of(_slice(node), node)
 	var own := read.band(e)
-	var shocked := own != null and own.go_off is EdgeGoOff
+	var shocked := not muted and own != null and own.go_off is EdgeGoOff
 	var result: GoOffResult = null
 	if shocked:
 		var edge := own.go_off as EdgeGoOff
