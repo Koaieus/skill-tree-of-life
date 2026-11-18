@@ -31,6 +31,14 @@ A reverted cwd once turned a `git checkout --` into a discard of a peer's
 unstaged WIP in the main checkout; unstaged is unrecoverable. Explicit-path
 `git add`, never `-A`.
 
+## A bare `git worktree add` lacks the blade binary
+
+`native/bin/libbladesim*.so` is gitignored, so a worktree made with plain `git
+worktree add` has none and ~60 blade/melee scripts go red there (seen 2026-11-18,
+gating #1823's branch) — not a regression. `mise run worktree:new` (and Claude
+Code's own agent worktrees) seed it from `.worktreeinclude`; use that, or `cp -a
+native/bin` in by hand.
+
 ## `git worktree remove` fails on any worktree that inited the submodule
 
 With `native/godot-cpp` present, git refuses with *"working trees containing
