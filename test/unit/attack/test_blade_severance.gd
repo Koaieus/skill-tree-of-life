@@ -208,6 +208,20 @@ func test_a_death_is_a_frozen_corpse_and_a_dropped_constraint_set() -> void:
 	assert_eq(Vector2i(dc.a, dc.b), Vector2i(0, 1), "the surviving link is the pivot's own")
 
 
+## A death cuts the corpse's edges too: every edge incident to a popped vertex
+## reads as removed, so a reader that walks `edges` against `removed_edges`
+## alone (the plan's whip bound, a fuse's sever) never treats it as live.
+func test_a_death_marks_every_incident_edge_removed() -> void:
+	var state := _spine_state()
+	var reach_before := MeleeAttackPlan.whip_bound(state)
+	state.remove_vertex(2)
+	assert_false(state.is_edge_removed(0), "the pivot's own link is untouched")
+	assert_true(state.is_edge_removed(1), "the edge into the corpse is gone")
+	assert_true(state.is_edge_removed(2), "the edge out of the corpse is gone")
+	assert_lt(MeleeAttackPlan.whip_bound(state), reach_before,
+			"the whip bound stops at the corpse")
+
+
 ## The one dropped driver: a driven neighbour that dies must stop being driven,
 ## or its corpse would be swung around by an arm it is no longer attached to.
 func test_a_dead_or_coasting_vertex_keeps_no_driver() -> void:
