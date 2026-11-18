@@ -24,6 +24,8 @@ var _ice_bands: Array[ElementBand] = []
 ## a swapped band list.
 var _ice_el: Element = null
 var _light_el: Element = null
+var _fire_el: Element = null
+var _was_tunables: HitGatherTunables = null
 
 
 ## Admits every copy unless [member refuse] names its node; logs each admit's
@@ -52,6 +54,8 @@ func before_each() -> void:
 	_saved = [arc.share, arc.ladder_exponent, arc.max_level, arc.spent_charge_goes_to] if arc != null else []
 	_ice_el = ElementRoster.shared().by_id(&"ice")
 	_light_el = ElementRoster.shared().by_id(&"lightning")
+	_fire_el = ElementRoster.shared().by_id(&"fire")
+	_was_tunables = HitGather.tunables
 	_ice_bands = _ice_el.bands.duplicate()
 	await get_tree().process_frame
 
@@ -64,6 +68,7 @@ func after_each() -> void:
 		arc.max_level = _saved[2]
 		arc.spent_charge_goes_to = _saved[3]
 	_ice_el.bands = _ice_bands
+	HitGather.tunables = _was_tunables
 	CombatWorld.reset_live()
 
 
@@ -490,3 +495,71 @@ func test_an_arc_whose_ring_ends_pays_only_for_what_it_reaches() -> void:
 	assert_eq(_landings(all, z), 0, "Z, behind the ended Y, takes no entry")
 	assert_eq(_charge(x), before - 2, "X spends 2 (Y and W)")
 	assert_eq(_charge(z), 0, "Z gains no transferred stack")
+
+
+# --- 5b: one hit on a node both Burning and Shocked --------------------------------
+
+## A node at [param pos] linked to its own far anchor (so T > 0 off the graph).
+func _at(id: StringName, pos: Vector2) -> SkillNode:
+	var n := _w.add_node(id)
+	n.global_position = pos
+	var anchor := _w.add_node(StringName("%s_anchor" % id))
+	anchor.global_position = pos + Vector2(0.0, 20000.0)
+	_w.link(n, anchor)
+	return n
+
+
+func _heat_riders_on(hits: Array, n: SkillNode, terrain: StatusDef) -> int:
+	return _on(hits, n).filter(func(h: HitInstance) -> bool:
+		return h is StatusInstance and h.def == terrain).size()
+
+
+## X Burning and Shocked, Y a neighbour inside X's disc, Z a neighbour far
+## outside it: the disc and the arc both go off at X's one read, Y takes one
+## entry from each (concatenated), Z the arc's alone; X's Charge and Heat
+## riders land once and the arc spends 1 Charge per neighbour.
+func test_a_burning_and_shocked_node_blasts_and_arcs_once_each() -> void:
+	var arc := _edge()
+	var disc := _fire_el.bands[0].go_off as DiscGoOff
+	assert_not_null(disc, "fixture: Fire's Burning band holds a DiscGoOff")
+	if arc == null or disc == null:
+		return
+	var tun := HitGatherTunables.new()
+	tun.dedupe_dual_reach = false
+	HitGather.tunables = tun
+	var x := _w.add_node(&"X")  # no anchor: Y and Z are its only neighbours
+	x.global_position = Vector2.ZERO
+	# Excess 1 after the Heat rider: the disc's radius is radius_a (1 + radius_b) × X's radius.
+	var r := disc.radius_a * (1.0 + disc.radius_b) * x.radius
+	var y := _at(&"Y", Vector2.ZERO)
+	y.global_position = Vector2(-(r * 0.5 + y.radius), 0.0)
+	var z := _at(&"Z", Vector2(r * 4.0 + 6000.0, 0.0))
+	_w.link(x, y)
+	_w.link(x, z)
+	await _own([x, y, z])
+	var t_x := _t(x)
+	_set_charge(x, t_x)
+	_combat(x).add_terrain(_fire_el, t_x - _combat(x).terrain_t())
+	var rider := int(ceil(1 * arc.share))
+	assert_lt(rider + 1, _t(y) + 1, "fixture: Y stays ≤ T after its rider and transfer")
+	assert_lt(rider + 1, _t(z) + 1, "fixture: Z stays ≤ T after its rider and transfer")
+	var span := _hit(x, 1, true)
+	var heat := StatusInstance.new()
+	heat.def = _fire_el.terrain
+	heat.power = 1.0
+	heat.raw = true
+	heat.target = x
+	heat.attacker = _blue
+	heat.schedule_index = 0
+	span.append(heat)
+	var all := _land(span)
+	assert_eq(_landings(all, x), 3, "X: the hit, the disc's and the arc's centre landings (1 + 2)")
+	assert_eq(_curses(all, x), 3, "Curse on each of X's landings")
+	assert_eq(_landings(all, y), 2, "Y, in the disc and on the arc: two entries")
+	assert_eq(_curses(all, y), 2, "Y: the aspect rider on each entry")
+	assert_eq(_landings(all, z), 1, "Z, outside the disc: the arc's entry alone")
+	assert_eq(_curses(all, z), 1, "Z: one Curse")
+	assert_eq(_charge(x), t_x + 1 - 2, "X: its Charge rider once, then 1 spent per neighbour")
+	assert_eq(_charge(y), rider + 1, "Y: the Charge rider once plus the transferred stack")
+	assert_eq(_charge(z), rider + 1, "Z: the copy's rider and the transferred stack")
+	assert_eq(_combat(x).terrain_t(), t_x + 1 - 1, "X: its Heat rider once, then 1 spent on Y")
