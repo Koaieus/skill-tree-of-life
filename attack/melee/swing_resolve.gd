@@ -464,6 +464,8 @@ func _land_batch(
 					return lookup.call(carrier, sid)
 			OnHitEffect.run_all(riders, landing)
 		landing.place()
+		if riders.is_empty():
+			di.hit_key = 0  # a lone contact is keyless, as a plain arrow is
 	if sub.hits.is_empty():
 		return
 	sub.schedule = OutcomeSchedule.compile(sub)
