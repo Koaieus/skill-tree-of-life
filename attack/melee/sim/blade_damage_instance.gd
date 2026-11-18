@@ -19,9 +19,10 @@ var _gate: BladePopResolver.LiveGate
 ## second `admit` of the same event can pop the vertex twice.
 var admitted: bool = false
 var _gate_resolved: bool = false
-## The pop [method snap_on_ice] made, stamped on [member HitInstance.popped_vertex]
-## as this contact lands.
-var _ice_pop: BladePopResolver.Pop = null
+## The pop an ADMITTED contact made (a one-shot vertex's, or
+## [method snap_on_ice]'s), stamped on [member HitInstance.popped_vertex] as
+## this contact lands.
+var _landed_pop: BladePopResolver.Pop = null
 
 
 func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
@@ -44,8 +45,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	# the curve in once, on the authority's gather. A peer's rebuilt plain
 	# [DamageInstance] carries the post-mitigation number instead (ADR 0002).
 	super.land_on(node, world)
-	if _ice_pop != null:
-		popped_vertex = _ice_pop.defender
+	if _landed_pop != null:
+		popped_vertex = _landed_pop.defender
 
 
 ## The raw amount, stamped as this contact's beat opens its gather, on the
@@ -132,7 +133,9 @@ static func weight_of(radius: float) -> float:
 func snap_on_ice() -> void:
 	if not admitted or _gate == null:
 		return
-	_ice_pop = _gate.snap(_event, target)
+	var pop := _gate.snap(_event, target)
+	if pop != null:
+		_landed_pop = pop
 
 
 ## The gate, decided once — by the gather as this contact's beat opens, by a
@@ -150,9 +153,9 @@ func resolve_gate(world: CombatWorld) -> void:
 		admitted = true
 		# An admitted contact may still pop its vertex (a one-shot vertex lands,
 		# then dies): the hit carries that pop as a refused spike contact does.
-		var popped := _gate.last_pop()
-		if popped != null:
-			popped_vertex = popped.defender
+		# Stamped as the contact lands ([method land_on]), so a go-off copy or
+		# a break's extra landing cloned from this head in stage one carries none.
+		_landed_pop = _gate.last_pop()
 		return
 	# A refusal is either "target already dead / vertex already popped" —
 	# nothing to say, #502's "no dud for melee" — or THIS contact popping a

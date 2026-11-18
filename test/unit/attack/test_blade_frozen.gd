@@ -277,3 +277,97 @@ func test_a_cold_addon_vertex_plants_cold_and_changes_no_stat() -> void:
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
 	await _land(hits)
 	assert_eq(_cold(_f.target), before + 1, "the contact plants one Cold")
+
+
+## A contact whose own Cold freezes a node at T pops nothing: the pop needs the
+## node Frozen as the beat opens and still Frozen after the riders.
+func test_a_contact_whose_cold_freezes_the_node_does_not_pop() -> void:
+	await _board()
+	_freeze(_f.target, 0)
+	var s := _blade(_f.target.radius * 0.5)
+	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
+	var cold := ApplyStatusEffect.new()
+	cold.def = _ice.terrain
+	cold.power = 1.0
+	var hits: Array[HitInstance] = []
+	_contact(gate, s, hits, _f.target, 0.5, 1.0, [cold])
+	await _land(hits)
+	assert_eq(_cold(_f.target), _t(_f.target) + 1, "fixture: the contact froze the node")
+	assert_false(gate.result.dead_at.has(1), "the freezing contact pops nothing")
+	var later: Array[HitInstance] = []
+	var next := _contact(gate, s, later, _f.target, 0.7)
+	await _land(later)
+	assert_true(next.admitted, "its next contact lands")
+	assert_almost_eq(float(gate.result.dead_at.get(1, -1.0)), 0.7, 0.0001,
+			"and pops on the now-Frozen node")
+
+
+## A Frozen vertex as heavy as a Frozen node breaks it; the one-shot pop rides
+## its own landing only, never the break's extra landings.
+func test_a_frozen_vertex_breaking_the_ice_carries_one_pop() -> void:
+	await _board()
+	_freeze(_f.leaves[0], 2)
+	_freeze(_f.target, 3)
+	var s := _blade(_f.target.radius)
+	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
+	var hits: Array[HitInstance] = []
+	_contact(gate, s, hits, _f.target)
+	var added := await _land(hits)
+	assert_eq(_extras(added, _f.target), _fa.break_channels, "the break adds its channels")
+	assert_eq(_popped(hits), 1, "one hit carries the pop")
+	assert_eq(gate.result.pops.size(), 1, "one pop")
+
+
+## Item 8c's last clause: a Frozen vertex's first contact pops whatever its
+## riders do, a thawing Heat included.
+func test_a_frozen_vertex_whose_heat_thaws_the_node_still_pops() -> void:
+	await _board()
+	_freeze(_f.leaves[0], 2)
+	_freeze(_f.target, 1)
+	var s := _blade(_f.target.radius * 0.5)
+	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
+	var hits: Array[HitInstance] = []
+	_contact(gate, s, hits, _f.target, 0.5, 1.0, [_heat_rider(2.0)])
+	await _land(hits)
+	assert_lt(_cold(_f.target), _t(_f.target) + 1, "fixture: the Heat thawed the node")
+	assert_true(gate.result.dead_at.has(1), "the Frozen vertex pops")
+	assert_eq(_popped(hits), 1, "one hit carries the pop")
+
+
+## Unallocated Frozen ground takes the touch too (terrain is side-less): a
+## heavy vertex breaks it — Cold at T, no holder so no burst — then pops.
+func test_a_heavy_vertex_on_unallocated_frozen_ground_breaks_it_then_pops() -> void:
+	await _board()
+	var ground := _f.add_node(&"ground", Vector2(450, 60))
+	await get_tree().process_frame
+	_freeze(ground, 3)
+	var s := _blade(ground.radius)
+	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
+	var hits: Array[HitInstance] = []
+	var di := _contact(gate, s, hits, ground)
+	var added := await _land(hits)
+	assert_true(di.admitted, "the contact lands")
+	assert_eq(_cold(ground), _t(ground), "the ice shatters to T")
+	assert_eq(_bursts(added), 0, "no holder, no burst")
+	assert_true(gate.result.dead_at.has(1), "then the vertex pops")
+
+
+## Item 8's record: the authority's shadow pass, captured and rebuilt, replays
+## the same landings, the spend and exactly one pop on the live world.
+func test_a_heavy_touch_replays_from_its_record() -> void:
+	await _board()
+	_freeze(_f.target, 3)
+	var s := _blade(_f.target.radius)
+	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
+	var hits: Array[HitInstance] = []
+	_contact(gate, s, hits, _f.target)
+	await OutcomeApplier.drain(HitQueue.over(hits), CombatWorld.shadow(), BeatClock.instant_clock())
+	assert_eq(_cold(_f.target), _t(_f.target) + 3, "fixture: the shadow pass leaves the live world")
+	var outcome := AttackOutcome.new()
+	outcome.hits.assign(hits)
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _f.graph), _f.graph)
+	assert_eq(rebuilt.hits.size(), hits.size(), "the same landings cross")
+	assert_eq(rebuilt.hits.filter(func(h: HitInstance) -> bool: return h.popped_vertex != null).size(), 1,
+			"exactly one carries the pop")
+	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
+	assert_eq(_cold(_f.target), _t(_f.target), "the replay spends the ice to T")

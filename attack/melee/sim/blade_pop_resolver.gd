@@ -141,6 +141,9 @@ class LiveGate extends RefCounted:
 	## stamp [member HitInstance.popped_vertex]; see that member for why the cue
 	## is recorded rather than emitted from here.
 	var _last_pop: Pop = null
+	## BladeHitEvent -> true for every contact [method admit] met on a Frozen
+	## node: what [method snap] requires before it pops.
+	var _on_ice: Dictionary = {}
 	## particle_idx -> true for every vertex currently in `result.dead_at`
 	## (killed OR disintegrated). Maintained incrementally by [method _kill]
 	## rather than rebuilt from `result.dead_at` every call — it only
@@ -199,8 +202,14 @@ class LiveGate extends RefCounted:
 			return false  # already popped or disintegrated by an earlier LIVE kill
 		var real_node := ev.target as SkillNode
 		var node: NodeCombat = w.combat_for(real_node) if real_node != null else null
+		# Ice is side-less: a node Frozen as the beat opens takes the touch
+		# whoever holds it, unallocated ground included; whether the vertex
+		# pops waits for the contact's riders ([method snap]).
+		var on_ice := node != null and is_frozen(node, real_node)
+		if on_ice:
+			_on_ice[ev] = true
 		if node == null or not node.is_allocated():
-			return false  # dead target, no dud — indistinguishable from a miss
+			return on_ice  # else dead target, no dud — indistinguishable from a miss
 		# The pivot / handle is exempt from popping — popping the wielder's own
 		# grip is out of scope. There is exactly one state per swing
 		# and exactly one pivot in it, so this is unconditional: a coasting
@@ -218,9 +227,18 @@ class LiveGate extends RefCounted:
 			_kill(idx, ev.t, real_node, 0.0)
 		return true
 
-	## Pop the vertex of [param ev], an ADMITTED contact, at its `t` because the
-	## node it touched [param defender] is still Frozen after the contact's
-	## terrain riders: the post-rider read ([method FrozenAdmits.read_in])
+	## Whether [param slice] ([param node]'s) reads an Ice band answered by a
+	## [FrozenAdmits] — Frozen or Deep freeze.
+	static func is_frozen(slice: NodeCombat, node: SkillNode) -> bool:
+		var ice := ElementRoster.shared().by_id(&"ice")
+		if ice == null or slice == null:
+			return false
+		var band := TerrainRead.of(slice, node).band(ice)
+		return band != null and band.admits is FrozenAdmits
+
+	## Pop the vertex of [param ev], an ADMITTED contact on a node Frozen as its
+	## beat opened ([method admit] noted it), at its `t` because that node
+	## [param defender] is still Frozen after the contact's terrain riders: the post-rider read ([method FrozenAdmits.read_in])
 	## asks, since this gate decides as the beat opens, before any rider lands.
 	## No drain check. The pivot keeps its exemption; an edge contact or a
 	## vertex already dead (a one-shot vertex [method admit] killed) pops
@@ -228,6 +246,8 @@ class LiveGate extends RefCounted:
 	func snap(ev: BladeHitEvent, defender: SkillNode) -> Pop:
 		if _state == null or ev == null or ev.is_edge_hit() or ev.particle_idx < 0:
 			return null
+		if not _on_ice.has(ev):
+			return null  # not Frozen as the beat opened: a contact that freezes it pops nothing
 		if ev.particle_idx == _state.pivot_index or result.is_dead(ev.particle_idx, ev.t):
 			return null
 		_kill(ev.particle_idx, ev.t, defender, 0.0)

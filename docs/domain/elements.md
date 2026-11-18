@@ -469,14 +469,18 @@ seams and settles the answer (hit-resolution.md § The beat).
   the direct contact only (never its copies): `BladeDamageInstance.touch_weight`
   — `weight_of(source radius)` × every `BunkerAddon.blade_mass` on its source,
   `weight_of(r) = (r / MASS_REF_RADIUS)²` — at least the node's
-  `weight_of(SkillNode.radius)` (a tie breaks). The pop sits at the read:
-  `read_in` is asked only on a node still Frozen after the riders, so every
-  blade contact it is handed pops its vertex there (`_snap_blades` →
-  `snap_on_ice` → `LiveGate.snap`, `_kill` at the contact's `t`, no drain),
-  breaker or not; a contact whose own Heat thawed the node is never read and
-  its vertex lives on. The head carries the pop from its own landing, so the
-  break's extra landings carry none. The pivot is exempt; an unallocated
-  Frozen node is refused at the gate as ever (no dud), so it snaps nothing.
+  `weight_of(SkillNode.radius)` (a tie breaks). The pop needs the node Frozen
+  as the beat opens (`admit` notes it) and still Frozen after the contact's
+  riders: `read_in` is asked only then, so every blade contact it is handed
+  that `admit` noted pops its vertex there (`_snap_blades` → `snap_on_ice` →
+  `LiveGate.snap`, `_kill` at the contact's `t`, no drain), breaker or not. A
+  contact whose own Heat thawed the node is never read, and one whose own Cold
+  froze it was not noted: either vertex lives on. The head carries the pop
+  (one-shot or ice) from its own landing, so the break's extra landings and
+  go-off copies carry none. The pivot is exempt. Terrain is side-less:
+  unallocated Frozen ground (the scan sees it) takes the contact too, where
+  any other unallocated node is refused (no dud); own and allied nodes never
+  reach the gate (`collect_target_excludes`).
 - **The Frozen vertex** (`BladeVertexFill`): a vertex whose copy reads an Ice
   band answered by a `FrozenAdmits` is flagged `vertex_one_shot` (the gate lands
   its first contact, then pops it, whatever the riders), and its `blade_damage`

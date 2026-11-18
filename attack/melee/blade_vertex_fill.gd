@@ -58,7 +58,7 @@ func _read(node: SkillNode, stat_id: StringName, own: Array[ModifierBins] = []) 
 
 
 ## Vertex [param i]'s copy as Ice's Frozen answer reads it: the band's
-## [FrozenAdmits] and the copy's excess over T, or null when the copy is not
+## [FrozenAdmits] and the copy's excess over T, or empty when the copy is not
 ## Frozen (nor Deep freeze).
 static func _frozen_copy(state: BladeState, i: int) -> Array:
 	var ice := ElementRoster.shared().by_id(&"ice")
