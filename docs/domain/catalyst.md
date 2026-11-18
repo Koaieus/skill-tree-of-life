@@ -114,8 +114,8 @@ writes nothing and adds nothing to the swing.
 
 ## The blade
 
-A blade holds no Catalyst. `BladeVertexFill` copies no row onto a piece, a
-contact carries no load (`hit_load` 0) and spends nothing on the piece or the
+A blade holds no Catalyst. `BladeVertexFill` reads no Catalyst off a piece's
+source node, a contact carries no load (`hit_load` 0) and spends nothing on the piece or the
 struck node, and no blast reaches blade pieces. A contact is one hit: a primed
 struck node goes off through the gather as any hit sets it off, and a node
 holding only Catalyst blasts nothing and keeps its stacks (no production blade rider
