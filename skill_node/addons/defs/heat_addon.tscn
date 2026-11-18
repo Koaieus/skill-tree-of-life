@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="1_effect"]
+[ext_resource type="Script" path="res://skill_node/addons/skill_node_addon.gd" id="2_addon"]
+[ext_resource type="Script" path="res://attack/spell/on_hit/apply_status_effect.gd" id="3_status"]
+[ext_resource type="Resource" path="res://effects/status/heat.tres" id="4_heat"]
+[ext_resource type="Resource" path="res://identity/defs/heat.tres" id="5_identity"]
+[ext_resource type="Script" path="res://skill_node/addons/visuals/heat_visual.gd" id="6_visual"]
+
+[sub_resource type="Resource" id="Resource_heat_rider"]
+script = ExtResource("3_status")
+def = ExtResource("4_heat")
+power = 1.0
+
+[node name="HeatAddon" type="Node2D"]
+z_index = 1
+script = ExtResource("2_addon")
+identity = ExtResource("5_identity")
+on_hit_effects = Array[ExtResource("1_effect")]([SubResource("Resource_heat_rider")])
+description = "A banked ember — a blade swung through this node leaves Heat in every contact it makes."
+temp_placeable = true
+temp_cost_aspects = Dictionary[StringName, int]({
+&"fire_element": 1
+})
+role = 1
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("6_visual")
