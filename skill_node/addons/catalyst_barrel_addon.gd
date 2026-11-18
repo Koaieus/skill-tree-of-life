@@ -2,20 +2,20 @@
 class_name CatalystBarrelAddon
 extends SkillNodeAddon
 ## Catalyst × Addon: the barrel. Not unique — barrels stack, and each is one
-## catalyst charge its carrier holds: at the owner's turn start an ALLOCATED
-## carrier tops its charges up to the number of barrels it carries (flat,
-## never stat-scaled — a count of explosions, not a magnitude), and a barrel
-## leaving spends one charge if there is one. The blast's size is the node's
-## own (the bomb is the node, [CatalystSpread]); a barrel carries no radius
-## logic and no blade code.
+## stack of the Catalyst status its carrier holds: at the owner's turn start
+## an ALLOCATED carrier tops its Catalyst up to the number of barrels it
+## carries (flat, never stat-scaled), and a barrel leaving takes one stack
+## off if there is one. Catalyst only converts what lands on its node and
+## never goes off; a barrel carries no radius or blast logic and no blade
+## code.
 ##
-## Charge writes go through the carrier's status host: the refill lands as
-## an apply of the deficit, the removal moves the row down by one.
+## Writes go through the carrier's status host: the refill lands as an apply
+## of the deficit, the removal moves the row down by one.
 ##
 ## A temp barrel is the same addon for one swing: no refill, no removal
 ## spend, and the carrier's row is never written — it adds nothing to a swing.
 
-## The charge this barrel refills — the Catalyst aspect's status.
+## The status this barrel refills — the Catalyst aspect's.
 @export var charge_status: StatusDef = null
 
 
@@ -38,7 +38,7 @@ func _exit_tree() -> void:
 func on_turn_start() -> void:
 	if charge_status == null or carrier == null or not carrier.is_allocated():
 		return
-	var deficit := float(barrel_count()) - charges()
+	var deficit := float(barrel_count()) - stacks()
 	if deficit > 0.0:
 		carrier.get_combat().apply_status(charge_status, deficit)
 
@@ -61,7 +61,7 @@ func barrel_count() -> int:
 
 
 ## This barrel's place among its carrier's barrels, in attach order; -1 once
-## it has left. Barrel i draws charge segment i.
+## it has left. Barrel i draws crystal i.
 func barrel_index() -> int:
 	if carrier == null:
 		return -1
@@ -74,9 +74,9 @@ func barrel_index() -> int:
 	return -1
 
 
-## The carrier's live catalyst charges (0 without a combat slice, e.g. in
+## The carrier's live Catalyst stacks (0 without a combat slice, e.g. in
 ## the editor).
-func charges() -> float:
+func stacks() -> float:
 	if charge_status == null or carrier == null or carrier.get_combat() == null:
 		return 0.0
 	return carrier.get_combat().get_status_power(charge_status.id)

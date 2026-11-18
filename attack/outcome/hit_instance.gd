@@ -319,10 +319,10 @@ var land_resolved: bool = false
 
 ## Where a hit is listed within its landing's span, relative to the primary
 ## hit that span rides on ([method HitLanding.place]): the primary is PRIMARY;
-## a rider of a lead (a status, paired damage, a splash copy, a blast,
-## detonate's cure) is AFTER it; a bare status (magic's, an infusion's) is
-## BEFORE the landing's own block. A list position only: an aspect rider still
-## lands after the rest of its beat ([method is_aspect_rider], ADR 0092).
+## a rider of a lead (a status, paired damage, a splash copy, a blast) is
+## AFTER it; a bare status (magic's, an infusion's) is BEFORE the landing's
+## own block. A list position only: an aspect rider still lands after the
+## rest of its beat ([method is_aspect_rider], ADR 0092).
 ## Landing-scoped and applied at build time, never a sort key at land
 ## (ADR 0067 §2).
 enum LandPriority { BEFORE = -1, PRIMARY = 0, AFTER = 1 }

@@ -5,11 +5,11 @@ extends AddonVisual
 ## standing in elevation on the carrier's rim, one crystal per barrel, crystal
 ## i drawn by barrel i and stacked below the ones before it. A crystal is lit
 ## (a faceted fill in the addon's identity hue) while the carrier holds more
-## than i charges, and a hollow outline once that charge is spent.
+## than i Catalyst stacks, and a hollow outline once it holds i or fewer.
 ## A structure, so it stands on a bearing off the rim, never on the centre
 ## (docs/domain/addon-visual-registers.md); lower-left, clear of the
 ## watchtower's lower-right default and the bars straight up. The index and
-## the charge count are read off the parent [CatalystBarrelAddon], which
+## the stack count are read off the parent [CatalystBarrelAddon], which
 ## redraws this on the carrier's status and addon changes.
 
 ## Where on the rim the stack stands, clockwise from +X in screen space.
@@ -50,7 +50,7 @@ func _draw() -> void:
 		hue = addon.tint
 		if addon.carrier != null:
 			index = maxi(addon.barrel_index(), 0)
-			lit = addon.charges() > float(index)
+			lit = addon.stacks() > float(index)
 	var r := radius
 	var hw := r * segment_width * 0.5
 	var h := r * segment_height
