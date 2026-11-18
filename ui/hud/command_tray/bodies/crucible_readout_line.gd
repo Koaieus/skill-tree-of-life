@@ -1,7 +1,8 @@
 class_name CrucibleReadoutLine
 extends HBoxContainer
 
-## One aspect line of the [CrucibleReadout]: a small aspect badge and the
+## One line of the [CrucibleReadout] (an aspect, the ride or the shape — the
+## badge shows only for an aspect): a small aspect badge and the
 ## [method ReadoutLines.ReadoutLine.text] behaviour change, a [BadgeLabel] whose
 ## concept token hovers the status's [ConceptCard]. Highlighted while its socket
 ## is hovered (the `TierValueRich` text tier, `TierLabelRich` at rest); expanded,
@@ -76,7 +77,8 @@ static func _detail_of(line: ReadoutLines.ReadoutLine, spell: SpellDef, board: S
 		parts.append(intake.get_description(board))
 	var exchange := line.exchange(spell)
 	if not exchange.is_empty():
-		parts.append("Socket: %s" % exchange)
+		var label := "Ride" if line.kind == ReadoutLines.Kind.RIDE else "Socket"
+		parts.append("%s: %s" % [label, exchange])
 	return "\n".join(parts)
 
 

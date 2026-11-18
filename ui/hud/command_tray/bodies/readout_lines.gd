@@ -1,11 +1,11 @@
 class_name ReadoutLines
 extends RefCounted
 
-## The crucible readout's aspect lines — one per aspect a cast lands, phrased
-## as a behaviour change: `+ applies 95 poison stacks per hit (15 innate + 80
+## The crucible readout's lines — one per aspect a cast lands, phrased as a
+## behaviour change: `+ applies 95 poison stacks per hit (15 innate + 80
 ## infused)`. Socketed aspects first, in socket order (the insertion order of
 ## [member Infusion.points]), then the spell's innate-only aspects in authored
-## order. Pure statics: the plan owns the points, [method Infusion.load_of]
+## order, then the shape line, then the ride line. Pure statics: the plan owns the points, [method Infusion.load_of]
 ## the load, [method StatusDef.stacks_per_hit] the per-hit fold and
 ## [InfusionExchange] the exchange text — nothing here derives a second number.
 
@@ -15,14 +15,15 @@ extends RefCounted
 enum Kind { ASPECT, RIDE, SHAPE }
 
 
-## One aspect in play.
+## One aspect, the ride or the shape in play.
 class ReadoutLine extends RefCounted:
 	var kind: Kind = Kind.ASPECT
-	## The concept id (`&"poison"`).
+	## The concept id (`&"poison"`); the element's for a ride or shape line.
 	var aspect_id: StringName = &""
 	## Index of the socket holding this aspect, −1 for an innate-only aspect.
 	var socket: int = -1
-	## Points the cast spends on this aspect (0 when innate-only).
+	## Points the cast spends on this aspect, or on the forged ride or shape
+	## (0 when innate-only).
 	var points: int = 0
 	## The spell's innate load of the concept, summed over its listed rows.
 	var innate: int = 0
@@ -30,7 +31,7 @@ class ReadoutLine extends RefCounted:
 	var infused: int = 0
 	## Stacks one hit lands: `innate + infused` through the status's fold.
 	var per_hit: float = 0.0
-	## The status the concept lands.
+	## The status the concept lands: a ride's terrain; null for a shape.
 	var status: StatusDef = null
 
 	## `innate + infused` — the plan's [method Infusion.load_of] entry.
@@ -40,16 +41,28 @@ class ReadoutLine extends RefCounted:
 	## The behaviour-change line, as [BadgeText] (`{poison:4}` is the hoverable
 	## concept token).
 	func text() -> String:
+		if kind == Kind.SHAPE:
+			return "+ shapes the cast with {%s} (%d points)" % [aspect_id, points]
 		var parts: PackedStringArray = []
 		if innate > 0:
 			parts.append("%d innate" % innate)
-		if infused > 0 or socket >= 0:
+		if kind == Kind.ASPECT and (infused > 0 or socket >= 0):
 			parts.append("%d infused" % infused)
+		if kind == Kind.RIDE:
+			if infused > 0 or points > 0:
+				parts.append("%d forged" % infused)
+			return "+ plants {%s:%s} stacks per hit (%s)" % [_token_of_status(),
+					NumFmt.num(per_hit), " + ".join(parts)]
 		return "+ applies {%s:%s} stacks per hit (%s)" % [aspect_id, NumFmt.num(per_hit),
 				" + ".join(parts)]
 
-	## The socket's exchange line ([method InfusionExchange.line]); "" innate-only.
+	## The socket's or forged ride's exchange line ([method
+	## InfusionExchange.line]); "" innate-only and for a shape (no shape row).
 	func exchange(spell: SpellDef) -> String:
+		if kind == Kind.SHAPE:
+			return ""
+		if kind == Kind.RIDE:
+			return InfusionExchange.line(spell, aspect_id, points) if points > 0 else ""
 		if socket < 0:
 			return ""
 		return InfusionExchange.line(spell, aspect_id, points)
@@ -57,6 +70,12 @@ class ReadoutLine extends RefCounted:
 	## The listed [AspectIntake] of [param spell] for this concept, or null.
 	func intake_of(spell: SpellDef) -> AspectIntake:
 		return Infusion.intake_of(spell, aspect_id)
+
+	## A ride names the terrain it plants: the status's identity token.
+	func _token_of_status() -> StringName:
+		if status != null and status.identity != null:
+			return status.identity.id
+		return aspect_id
 
 
 ## [param plan]'s lines as configured.
@@ -73,11 +92,13 @@ static func preview(plan: MagicAttackPlan, socket: int, aspect_id: StringName) -
 	if plan == null or plan.spell == null:
 		return for_infusion(null, null, null)
 	var points := plan.socket_points(plan.socket_order_with(socket, aspect_id))
-	return for_infusion(plan.spell, _board_of(plan), Infusion.for_cast(plan.spell, points))
+	return for_infusion(plan.spell, _board_of(plan), plan.infusion.rebuilt(plan.spell, points))
 
 
 ## The lines [param infusion] lands for [param spell] on [param board]'s fold.
-## Aspects landing nothing, or with no status, are dropped.
+## Aspects landing nothing, or with no status, are dropped; the ride's element
+## (forged, else innate — a replaced one lands nothing) reads as one RIDE line,
+## the forged shape as one SHAPE line.
 static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) -> Array[ReadoutLine]:
 	var out: Array[ReadoutLine] = []
 	if spell == null:
@@ -96,6 +117,7 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 		if not order.has(id):
 			order.append(id)
 	var sockets := infusion.points.keys()
+	var ride: ReadoutLine = null
 	for id in order:
 		var total: int = counts.get(id, 0)
 		var status := status_of(spell, id)
@@ -109,7 +131,21 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 		line.infused = total - line.innate
 		line.status = status
 		line.per_hit = status.stacks_per_hit(board, float(total))
+		if Infusion.is_element(id):
+			line.kind = Kind.RIDE
+			line.points = infusion.ride_points if infusion.ride_element == id else 0
+			ride = line
+			continue
 		out.append(line)
+	var shape := infusion.shape_of(spell)
+	if not shape.is_empty():
+		var line := ReadoutLine.new()
+		line.kind = Kind.SHAPE
+		line.aspect_id = shape
+		line.points = infusion.shape_points
+		out.append(line)
+	if ride != null:
+		out.append(ride)
 	return out
 
 

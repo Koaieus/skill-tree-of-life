@@ -151,6 +151,7 @@ func test_a_forged_ride_yields_one_ride_line_reading_the_casts_load() -> void:
 	assert_eq(ride.exchange(spell), InfusionExchange.line(spell, &"fire", 3))
 	assert_string_contains(BadgeText.strip(ride.text()), _HEAT.identity.noun,
 			"the line names the terrain it plants")
+	assert_string_contains(ride.text(), "(%d forged)" % ride.infused, "the forged load, once")
 
 
 func test_each_element_ride_row_names_its_terrain() -> void:
