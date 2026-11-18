@@ -1108,6 +1108,8 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	c.crit_tier = 0
 	c.crit_decided = false
 	c.effective_amount = 0.0
+	# The pop belongs to the one contact that made it, never to a copy of it.
+	c.popped_vertex = null
 	return c
 
 
