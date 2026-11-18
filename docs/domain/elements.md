@@ -54,9 +54,10 @@ stores a band here: #1794's band function reads `bands` against
 | `threshold_multiple` | the threshold as a multiple of T (≥ 1) |
 | `at_cap` | true: the threshold is the node's cap k × T and `threshold_multiple` is ignored; only the last band |
 | `identity` | the band's display atom; null falls back to the band below |
-| `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning and overflow bands hold a `DiscGoOff` (#1800, #1803), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
+| `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning and overflow bands hold a `DiscGoOff` (#1800, #1803), Lightning's Shocked and overflow bands one shared `EdgeGoOff` (#1806), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
 | `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); set on both Ice bands (one `FrozenAdmits`, § Ice on the node: Frozen), null elsewhere |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
+| `conduct_cost` | stacks a spell walk spends passing through a node in a CONDUCTS band; Lightning's Shocked and overflow bands 1 (tentative knob), else 0 |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
 | `light` | the band is a light source: every viewer sees a disc of `DiscGoOff.disc_radius(excess, R)` (§ Burning burns and lights) |
 | `burn_per_excess` | world-turn TRUE damage per stack of excess on an allocated node (default 0, so only Fire's bands burn) |
@@ -333,6 +334,65 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   - A go-off whose disc is not a `DiscGoOff` keeps the generic source path.
 - Guards: `test/unit/attack/melee/test_burning_vertex.gd`,
   `test/unit/attack/melee/test_heat_addon.gd`.
+
+## Lightning: Shocked arcs and conducts (#1806)
+
+- **The arc** (`elements/edge_go_off.gd`, `EdgeGoOff`). Lightning's Shocked and
+  overflow bands hold the same instance (`lightning.tres`; the overflow band
+  sharing it is a lead call, tentative). A node in either band that is read
+  after a hit's riders land goes off, so a rider tipping Charge from T to T + 1
+  sets it off at once. The arc reaches every node within L hops of the centre,
+  allocated or not, centre excluded. The reach is one BFS,
+  `GraphMirror.nodes_within`, sorted by depth then instance id. Each reach
+  carries its hop depth. At depth ≥ 2 its `ring` names the depth − 1 neighbours
+  it hangs behind (the gather's hop seat: [spell-propagation.md](spell-propagation.md)
+  § Resolver flow). Its share is `.share`, its own damage 0, and the answer
+  ignores the hit's load.
+- **The ladder** (`level_of`). L is the highest level ≤ `max_level` with
+  Charge > L^`ladder_exponent` × T, and 0 (inert) at Charge ≤ T. It reads the
+  whole count, never count − k × T, so a node past the cap arcs on the same
+  ladder. With a T of 0, every stack reads as past T.
+- **Cost and transfer**, within the node's own level M only. Each node reached
+  within M hops costs 1, itemised in `GoOffResult.cost`. On the default
+  `spent_charge_goes_to` (Reached node), that node also takes the spent stack
+  as `transfer`. On Void, no stack moves. A node reached only through an added
+  level (beyond M) costs nothing and takes nothing.
+- **`fire_level_in(world, node, read, added)`** is the entry point for an extra
+  level. It is one go-off at M + `added` hops from `node` (never `read.node`),
+  paying M's solo cost. `added` = 0 is the plain `fire`. M = 0 with an added
+  level is a shape alone: it reaches but pays nothing.
+- **Conduction.** Shocked and overflow are `travel` CONDUCTS with
+  `conduct_cost` 1. `HitGather._conduct` runs in the go-off loop at the node's
+  read, for the head's own node only, and only if the head `walk_spreads`. It
+  spends the cost into the read's spend batch, so a conduct and an arc on one
+  arrival settle as one summed spend, and it marks the head `conducted`. The
+  walk side is in [spell-propagation.md](spell-propagation.md) § `max_hops`.
+- **The Shocked vertex.** A vertex whose Charge copy sits in an `EdgeGoOff`
+  band is a Lightning shape on the node it touches. It arcs at the copy's level
+  (`level_of` on the copy's read). `HitGather._fire_source` hands it to
+  `_fire_vertex_arc`:
+  - **Contact node Shocked**: one Lightning channel. The node's own plain arc
+    is skipped for that hit (`_vertex_arc`). One arc goes out at the node's
+    level plus the copy's (`fire_level_in`), with one mark and the centre copy,
+    and the node pays its solo cost and transfer off its store. Stacks the copy
+    spends beyond M are voided, not transferred (not pinned by a test).
+  - **Contact node not Shocked**: the copy's arc runs alone, with a mark but no
+    centre copy, no node spend, and its transfer onto each node reached.
+  - Either way the copy pays 1 per node reached, through the source's spend:
+    depth 1 at this read, deeper nodes as `_release` lets them on
+    (`_Fired.copy_spend`). An arc reaching nobody is no go-off. A later contact
+    arcs only while the copy stays > T.
+  - Not built: the Frozen-contact mute (#1807, #1808).
+- **The Charge addon** (`skill_node/addons/defs/charge_addon.tscn`, look
+  `skill_node/addons/visuals/charge_visual.gd`). This is Lightning's element
+  addon, rider only: one `ApplyStatusEffect` of `charge` at `power = 1`
+  (tentative knob), costing 1 `lightning_element`.
+- **Tentative knobs**: `ladder_exponent` 2, `max_level` 3,
+  `spent_charge_goes_to` Reached node, and `conduct_cost` 1.
+- **Guards**: `test/unit/elements/test_shocked_go_off.gd`,
+  `test/unit/spell/test_shocked_conduction.gd`,
+  `test/unit/attack/melee/test_shocked_vertex.gd`,
+  `test/unit/attack/melee/test_charge_addon.gd`.
 
 ## Burning burns and lights (#1805)
 

@@ -348,7 +348,7 @@ world: `CombatWorld`".
 
 ### The candidate-set half: `resolve_against(world)`
 
-changing: a walk ends or goes on at a node's `Admits` answer, #1806, #1808; see docs/design/elements/hit-resolution.md
+changing: a walk ends or goes on at a node's `Admits` answer, #1808; see docs/design/elements/hit-resolution.md
 
 `SpellResolver` **lands each wave before expanding the next**, so
 `config.filter.narrow(...)` on wave N+1 selects against a world in which wave
@@ -375,6 +375,12 @@ N's kills have happened. Two things move together:
    shatters the node and its paths walk on. With a null `Admits` every path
    walks on, as before ([spell-propagation.md](spell-propagation.md) §
    "Resolver flow").
+4. **A node can carry the walk on.** A head whose walk can leave its landing
+   (`walk_spreads`: the config has a spread) reaching a node whose band
+   conducts (Lightning's Shocked, `travel` CONDUCTS) pays the band's
+   `conduct_cost` off that node at its read, with the read's other spends, and
+   carries `conducted`; step 4 then mints the next wave without spending a hop,
+   on 0 hops left too.
 
 Magic's crit is decided at each landing's head as the wave's landings are
 placed, before the wave's drain, against the world the earlier waves left.

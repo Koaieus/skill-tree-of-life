@@ -473,6 +473,18 @@ future propagation tuning has to be **per-spread-strategy, not a board stat**.
 Bounce count is superlinear in effect, unlike reach. Keep this in view when
 adding any reach stat: it feeds `HopRangeFinder` only.
 
+**Conduction is not a hop modifier; it is the board's.** A walk passing through
+a node whose element band conducts (Lightning's Shocked and overflow bands,
+`ElementBand.travel` CONDUCTS) leaves it without spending a hop, on 0 hops
+left too, and the node pays the band's `conduct_cost` (1, tentative knob) off
+its Charge at its read. Only a walk that can leave conducts
+(`HitInstance.walk_spreads`, set from `config.spread != null`); a spread-less
+spell spends nothing there. The cost is paid on arrival, so a walk whose spread
+then picks nothing has still paid. `PropagationConfig.mint(..., conducts)`
+keeps `hops_remaining`; a `pick.terminal` child still mints at 0 hops and
+conducts on again from a Shocked node. A ring of Shocked nodes stops on
+`max_visits_per_node`, never on hops. `max_hops` itself stays raw.
+
 ### Damage: one coefficient × one board stat (D-32, #274)
 
 The scalar damage knobs above are gone. There is exactly one absolute number
@@ -522,7 +534,7 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-changing: conduction at the expansion step, #1806; cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
+changing: cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
 
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.
@@ -554,6 +566,9 @@ while wave not empty:
             eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
 
+    # 3a. one head per landing carries walk_spreads = (config.spread != null),
+    #     so a merged landing pays a conduct cost once
+
     # 3b. land the wave through OutcomeApplier.drain, on the cast world: one
     #     wave is one beat (structural_key = hop_index). Its first hit opens
     #     the group, so HitGather.stage_one gathers the whole wave first
@@ -573,7 +588,10 @@ while wave not empty:
         # the walk also ends where the landing's node said "paths end" at
         # its second Admits read, in the generation its head arrived in
         paths_end = any(hit.is_head and hit.path_ends for hit in event_of[state].hits)
-        if state.hops_remaining <= 0 or config.spread == null or paths_end:
+        # the walk conducted through a Shocked node: the gather paid the
+        # band's conduct_cost at the node's read (below), so no hop is spent
+        conducted = any(hit.is_head and hit.conducted for hit in event_of[state].hits)
+        if (state.hops_remaining <= 0 and not conducted) or config.spread == null or paths_end:
             mark_terminal(state); continue
         reachable = config.reach.candidates(lctx) if config.reach \
                     else graph.get_neighbours(state.current_node)
@@ -581,7 +599,7 @@ while wave not empty:
                       if ctx.visit_count(nb) < config.max_visits_per_node]
         candidates = config.filter.narrow(candidates, lctx)
         for pick in config.spread.select(candidates, lctx):
-            next_wave.append(config.mint(state, pick))
+            next_wave.append(config.mint(state, pick, lctx, conducted))
     wave = next_wave
 ```
 
@@ -635,8 +653,8 @@ the one before left. At each node of a generation:
 
 A go-off's reach enters through `HitGather._append_reach`. A node at hop depth
 1 arrives in the next generation, and so does the centre copy when
-`lands_on_own_node`. A node at depth d ≥ 2 (the hop seat, tentative; #1806 fills
-depth and ring from its BFS) arrives at g + d. Its cost and transfer commit at
+`lands_on_own_node`. A node at depth d ≥ 2 (the hop seat, tentative; Lightning's
+`EdgeGoOff` fills depth and ring from `GraphMirror.nodes_within`) arrives at g + d. Its cost and transfer commit at
 the read of g + d − 1, just before its admit. It is dropped instead when every
 ring node it hangs behind ended its paths at that read, or had its own entry
 from the go-off dropped. A dropped node is never admitted or landed, costs
