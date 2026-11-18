@@ -106,6 +106,10 @@ class _Fired:
 	## `(Element, int) -> void` when a [GoOffSource] pays instead of the
 	## node's store ([method _fire_source]); else invalid.
 	var spend: Callable = Callable()
+	## `(Element, int) -> void`: a second payer, 1 per reached node, beside
+	## the one above (a vertex's copy whose arc is one channel with a Shocked
+	## node's own: [method _fire_vertex_arc]); else invalid.
+	var copy_spend: Callable = Callable()
 
 
 const DEFAULT_TUNABLES := preload("res://attack/outcome/hit_gather_tunables.tres")
@@ -314,6 +318,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 					continue
 				if _vertex_disc(h, node, e) != null and band.go_off is DiscGoOff:
 					continue  # adds up with the vertex's shape ([method _fire_vertex_disc])
+				if _vertex_arc(h, node, e) != null and band.go_off is EdgeGoOff:
+					continue  # one Lightning channel with the vertex's arc ([method _fire_vertex_arc])
 				var result := band.go_off.fire_in(_world, node, read)
 				if result == null:
 					continue
@@ -489,7 +495,7 @@ func _open_head(h: _Hit, crit_rng: RandomNumberGenerator = null) -> void:
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null,
-		spend: Callable = Callable(), centre_copy := true) -> void:
+		spend: Callable = Callable(), centre_copy := true, copy_spend: Callable = Callable()) -> void:
 	var fired: _Fired = null
 	var mask := h.head.target_mask
 	for reach in result.reached:
@@ -506,6 +512,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 			fired.element = e
 			fired.result = result
 			fired.spend = spend
+			fired.copy_spend = copy_spend
 			if go_off != null:
 				fired.mark = BlastMark.new()
 				fired.mark.centre = node
@@ -552,6 +559,8 @@ func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]
 					fired.spend.call(fired.element, cost)
 			else:
 				_spend_stacks(spends, fired.node, fired.element, cost)
+			if fired.copy_spend.is_valid():
+				fired.copy_spend.call(fired.element, 1)
 			_add(spends, reach.node, fired.element, int(fired.result.transfer.get(reach.node, 0)))
 		_join(next, _arrive(fired, reach.node, generation + 1))
 
@@ -765,6 +774,9 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 		if band.go_off is DiscGoOff:
 			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next)
 			continue
+		if band.go_off is EdgeGoOff:
+			_fire_vertex_arc(h, node, e, band.go_off as EdgeGoOff, generation, spends, next)
+			continue
 		var result := band.go_off.fire_in(_world, node, read)
 		if result == null:
 			continue
@@ -817,6 +829,59 @@ func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOf
 	var band: ElementBand = own if burning else h.source.read.band(e)
 	_append_reach(h, node, result, disc, generation + 1, next, e, _named(e, band),
 			Callable(), burning)
+
+
+## The arc [param h]'s go-off source sets off in [param e] at its own head's
+## [param node], or null: a vertex copy primed in an [EdgeGoOff] band
+## (Lightning's Shocked) is a shape on the node it touches, never a second arc.
+func _vertex_arc(h: _Hit, node: SkillNode, e: Element) -> EdgeGoOff:
+	if h.source == null or h.source.read == null or node != h.head.target:
+		return null
+	var band := h.source.read.band(e)
+	return band.go_off as EdgeGoOff if band != null else null
+
+
+## A primed vertex copy's arc from the contact [param node], at the copy's
+## level ([method EdgeGoOff.level_of] its read). On a node whose own [param e]
+## band arcs (Shocked) the two are ONE Lightning channel: one arc at the node's
+## level plus the copy's ([method EdgeGoOff.fire_level_in]), one mark, the
+## centre copy, the node paying its solo cost and transfer off its store. On
+## any other node the copy's arc runs alone: a mark, no centre copy, no node
+## spend, its transfer onto each node reached. Either way the copy pays 1 per
+## node reached, through the source's spend: depth 1 at this read, deeper ones
+## as [method _release] lets them on. Reaching no one is no go-off. The node's
+## own plain arc is skipped in the go-off loop on [method _vertex_arc].
+func _fire_vertex_arc(h: _Hit, node: SkillNode, e: Element, copy_edge: EdgeGoOff,
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+	var read := TerrainRead.of(_slice(node), node)
+	var own := read.band(e)
+	var shocked := own != null and own.go_off is EdgeGoOff
+	var result: GoOffResult = null
+	if shocked:
+		var edge := own.go_off as EdgeGoOff
+		result = edge.fire_level_in(_world, node, read, edge.level_of(h.source.read))
+	else:
+		result = copy_edge.fire_level_in(_world, node, h.source.read, 0)
+	if result == null or result.reached.is_empty():
+		return
+	var near := 0
+	var seen: Dictionary = {}
+	for reach in result.reached:
+		if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
+			continue
+		seen[reach.node] = true
+		near += 1
+		if not shocked:
+			_add(spends, reach.node, e, int(result.transfer.get(reach.node, 0)))
+	if near > 0 and h.source.spend.is_valid():
+		h.source.spend.call(e, near)
+	if shocked:
+		_spend(spends, node, e, result)
+		_append_reach(h, node, result, own.go_off, generation + 1, next, e, _named(e, own),
+				Callable(), true, h.source.spend)
+	else:
+		_append_reach(h, node, result, copy_edge, generation + 1, next, e,
+				_named(e, h.source.read.band(e)), h.source.spend, false)
 
 
 ## The spend [param result] returns at its own read, on [param node]'s store
