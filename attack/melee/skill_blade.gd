@@ -52,12 +52,7 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 ## One resource per blade, so a sandbox can retune the whole swing live.
 @export var style: BladeStyle = BladeNode.DEFAULT_STYLE:
 	set(value):
-		if style != null and style.changed.is_connected(queue_redraw):
-			style.changed.disconnect(queue_redraw)
 		style = value
-		# The piece-blast ring is this node's own draw; its knobs repaint it.
-		if style != null:
-			style.changed.connect(queue_redraw)
 		_apply_style()
 
 ## The swing's pop outcome, set by the caller BEFORE [method play] when one is
@@ -104,9 +99,6 @@ var _last_frame_t: float = -INF
 ## [BladeState] particle order. Only the wind-up reads it.
 var _source_nodes: Array[SkillNode] = []
 
-## Each piece's explosive charges at build, before any resolve spent the
-## state's working copy — the start [method _charges_at] counts down from.
-var _build_charges: PackedInt32Array = PackedInt32Array()
 ## The single Tween driving the wind-up. One tween with parallel,
 ## delayed tweeners rather than a coroutine chain, so [method stop] can kill
 ## the whole sequence in one call and [method play] cannot end up fighting a
@@ -158,10 +150,6 @@ func _ready() -> void:
 	# deserialization on instantiate) and no-ops on a null field; catch it up
 	# now that one exists.
 	_push_shard_look()
-	# A default-initialised `style` never ran the setter, so hook the ring's
-	# repaint here too.
-	if style != null and not style.changed.is_connected(queue_redraw):
-		style.changed.connect(queue_redraw)
 
 
 ## True when the selected node set can form a valid blade.
@@ -203,7 +191,6 @@ func build_from_skill_nodes(
 	# so this blade's numbers are the ones the resolve computes.
 	state = BladeState.from_nodes(skill_nodes, pivot, induced_edges, fill)
 	_spawn_visuals()
-	_snapshot_build_charges()
 	_mark_all_placed()
 
 
@@ -267,7 +254,6 @@ func play(
 		_shard_field.flight_start = 0.0
 		_shard_field.clear()
 	_last_frame_t = -INF
-	queue_redraw()
 	_rebuild_pending_pops()
 	var pending: Array[BladeHitEvent] = hits.duplicate()
 	var dur := duration_override if duration_override >= 0.0 else traj.duration()
@@ -308,9 +294,6 @@ func _apply_playback_frame(
 			_node_visuals[i].global_position = positions[i]
 		if pop_result != null:
 			_node_visuals[i].death_progress = _death_progress_at(i, t)
-			_node_visuals[i].charges = _charges_at(i, t)
-			_node_visuals[i].spend_progress = _spend_progress_at(i, t)
-			_node_visuals[i].shrug_progress = _shrug_progress_at(i, t)
 	# The marker rides the trajectory's stored centroid: the one place
 	# the swing writes vertex positions is the one place the focus follows them.
 	# Only the committed swing, though — the idle preview loop plays the ghost
@@ -319,8 +302,6 @@ func _apply_playback_frame(
 	# that reason), so the ghost loop leaves the marker on the rest centre.
 	if not ghostly and state != null and positions.size() > 0:
 		_set_focus(weighted_focus(_pivot_position(), traj.centroid_at(t), positions.size()))
-	if pop_result != null and not pop_result.contacts.is_empty():
-		queue_redraw()
 	if pop_result != null:
 		for i in _edge_visuals.size():
 			# Edge index into state.edges is stable for the whole swing,
@@ -376,103 +357,6 @@ func _death_progress_at(idx: int, t: float) -> float:
 		return 0.0
 	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
 	return clampf((t - dead_t) / s.pop_window, 0.0, 1.0)
-
-
-## The piece-blast rings: one thin arc per explosive contact whose struck node
-## held charges ([member BladePopResolver.Contact.piece_reach] > 0), centred on
-## that node and expanding to its reach over [member BladeStyle.piece_blast_window]
-## as it fades — the defender's bomb across the pieces, so the player sees why
-## they died. A pure function of [member pop_result] and the last frame's `t`.
-func _draw() -> void:
-	if pop_result == null:
-		return
-	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
-	if not s.piece_blast_ring:
-		return
-	var colour := s.shrug_color()
-	for contact in pop_result.contacts:
-		if contact.t > _last_frame_t:
-			break
-		if contact.piece_reach <= 0.0:
-			continue
-		var p := clampf((_last_frame_t - contact.t) / s.piece_blast_window, 0.0, 1.0)
-		if p >= 1.0:
-			continue
-		var ring := colour
-		ring.a *= 1.0 - p
-		draw_arc(to_local(contact.centre), contact.piece_reach * maxf(p, 0.05),
-				0.0, TAU, 64, ring, s.piece_blast_width, true)
-
-
-## Takes [member BladeState.vertex_charges] as this build's starting charges
-## (a resolve spends the state's working copy, so the start must be held) and
-## shows them on the visuals already spawned.
-func _snapshot_build_charges() -> void:
-	_build_charges = state.vertex_charges.duplicate() if state != null else PackedInt32Array()
-	for i in mini(_node_visuals.size(), _build_charges.size()):
-		_node_visuals[i].charges = _build_charges[i]
-
-
-## Piece `idx`'s charges at trajectory time `t` — a pure function of the build
-## charges and [member pop_result]'s contacts at or before `t`: a POPPED verdict
-## leaves none, a SPENT one takes [method _spend_count]. Called only when
-## [member pop_result] is non-null.
-func _charges_at(idx: int, t: float) -> int:
-	var n := _build_charges[idx] if idx < _build_charges.size() else 0
-	for contact in pop_result.contacts:
-		if contact.t > t:
-			break
-		match contact.verdicts.get(idx, -1):
-			BladePopResolver.Contact.Verdict.POPPED:
-				n = 0
-			BladePopResolver.Contact.Verdict.SPENT:
-				n = maxi(0, n - _spend_count(contact, n))
-	return n
-
-
-## How many charges a SPENT piece holding `n` paid on [param contact]:
-## `max(1, min(n, m))`, `m` the struck node's charges. [BladePopResolver.Contact]
-## does not record the count, so it is recovered exactly from the two powers it
-## does: both sides add the same `resonance · shared`, so
-## `striker_power - node_power == n - m` whenever the node held any (else
-## `node_power` is 0 and `m` is 0). Must track `_admit_explosive`'s spend rule.
-static func _spend_count(contact: BladePopResolver.Contact, n: int) -> int:
-	var m := 0 if contact.node_power <= 0 else n - contact.striker_power + contact.node_power
-	return maxi(1, mini(n, m))
-
-
-## spend_progress at trajectory time `t` for piece `idx`: 0 until a SPENT
-## verdict on it, then `(t - contact.t) / spend_window` clamped to [0, 1] off
-## the latest such contact at or before `t`. A POPPED piece never flares — it
-## shows the pop. Called only when [member pop_result] is non-null.
-func _spend_progress_at(idx: int, t: float) -> float:
-	var spent_t := -INF
-	for contact in pop_result.contacts:
-		if contact.t > t:
-			break
-		if contact.verdicts.get(idx, -1) == BladePopResolver.Contact.Verdict.SPENT:
-			spent_t = contact.t
-	if spent_t == -INF:
-		return 0.0
-	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
-	return clampf((t - spent_t) / s.spend_window, 0.0, 1.0)
-
-
-## shrug_progress at trajectory time `t` for piece `idx`: 0 until a SHRUGGED
-## verdict on it, then `(t - contact.t) / shrug_window` clamped to [0, 1] off
-## the latest such contact at or before `t` — a charged piece in a node's blast
-## reach that the blast spared. Called only when [member pop_result] is non-null.
-func _shrug_progress_at(idx: int, t: float) -> float:
-	var shrug_t := -INF
-	for contact in pop_result.contacts:
-		if contact.t > t:
-			break
-		if contact.verdicts.get(idx, -1) == BladePopResolver.Contact.Verdict.SHRUGGED:
-			shrug_t = contact.t
-	if shrug_t == -INF:
-		return 0.0
-	var s: BladeStyle = style if style != null else BladeNode.DEFAULT_STYLE
-	return clampf((t - shrug_t) / s.shrug_window, 0.0, 1.0)
 
 
 ## Rebuilds [member _pending_pops] from [member pop_result]: one entry per

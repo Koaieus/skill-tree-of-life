@@ -1,7 +1,7 @@
 @tool
 extends Node2D
 
-## The rim band + shrug sheen of one [BladeNode]; the body under it is the
+## The rim band of one [BladeNode]; the body under it is the
 ## sibling [BladeDome]. Holds no colour policy of its own — every
 ## hue, tier and width comes from the [BladeStyle] it is configured with, so the
 ## blade's look is tunable from one resource (#256).
@@ -16,9 +16,6 @@ var _tint: Color = Color.TRANSPARENT
 ## ShatterField shards, `attack/melee/skill_blade.gd`), so nothing below reads
 ## this beyond the single early-return gate.
 var _death_progress: float = 0.0
-## [member BladeNode.shrug_progress]: while in (0, 1) a protective sheen band
-## expands outward over the rim and fades.
-var _shrug_progress: float = 0.0
 
 
 func configure(
@@ -27,15 +24,13 @@ func configure(
 		pivot: bool,
 		style: BladeStyle,
 		tint: Color = Color.TRANSPARENT,
-		death_progress: float = 0.0,
-		shrug_progress: float = 0.0) -> void:
+		death_progress: float = 0.0) -> void:
 	_radius = r
 	_inner_radius = inner_r
 	_is_pivot = pivot
 	_style = style
 	_tint = tint
 	_death_progress = death_progress
-	_shrug_progress = shrug_progress
 	queue_redraw()
 
 
@@ -52,14 +47,3 @@ func _draw() -> void:
 			Vector2.ZERO, mid,
 			_style.rim_color(_is_pivot, _tint, false),
 			false, band, true)
-	_draw_shrug_sheen(band, mid)
-
-
-## The shrug sheen: a band as wide as the rim, starting on it and swelling
-## outward by one more band width while it fades out.
-func _draw_shrug_sheen(band: float, mid: float) -> void:
-	if _shrug_progress <= 0.0 or _shrug_progress >= 1.0:
-		return
-	var sheen := _style.shrug_color()
-	sheen.a *= 1.0 - _shrug_progress
-	draw_circle(Vector2.ZERO, mid + band * _shrug_progress, sheen, false, band, true)

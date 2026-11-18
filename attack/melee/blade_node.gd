@@ -66,43 +66,6 @@ const GLINT_OFF: float = -1.0e4
 		death_progress = clamped
 		_reconfigure()
 
-## Explosive charges this piece holds right now: one bead each on a band inside
-## the rim, none at 0. [SkillBlade] sets it at build and, during playback,
-## re-derives it every frame from the contacts at or before `t` — a channel,
-## like [member death_progress], never a counter decremented by events.
-@export_range(0, 32, 1) var charges: int = 0:
-	set(value):
-		value = maxi(value, 0)
-		if charges == value:
-			return
-		charges = value
-		_reconfigure()
-
-## The latest spend's flare: `0.0` until a contact spends this piece's charges,
-## then `clampf((t - contact.t) / BladeStyle.spend_window, 0, 1)` — the spent
-## bead flares out and fades. Driven per frame like [member death_progress];
-## settable by hand for look tuning (`addons/melee_sandbox`).
-@export_range(0.0, 1.0) var spend_progress: float = 0.0:
-	set(value):
-		var clamped := clampf(value, 0.0, 1.0)
-		if spend_progress == clamped:
-			return
-		spend_progress = clamped
-		_reconfigure()
-
-## The latest shrug's sheen: `0.0` until a node's blast spares this charged
-## piece (a SHRUGGED verdict), then `clampf((t - contact.t) /
-## BladeStyle.shrug_window, 0, 1)` — a protective band expands over the rim and
-## fades. Exclusive with [member spend_progress] per contact. Driven per frame
-## like [member death_progress]; settable by hand (`addons/melee_sandbox`).
-@export_range(0.0, 1.0) var shrug_progress: float = 0.0:
-	set(value):
-		var clamped := clampf(value, 0.0, 1.0)
-		if shrug_progress == clamped:
-			return
-		shrug_progress = clamped
-		_reconfigure()
-
 ## The sight marker a scout vertex carries (`ui/fog_overlay/lantern.tscn`,
 ## set in `blade_node.tscn`). Injected, never preloaded: `attack/` sits below
 ## `ui/`, so this script treats the instance as a plain [Node2D] with
@@ -124,9 +87,6 @@ var glint: float = GLINT_OFF
 ## and frees with it. Null while unlit.
 var _lantern: Node2D = null
 
-## Draws the charge beads; authored after `Visuals` so it paints over the disc.
-@onready var _charge_band: BladeChargeBand = $ChargeBand
-
 
 func _ready() -> void:
 	_reconfigure()
@@ -138,10 +98,7 @@ func _reconfigure() -> void:
 	var s := style if style != null else DEFAULT_STYLE
 	_dome.configure(inner_radius, is_pivot, s, tint, death_progress > 0.0)
 	_visual.configure(
-			radius, inner_radius, is_pivot, s, tint, death_progress,
-			shrug_progress)
-	_charge_band.configure(
-			radius, inner_radius, charges, spend_progress, s, death_progress > 0.0)
+			radius, inner_radius, is_pivot, s, tint, death_progress)
 
 
 ## [SkillBlade]'s glint push: this vertex's [member glint] and the band's

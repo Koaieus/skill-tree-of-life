@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://dhm7460kukjj" path="res://attack/melee/blade_node.gd" id="1_yhxd4"]
 [ext_resource type="Script" uid="uid://bb04be815brex" path="res://attack/melee/blade_circle.gd" id="2_xguwb"]
 [ext_resource type="PackedScene" path="res://ui/fog_overlay/lantern.tscn" id="3_lantern"]
-[ext_resource type="Script" path="res://attack/melee/blade_charge_band.gd" id="4_band"]
 [ext_resource type="Script" path="res://attack/melee/blade_dome.gd" id="5_dome"]
 
 [node name="BladeNode" type="Node2D"]
@@ -18,6 +17,3 @@ script = ExtResource("5_dome")
 
 [node name="BladeCircle" type="Node2D" parent="Visuals"]
 script = ExtResource("2_xguwb")
-
-[node name="ChargeBand" type="Node2D" parent="."]
-script = ExtResource("4_band")
