@@ -179,10 +179,13 @@ func test_armor_leaves_the_stamp_and_zero_armor_takes_it_once() -> void:
 	await _land(hits)
 	assert_almost_eq(hp - _f.target.get_combat().get_current_hp(), HitPoints.whole(_expected(-1)), 0.0001,
 			"zero armor: the HP taken is the stamp in whole HP (the curve ran once)")
+	var taken := hp - _f.target.get_combat().get_current_hp()
 	_f.hostile.stat_board.armor.base_value = 5.0
+	var before := _f.target.get_combat().get_current_hp()
 	var armored: Array[HitInstance] = []
 	_contact(armored)
 	await _land(armored)
+	assert_lt(before - _f.target.get_combat().get_current_hp(), taken, "fixture: the armor bit")
 	assert_almost_eq(rec.amounts[1], rec.amounts[0], 0.0001, "armor leaves the stamped number unchanged")
 
 
@@ -195,3 +198,17 @@ func test_the_stamp_reads_the_gathers_world_not_the_mints() -> void:
 	_set_t(-1)
 	await _land(hits)
 	assert_almost_eq(rec.amounts[0], _expected(-1), 0.0001, "the later t's raw amount")
+
+
+func test_the_authority_amount_and_the_cosmetic_floater_agree() -> void:
+	await _board()
+	var rec := _record()
+	_set_t(1)
+	var hits: Array[HitInstance] = []
+	var di := _contact(hits)
+	await _land(hits)
+	var blade := SkillBlade.SCENE.instantiate() as SkillBlade
+	add_child_autofree(blade)
+	blade.owned_by = _f.attacker
+	assert_almost_eq(_K * blade._speed_multiplier(di._event), rec.amounts[0], 0.0001,
+			"the floater's curve is the stamp's")

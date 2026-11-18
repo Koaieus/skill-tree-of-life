@@ -154,7 +154,9 @@ static func is_burst(hit: HitInstance) -> bool:
 
 
 ## Stage one over one beat, [param group] in land order. Gathers every fresh
-## head (marked, not yet [member HitInstance.gathered]); feeds every other hit's
+## head (marked, not yet [member HitInstance.gathered]), each asked once, before
+## generation 0, to stamp its raw amount ([method HitInstance.stamp_at_gather])
+## and for its second store ([method HitInstance.go_off_source]); feeds every other hit's
 ## recorded [member HitInstance.terrain_ops] and [member HitInstance.row_ops];
 ## pushes the entries onto
 ## [param queue].
