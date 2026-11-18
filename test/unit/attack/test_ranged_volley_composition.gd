@@ -354,6 +354,14 @@ func _rider_stacks(id: StringName) -> int:
 ## to 0: an arrow's crit is drawn at land, and a crit must not move the stacks.
 func _fire_elements(ammo: Array[Dictionary]) -> void:
 	_attacker.stat_board.crit_chance.base_value = 0.0
+	# The fixture's target is degree 0, so T = 0 and any stack is past the cap
+	# and goes off; three unowned neighbours lift T above a volley's stacks.
+	for i in 3:
+		var n := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		n.position = _target.position + Vector2(0, 40 * (i + 1))
+		_graph.add_skill_node(n)
+		_graph.add_edge(n, _target)
+	assert_gt(_target.get_combat().terrain_threshold(), 3, "fixture: the volley stays below T")
 	for entry in ammo:
 		_attacker.stat_board.arrows.add(entry.type, entry.count)
 	var bs := _battle_system()
@@ -389,3 +397,4 @@ func test_a_lone_heat_arrow_raises_t_by_its_stacks() -> void:
 	var t0 := combat.terrain_t()
 	await _fire_elements([{"type": _HEAT, "count": 1}] as Array[Dictionary])
 	assert_eq(combat.terrain_t() - t0, _rider_stacks(_HEAT))
+

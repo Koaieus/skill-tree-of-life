@@ -72,7 +72,8 @@ func per_reload_stat_id() -> StringName:
 ## still banks what a gallery or loot hands it). Every [method Quiver.add] /
 ## [method Quiver.room_for] caller passes this, never [member max_stock].
 func stock_cap(mint: int) -> int:
-	return max_stock if mint >= 0 else max_stock
+	var scaled := stock_cap_reloads * mint
+	return scaled if scaled > 0 else max_stock
 
 
 ## The first non-null [method OnHitEffect.status_def] in [member on_hit_effects]

@@ -440,7 +440,7 @@ func _best_attack_candidate(visible_enemies: Array[SkillNode], ranged_only: bool
 ## is on the table"* — the kill half is the caller's; this is the stock half,
 ## plus what makes the AP worth it: the entity can pay ([method Entity
 ## .can_reload]) and some bin has room — plain arrows below capacity, or a
-## special the reload mints below its own `max_stock` (ADR 0041: specials bank
+## special the reload mints below its own [method AmmoType.stock_cap] (ADR 0041: specials bank
 ## outside capacity, so a full plain quiver is not a full quiver). Stock is
 ## every arrow held, plain and special. Σ shots_left is over every firing
 ## position the entity holds, not one target's reaching subset — the question
@@ -470,7 +470,7 @@ func _reload_has_room(quiver: Quiver) -> bool:
 		if id == AmmoTypeRoster.BASE_ID:
 			continue
 		var t := _AMMO_TYPES.by_id(id)
-		if t != null and quiver.room_for(id, t.max_stock) > 0:
+		if t != null and quiver.room_for(id, t.stock_cap(int(mint[id]))) > 0:
 			return true
 	return false
 

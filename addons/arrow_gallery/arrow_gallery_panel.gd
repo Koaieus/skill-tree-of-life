@@ -163,7 +163,8 @@ func fire(type_index: int, preset: Preset, n: int, target_name: String = "d_targ
 	_last_outcome = null
 	_build_board(preset, target_name)
 	var quiver := _attacker.stat_board.arrows
-	var stocked := quiver.add(ammo.id, clampi(n, 1, MAX_VOLLEY), ammo.max_stock)
+	var cap := ammo.stock_cap(int(_attacker.reload_yield().get(ammo.id, 0)))
+	var stocked := quiver.add(ammo.id, clampi(n, 1, MAX_VOLLEY), cap)
 	var plan := _battle.new_plan(BattleSystem.AttackMode.RANGED, _attacker) as RangedAttackPlan
 	if plan == null or not plan.set_target(_nodes[target_name]):
 		_verdict = "[color=#ff8f6b]no ranged plan onto %s[/color]" % target_name
