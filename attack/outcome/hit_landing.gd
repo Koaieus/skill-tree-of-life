@@ -76,8 +76,7 @@ var target_mask: int = 0
 ## What the landing site stamps onto each hit of its span, as
 ## `func(hit: HitInstance) -> void` — run by [method place] over
 ## [code]hits[anchor..][/code] once ordered, in placed order. A spell's stamps
-## the caster, its crit conditions, the wave ordinal and the head's
-## [member HitInstance.hit_load], and files the hit on
+## the caster, its crit conditions and the wave ordinal, and files the hit on
 ## its timeline event; an arrow's stamps its ammo id onto every rider. Unset =
 ## nothing stamped (a blade contact).
 var stamper: Callable = Callable()

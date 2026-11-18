@@ -426,16 +426,6 @@ func test_the_hit_that_tips_a_node_over_T_sets_it_off_itself() -> void:
 	_gather([_span(_h, 2)])
 	assert_eq(_fired_at(_h, "count"), [_t(_h) + 3], "an already primed node: pre-hit + 2")
 
-	_goff.log.clear()
-	_goff.reach_of = {_h: [_n1], _n1: [_n2]}
-	_set_fire(_h, _t(_h) + 1)
-	_set_fire(_n1, _t(_n1) + 1)
-	var span := _span(_h)
-	span[0].hit_load = 5
-	_gather([span])
-	assert_eq(_fired_at(_h, "hit_load"), [5], "the GoOff is handed the head's load")
-	assert_eq(_fired_at(_n1, "hit_load"), [0], "a reached primed node's GoOff is handed 0")
-
 
 # 4 ─────────────────────────────────────────────────────────────────────────────
 func test_an_absorbed_copy_makes_no_entry_but_lands_its_terrain() -> void:

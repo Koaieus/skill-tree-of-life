@@ -64,7 +64,7 @@ static func _read_pierce(firing_slice: NodeCombat, ammo_type: AmmoType) -> FoldT
 ## The riders pass of a typed arrow's landing: every one of the arrow's
 ## [member AmmoType.on_hit_effects], in authored order, run against ONE
 ## [HitLanding] anchored at [param hit]'s slot in [param hits] (where the
-## caller has already put it). An arrow's `hit_load` is 0; an untyped or
+## caller has already put it). An untyped or
 ## riderless arrow still sets off a primed node it lands on. The landing is paired to the arrow, so each emitted rider is
 ## a dud iff the arrow is ([member HitInstance.paired]); each rider is stamped
 ## with the arrow's [member HitInstance.ammo_type_id], and the arrow takes the

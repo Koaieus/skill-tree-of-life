@@ -276,12 +276,11 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 		_read_node(node, read, at[node], generation, spends, bursts)
 		var landing: Array = reading[node]
 		for h: _Hit in landing:
-			var hit_load := h.head.hit_load if generation == 0 else 0
 			for e: Element in ElementRoster.shared().elements:
 				var band := read.band(e)
 				if band == null or band.go_off == null:
 					continue
-				var result := band.go_off.fire_in(_world, node, read, hit_load)
+				var result := band.go_off.fire_in(_world, node, read, 0)
 				if result == null:
 					continue
 				_spend(spends, node, e, result)
@@ -843,7 +842,6 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	c.is_head = false
 	c.gathered = false
 	c.staged = false
-	c.hit_load = 0
 	# The head's mask, rechecked at land as a splash copy's is (#1799).
 	if a.head.target_mask != 0:
 		c.land_mask = a.head.target_mask
