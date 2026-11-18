@@ -11,6 +11,7 @@ extends GutTest
 const _PANEL_PATH := "res://addons/arrow_gallery/arrow_gallery_panel.tscn"
 const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
 const _BUDGET_SECONDS := 10.0
+const _VOLLEY := 4
 
 var _panel: Node
 
@@ -41,7 +42,7 @@ func test_every_type_fires_under_every_preset() -> void:
 	var started := Time.get_ticks_msec()
 	for preset in _panel.Preset.values():
 		for i in _panel.type_count():
-			var outcome: AttackOutcome = await _panel.fire(i, preset, 4)
+			var outcome: AttackOutcome = await _panel.fire(i, preset, _VOLLEY)
 			var ammo: AmmoType = _panel.type_at(i)
 			var label := "%s / %s" % [ammo.id, _panel.Preset.keys()[preset]]
 			assert_not_null(outcome, "%s fired" % label)
@@ -56,7 +57,11 @@ func test_every_type_fires_under_every_preset() -> void:
 func _assert_preset_beat(outcome: AttackOutcome, preset: int, ammo: AmmoType, label: String) -> void:
 	var deals := not is_zero_approx(ammo.damage_scale)
 	var arrows: Array[HitInstance] = _panel.arrows_of(outcome)
-	assert_eq(arrows.size(), 4, "%s: four arrows" % label)
+	# The panel stocks the volley up to the type's bin cap, which an element
+	# arrow scales by the attacker's starter count.
+	var mint := int(_panel._attacker.reload_yield().get(ammo.id, 0))
+	var volley := mini(_VOLLEY, ammo.stock_cap(mint))
+	assert_eq(arrows.size(), volley, "%s: the stocked volley" % label)
 	var gated := 0
 	var healed := 0
 	var held := 0
