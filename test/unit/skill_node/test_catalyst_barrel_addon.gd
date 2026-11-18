@@ -114,16 +114,16 @@ func test_removing_a_barrel_from_an_empty_carrier_stays_empty() -> void:
 
 # --- acceptance 3: decay, then refill ------------------------------------------
 
-func test_turn_end_decay_then_turn_start_refill() -> void:
+func test_world_turn_decay_then_turn_start_refill() -> void:
 	var n := _node("Carrier")
 	_alloc.force_allocate(_entity, n)
 	var barrels := _barrels(n, 3)
 	_entity.begin_turn()
 	var full := _charges(n)
 	assert_eq(full, float(barrels.size()), "full after a turn start")
-	n.get_combat().tick_statuses()
+	CombatWorld.live().tick_world_turn_decay()
 	var decayed := _charges(n)
-	assert_lt(decayed, full, "turn-end decay spends a charge")
+	assert_lt(decayed, full, "the world turn's decay spends a charge")
 	_entity.begin_turn()
 	assert_eq(_charges(n), full, "the next turn start refills what decayed")
 
