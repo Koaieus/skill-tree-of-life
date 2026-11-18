@@ -97,8 +97,8 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 ## snapshot restore's writer. Never recomputes the key
 ## through the def (a decoded row keeps the key it was saved under); keeps
 ## [method apply_status]'s `CLEAR` gate and [method _settle]'s clamp. A restore
-## never re-derives: a def's optional `_on_restored(host, power)` replaces
-## [method StatusDef._on_applied] here, so a hook that trims to a live cap
+## never re-derives: it hands the row to [method StatusDef._on_restored]
+## (default: [method StatusDef._on_applied]), so a hook that trims to a live cap
 ## (Catalyst's k × T) leaves the authority's settled row as it was sent.
 func restore_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
 		applier_id: int = 0, decay_step: int = 0) -> void:
@@ -133,8 +133,8 @@ func adjust_power(def: StatusDef, delta: float, key: Variant = true) -> void:
 ## handed to [method StatusDef._on_applied] at its resisted count (ADR 0031).
 ## [param notify] off lets a batch caller refresh once at its end (#880).
 ## [param applier] `[camp_id, applier_id]`, when given, is recorded on the row.
-## [param restoring] (only [method restore_row]) hands the row to the def's
-## `_on_restored` instead of `_on_applied` when the def defines one.
+## [param restoring] (only [method restore_row]) hands the row to
+## [method StatusDef._on_restored] instead of [method StatusDef._on_applied].
 ## [method tick_statuses] is NOT a caller: tick keeps its own tail, because
 ## its survivor path is [method StatusDef._on_tick]'s, not `_on_applied`'s.
 func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = true,
@@ -158,8 +158,8 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 	if applier.size() == 2:
 		row.camp_id = applier[0]
 		row.applier_id = applier[1]
-	if restoring and def.has_method(&"_on_restored"):
-		def.call(&"_on_restored", owner, effective_power(def, row.power))
+	if restoring:
+		def._on_restored(owner, effective_power(def, row.power))
 	else:
 		def._on_applied(owner, effective_power(def, row.power))
 	if not had_status:

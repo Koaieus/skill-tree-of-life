@@ -95,3 +95,9 @@ func test_restore_hands_a_plain_def_to_on_applied() -> void:
 	d.id = &"spy_applied"
 	StatusHost.new(o).restore_row(d, 1.0, true)
 	assert_eq(d.applied, 1, "_on_applied ran once")
+
+
+func test_base_on_restored_reaches_on_applied() -> void:
+	var d := AppliedSpy.new()
+	d._on_restored(null, 1.0)
+	assert_eq(d.applied, 1, "the default _on_restored is _on_applied")

@@ -386,6 +386,15 @@ func _on_applied(_host, _power: float) -> void:
 	pass
 
 
+## A snapshot restore ([method StatusHost.restore_row]) put the authority's
+## settled row back on [param host] at [param power] (resisted, as
+## [method _on_applied] sees it). Defaults to [method _on_applied]; override
+## when a restore must NOT re-derive (Catalyst skips its live-cap trim) — an
+## override runs INSTEAD of [method _on_applied], never beside it.
+func _on_restored(host, power: float) -> void:
+	_on_applied(host, power)
+
+
 ## One turn tick on [param host], BEFORE decay lands: [param before] is the
 ## current power, [param after] what it will be once this hook returns —
 ## both AS RESISTED by the host ([method StatusHost.effective_power]); the
