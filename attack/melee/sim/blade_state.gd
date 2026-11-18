@@ -158,10 +158,11 @@ var edges: Array[Vector2i] = []
 ## instead: an index in this set is gone for every purpose ([method
 ## BladePopResolver._reachable_from_pivot] does not traverse it, [BladeHitScan]
 ## does not query it, its distance constraint is dropped by [method
-## remove_edge]). Two things write here: #781's bunker break, and [method
-## remove_vertex], which marks a corpse's incident edges — ADR 0005 retired the
-## spike-drain severance, since a spike destroys matter and a bunker destroys
-## structure. A bunker break alone is recorded as a severance (`severed_at`).
+## remove_edge]). Two things write here: [method remove_edge] (a bunker break
+## or a fuse), and [method remove_vertex], which marks a corpse's incident
+## edges — ADR 0005 retired the spike-drain severance, since a spike destroys
+## matter and a bunker destroys structure. Only [method remove_edge]'s cuts are
+## recorded as severances (`severed_at`), so the two are not the same set.
 var removed_edges: Dictionary = {}
 var constraints: Array[BladeConstraint] = []
 ## The swing's bunker field (#781), or null — which is every swing with no

@@ -11,8 +11,9 @@ extends GutTest
 ## mechanism moved. The drag half lives in test_blade_chunked_parity.gd, where
 ## the per-particle array is pinned alongside its bit-exactness claim.
 ##
-## Every fixture here severs via a VERTEX POP, never by driving
-## `BladeState.removed_edges` through the spike gate: under ADR 0005 edges are
+## Every fixture here severs via a VERTEX POP (which marks the corpse's edges
+## in `BladeState.removed_edges`), never by cutting an edge through the spike
+## gate: under ADR 0005 edges are
 ## purely structural, so a vertex pop is the only live producer of a severance
 ## (bunker break, #781, will be the second — and
 ## `test_the_continuation_is_a_function_of_topology_not_of_trigger` is what pins
