@@ -476,8 +476,9 @@ seams and settles the answer (hit-resolution.md § The beat).
   that `admit` noted pops its vertex there (`_snap_blades` → `snap_on_ice` →
   `LiveGate.snap`, `_kill` at the contact's `t`, no drain), breaker or not. A
   contact whose own Heat thawed the node is never read, and one whose own Cold
-  froze it was not noted: either vertex lives on. The head carries the pop
-  (one-shot or ice) from its own landing, so the break's extra landings and
+  froze it was not noted: either vertex lives on. The contact that pops its
+  vertex (one-shot or ice) carries the pop, set where the gate decides it;
+  `HitGather._clone` resets `popped_vertex`, so the break's extra landings and
   go-off copies carry none. The pivot is exempt. Terrain is side-less:
   unallocated Frozen ground (the scan sees it) takes the contact too, where
   any other unallocated node is refused (no dud); own and allied nodes never
@@ -486,9 +487,26 @@ seams and settles the answer (hit-resolution.md § The beat).
   band answered by a `FrozenAdmits` is flagged `vertex_one_shot` (the gate lands
   its first contact, then pops it, whatever the riders), and its `blade_damage`
   read folds one MULTIPLY bin of `1 + vertex_bonus_per_excess × copied excess`.
-  The source node is only read.
+  The source node is only read. `BladeVertexFill.frozen_overlay(read, node,
+  stat)` is the one builder: the fill hands it the vertex's copy, and
+  `MeleeAttackPlan.swing_value` hands it the source node's live read (the
+  copy is that read), so the readout shows the concentrate.
+- **Looks.** A Frozen node wears a frost crust on its rim
+  (`skill_node/visuals/frost_crust.tscn`, fed by
+  `NodeVisualsComposite.set_terrain_glow`'s heat/cold slot): a shape, not a
+  modulate term, so it composes with the band glow; it grows at Deep freeze.
+  A Frozen blade vertex reads pale (`SkillBlade.frozen_vertex_hue`,
+  `is_frozen_vertex`; Burning first, then Frozen, then Shocked). A popped
+  vertex shatters through the blade's `ShardField` off the swing's
+  `pop_result` (the gate's `_kill`), and `Events.blade_vertex_popped` plays
+  `AllocationVFX`'s pop burst at the node. Not built, no replay cue: the
+  shatter's shards (the burst lands on the holder through `DotTick.mint`, and
+  an unallocated node has none) and the absorbed-copy / ended-walk cue
+  (`HitInstance.path_ends` never ships).
 - Guards: `test/unit/attack/test_frozen_admits.gd`,
-  `test/unit/attack/test_ice_shatter.gd`, `test/unit/attack/test_blade_frozen.gd`.
+  `test/unit/attack/test_ice_shatter.gd`, `test/unit/attack/test_blade_frozen.gd`,
+  `test/unit/attack/test_hit_gather_clone.gd`,
+  `test/unit/ui/test_combat_readout_swing_value.gd`.
 
 ## Pair rules: Frozen mutes, the break releases (#1808)
 
