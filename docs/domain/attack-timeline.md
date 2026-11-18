@@ -215,8 +215,9 @@ would silently diverge, and damage would merely go stale with no test failing.
   because **a gated hit must not carry a multiplied amount**: a veto returns
   before `super.land_on`, so a dud's `amount` stays exactly what was loosed.
 
-`crit_chance` / `crit_multiplier` are read at resolve, so a mid-attack change to
-either is not seen by hits already in flight.
+A spell reads `crit_chance` / `crit_multiplier` at resolve, so a mid-attack
+change to either is not seen by its hits already in flight; an arrow or a blade
+reads them as each beat opens.
 
 A single seeded stream serves a whole attack, so **draws are consumed in
 landing order** (the structural `schedule_index`, never seconds): beat by beat,
@@ -226,8 +227,8 @@ beat: `HitGather.stage_one`, handed the outcome's `crit_stream` by
 order, reading the world as the beat opens, so an earlier beat's status reaches
 the chance and the beat's own landings do not. `land_one` keeps its own
 `decide` call: a no-op for a decided head, the draw for a lead that is no
-gather head (today those are amount-0 Exert, AddonDestroy and GateFlip hits,
-which draw nothing). If the orders drifted, crits would stop reproducing under
+gather head — none draws today (an Exert's amount is 0; an AddonDestroy or a
+GateFlip returns before the draw), so list order holds. If the orders drifted, crits would stop reproducing under
 a replayed seed. A head whose target or origin is gone by the time it would
 land has already drawn at beat open; that is deterministic, since only the
 authority draws. A spell draws at

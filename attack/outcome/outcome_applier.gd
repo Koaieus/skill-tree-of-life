@@ -205,8 +205,8 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		return
 	if crit_rng != null:
 		CritRoll.decide(hit, crit_rng, world)
-	# An element rider stage one already landed ([HitGather]): its crit draw
-	# keeps its slot in the stream, its landing does not run twice.
+	# An element rider stage one already landed ([HitGather]): it took its
+	# head's crit there, so its landing does not run twice.
 	if hit.staged:
 		return
 	hit.land_on(slice, world)
