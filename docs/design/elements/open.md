@@ -30,9 +30,6 @@ status: settling
     barrel addon `skill_node/addons/defs/explosive_barrel_addon.tscn`, the
     ring slot in `entity/ring/aspect_ring.tscn`, the `explosive_aspect` roll
     in `procgen/pools/dexterity.tres`.
-  - **NOTE, fate at spec time:** `DetonateUse`/`DetonateEffect`, blade
-    `vertex_charges`/`BladeVertexFill` and Firecracker's intake row with a
-    `FuelUse`.
   - **For Greed's spec:** Greed must not multiply element stacks (owner's
     lean, quoted in [terrain.md](terrain.md) § Catalyst).
   - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow, per world
