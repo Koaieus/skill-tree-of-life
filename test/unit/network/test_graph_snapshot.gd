@@ -355,3 +355,28 @@ func test_catalyst_row_survives_a_decode_over_fewer_edges() -> void:
 			"a fresh-graph decode diverged: %s vs %s" %
 			[WorldFingerprint.describe(fresh), WorldFingerprint.describe(source)])
 	CombatWorld.reset_live()
+
+
+## A gate flip lowers a node's degree and nothing re-trims its Catalyst row, so
+## the authority can hold a row above its own cap. The join decodes that row
+## verbatim: the restore is the authority's settled state, never re-capped.
+func test_an_over_cap_catalyst_row_joins_verbatim() -> void:
+	var catalyst := load("res://effects/status/catalyst.tres") as StatusDef
+	var source := await _hand_graph([[0, 1], [0, 2]])
+	var nodes := source.get_skill_nodes()
+	var node: SkillNode = nodes[0]
+	node.owned_by = _new_owner(source)
+	var wide_cap := node.get_combat().terrain_cap()
+	node.get_combat().restore_status_row(catalyst, float(wide_cap), true)
+	source.remove_edge(source.edge_between(node, nodes[2]))
+	assert_gt(int(node.get_combat().get_status_power(&"catalyst")), node.get_combat().terrain_cap(),
+			"fixture: the authority's row sits above its own cap after the flip")
+	var fresh := await _new_graph()
+	_new_owner(fresh)
+
+	GraphSnapshot.decode(GraphSnapshot.encode(source), fresh)
+
+	assert_eq(WorldFingerprint.compute(fresh), WorldFingerprint.compute(source),
+			"an over-cap row was re-capped on the join: %s vs %s" %
+			[WorldFingerprint.describe(fresh), WorldFingerprint.describe(source)])
+	CombatWorld.reset_live()
