@@ -472,7 +472,8 @@ func restore(b: Bank) -> void:
 # crossing is not an error on either side, it is a silently different swing.
 
 
-## The immutable half of the run about to step: the zone set, the live edge set,
+## The immutable half of the run about to step: the zone set, the live edge set
+## (neither severed nor ending on a removed vertex),
 ## the driven particles, the incidence [method prepare] just built, and the four
 ## tuning constants. The constants are PASSED rather than restated in C++ so each
 ## keeps one definition — the same reason `length_factor` is precomputed (#798).
@@ -486,7 +487,12 @@ func native_inputs() -> Dictionary:
 		var e := _state.edges[e_idx]
 		edges_flat[e_idx * 2] = e.x
 		edges_flat[e_idx * 2 + 1] = e.y
-		edge_removed[e_idx] = 1 if _state.removed_edges.has(e_idx) else 0
+		# Gone = severed OR hanging off a corpse — the same set [method prepare]
+		# leaves out of `_incident`, so the capsule pass touches no edge the
+		# incidence and the hit scan already treat as dead.
+		var gone := _state.removed_edges.has(e_idx) \
+				or _state.removed_vertices.has(e.x) or _state.removed_vertices.has(e.y)
+		edge_removed[e_idx] = 1 if gone else 0
 	# `_incident` as a CSR over particles. The per-particle lists stay in the
 	# ascending-edge-index order [method prepare] appended them in: the vertex
 	# pick's tie order.
