@@ -130,8 +130,9 @@ None of these has a HUD row; each reads only as a formula input or a tuning leve
 
 | id | reason |
 |---|---|
-| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve — a raw curve constant in `attack/melee/skill_blade.gd`/`blade_damage_instance.gd`, no `StatModifier`. Becomes visible once curve stats can roll as procgen modifiers |
+| `blade_speed_half` | `v_half` in the speed-scaled blade damage curve — a raw curve constant in `attack/melee/sim/blade_damage_instance.gd`, no `StatModifier`. Becomes visible once curve stats can roll as procgen modifiers |
 | `blade_speed_multiplier_max` | `M` in the same curve — same reasoning |
+| `blade_temperature_speed` | `c` in the blade's sweep factor `clamp(1 + c·t/T, 1−c, 1+c)`: a node's signed terrain t scales the contact speed the curve reads. Default 0.5, read clamped to [0, 0.95] in `attack/melee/sim/blade_damage_instance.gd`; entity-scope only, no procgen pool |
 | `node_healing` | Base HP a node regenerates at turn start — node-local, read via `SkillNode.get_local_value`. When surfaced, pair it with `node_healing_ramp` parenthetically (`node_healing (+ramp)`, like `armor + (min_damage_taken)`) |
 | `armor_pierce` | A pipeline over the defender's final armor, never a number: its value is inert by contract (ADR 0065). Excluded from `node_stats_panel` (`_EXCLUDED_STAT_IDS`); a future readout renders `get_local_terms(&"armor_pierce").describe("Enemy armor")`, and a modifier formats as "−3 Enemy armor" |
 | `node_healing_ramp` | Extra HP `node_healing` gains per consecutive undamaged turn — same read path; display decided with `node_healing` |
