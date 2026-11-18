@@ -293,9 +293,10 @@ var staged: bool = false
 var terrain_ops: Array = []
 
 ## Stage one's status-row changes for this hit's beat, in commit order, as
-## `[SkillNode, StatusInstance.HostKind, StatusDef, delta]`: the holder the
-## gather resolved (the node's slice, or its owner's entity rows) and the
-## signed power change it committed ([method HitGather._row_change]). Written
+## `[SkillNode, StatusInstance.HostKind, StatusDef, delta, converted]`: the
+## holder (always the node's slice, [code]NODE[/code]), the signed power change
+## the gather committed ([method HitGather._row_change]) and, for a Catalyst
+## take, element id → the stacks it made (else empty). Written
 ## onto the beat's first gathered head beside [member terrain_ops] and fed after
 ## them ([method HitGather.feed]), so a replay changes the same rows once.
 var row_ops: Array = []

@@ -83,7 +83,7 @@ class SettleReader:
 class PrimeConversion:
 	extends SettleReader
 	var def: CatalystStatus
-	## `take.call(spent, node, def)` commits the take instead of the row write
+	## `take.call(spent, converted, node, def)` commits the take instead of the row write
 	## ([method CatalystStatus.convert]'s take): #1798's gather records it.
 	var take: Callable
 

@@ -169,9 +169,8 @@ func _process(delta: float) -> void:
 
 ## The cue: [param node] is this overlay's own node. The pulse takes the tint
 ## of the element [param converted] made the most stacks of (the first on a
-## tie; tentative). One naming none (a settle-seat prime) keeps a running
-## pulse's tint, so a same-beat land take's colour survives; else the crystal
-## tint.
+## tie; tentative). One naming none keeps a running pulse's tint; else the
+## crystal tint.
 func _on_catalyst_converted(node: SkillNode, converted: Dictionary) -> void:
 	var slice := _host as NodeCombat if _host != null and is_instance_valid(_host) else null
 	if slice == null or slice.real() != node:

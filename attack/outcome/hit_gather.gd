@@ -619,24 +619,24 @@ func _convert_landing(node: SkillNode, landing: Dictionary, batch: TerrainSettle
 		if def == null or seen.has(def) or row.power <= 0.0:
 			continue
 		seen[def] = true
-		var spent := [0]
-		var take := func(n: int) -> void: spent[0] += n
+		var take := func(spent: int, made: Dictionary) -> void:
+			_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent), made)
 		var out := def.convert(slice, landing, take)
-		_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent[0]), out)
 		for id: Variant in out:
 			_add(batch, node, roster.by_id(id), int(out[id]))
 
 
 ## The settle seat's take inside the gather ([method TerrainSettle.commit]'s
 ## take, bound to the node and def): [param spent] Catalyst off
-## [param slice]'s row of [param def], committed and recorded at once, so the
+## [param slice]'s row of [param def], recorded with the stacks it made
+## ([param converted]), committed and recorded at once, so the
 ## rest of the commit and the beat's later commits read the row after it and a
 ## replay takes it too.
-func _seat_take(spent: int, slice: NodeCombat, def: StatusDef) -> void:
+func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: StatusDef) -> void:
 	if slice == null:
 		return
 	var rows: Dictionary = {}
-	_row_change(rows, slice.real(), StatusInstance.HostKind.NODE, def, -float(spent))
+	_row_change(rows, slice.real(), StatusInstance.HostKind.NODE, def, -float(spent), converted)
 	_commit_rows(rows)
 
 

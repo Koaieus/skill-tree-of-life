@@ -104,8 +104,9 @@ func spent(part: int) -> int:
 ## own. The caller passes only terrain elements (Heat, Cold, Charge) and writes
 ## the result; this writes the row only. Empty when the row is empty or nothing
 ## lands. With a valid [param take] the row is left alone and the spent Catalyst
-## goes to `take.call(spent)` instead: the caller commits the take, as #1798's
-## gather does through its row seat so a replay takes it too
+## goes to `take.call(spent, out)` instead, with the element id → stacks it
+## returns so the take's record names what it made: the caller commits the
+## take, as #1798's gather does through its row seat so a replay takes it too
 ## ([member HitInstance.row_ops]).
 func convert(host, landing: Dictionary, take := Callable()) -> Dictionary:
 	var out := {}
@@ -120,7 +121,7 @@ func convert(host, landing: Dictionary, take := Callable()) -> Dictionary:
 			spend += spent(int(parts[e]))
 	if spend > 0:
 		if take.is_valid():
-			take.call(spend)
+			take.call(spend, out)
 		else:
 			host.adjust_status_power(self, -float(spend))
 	return out
