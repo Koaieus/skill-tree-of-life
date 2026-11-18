@@ -328,7 +328,6 @@ func _apply_frost(band: ElementBand) -> void:
 	var crust := get_node_or_null(^"%FrostCrust") as FrostCrust
 	if crust == null:
 		return
-	crust.radius = geom_outer_r
 	if band == null or not band.admits is FrozenAdmits:
 		crust.level = 0
 	else:
@@ -504,6 +503,9 @@ func _sync_stake() -> void:
 	# doc comment and triage B9), so this lands pixel-neutral.
 	_rim_ring.crest_r = geom_crest_r
 	_rim_ring.outer_radius = geom_outer_r
+	var crust := get_node_or_null(^"%FrostCrust") as FrostCrust
+	if crust != null:
+		crust.radius = geom_outer_r
 	_rim_ring.tint_mix = FILLED_TINT_MIX if allocation_level > 0 else UNFILLED_TINT_MIX
 	_rim_ring.fill_max = stake_level
 	_rim_ring.fill_current = allocation_level

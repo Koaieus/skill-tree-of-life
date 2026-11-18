@@ -46,6 +46,18 @@ var radius: float = 32.0:
 	set(value):
 		line_width = value
 		queue_redraw()
+## The crust's fill alpha, as a share of [member crust_color]'s; the fill
+## covers the disc inside the crown (tentative).
+@export_range(0.0, 1.0, 0.01) var fill_alpha: float = 0.35:
+	set(value):
+		fill_alpha = value
+		queue_redraw()
+## The shortest a shard's random reach gets, as a share of its full reach.
+## Tentative.
+@export_range(0.0, 1.0, 0.01) var jag_floor: float = 0.55:
+	set(value):
+		jag_floor = value
+		queue_redraw()
 ## Preview level in the editor (0 shows nothing). Editor-only.
 @export_range(0, 2, 1) var editor_preview_level: int = 0:
 	set(value):
@@ -66,13 +78,14 @@ func _draw() -> void:
 	rng.seed = 1807  # a fixed jag, so the crust never shimmers between redraws
 	var n := shard_count * 2
 	var pts := PackedVector2Array()
-	for k in n + 1:
-		var a := TAU * float(k % n) / float(n)
+	for k in n:
+		var a := TAU * float(k) / float(n)
 		var r := radius
 		if k % 2 == 0:
-			r += reach * rng.randf_range(0.55, 1.0)
+			r += reach * rng.randf_range(jag_floor, 1.0)
 		pts.append(Vector2.from_angle(a) * r)
 	var fill := crust_color
-	fill.a *= 0.35
-	draw_colored_polygon(pts.slice(0, n), fill)
+	fill.a *= fill_alpha
+	draw_colored_polygon(pts, fill)
+	pts.append(pts[0])
 	draw_polyline(pts, crust_color, line_width, true)

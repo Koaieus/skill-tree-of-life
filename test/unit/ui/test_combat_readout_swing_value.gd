@@ -42,6 +42,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	Events.skill_node_unhovered.emit()
+	CombatWorld.reset_live()
 
 
 ## Source - joint - tip, all allocated; `outside` allocated but not selected.
