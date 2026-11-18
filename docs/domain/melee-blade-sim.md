@@ -283,6 +283,14 @@ the bonus, `f(inf) = M` (bounded). `M` and `v_half` are board `ScalarStat`s
     later refuses is stamped too, and lands nothing.
   - **the cosmetic**: `SkillBlade._speed_multiplier` behind the `hit` signal,
     reading the contact node's live slice.
+- **The player's cue** is not the cosmetic `hit` signal (no production
+  listener). The stamp also writes the factor alone
+  (`BladeDamageInstance.sweep_factor_of`) to `HitInstance.sweep_factor`, a
+  recorded cue like `popped_vertex`: `AttackRecord` carries it as the
+  `h_swp` column (omitted when every hit is 1.0), and
+  `FloaterDirector._on_skill_node_damaged` reads it off the rebuilt hit,
+  suffixing the damage number with `sweep_fast_text` / `sweep_slow_text`
+  (tentative `FAST` / `SLOW`) in `FloaterStyles.sweep`'s amber or icy tint.
 
 **Determinism is safe, and the reason is ADR 0002, not simple maths.** A position
 now turns into a landing amount, but a peer re-simulates only to *draw*. Every
