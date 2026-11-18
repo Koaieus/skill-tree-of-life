@@ -187,7 +187,7 @@ need no refresh. A `.gd` with a parse error and a `class_name` never enters the
 cache, so every `test` refreshes and prints the `SCRIPT ERROR` — the noise is
 the diagnosis.
 
-Two things `refresh` does not say:
+Three things `refresh` does not say:
 
 - **"Nothing changed" describes file churn** (which scenes/resources the editor
   re-serialized), not the cache — a rebuild moves no tracked file. It never means
@@ -199,6 +199,10 @@ Two things `refresh` does not say:
   (`assets/icons/aspects/mark.png`, 2026-10-08). Run `mise run refresh` in the
   main checkout after landing or pulling such a branch; an older worktree needs
   its own warm.
+- **A landed rename leaves a fresh worktree's uid cache stale**: the new
+  worktree copies main's `.godot/` as it was, so `check-shaders` cites the old
+  path (`referenced non-existent resource`) until `mise run refresh` runs in
+  that worktree (#1801's retag, 4062c6ff).
 
 ## The look-alike that is NOT a stale cache: `mise run check` can miss a parse error*
 

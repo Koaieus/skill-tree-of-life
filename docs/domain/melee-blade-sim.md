@@ -419,7 +419,7 @@ release. No forced `await physics_frame` (the resolve must complete synchronousl
 
 | Addon | Authored content (`skill_node/addons/defs/`) | Blade face |
 |---|---|---|
-| Bunker | `+5 armor`, `-5 min_damage_taken`, `+1 deflection` | solid plate; breaks only a rigid blade ("Bunker deflection"); a blast shield (keyed on `deflection`, not the addon) shrugs defensive explosions and spends nothing; a Bunker member is heavy and can knock a defender's Bunker off |
+| Bunker | `+5 armor`, `-5 min_damage_taken`, `+1 deflection` | solid plate; breaks only a rigid blade ("Bunker deflection"); a Bunker member is heavy and can knock a defender's Bunker off |
 | Clamp | none (a brace per neighbour pair) | welds its joint; see `ClampAddon` |
 | Spike ring | `blade_damage` modifiers, a node-local `spikes` pool (scales 1:2:3 with allocation level) and `spike_regen` (`PerTurnMode.ADD`) | the spike ladder below |
 | Toxin | `+1 poison_aspect` on the owner's `entity_modifiers`; `+1 poison_stacks_per_hit` (x2 at level 3) | the blade vertex built from this node applies `poison` on every contact it lands, that vertex only; a refused contact applies nothing |
@@ -724,24 +724,6 @@ the unstamped (0) crit stream while the committed swing stamps a fresh one, so a
 crit-driven kill cascade can change a later defender's board). Both are accepted
 mispredicts; the rule they must not break is that a peer *receives* or *reproduces*
 a landing and never re-decides one (`.claude/rules/multiplayer-sync.md`).
-
-## Explosive charges: `vertex_charges` and the two-sided contact
-
-changing: section deleted, the blade's explosive path is removed, #1802; see docs/design/elements/go-offs.md
-
-`BladeState.vertex_charges` is the swing's **working copy** of each source
-node's Explosive charges, filled at swing start by `BladeVertexFill`. A
-charge is a life: `BladePopResolver.LiveGate._admit_explosive` spends from it
-mid-swing and a piece at 0 dies. Nothing is written back to the source node,
-and nothing writes the board from this array.
-
-A contact by a piece with `n` charges on a node with `m` spends
-`max(1, min(n, m))` off the piece alone and stamps `n` as the contact's
-`hit_load` (`LiveGate.stamp_load`). The struck node's charges are the
-gather's to read and spend, as for any hit, and its go-off zero blasts the
-board under the contact's mask. Each charged contact records one `Contact`
-row in `Result.contacts` for the replay. The formula, reach and knobs:
-[catalyst.md](catalyst.md).
 
 ## Open questions
 

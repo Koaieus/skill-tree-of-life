@@ -13,8 +13,6 @@ child issue and its file in the design record: [`docs/design/elements.md`](../de
 
 ## The pieces: `HitLanding` and the `HitInstance` kinds
 
-changing: a blade piece no longer stamps its charges as `hit_load`, #1802; see docs/design/elements/go-offs.md
-
 A **hit** is one `HitInstance` (`attack/outcome/hit_instance.gd`): one landing's
 effect on one target node, held in `AttackOutcome.hits`. `target` is the hit's
 identity (what a record ships and a peer resolves by `stable_id`); the state it
@@ -52,7 +50,9 @@ span and then runs the landing site's **`stamper`** callable over it,
 `func(hit) -> void`. A spell's stamps the caster, decides the landing's crit at
 its head ([CritRoll](#critroll-the-one-crit-implementation)), stamps the wave
 ordinal and files the hit on its timeline event. An arrow's stamps its
-ammo id on every rider; a blade contact sets none. `SplashEffect._retargeted`
+ammo id on every rider; a blade contact sets none. A landing with no
+riders resets its primary to `hit_key` 0, keyless, an arrow's and a blade
+contact's alike. `SplashEffect._retargeted`
 copies a landing whole, `stamper` included. The landing also carries
 the per-compile `gather_cache` and the spell's `stack_scale`.
 
@@ -64,8 +64,8 @@ gathers ([The walk](#the-walk-outcomeapplier)). A spell landing whose span
 opens on a bare status (an infusion's, say) has that status as its head. The
 head carries the gather's state:
 
-- `hit_load`: what its own `GoOff.fire` is handed. It is 0 unless the landing
-  site sets one (a blade piece's charges), and a copy's is 0.
+- `hit_load`: what its own `GoOff.fire` is handed. No landing site sets one
+  (a blade contact carries no load), so it is 0 on every head and copy.
 - `gathered`: set once stage one ran the head, so a second drain of the same
   objects feeds its ops instead of gathering again.
 - `terrain_ops`: the beat's net terrain change, `[node, dt, dcharge]` per
@@ -535,6 +535,6 @@ it as `Events.catalyst_converted`, peers included, and a shadow stays silent. A 
 or Charge and converts nothing. A node the landing primes converts its
 leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
 go-offs before any head's own gate runs at land, so a head its gate refuses
-(a dud arrow) has still set the node off; whether it should is an open owner
+(a dud arrow, a popped or refused blade contact) has still set the node off; whether it should is an open owner
 question (#1799). The trade, both triggers and the knobs:
 [catalyst.md](catalyst.md).

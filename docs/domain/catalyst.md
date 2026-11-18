@@ -109,7 +109,17 @@ are #1810's.
 `skill_node/addons/catalyst_barrel_addon.gd`, not unique: at the owner's turn
 start an allocated carrier tops its Catalyst up to its barrel count (flat,
 never stat-scaled), and a barrel leaving takes one off if there is one. It
-carries no radius or blast logic.
+carries no radius or blast logic. A temp barrel (on a blade, for one swing)
+writes nothing and adds nothing to the swing.
+
+## The blade
+
+A blade holds no Catalyst. `BladeVertexFill` copies no row onto a piece, a
+contact carries no load (`hit_load` 0) and spends nothing on the piece or the
+struck node, and no blast reaches blade pieces. A contact is one hit: a primed
+struck node goes off through the gather as any hit sets it off, and a node
+holding only Catalyst blasts nothing and keeps its stacks (no production blade rider
+lands Heat, Cold or Charge to convert).
 
 ## Firecracker
 
@@ -139,38 +149,7 @@ of faceted violet crystals on the carrier's rim, lit while the carrier holds
 the matching stack; the goo arrow (`catalyst_arrow.tscn`) is a slender
 crystal shard; the icon is `assets/icons/aspects/catalyst.png`.
 
-## The blade contact: one contact, two sides
-
-changing: the blade's explosive path (vertex charges, the two-sided contact, the charge beads, a barrel on the blade) is removed, #1802; see docs/design/elements/go-offs.md
-
-`BladePopResolver.LiveGate._admit_explosive`
-(`attack/melee/sim/blade_pop_resolver.gd`), on a contact by piece `idx`
-with `n = piece_charges(idx)` (the swing's working copy,
-`BladeState.vertex_charges`, filled by `BladeVertexFill`) on a struck node
-with `m` charges read live (`node_charges`):
-
-- `shared = min(n, m)`; a charged piece spends `max(1, shared)` off its
-  working copy (`_spend_piece`). Nothing is written to its source node, and
-  the struck node's charges are never the gate's to spend.
-- The contact's own piece is SPENT, or POPPED (and its hit refused) when it
-  ends at 0 charges.
-- **The board side is the gather's.** `LiveGate.stamp_load` stamps the
-  piece's charges as the contact's `hit_load` as the batch is built, and the
-  struck node's go-off zero reads it like any head's load (power, spend,
-  reach and mask as above). Contacts of one sample are one beat, so two of
-  them on one node both read the pre-beat charges.
-- One `Contact` row per charged contact in `Result.contacts` (time, centre,
-  both sides' `side_power`, the piece's verdict), so the replay draws it as a
-  pure function of time. No side reaches the blade pieces: `piece_reach`
-  stays 0 and no piece is SHRUGGED.
-
-The owner's numbers (r = 1): 100 on 0, the piece spends 1 and the node goes
-off at 100. 3 on 5: the piece spends 3 and pops at once, and the node keeps
-its 5 for the gather. A 3-charge piece on clean nodes: 3 → 2 → 1 → pop.
-
 ## Knobs
-
-changing: `resonance` goes with the blade's piece pass, #1802; see docs/design/elements/go-offs.md
 
 All tentative, easy to change.
 
@@ -180,12 +159,12 @@ All tentative, easy to change.
 | `cap_k_times_t` | true | `CatalystStatus` | cap the row at its node's k × T; off leaves `power_max` alone |
 | `per_tick` | 1.0 | the def's `FlatDecay` | Catalyst lost per world turn |
 | `triggers` | death | `CatalystSpread` | which removal causes burn the row |
-| `resonance` | 1 | `CatalystSpread` | the blade piece pass's shared-chunk weight (#1802's) |
 | `crystal_size`, `crystal_cap`, `conversion_pulse_seconds` | 5.0, 6, 0.5 | `StatusOverlay` | the look |
 
 `CatalystSpread.damage_per_charge` is still authored, and `describe()` still
 promises it, but no code reads it: the death burn writes the row off and deals
-no damage.
+no damage. `CatalystSpread.resonance` is authored and read by nothing too: the
+blade piece pass that weighed a shared chunk by it is gone.
 
 ## Guards
 
@@ -195,4 +174,6 @@ cap, allocation, the world-turn decay, the goo arrow),
 `test/unit/skill_node/test_catalyst_barrel_addon.gd`,
 `test/unit/elements/test_burning_go_off.gd` and
 `test/unit/elements/test_disc_go_off.gd` (the blast it feeds),
-`test/unit/attack/test_blade_explosive.gd` (the piece's side, #1802's).
+`test/unit/attack/test_blade_contact_on_primed_node.gd` and
+`test/unit/attack/test_head_hit_load.gd` (a blade contact holds and spends
+no Catalyst).

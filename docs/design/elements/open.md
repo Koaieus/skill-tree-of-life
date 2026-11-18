@@ -134,8 +134,9 @@ status: settling
   (h) **Rider coalescing**: one summed entry per status id per landing entry;
   resistance and Greed fold once per id; a copy is its own entry, so a hit's
   rider never merges with a copy's.
-  Still open: (f) **Charge** collides
-  with explosive's `charge` tag and `vertex_charges` — the #1716 r2 retag (to `catalyst`, the Explosive aspect's retag) must be in the first Fire issue.
+  (f) **Charge** collided with explosive's `charge` tag and `vertex_charges`:
+  resolved — the retag to `catalyst` landed with #1801 and the blade's
+  `vertex_charges` went with #1802.
 - **Knobs** ([terrain.md](terrain.md) § The threshold model, [go-offs.md](go-offs.md) § The trigger and what a go-off pays): T = 2 × degree, k, the hop ladder's
   L² × T, the disc's A and B, the decay rates — tuned with
   #1733.
