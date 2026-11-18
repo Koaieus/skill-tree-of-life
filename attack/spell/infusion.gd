@@ -51,28 +51,33 @@ func rebuilt(spell: SpellDef, spent: Dictionary) -> Infusion:
 	return out
 
 
-## Forge [param points] of element [param id] as the shape; an empty id or
-## non-positive points clears it.
+## Forge [param points] of element [param id] as the shape; an empty id, an id
+## that names no [Element] (an aspect never fills a field) or non-positive
+## points clears it.
 func set_shape(id: StringName, points_in: int) -> void:
-	var on := not id.is_empty() and points_in > 0
+	var on := is_element(id) and points_in > 0
 	shape_element = id if on else &""
 	shape_points = points_in if on else 0
 
 
-## Forge [param points] of element [param id] as the ride; an empty id or
-## non-positive points clears it.
+## Forge [param points] of element [param id] as the ride; cleared as
+## [method set_shape] is.
 func set_ride(id: StringName, points_in: int) -> void:
-	var on := not id.is_empty() and points_in > 0
+	var on := is_element(id) and points_in > 0
 	ride_element = id if on else &""
 	ride_points = points_in if on else 0
+
+
+## True iff [param id] names an [Element] (`&"fire"`, `&"ice"`, `&"lightning"`).
+static func is_element(id: StringName) -> bool:
+	return not id.is_empty() and ElementRoster.shared().by_id(id) != null
 
 
 ## True iff [param intake] is an element ride row: its identity is an
 ## [Element]'s. The one predicate [method innate_ride_of], [method load_of] and
 ## the def lint read.
 static func is_ride_row(intake: AspectIntake) -> bool:
-	return intake != null and intake.identity != null \
-			and ElementRoster.shared().by_id(intake.aspect_id()) != null
+	return intake != null and intake.identity != null and is_element(intake.aspect_id())
 
 
 ## The element [param spell]'s ride rows carry (at most one per def), else `&""`.

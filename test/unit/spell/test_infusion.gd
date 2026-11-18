@@ -403,3 +403,27 @@ func test_an_ice_ride_leaves_max_hops_and_lands_cold_at_the_ice_load() -> void:
 	assert_eq(ice_load, Infusion.gained(spell, &"ice", 2))
 	assert_eq(_rider(inf, spell, _COLD), float(ice_load), "Cold riders at the Ice load")
 	assert_eq(_rider(inf, spell, _CHARGE), 0.0, "the innate Charge gives way")
+
+
+func test_a_field_takes_an_element_only() -> void:
+	var inf := Infusion.innate(_SPARK)
+	inf.set_ride(&"catalyst", 2)
+	inf.set_shape(&"poison", 2)
+	assert_eq(inf.ride_of(_SPARK), &"", "Catalyst is an aspect, never a ride")
+	assert_eq(inf.shape_of(_SPARK), &"", "nor an aspect a shape")
+	inf.read_fields({"ride": {"id": "poison", "points": 3}})
+	assert_eq(inf.ride_points, 0, "the wire path clears it too")
+
+
+func test_full_sockets_still_take_a_shape_and_a_ride_within_their_counts() -> void:
+	var plan := _plan(_VENOM, 100.0)
+	plan.attacker.stat_board.facet(&"fire", StatDef.Role.COUNT).base_value = 2.0
+	plan.attacker.stat_board.facet(&"ice", StatDef.Role.COUNT).base_value = 2.0
+	var slots := AspectCurrency.cap_of(plan.attacker, &"infusion_slots")
+	assert_eq(slots, 2, "fixture: two slots at 100 INT")
+	plan.set_infusion(&"poison", 3)
+	plan.set_infusion(&"curse", 3)
+	plan.set_shape(&"fire", 2)
+	plan.set_ride(&"ice", 2)
+	assert_eq(plan.infusion.slots_used(), slots, "the sockets are full")
+	assert_eq(plan.aspect_overrun(), 0, "and the fields add no overrun")

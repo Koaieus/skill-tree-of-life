@@ -117,8 +117,8 @@ func test_lightning_cast_chains_with_halving_falloff() -> void:
 	helper.assign_owner(graph, def, [1, 2, 3])
 	helper.assign_owner(graph, atk, [0])
 	var n := graph.get_skill_nodes()
-	# The falloff alone: the innate Charge ride's landings (Shocked, conduction)
-	# move the numbers on their own and are pinned where they are built.
+	# The falloff alone: with its innate Charge ride the seed reads one more
+	# (18 → 19 here); the ride's landings are pinned where they are built.
 	var bolt := _LIGHTNING.duplicate() as SpellDef
 	bolt.intakes = [] as Array[AspectIntake]
 	var outcome := SpellResolver.resolve(bolt, n[1], n[0], atk, graph)
