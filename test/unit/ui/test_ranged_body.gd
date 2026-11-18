@@ -188,9 +188,11 @@ func test_counts_and_fill_are_sticky_across_target_picks_and_clamp_to_bin() -> v
 
 
 func test_reload_row_shows_projected_yield_and_ap() -> void:
-	var expected := 4 * _per_leaf()  # three leaves + core, all level 1
-	assert_eq(expected, 8, "authored arrows_per_reload is 2 → +8")
-	assert_eq(_reload_button().text, "⟳ Reload  +%d  −1 AP" % expected)
+	var base := 4 * _per_leaf()  # three leaves + core, all level 1
+	assert_eq(base, 8, "authored arrows_per_reload is 2 → +8")
+	var expected := base + _starter_mint(_attacker)
+	assert_eq(_reload_button().text, "⟳ Reload  +%d  −1 AP" % expected,
+			"the base plus one flat arrow per starter Catalyst and element count")
 	assert_false(_reload_button().disabled, "enabled with AP to spend — the stock Button look is not a disabled state")
 
 
@@ -215,7 +217,8 @@ func test_hot_seat_rebind_swaps_the_roster() -> void:
 	var ids: Array = []
 	for c in _body.cards():
 		ids.append(c.type.id)
-	assert_eq(ids, [_ARROW], "the other player's quiver: base only")
+	assert_false(ids.has(_POISON), "the attacker's poison card is gone")
+	assert_eq(ids, _stock_or_gain_ids(other), "the other player's quiver: base plus its starter gains")
 
 
 func test_per_leaf_readout_reads_the_plan_not_the_board() -> void:
@@ -399,17 +402,40 @@ func test_count_label_all_and_none() -> void:
 	assert_false(_body.fill())
 
 
+## The card set [param entity]'s body should show: stock or gain, the base
+## card always, in roster order.
+func _stock_or_gain_ids(entity: Entity) -> Array:
+	var quiver := entity.stat_board.arrows
+	var yields: Dictionary = entity.reload_yield()
+	var out: Array = []
+	for t in _ROSTER.sorted():
+		if t.id == _ARROW or quiver.stock_of(t.id) > 0 or int(yields.get(t.id, 0)) > 0:
+			out.append(t.id)
+	return out
+
+
+## The counts that mint one flat arrow per reload: Catalyst and each element.
+func _starter_count_ids() -> Array[StringName]:
+	var out: Array[StringName] = [&"catalyst_aspect"]
+	for element in ElementRoster.shared().elements:
+		out.append(element.stat.id)
+	return out
+
+
+func _starter_mint(entity: Entity) -> int:
+	var total := 0
+	for id in _starter_count_ids():
+		total += floori(entity.stat_board.get_value(id))
+	return total
+
+
 ## Acceptance 4: a card per type with stock or gain; the base card always.
 func test_cards_exist_for_stock_or_gain_and_the_base_card_always() -> void:
 	var quiver := _attacker.stat_board.arrows
 	quiver.take(_ARROW, quiver.stock_of(_ARROW))
 	quiver.take(_POISON, quiver.stock_of(_POISON))
 	quiver.add(&"curse", 1)
-	var yields: Dictionary = _attacker.reload_yield()
-	var expected: Array = []
-	for t in _ROSTER.sorted():
-		if t.id == _ARROW or quiver.stock_of(t.id) > 0 or int(yields.get(t.id, 0)) > 0:
-			expected.append(t.id)
+	var expected := _stock_or_gain_ids(_attacker)
 	var ids: Array = []
 	for c in _body.cards():
 		ids.append(c.type.id)
@@ -428,7 +454,11 @@ func test_capacity_hint_shows_only_below_max() -> void:
 	assert_false(hint.visible, "hidden again at max")
 
 
+## Four stocked cards and no gain-only ones: the starter counts would add a
+## card per Catalyst and element arrow that the plan never fires.
 func _four_types() -> void:
+	for id in _starter_count_ids():
+		_attacker.stat_board.get_stat(id).base_value = 0.0
 	_attacker.stat_board.arrows.add(&"curse", 1)
 	_attacker.stat_board.arrows.add(&"sunder", 1)
 	_body.set_special(&"sunder", 1)
