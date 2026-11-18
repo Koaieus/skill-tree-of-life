@@ -303,6 +303,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				var band := read.band(e)
 				if band == null or band.go_off == null:
 					continue
+				if _vertex_disc(h, node, e) != null and band.go_off is DiscGoOff:
+					continue  # adds up with the vertex's shape ([method _fire_vertex_disc])
 				var result := band.go_off.fire_in(_world, node, read)
 				if result == null:
 					continue
@@ -460,7 +462,7 @@ func _open_head(h: _Hit, crit_rng: RandomNumberGenerator = null) -> void:
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null,
-		spend: Callable = Callable()) -> void:
+		spend: Callable = Callable(), centre_copy := true) -> void:
 	var fired: _Fired = null
 	var mask := h.head.target_mask
 	for reach in result.reached:
@@ -493,7 +495,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		if not _deep.has(at):
 			_deep[at] = []
 		_deep[at].append([fired, reach])
-	if fired != null and go_off != null and go_off.lands_on_own_node:
+	if fired != null and go_off != null and go_off.lands_on_own_node and centre_copy:
 		var centre := _arrive(fired, node, generation)
 		centre.centre = true
 		_entries.append(centre)
@@ -733,6 +735,9 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 		var band := read.band(e)
 		if band == null or band.go_off == null:
 			continue
+		if band.go_off is DiscGoOff:
+			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next)
+			continue
 		var result := band.go_off.fire_in(_world, node, read)
 		if result == null:
 			continue
@@ -747,6 +752,44 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 			_add(spends, reach.node, e, int(result.transfer.get(reach.node, 0)))
 		_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
 				h.source.spend)
+
+
+## The disc [param h]'s go-off source sets off in [param e] at its own head's
+## [param node], or null: a vertex copy primed in a [DiscGoOff] band (Fire's
+## Burning) is a shape on the node it touches, never a disc of its own.
+func _vertex_disc(h: _Hit, node: SkillNode, e: Element) -> DiscGoOff:
+	if h.source == null or h.source.read == null or node != h.head.target:
+		return null
+	var band := h.source.read.band(e)
+	return band.go_off as DiscGoOff if band != null else null
+
+
+## A primed vertex copy's disc as a shape of power copy − T on the contact
+## [param node], sized by the node: on a node whose own [param e] band goes
+## off by a [DiscGoOff] (Burning) the two add up as ONE channel
+## ([method DiscGoOff.fire_shaped_in]): one mark, the centre copy, the node's
+## solo spend off its store; on any other node (Frozen included) the shape runs
+## alone: a mark, no centre copy, no node spend. Either way the copy pays 1 per
+## node the disc reaches, through the source's spend; reaching no one is no
+## go-off and spends nothing. The node's own plain go-off is skipped in the
+## go-off loop on the same predicate ([method _vertex_disc]).
+func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOff,
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+	var read := TerrainRead.of(_slice(node), node)
+	var own := read.band(e)
+	var burning := own != null and own.go_off is DiscGoOff
+	var disc: DiscGoOff = own.go_off as DiscGoOff if burning else copy_disc
+	var shape := float(disc.power_at(null, h.source.read))
+	var result := disc.fire_shaped_in(_world, node, read, shape)
+	if result == null or result.reached.is_empty():
+		return
+	if h.source.spend.is_valid():
+		h.source.spend.call(e, result.reached.size())
+	if burning:
+		_spend(spends, node, e, result)
+	var band: ElementBand = own if burning else h.source.read.band(e)
+	_append_reach(h, node, result, disc, generation + 1, next, e, _named(e, band),
+			Callable(), burning)
 
 
 ## The spend [param result] returns at its own read, on [param node]'s store
