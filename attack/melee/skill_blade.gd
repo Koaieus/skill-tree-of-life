@@ -54,6 +54,13 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 @export var burning_vertex_hue := Color(1.0, 0.55, 0.3)
 ## The glow tier of a Burning vertex (`.claude/rules/hdr-color.md`).
 @export var burning_vertex_tier: Emissive.Tier = Emissive.Tier.LABEL
+## The hue a Shocked vertex ([method is_charged_vertex]) reads in on the blade,
+## as [member burning_vertex_hue] does for a Burning one. A vertex both Burning
+## and Shocked reads Burning (tentative). Tentative knob; editor feedback: the
+## sandbox host's melee tab.
+@export var charged_vertex_hue := Color(0.55, 0.75, 1.0)
+## The glow tier of a Shocked vertex (`.claude/rules/hdr-color.md`).
+@export var charged_vertex_tier: Emissive.Tier = Emissive.Tier.LABEL
 
 ## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns.
 ## One resource per blade, so a sandbox can retune the whole swing live.
@@ -752,6 +759,8 @@ func _spawn_visuals() -> void:
 		bn.tint = tint
 		if is_burning_vertex(state, i):
 			bn.modulate = Emissive.at(burning_vertex_hue, Emissive.stops(burning_vertex_tier))
+		elif is_charged_vertex(state, i):
+			bn.modulate = Emissive.at(charged_vertex_hue, Emissive.stops(charged_vertex_tier))
 		_nodes_container.add_child(bn)
 		bn.global_position = state.positions[i]
 		_node_visuals.append(bn)
@@ -776,6 +785,21 @@ static func is_burning_vertex(blade_state: BladeState, i: int) -> bool:
 	for e: Element in ElementRoster.shared().elements:
 		var band := read.band(e)
 		if band != null and band.go_off is DiscGoOff:
+			return true
+	return false
+
+
+## Is vertex [param i] Shocked? True iff its copied terrain sits in a band
+## whose go-off is an [EdgeGoOff] (Lightning's Shocked): the vertex that arcs
+## from the node it touches ([method HitGather._vertex_arc] asks the same).
+## Read at build, as [method is_burning_vertex].
+static func is_charged_vertex(blade_state: BladeState, i: int) -> bool:
+	if blade_state == null or i < 0 or i >= blade_state.vertex_t.size():
+		return false
+	var read := blade_state.copy_read(i)
+	for e: Element in ElementRoster.shared().elements:
+		var band := read.band(e)
+		if band != null and band.go_off is EdgeGoOff:
 			return true
 	return false
 
