@@ -186,13 +186,15 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 			world.track_entries(hit.deallocations)
 		return
 	# Re-checked here rather than hoisted: an earlier beat's cascade can
-	# free a target between landings. `origin` is checked too (#503) — a
+	# free a target between landings. `origin` is checked too — a
 	# mid-volley cascade can just as easily free the FIRING node (e.g. a
 	# ranged leaf islanded by this same volley's overkill), and a mode
-	# whose live offense read needs `origin` (RangedHitInstance) must not
-	# be handed a freed one. This is instance-validity only, the coarse
-	# net; the meaningful allocated/hostile gate is each mode's own
-	# `land_on` (see RangedHitInstance, BladeDamageInstance for #502).
+	# whose gate reads `origin` (RangedHitInstance) must not be handed a
+	# freed one. This is instance-validity only, the coarse net; the
+	# meaningful allocated/hostile gate is each mode's own
+	# `HitInstance.resolve_gate` (RangedHitInstance, BladeDamageInstance),
+	# decided once — by `HitGather.stage_one` as a head's beat opens, else by
+	# the first rider or `land_on` to ask.
 	if not is_instance_valid(hit.target):
 		return
 	if hit.origin != null and not is_instance_valid(hit.origin):

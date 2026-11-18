@@ -115,9 +115,10 @@ static func riders_for(hit: DamageInstance, gather_cache: Dictionary = {}) -> Ar
 	return hits
 
 
-## Ranged's land-time GATE (#503) — the arrow's; its riders follow it through
-## [member HitInstance.paired], so the two never disagree on whether a
-## landing is a dud: false if the target is no longer allocated/hostile to [param attacker], or the firing
+## Ranged's GATE — the arrow's; its riders follow it through
+## [member HitInstance.paired], so the two never disagree on whether an
+## arrival is a dud. Read once, against the world as the arrow's beat opens
+## ([method RangedHitInstance.resolve_gate]): false if the target is no longer allocated/hostile to [param attacker], or the firing
 ## node's slice ([param origin_slice], looked up in the landing world) is
 ## gone. A veto is a veto, not a re-plan — callers mark
 ## [member HitInstance.gated] and mutate nothing.
@@ -165,10 +166,11 @@ static func _read_offense(firing_slice: NodeCombat) -> float:
 	return float(firing_slice.get_local_value(&"ranged_damage"))
 
 
-## Ranged's land-time GATE (#503) — the ranged sibling of [BladeDamageInstance]
-## (#502, `attack/melee/sim/blade_damage_instance.gd`). [method land_on] is
-## called once per hit by [OutcomeApplier] in [member HitInstance.arrival_time]
-## order (docs/domain/attack-timeline.md).
+## Ranged's gated hit — the ranged sibling of [BladeDamageInstance]
+## (`attack/melee/sim/blade_damage_instance.gd`). Its gate is decided once as
+## its beat opens ([method resolve_gate]); [method land_on] is called once per
+## hit by [OutcomeApplier] in [member HitInstance.arrival_time] order
+## (docs/domain/attack-timeline.md).
 ##
 ## The gate is the ONLY live read here. The `amount` [method compute] stamped at
 ## launch is the amount that lands — see [method RangedDamageFormula._read_offense]
@@ -178,26 +180,29 @@ class RangedHitInstance extends DamageInstance:
 	var ammo_type: AmmoType = null
 	## The attacker this shot was fired for is [member HitInstance.attacker] —
 	## promoted to the base class in #507 so the shared [CritRoll] can read its
-	## board. Needed here at land time to re-check the target is still HOSTILE
-	## to them, not just still allocated (a node can be captured by a third
-	## party mid-volley).
+	## board. The gate needs it to check the target is still HOSTILE to them,
+	## not just still allocated (a node can be captured by a third party
+	## mid-volley).
 
-	## Veto — no mutation at all, per the contract's "gate is a veto, not a
-	## re-plan" — if the target is no longer allocated/hostile, or the firing
-	## node ([member HitInstance.origin]) is no longer allocated. A mid-volley
-	## cascade can deallocate either: the target (this volley's own overkill)
-	## or the origin (a DIFFERENT attack, or this volley's own forced-dealloc
-	## cascade, islanding the firing leaf). A veto marks [member
-	## HitInstance.gated] so VFX can render the dud beat distinctly from a
-	## hit that landed and fully mitigated to zero.
+	## Lands nothing when [method resolve_gate] vetoes — no mutation at all:
+	## the gate is a veto, not a re-plan. By the time this runs the gate is
+	## normally already decided (see there); asking again is a no-op.
 	func land_on(node: NodeCombat, world: CombatWorld) -> void:
 		resolve_gate(world)
 		if gated:
 			return
 		super.land_on(node, world)
 
-	## The veto, decided once against this arrow's own target slice — a
-	## status rider landing ahead of the arrow may be the one asking. A
+	## The veto, decided once against this arrow's own target slice, by its
+	## first asker: [method HitGather.stage_one] as the arrow's beat opens (the
+	## arrow heads its own span), else a rider landing ahead of it
+	## ([method HitInstance.rider_gated]), else [method land_on]. Vetoed if the target is no longer allocated/hostile,
+	## or the firing node ([member HitInstance.origin]) is no longer allocated
+	## — an earlier beat's cascade can deallocate either: the target (this
+	## volley's own overkill) or the origin (a DIFFERENT attack, or this
+	## volley's own forced-dealloc cascade, islanding the firing leaf). A veto
+	## marks [member HitInstance.gated] so VFX can render the dud beat
+	## distinctly from a hit that landed and fully mitigated to zero. A
 	## hand-set [member HitInstance.gated] stands.
 	func resolve_gate(world: CombatWorld) -> void:
 		if _gate_resolved:
