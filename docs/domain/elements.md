@@ -158,7 +158,7 @@ fingerprint) and `test_terrain_bands.gd` (the band sweep, the signal).
 - **Replication.**
   - `GraphSnapshot`: `_R_TERRAIN_T` = 20 and `_R_CHARGE` = 21
     (`_ROW_SIZE` 22). A shorter row decodes as 0.
-  - `SaveFile` is v14, and a 13 still loads.
+  - `SaveFile` is v15; anything older is refused (`network/save_file.gd`).
   - `WorldFingerprint._terrain_rows` folds `[stable_id, t, charge]`. All-zero
     nodes are skipped, so a world without terrain folds as before.
 - **Not yet.** No display (#1796).

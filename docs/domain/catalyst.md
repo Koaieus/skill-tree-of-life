@@ -110,8 +110,9 @@ are #1810's.
 `skill_node/addons/catalyst_barrel_addon.gd`, not unique: at the owner's turn
 start an allocated carrier tops its Catalyst up to its barrel count (flat,
 never stat-scaled), and a barrel leaving takes one off if there is one. It
-carries no radius or blast logic. A temp barrel (on a blade, for one swing)
-writes nothing and adds nothing to the swing.
+carries no radius or blast logic. The shipped barrel is not temp-placeable
+(`catalyst_barrel_addon.tscn`: `temp_placeable = false`), so no blade carries
+one; the addon's temp branch (no refill, no removal spend) is unreached.
 
 ## The blade
 
@@ -139,7 +140,10 @@ crystal per stack (`crystal_size`, at most `crystal_cap`). A conversion
 announces `Events.catalyst_converted(node, converted)` — `{element id: stacks
 made}`, carried in the take's row op (`AttackRecord` columns `rw_cn/rw_ce/rw_cs`)
 for both the landing and the settle prime — once, from the live replay of the
-take (`HitGather`'s row-op apply; a shadow world stays silent), and the overlay
+take (`HitGather`'s row-op apply; a shadow world stays silent). The world
+turn's terrain prime has no record: `CombatWorld._world_take` announces it on
+every peer's live world as `EndTurnCommand` reproduces the pass (a shadow
+stays silent there too). On either path the overlay
 flashes a pulse on that node in the dominant element's tint that fades over
 `conversion_pulse_seconds`. The barrel (`catalyst_barrel_visual.gd`) is a pile
 of faceted violet crystals on the carrier's rim, lit while the carrier holds
