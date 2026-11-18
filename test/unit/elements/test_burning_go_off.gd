@@ -426,7 +426,7 @@ func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
 
 # --- 7: a bare disc spends the base law ------------------------------------------
 
-## With go-off zero gone, nothing authors another spend: a fresh [DiscGoOff]
+## Nothing authors another spend: a fresh [DiscGoOff]
 ## reads Heat's excess over T, reaches by [method DiscGoOff.disc_radius] and
 ## spends 1 per other node reached, nothing nodeless.
 func test_a_new_disc_spends_one_heat_per_node_reached_and_nothing_nodeless() -> void:
