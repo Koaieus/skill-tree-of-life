@@ -143,18 +143,6 @@ var icon: Texture2D:
 ## [method MagicAttackPlan.socket_points] walks an uncapped spell against.
 const UNCAPPED := 1 << 62
 
-
-## The most aspect points one cast of this spell takes from a caster node of
-## owned-subgraph [param degree]: the base cap plus
-## [member infusion_capacity_per_degree] per degree above [member min_degree].
-## The one home of the formula; the base cap is [code]capacity_at(min_degree)[/code].
-## An [code]INF[/code] base answers [constant UNCAPPED] at every degree.
-func capacity_at(degree: int) -> int:
-	if is_inf(infusion_capacity):
-		return UNCAPPED
-	return maxi(0, floori(infusion_capacity)) \
-			+ infusion_capacity_per_degree * maxi(0, degree - min_degree)
-
 ## Spell-specific crit conditions. Evaluated per landing in addition to
 ## the universal [code]crit_chance[/code] stat roll. Multiple conditions
 ## run as OR — if ANY returns true, the hit crits. Follows the same
@@ -210,3 +198,15 @@ func is_scout() -> bool:
 
 func _to_string() -> String:
 	return "<SpellDef %s>" % name
+
+
+## The most aspect points one cast of this spell takes from a caster node of
+## owned-subgraph [param degree]: the base cap plus
+## [member infusion_capacity_per_degree] per degree above [member min_degree].
+## The one home of the formula; the base cap is [code]capacity_at(min_degree)[/code].
+## An [code]INF[/code] base answers [constant UNCAPPED] at every degree.
+func capacity_at(degree: int) -> int:
+	if is_inf(infusion_capacity):
+		return UNCAPPED
+	return maxi(0, floori(infusion_capacity)) \
+			+ infusion_capacity_per_degree * maxi(0, degree - min_degree)
