@@ -8,9 +8,9 @@ script = ExtResource("1_stat_def")
 identity = ExtResource("identity_catalyst")
 role = 2
 id = &"catalyst_stacks_per_hit"
-display_name = "Catalyst Charges per Hit"
-description = "Flat catalyst charges added to every catalyst application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Catalyst Charges per Hit), never floored (ADR 0029). No parent: catalyst is not a DoT, so DoT Stacks per Hit never reaches it. Only boosts an catalyst application that already happens — never plants charges on its own. Default 0 (tentative; the authored per-hit power carries the charge); read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands. Not rolled by procgen and not on the HUD yet."
+display_name = "Catalyst Stacks per Hit"
+description = "Flat Catalyst stacks added to every Catalyst application this entity lands, a base_add overlay on the authored per-hit power: landed = fold(per-hit + Catalyst Stacks per Hit), never floored (ADR 0029). No parent: Catalyst is not a DoT, so DoT Stacks per Hit never reaches it. Only boosts a Catalyst application that already happens — never plants Catalyst on its own. Default 0 (tentative; the authored per-hit power carries the stacks); read at the attacking node — an entity grant reaches every hit, a node-local grant only the hits that node lands. Not rolled by procgen and not on the HUD yet."
 value_type = 1
 default_value = 0.0
-modifier_name = "Catalyst Charges per Hit"
+modifier_name = "Catalyst Stacks per Hit"
 local_grantable = true
