@@ -140,7 +140,6 @@ static func _resolve(
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
-	# A [FuelUse] load never passes: it only shapes the spell.
 	var load_bag := cast_infusion.bag(spell)
 	var riders := load_bag.riders
 	# Riders are fresh per cast, so gating them in place is safe.
