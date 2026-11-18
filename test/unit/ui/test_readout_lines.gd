@@ -108,3 +108,98 @@ func test_a_socketed_line_reads_its_exchange_and_phrase() -> void:
 	assert_eq(line.exchange(_VENOM), InfusionExchange.line(_VENOM, &"poison", 40))
 	assert_eq(line.text(), "+ applies {poison:%s} stacks per hit (15 innate + 80 infused)"
 			% NumFmt.num(line.per_hit))
+
+
+func _of_kind(lines: Array[ReadoutLines.ReadoutLine], kind: ReadoutLines.Kind) -> Array[ReadoutLines.ReadoutLine]:
+	var out: Array[ReadoutLines.ReadoutLine] = []
+	for line in lines:
+		if line.kind == kind:
+			out.append(line)
+	return out
+
+
+func _terrain_of(element: StringName) -> StatusDef:
+	return ElementRoster.shared().by_id(element).terrain
+
+
+## A spell with one ride row of [param element], `plants` unset.
+func _ride_row_spell(element: StringName, innate: int) -> SpellDef:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = ElementRoster.shared().by_id(element).identity
+	row.innate = innate
+	spell.intakes = [row]
+	return spell
+
+
+func test_a_forged_ride_yields_one_ride_line_reading_the_casts_load() -> void:
+	var spell := SpellDef.new()
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_ride(&"fire", 3)
+	var board := _caster(0.0).stat_board
+	var lines := ReadoutLines.for_infusion(spell, board, infusion)
+	var rides := _of_kind(lines, ReadoutLines.Kind.RIDE)
+	assert_eq(rides.size(), 1, "one ride line")
+	if rides.size() != 1:
+		return
+	var ride := rides[0]
+	assert_eq(ride.aspect_id, &"fire")
+	assert_eq(ride.points, 3, "the ride's own points")
+	assert_eq(ride.infused, Infusion.gained(spell, &"fire", 3))
+	assert_eq(ride.total(), infusion.load_of(spell)[&"fire"], "the total is the cast's load")
+	assert_eq(ride.status, _terrain_of(&"fire"), "a forged Fire ride plants Heat")
+	assert_eq(ride.exchange(spell), InfusionExchange.line(spell, &"fire", 3))
+	assert_string_contains(BadgeText.strip(ride.text()), _HEAT.identity.noun,
+			"the line names the terrain it plants")
+
+
+func test_each_element_ride_row_names_its_terrain() -> void:
+	var board := _caster(0.0).stat_board
+	for element: StringName in [&"fire", &"ice", &"lightning"]:
+		var lines := ReadoutLines.for_infusion(_ride_row_spell(element, 2), board, null)
+		var rides := _of_kind(lines, ReadoutLines.Kind.RIDE)
+		assert_eq(rides.size(), 1, "%s: one ride line, none dropped" % element)
+		if rides.size() == 1:
+			assert_eq(rides[0].status, _terrain_of(element), "%s: its terrain" % element)
+			assert_eq(rides[0].points, 0, "%s: innate only" % element)
+
+
+func test_a_ride_replacing_the_authored_one_drops_the_cleared_line() -> void:
+	var spell := _ride_row_spell(&"lightning", 2)
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_ride(&"fire", 2)
+	var lines := ReadoutLines.for_infusion(spell, _caster(0.0).stat_board, infusion)
+	var rides := _of_kind(lines, ReadoutLines.Kind.RIDE)
+	assert_eq(rides.size(), 1, "the forged ride alone")
+	if rides.size() == 1:
+		assert_eq(rides[0].aspect_id, &"fire")
+	for line in lines:
+		assert_ne(line.aspect_id, &"lightning", "no line for the cleared ride")
+
+
+func test_a_shape_and_a_ride_of_different_elements_yield_one_line_each() -> void:
+	var spell := SpellDef.new()
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_shape(&"ice", 2)
+	infusion.set_ride(&"fire", 1)
+	var lines := ReadoutLines.for_infusion(spell, _caster(0.0).stat_board, infusion)
+	var shapes := _of_kind(lines, ReadoutLines.Kind.SHAPE)
+	var rides := _of_kind(lines, ReadoutLines.Kind.RIDE)
+	assert_eq(shapes.size(), 1, "one shape line")
+	assert_eq(rides.size(), 1, "one ride line")
+	if shapes.size() == 1:
+		assert_eq(shapes[0].aspect_id, &"ice")
+		assert_eq(shapes[0].points, 2)
+		assert_eq(shapes[0].exchange(spell), "", "a shape has no exchange yet")
+	if rides.size() == 1:
+		assert_eq(rides[0].aspect_id, &"fire")
+
+
+func test_a_shape_alone_yields_a_shape_line_and_no_ride_line() -> void:
+	var spell := SpellDef.new()
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_shape(&"fire", 2)
+	var lines := ReadoutLines.for_infusion(spell, _caster(0.0).stat_board, infusion)
+	assert_eq(lines.size(), 1, "the shape line alone")
+	assert_eq(_of_kind(lines, ReadoutLines.Kind.SHAPE).size(), 1)
+	assert_eq(_of_kind(lines, ReadoutLines.Kind.RIDE).size(), 0)

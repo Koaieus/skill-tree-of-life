@@ -10,8 +10,14 @@ extends RefCounted
 ## [InfusionExchange] the exchange text — nothing here derives a second number.
 
 
+## What a line reads: an aspect, the cast's ride (an element's load, named by
+## the terrain it plants), or its shape (the element and its points only).
+enum Kind { ASPECT, RIDE, SHAPE }
+
+
 ## One aspect in play.
 class ReadoutLine extends RefCounted:
+	var kind: Kind = Kind.ASPECT
 	## The concept id (`&"poison"`).
 	var aspect_id: StringName = &""
 	## Index of the socket holding this aspect, −1 for an innate-only aspect.
