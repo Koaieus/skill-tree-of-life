@@ -215,11 +215,25 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 
 
 
-## Open: the gather's stage one fires go-offs before any head's own gate runs
-## (`OutcomeApplier.drain`), so an arrow its gate refuses still sets a primed
-## node off. Whether a refused arrival goes off is undecided; held pending.
+## A dud arrow (its gate refuses: the target fell before it lands) takes no
+## part in stage one: a primed node keeps its Heat and throws nothing. Plain
+## and typed: a typed arrow's span opens on its status rider, whose gate is
+## the arrow's.
 func test_a_dud_arrow_sets_off_nothing() -> void:
-	pending("a refused arrival still goes off at stage one: undecided (#1799 F-c2 report)")
+	for ammo: AmmoType in [null, _POISON_ARROW]:
+		await _board()
+		_prime(_f.target, 1)
+		var hits := _shoot(ammo)
+		_f.target.owned_by = null
+		var c := _f.target.get_combat()
+		assert_gt(c.terrain_t(), c.terrain_threshold(), "fixture: the fallen node is still primed")
+		var before := _heat(_f.target)
+		var copies := await _fire(hits)
+		var arrow: HitInstance = hits.filter(func(h): return h is RangedDamageFormula.RangedHitInstance)[0]
+		assert_true(arrow.gated, "fixture: the arrow is a dud")
+		assert_eq(_heat(_f.target), before, "a dud arrow spends no Heat (%s)" % ammo)
+		assert_eq(copies.size(), 0, "a dud arrow throws no copies (%s)" % ammo)
+		CombatWorld.reset_live()
 
 
 # --- the shipped catalyst arrow (#1398) ---------------------------------------
