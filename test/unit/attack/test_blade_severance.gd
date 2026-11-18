@@ -370,3 +370,41 @@ func _crit_hit(attacker: Entity, structural_key: float, target: SkillNode) -> Da
 	di.attacker = attacker
 	di.structural_key = structural_key
 	return di
+
+
+## A pop leaves the edges hanging off the corpse as gone to the field too: a
+## plate touching only such an edge's capsule pushes nothing. The CONTROL twin
+## (same plate, no pop) proves the plate engages that capsule at all, so a
+## green here is the corpse edge being skipped, not the field never running.
+func test_a_corpse_edge_pushes_no_live_endpoint_off_a_plate() -> void:
+	assert_true(BladeSim.native_available(),
+			"the native capsule pass is the one under test — no binary, no claim")
+	var control := _corpse_edge_tip_after(false)
+	assert_gt(control.distance_to(Vector2(200, 0)), 1.0,
+			"control: the plate engages the 1–2 capsule and shoves the live tip")
+	var popped := _corpse_edge_tip_after(true)
+	assert_almost_eq(popped, Vector2(200, 0), Vector2(1e-3, 1e-3),
+			"an edge ending on a corpse is gone: it shoves its live endpoint nowhere")
+
+
+## Pivot, a middle vertex, a resting tip, and a deflect plate overlapping only
+## the middle–tip capsule (no disc is in its reach). No drivers: the tip moves
+## only if that capsule pushes it. Returns the tip's last trajectory sample.
+func _corpse_edge_tip_after(pop_middle: bool) -> Vector2:
+	var positions: Array[Vector2] = [Vector2.ZERO, Vector2(100, 0), Vector2(200, 0)]
+	var radii: Array[float] = [16.0, 16.0, 16.0]
+	var edges: Array[Vector2i] = [Vector2i(0, 1), Vector2i(1, 2)]
+	var state := BladeState.build(positions, 0, edges, radii)
+	if pop_middle:
+		state.remove_vertex(1)
+	var field := BladeObstacleField.new()
+	field.add_zone(Vector2(150, 5), 20.0)
+	state.obstacles = field
+	var drivers: Array[BladeDriver] = []
+	var traj := BladeSim.simulate_range(state, drivers, 0, 4, _DT,
+			BladeSim.DEFAULT_ITERATIONS, 0.0, BladeSim.DEFAULT_SUBSTEPS, true,
+			BladeSwingClock.new(_SWING))
+	assert_not_null(traj, "the native field sim accepted the fixture")
+	if traj == null:
+		return Vector2(200, 0)
+	return traj.samples[traj.samples.size() - 1][2]
