@@ -16,6 +16,13 @@ var checked: bool = false
 var disabled_reason: String = ""
 ## What the hub shows while this wedge is hovered.
 var hub_text: String = ""
+## What a pick does to its field's authored default (an element socket's
+## wedge): [constant MARK_ADDS], [constant MARK_REPLACES], or none.
+var mark: StringName = MARK_NONE
+
+const MARK_NONE := &""
+const MARK_ADDS := &"adds"
+const MARK_REPLACES := &"replaces"
 
 
 func _init(p_id: StringName = &"", p_identity: Identity = null, p_value: int = 0) -> void:

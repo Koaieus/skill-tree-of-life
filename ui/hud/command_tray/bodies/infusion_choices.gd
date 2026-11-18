@@ -5,6 +5,15 @@ extends RefCounted
 ## [MagicAttackPlan]; the plan owns what a pick would do
 ## ([method MagicAttackPlan.socket_order_with] / [method MagicAttackPlan.socket_points]).
 
+## The shape socket's index: not one of the aspect sockets.
+const SHAPE_SOCKET := -1
+## The ride socket's index: not one of the aspect sockets.
+const RIDE_SOCKET := -2
+
+
+static func pick_element(_plan: MagicAttackPlan, _field: int, _id: StringName) -> bool:
+	return false
+
 
 ## Every aspect [param plan]'s caster holds above zero, in [AspectRoster] order,
 ## as offered to socket [param socket]: `value` = held, `checked` = sits in

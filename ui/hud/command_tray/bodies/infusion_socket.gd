@@ -74,6 +74,8 @@ const _FONT_PX := 10
 ## Its position on the arc; what the signals report.
 var index: int = 0
 var state: State = State.EMPTY
+## The concept shown, `&""` when none.
+var shown_id: StringName = &""
 ## Its aspect chooser is open.
 var is_open: bool = false:
 	set(v):
