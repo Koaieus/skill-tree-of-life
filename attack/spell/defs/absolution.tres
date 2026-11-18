@@ -22,6 +22,8 @@
 [ext_resource type="Texture2D" uid="uid://kiwpmieety4s" path="res://assets/emblem_luts/hospital_cross.png" id="20_lut"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/healing_beam_coordinator.tscn" id="21_vfx"]
 [ext_resource type="Resource" path="res://identity/defs/spell_absolution.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/load_use/concentrate_use.gd" id="ice_shape_use_script"]
+[ext_resource type="Resource" path="res://identity/defs/ice.tres" id="ice_shape_identity"]
 
 [sub_resource type="Resource" id="carve_absolution"]
 script = ExtResource("18_tcs")
@@ -81,6 +83,15 @@ script = ExtResource("16_targeting")
 ownership_filter = 15
 range_finder = SubResource("range_euclid")
 
+[sub_resource type="Resource" id="ice_shape_use"]
+script = ExtResource("ice_shape_use_script")
+
+[sub_resource type="Resource" id="ice_shape_row"]
+script = ExtResource("2_intake")
+identity = ExtResource("ice_shape_identity")
+affinity_gain = 0
+use = SubResource("ice_shape_use")
+
 [resource]
 script = ExtResource("1_spell")
 id = &"absolution"
@@ -91,6 +102,6 @@ identity = ExtResource("identity_ref")
 carve_shape = SubResource("carve_absolution")
 power = 1.0
 propagation = SubResource("prop_absolution")
-intakes = Array[ExtResource("2_intake")]([SubResource("intake_corruption"), SubResource("intake_curse")])
+intakes = Array[ExtResource("2_intake")]([SubResource("intake_corruption"), SubResource("intake_curse"), SubResource("ice_shape_row")])
 vfx_coordinator_scene = ExtResource("21_vfx")
 targeting = SubResource("targeting_any")

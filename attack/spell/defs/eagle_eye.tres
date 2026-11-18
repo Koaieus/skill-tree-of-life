@@ -13,6 +13,8 @@
 [ext_resource type="Script" uid="uid://dsyv0dkxki366" path="res://attack/spell/propagation/filter/owner_filter.gd" id="9_owner"]
 [ext_resource type="PackedScene" path="res://attack/range_finder/visuals/range_ring.tscn" id="10_v7cix"]
 [ext_resource type="Resource" path="res://identity/defs/spell_eagle_eye.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/load_use/concentrate_use.gd" id="ice_shape_use_script"]
+[ext_resource type="Resource" path="res://identity/defs/ice.tres" id="ice_shape_identity"]
 
 [sub_resource type="Resource" id="scout_eagle"]
 script = ExtResource("3_affinity")
@@ -34,6 +36,15 @@ max_distance = 400.0
 script = ExtResource("5_targeting")
 range_finder = SubResource("range_long")
 
+[sub_resource type="Resource" id="ice_shape_use"]
+script = ExtResource("ice_shape_use_script")
+
+[sub_resource type="Resource" id="ice_shape_row"]
+script = ExtResource("3_affinity")
+identity = ExtResource("ice_shape_identity")
+affinity_gain = 0
+use = SubResource("ice_shape_use")
+
 [resource]
 script = ExtResource("1_spell")
 id = &"eagle_eye"
@@ -42,6 +53,6 @@ tagline = "One far glance that lights a wide disc."
 description = "Reach a long way to one node and light up its surroundings for your camp: a single large scouted stack, so a big disc, fading over 8 turns. Deals no damage."
 identity = ExtResource("identity_ref")
 propagation = SubResource("prop_single")
-intakes = Array[ExtResource("3_affinity")]([SubResource("scout_eagle")])
+intakes = Array[ExtResource("3_affinity")]([SubResource("scout_eagle"), SubResource("ice_shape_row")])
 vfx_coordinator_scene = ExtResource("7_vfx")
 targeting = SubResource("targeting_long")

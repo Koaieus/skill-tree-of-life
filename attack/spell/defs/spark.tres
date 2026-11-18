@@ -16,6 +16,8 @@
 [ext_resource type="Script" uid="uid://br4akul8rvteg" path="res://attack/range_finder/hop_range_finder.gd" id="7_range"]
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/spark_coordinator.tscn" id="10_ds1j3"]
 [ext_resource type="Resource" path="res://identity/defs/spell_spark.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/load_use/concentrate_use.gd" id="ice_shape_use_script"]
+[ext_resource type="Resource" path="res://identity/defs/ice.tres" id="ice_shape_identity"]
 
 [sub_resource type="Resource" id="carve_spark"]
 script = ExtResource("1_tcs")
@@ -39,8 +41,18 @@ script = ExtResource("7_range")
 script = ExtResource("6_targeting")
 range_finder = SubResource("range_3hop")
 
+[sub_resource type="Resource" id="ice_shape_use"]
+script = ExtResource("ice_shape_use_script")
+
+[sub_resource type="Resource" id="ice_shape_row"]
+script = ExtResource("1_fvvar")
+identity = ExtResource("ice_shape_identity")
+affinity_gain = 0
+use = SubResource("ice_shape_use")
+
 [resource]
 script = ExtResource("1_spell")
+intakes = Array[ExtResource("1_fvvar")]([SubResource("ice_shape_row")])
 id = &"spark"
 name = "Spark"
 tagline = "Cheap poke at one nearby enemy node."

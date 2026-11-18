@@ -23,6 +23,8 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/coordinator/spells/trail_blazer_coordinator.tscn" id="14_1jkab"]
 [ext_resource type="Script" uid="uid://bvwqgqwcnxnsd" path="res://attack/spell/propagation/progression/flat_add_progression.gd" id="15_prog"]
 [ext_resource type="Resource" path="res://identity/defs/spell_trail_blazer.tres" id="identity_ref"]
+[ext_resource type="Script" path="res://attack/spell/load_use/concentrate_use.gd" id="ice_shape_use_script"]
+[ext_resource type="Resource" path="res://identity/defs/ice.tres" id="ice_shape_identity"]
 
 [sub_resource type="Resource" id="carve_trailblazer"]
 script = ExtResource("1_tcs")
@@ -71,8 +73,18 @@ script = ExtResource("12_swiy2")
 script = ExtResource("13_qkgt4")
 range_finder = SubResource("range")
 
+[sub_resource type="Resource" id="ice_shape_use"]
+script = ExtResource("ice_shape_use_script")
+
+[sub_resource type="Resource" id="ice_shape_row"]
+script = ExtResource("1_53qeu")
+identity = ExtResource("ice_shape_identity")
+affinity_gain = 0
+use = SubResource("ice_shape_use")
+
 [resource]
 script = ExtResource("9_en1rl")
+intakes = Array[ExtResource("1_53qeu")]([SubResource("ice_shape_row")])
 id = &"trail_blazer"
 name = "The Trailblazer"
 tagline = "Slams double damage on any junction it lands on, ramped by the string it walked."
