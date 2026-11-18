@@ -127,3 +127,22 @@ func test_removing_the_temp_upgrade_updates_without_a_rehover() -> void:
 	var now: Variant = plan.swing_value(joint, &"blade_damage")
 	assert_ne(_damage_text(), spiked, "the hovered value moved off the spiked number")
 	assert_eq(_damage_text(), _render(now), "and shows the swing's number without the temp")
+
+
+## A Frozen member's swing read folds its concentrate overlay (#1807): the
+## readout's number is the built blade's `vertex_damage`, not the bare node's.
+func test_a_frozen_member_shows_the_concentrate() -> void:
+	var ctx: Dictionary = await _setup()
+	var joint: SkillNode = ctx.joint
+	var ice := ElementRoster.shared().by_id(&"ice")
+	var slice := joint.get_combat()
+	slice.add_terrain(ice, slice.terrain_threshold() + 3)
+	assert_true(BladePopResolver.LiveGate.is_frozen(slice, joint), "fixture: the joint is Frozen")
+	var plan := _arm_plan(ctx)
+	var state := plan.build_blade_state()
+	var i := 1 + plan.blade_nodes.find(joint)
+	var swing: Variant = plan.swing_value(joint, &"blade_damage")
+	assert_gt(float(swing), float(joint.get_local_value(&"blade_damage")),
+			"the concentrate folds into the swing")
+	assert_almost_eq(float(swing), float(state.vertex_damage[i]), 0.001,
+			"the swing view is the blade's own vertex read")
