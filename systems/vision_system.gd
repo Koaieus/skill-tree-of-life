@@ -95,6 +95,10 @@ var _sensed: Dictionary = {}    # SkillNode → true (logical)
 ## The nodes that drew a scout disc at the last recompute — so a row that
 ## just decayed away still triggers the recompute that retires its disc.
 var _scout_nodes: Dictionary[SkillNode, bool] = {}
+## The nodes that drew a BURNING disc at the last recompute — so a Heat write
+## that takes a node out of Burning still triggers the recompute that retires
+## its light.
+var _lit_nodes: Dictionary[SkillNode, bool] = {}
 # Per-source animation state. SkillNode → { radius: float, target: float }.
 # `radius` is the rendered radius (lerped); `target` is the logical
 # vision_range. Entries with target=0 retreat to 0 then get dropped.
@@ -265,11 +269,41 @@ func _watch_statuses(node: SkillNode) -> void:
 	var cb := _on_node_statuses_changed.bind(node)
 	if not node.statuses_changed.is_connected(cb):
 		node.statuses_changed.connect(cb)
+	var tcb := _on_node_terrain_changed.bind(node)
+	if not node.terrain_changed.is_connected(tcb):
+		node.terrain_changed.connect(tcb)
 
 
 func _on_node_statuses_changed(node: SkillNode) -> void:
 	if _scout_nodes.has(node) or _scout_power(node, _camps_of(_effective_viewers())) > 0:
 		_request_recompute()
+
+
+## A Burning light moves with the excess, not only on a band crossing, so the
+## watch is [signal SkillNode.terrain_changed] (live only: a shadow write never
+## fires it). Filtered: only a node lit now or at the last recompute asks.
+func _on_node_terrain_changed(node: SkillNode) -> void:
+	if _lit_nodes.has(node) or _burning_radius(node, TerrainSettle.element_on(Terrain.Axis.HEAT)) > 0.0:
+		_request_recompute()
+
+
+## [param node]'s Burning light radius: [method DiscGoOff.disc_radius] (Fire's
+## disc, `bands[0].go_off`) of its excess (Heat − T, the overflow included)
+## off its own radius, when its [param fire] band has
+## [member ElementBand.light]; 0 otherwise. Called, never a copy of the formula.
+static func _burning_radius(node: SkillNode, fire: Element) -> float:
+	if fire == null or fire.bands.is_empty() or node == null:
+		return 0.0
+	var c := node.get_combat()
+	if c == null or c.terrain_t() <= 0:
+		return 0.0
+	var band := c.terrain_band(fire)
+	if band == null or not band.light:
+		return 0.0
+	var disc := fire.bands[0].go_off as DiscGoOff
+	if disc == null:
+		return 0.0
+	return disc.disc_radius(Terrain.excess(c.terrain_count(fire), c.terrain_threshold()), node.radius)
 
 
 ## Whether [param e] sits in the local viewer's camp — the one question a
@@ -309,7 +343,8 @@ func _scout_power(node: SkillNode, camps: Array[StringName]) -> int:
 ##
 ## Order is load-bearing for nothing but determinism: OWNED first, viewer by
 ## viewer in [param viewers] order, each in graph order; then SCOUT, one per
-## node carrying a mark any of [param viewers] holds (the max across them).
+## node carrying a mark any of [param viewers] holds (the max across them);
+## then BURNING, one per node whose Fire band lights, the same for every viewer.
 func sources_for(viewers: Array[Entity]) -> Array[VisionSource]:
 	var out: Array[VisionSource] = []
 	if graph == null or viewers.is_empty():
@@ -317,12 +352,17 @@ func sources_for(viewers: Array[Entity]) -> Array[VisionSource]:
 	var owned_per_viewer: Dictionary = {}
 	var camps := _camps_of(viewers)
 	var scouted: Array[VisionSource] = []
+	var lit: Array[VisionSource] = []
+	var fire := TerrainSettle.element_on(Terrain.Axis.HEAT)
 	for n in graph.get_skill_nodes():
 		var power := _scout_power(n, camps)
 		if power > 0:
 			var r := scouted_def.radius_for(n, power)
 			if r > 0.0:
 				scouted.append(VisionSource.new(n, r, VisionSource.Kind.SCOUT))
+		var light := _burning_radius(n, fire)
+		if light > 0.0:
+			lit.append(VisionSource.new(n, light, VisionSource.Kind.BURNING))
 		var node_owner: Entity = n.owned_by
 		if node_owner != null and node_owner in viewers:
 			if not owned_per_viewer.has(node_owner):
@@ -333,6 +373,7 @@ func sources_for(viewers: Array[Entity]) -> Array[VisionSource]:
 			out.append(VisionSource.new(own_node,
 					float(own_node.get_local_value(&"vision_range")), VisionSource.Kind.OWNED))
 	out.append_array(scouted)
+	out.append_array(lit)
 	return out
 
 
@@ -356,6 +397,7 @@ func _recompute() -> void:
 	for k in _circles:
 		_circles[k].target = 0.0
 	_scout_nodes.clear()
+	_lit_nodes.clear()
 
 	if effective.is_empty():
 		match empty_mode:
@@ -386,7 +428,10 @@ func _recompute() -> void:
 				else:
 					_circles[src.node].target = r
 			else:
-				_scout_nodes[src.node] = true
+				if src.kind == VisionSource.Kind.BURNING:
+					_lit_nodes[src.node] = true
+				else:
+					_scout_nodes[src.node] = true
 				if not _circles.has(src.node):
 					_circles[src.node] = {"radius": 0.0, "target": r}
 				else:
