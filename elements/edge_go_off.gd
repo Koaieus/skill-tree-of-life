@@ -72,10 +72,10 @@ func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, adde
 	for n: SkillNode in depth:
 		if n != null and n != node:
 			by_depth.append(n)
-	# Ties break on the mirror's vertex id, the same on host and peer (an
-	# instance id is not): the reach order is the copies' landing order.
+	# Ties break on stable_id, the same on host and peer (an instance id is
+	# not): the reach order is the copies' landing order.
 	by_depth.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
-		return depth[a] < depth[b] if depth[a] != depth[b] else mirror.vertex_id(a) < mirror.vertex_id(b))
+		return depth[a] < depth[b] if depth[a] != depth[b] else a.stable_id < b.stable_id)
 	for n: SkillNode in by_depth:
 		var d: int = depth[n]
 		var reach := GoOffResult.Reach.new(n, d)
