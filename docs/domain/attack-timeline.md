@@ -255,8 +255,6 @@ fireball story holds. `PropagationEvent.beat` × a per-wave interval is magic's
 
 ### Melee
 
-changing: a blade vertex copies its node's state on fill and a one-shot vertex lands its first contact then dies, #1804; see docs/design/elements/frozen.md
-
 **The scan stays pure, and the interleave sits one level up.** `BladeHitScan`
 never touches the applier: its `PhysicsShapeQueryParameters2D.exclude` is built
 once per resolve, and its purity is load-bearing because `ai_blade_rollout.gd`
@@ -270,6 +268,17 @@ nodes and the blade members — never `not sn.is_allocated()` — and
 `BladeDamageInstance.land_on` re-checks `is_allocated()` / `owned_by` /
 spike-pop per event, live, as `OutcomeApplier` lands it. `BladeHitEvent.t` is
 melee's `arrival_time`.
+
+**A contact's raw amount and go-off source are read at its gather.** The mint in
+`SwingResolve._land_batch` stamps the vertex's coefficient; `HitGather.stage_one`
+then asks each fresh head, once, for its raw amount
+(`BladeDamageInstance.stamp_at_gather`: coefficient × speed curve × the sweep
+factor of the node's `t` on the gather's world) and its `GoOffSource` (the
+vertex's terrain copy, filled at build). The copy goes off at the struck node
+beside the node's own bands and spends the copy only. A one-shot vertex lands
+its first contact and then dies at that `t` (`LiveGate.admit`); the admitted hit
+carries the pop. Detail: `docs/domain/melee-blade-sim.md` (Speed-scaled damage,
+`SkillBlade`).
 
 **The preview resolves too, on its own shadow.** Melee's aim-time preview is a
 **real** `_resolve_swing` against a `CombatWorld.shadow()`, run once per

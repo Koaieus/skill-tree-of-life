@@ -238,15 +238,21 @@ Edges collide so a truss slamming a bunker cannot slip between its vertices
 
 ## Speed-scaled damage
 
-changing: a temperature term on the sweep-speed factor, applied at the stage-one stamp, #1804; see docs/design/elements/frozen.md
-
 `damage = blade_damage x f(speed)`, evaluated **per contact** from the contacting
 vertex's own speed at its own contact time (not a blade-wide average or per-step
 max):
 
 ```
 f(v) = 1 + (M - 1) * v / (v + v_half)
+speed = ev.speed * clamp(1 + c * t / T, 1 - c, 1 + c)    # the sweep factor
 ```
+
+The **sweep factor** (#1804) scales the speed the curve reads by the contacted
+node's signed terrain `t` (Heat over Cold) over its `T`: Heat speeds a contact
+up, Cold slows it, never past `1 ± c`, and `t = 0` (or `T = 0`, or `c = 0`) is
+exactly 1, so a swing over neutral nodes is bit-identical to one without it.
+`c` is the board stat `blade_temperature_speed` (tentative 0.5, read clamped to
+`[0, 0.95]`). It acts per contact: no swing-clock warp, no sim change.
 
 `f(0) == 1` (a stationary vertex deals its base coefficient), `f(v_half)` is half
 the bonus, `f(inf) = M` (bounded). `M` and `v_half` are board `ScalarStat`s
@@ -261,10 +267,22 @@ the bonus, `f(inf) = M` (bounded). `M` and `v_half` are board `ScalarStat`s
   speed per substep, `simulate_range` keeps the LAST substep's value per sample
   interval, index-parallel to `samples` (index 0 zero-filled). `BladeHitScan`
   stamps each event from `speed_history[i][p_idx]` at the event's own sample.
-- Two damage sites multiply, for two audiences: `BladeDamageInstance.land_on`
-  (`attack/melee/sim/blade_damage_instance.gd`) on the authority's resolve, once
-  per hit, reading `M` / `v_half` off `attacker.stat_board`; and
-  `SkillBlade._apply_playback_frame`'s `hit` signal for the cosmetic floater.
+- `BladeState.temperature_speed_factor(t, T, c)` is the factor;
+  `BladeDamageInstance.contact_multiplier(wielder, speed, t, T)` composes it with
+  the curve off the wielder's board, and both damage sites call it, so they
+  cannot drift:
+  - **the authority's stamp**: `BladeDamageInstance.stamp_at_gather(world)`, the
+    `HitInstance` overridable `HitGather.stage_one` calls once per fresh head in
+    its per-head step, before generation 0. It reads `t` / `T` off the contact
+    node's slice **on the gather's world** (not the mint's: one sample's batch
+    is several `schedule_index` groups, and contact k must see the world the
+    earlier contacts left) and multiplies the minted coefficient into the raw
+    amount, before armor. That is the number the gather's `_amount` and the
+    second `Admits` read start from. `land_on` no longer multiplies, so the
+    curve runs once per contact, on the authority only. A contact the gate
+    later refuses is stamped too, and lands nothing.
+  - **the cosmetic**: `SkillBlade._speed_multiplier` behind the `hit` signal,
+    reading the contact node's live slice.
 
 **Determinism is safe, and the reason is ADR 0002, not simple maths.** A position
 now turns into a landing amount, but a peer re-simulates only to *draw*. Every
@@ -422,6 +440,7 @@ release. No forced `await physics_frame` (the resolve must complete synchronousl
 | Bunker | `+5 armor`, `-5 min_damage_taken`, `+1 deflection` | solid plate; breaks only a rigid blade ("Bunker deflection"); a Bunker member is heavy and can knock a defender's Bunker off |
 | Clamp | none (a brace per neighbour pair) | welds its joint; see `ClampAddon` |
 | Spike ring | `blade_damage` modifiers, a node-local `spikes` pool (scales 1:2:3 with allocation level) and `spike_regen` (`PerTurnMode.ADD`) | the spike ladder below |
+| Element addon (#1805 / #1806 / #1807 author the scenes) | one `ApplyStatusEffect` rider of the element's terrain status, no stat modifier, `temp_cost_aspects = {<element>_element: 1}` (pinned by `test_element_addon_shape.gd`) | the rider lands on that vertex's contacts only |
 | Toxin | `+1 poison_aspect` on the owner's `entity_modifiers`; `+1 poison_stacks_per_hit` (x2 at level 3) | the blade vertex built from this node applies `poison` on every contact it lands, that vertex only; a refused contact applies nothing |
 
 **Spike ladder.** On contact, remaining `spikes` >= the attacking vertex's `blunting` (default 1, 2 on a spiked attacking vertex) deplete by `blunting` and pop the vertex (it deals no damage and severs everything downstream of it from the pivot); remaining < `blunting` drains the remainder and lets the vertex through for ordinary damage. `spikes` regenerates by `spike_regen` at the owner's turn start only, so a node under a blocker that never takes a turn absorbs a finite number of pops for the whole run. Ownership change resets the pool to full. `thorns` is not a stat; it is `armor` / `min_damage_taken`.
@@ -640,8 +659,6 @@ up a coasting vertex's landings and a peer replays them without re-running a sol
 
 ### `SkillBlade`
 
-changing: the vertex fill copies a node's element terrain onto its blade vertex (spend-the-copy, one-shot flag), #1804; see docs/design/elements/frozen.md
-
 `build_from_skill_nodes(skill_nodes, pivot, induced_edges, owner, fill)` builds the
 `BladeState` and spawns BladeNode + BladeEdge visuals. `fill` is the plan's
 `vertex_fill`, a `BladeVertexFill`: the one owner of per-vertex stat reads and the
@@ -649,6 +666,26 @@ addon dispatch, shared with `MeleeAttackPlan.build_blade_state`. `simulate(durat
 auto-builds drivers from pivot-adjacent particles; `play(trajectory, hits, ghostly,
 playback_rate)` tweens visual positions and emits `hit` at scheduled times. Hit
 detection is the deterministic scan, never Godot collision overlap.
+
+**The terrain copy.** `BladeVertexFill` also copies each source node's four
+terrain ints (signed `t`, Charge, `T`, the cap; what a `TerrainRead` holds) into
+`BladeState.vertex_t` / `vertex_charge` / `vertex_threshold` / `vertex_cap`, so
+preview and swing copy alike. It is a read: the source keeps its stacks, and no
+gameplay link back to it exists. `copy_read(i)` gives the copy's bands through the
+node's own band function; `spend_copy(i, element, n)` is the one write, on the
+copy only. A contact's head answers the gather a `GoOffSource`
+(`BladeDamageInstance.go_off_source`, off its gate's `state()`): `HitGather` fires
+each band the copy sits in from the struck node and pays through the source's
+callable, never off a node's ints; an inert copy fires nothing. A replay rebuilds
+plain `DamageInstance`s (null source) and feeds the recorded terrain, so it asks
+nothing.
+
+**The one-shot seat.** `BladeState.vertex_one_shot` (a `PackedByteArray`, zeroed
+in `build()`): `LiveGate.admit` lands a flagged vertex's first admitted contact,
+then `_kill`s the vertex at that `t`, so later contacts are refused; the admitted
+hit carries the pop in `popped_vertex` (`resolve_gate` stamps it on an admission
+too), and `OutcomeApplier.land_one` emits the cue as it lands. A spiked defender's
+pop still refuses its contact; the pivot keeps its exemption. #1807 sets the flag.
 
 ### `MeleeAttackPlan.resolve()`
 
