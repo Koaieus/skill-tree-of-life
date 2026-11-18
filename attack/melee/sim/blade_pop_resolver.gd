@@ -215,6 +215,21 @@ class LiveGate extends RefCounted:
 			_kill(idx, ev.t, real_node, 0.0)
 		return true
 
+	## Pop the vertex of [param ev], an ADMITTED contact, at its `t` because the
+	## node it touched [param defender] is still Frozen after the contact's
+	## terrain riders: the post-rider read ([method FrozenAdmits.read_in])
+	## asks, since this gate decides as the beat opens, before any rider lands.
+	## No drain check. The pivot keeps its exemption; an edge contact or a
+	## vertex already dead (a one-shot vertex [method admit] killed) pops
+	## nothing. Returns the [Pop], or null.
+	func snap(ev: BladeHitEvent, defender: SkillNode) -> Pop:
+		if _state == null or ev == null or ev.is_edge_hit() or ev.particle_idx < 0:
+			return null
+		if ev.particle_idx == _state.pivot_index or result.is_dead(ev.particle_idx, ev.t):
+			return null
+		_kill(ev.particle_idx, ev.t, defender, 0.0)
+		return _last_pop
+
 	## The defender's spike verdict on a live vertex contact: false iff this
 	## contact pops the vertex (and so deals no damage).
 	func _admit_spikes(ev: BladeHitEvent, node: NodeCombat, real_node: SkillNode,

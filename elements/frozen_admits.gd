@@ -46,6 +46,7 @@ func read_in(world: CombatWorld, node: SkillNode, after: TerrainRead,
 		var a := arrivals[i]
 		if not a.centre and breaks(world, node, a):
 			answer.breakers.append(i)
+	_snap_blades(arrivals)
 	if answer.breakers.is_empty():
 		answer.paths_end = true
 		return answer
@@ -60,11 +61,18 @@ func read_in(world: CombatWorld, node: SkillNode, after: TerrainRead,
 	return answer
 
 
-## Whether [param arrival] breaks the ice on its own: a crit, or (with a
-## holder) its mitigated damage at or above the flat breaker.
+## Whether [param arrival] breaks the ice on its own: a crit, a blade vertex's
+## touch at least as heavy as the node ([method BladeDamageInstance.touch_weight]
+## ≥ the node's [method BladeDamageInstance.weight_of]; the direct contact
+## only, never its copies), or (with a holder) its mitigated damage at or above
+## the flat breaker.
 func breaks(world: CombatWorld, node: SkillNode, arrival: Arrival) -> bool:
 	if arrival.head != null and arrival.head.is_crit:
 		return true
+	if not arrival.is_copy and arrival.head is BladeDamageInstance:
+		var touch := (arrival.head as BladeDamageInstance).touch_weight()
+		if touch >= 0.0 and node != null and touch >= BladeDamageInstance.weight_of(node.radius):
+			return true
 	var holder := _holder(world, node)
 	if holder == null:
 		return false
@@ -99,3 +107,13 @@ func added_excess(_world: CombatWorld, _node: SkillNode, _arrivals: Array[Arriva
 static func _holder(world: CombatWorld, node: SkillNode) -> EntityCombat:
 	var slice := world.combat_for(node) as NodeCombat if world != null else null
 	return slice.owner() if slice != null else null
+
+
+## Every blade contact read here met a node still Frozen after its riders
+## (this read is asked only then): its vertex pops, after the breakers are
+## read, whether it broke the ice or not. A contact whose riders thawed the
+## node is never read here, so its vertex lives on.
+static func _snap_blades(arrivals: Array[Arrival]) -> void:
+	for a in arrivals:
+		if not a.is_copy and a.head is BladeDamageInstance:
+			(a.head as BladeDamageInstance).snap_on_ice()

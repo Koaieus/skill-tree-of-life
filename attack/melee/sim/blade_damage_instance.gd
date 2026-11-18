@@ -19,6 +19,9 @@ var _gate: BladePopResolver.LiveGate
 ## second `admit` of the same event can pop the vertex twice.
 var admitted: bool = false
 var _gate_resolved: bool = false
+## The pop [method snap_on_ice] made, stamped on [member HitInstance.popped_vertex]
+## as this contact lands.
+var _ice_pop: BladePopResolver.Pop = null
 
 
 func _init(event: BladeHitEvent, gate: BladePopResolver.LiveGate) -> void:
@@ -41,6 +44,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	# the curve in once, on the authority's gather. A peer's rebuilt plain
 	# [DamageInstance] carries the post-mitigation number instead (ADR 0002).
 	super.land_on(node, world)
+	if _ice_pop != null:
+		popped_vertex = _ice_pop.defender
 
 
 ## The raw amount, stamped as this contact's beat opens its gather, on the
@@ -90,6 +95,44 @@ func go_off_source() -> GoOffSource:
 	var idx := _event.particle_idx
 	return GoOffSource.new(state, idx, state.copy_read(idx),
 			func(e: Element, n: int) -> void: state.spend_copy(idx, e, n))
+
+
+## The contacting vertex's weight: its build-time mass, [method weight_of] its
+## source radius × every [member BunkerAddon.blade_mass] its source carries.
+## Never the sim's `inv_masses` (0 for the pivot and a corpse) and nothing
+## per-contact. -1 for an edge contact or a contact with no blade.
+func touch_weight() -> float:
+	var state := _gate.state() if _gate != null else null
+	if state == null or _event == null or _event.particle_idx < 0 \
+			or _event.particle_idx >= state.radii.size():
+		return -1.0
+	var idx := _event.particle_idx
+	var w := weight_of(state.radii[idx])
+	var source: SkillNode = state.vertex_node[idx] if idx < state.vertex_node.size() else null
+	if source != null:
+		for addon in source.get_addons():
+			if addon is BunkerAddon and (addon as BunkerAddon).blade_mass > 0.0:
+				w *= (addon as BunkerAddon).blade_mass
+	return w
+
+
+## A disc's weight: its area, `(radius / MASS_REF_RADIUS)²` — the vertex's and
+## the node's one formula, so equal radii tie exactly.
+static func weight_of(radius: float) -> float:
+	var r := radius / BladeState.MASS_REF_RADIUS
+	return r * r
+
+
+## Pop this contact's vertex on ice: the node it landed on is still Frozen
+## after the contact's own terrain riders ([method FrozenAdmits.read_in] asks,
+## once per generation). The vertex dies now (a later contact is refused);
+## the hit carries the pop from its own landing ([method land_on]), so the
+## break's extra landings, cloned from this head in stage one, carry none. A
+## refused contact, the pivot, an edge or a dead vertex pops nothing.
+func snap_on_ice() -> void:
+	if not admitted or _gate == null:
+		return
+	_ice_pop = _gate.snap(_event, target)
 
 
 ## The gate, decided once — by the gather as this contact's beat opens, by a
