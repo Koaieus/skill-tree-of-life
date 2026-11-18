@@ -1,6 +1,6 @@
 extends GutTest
 
-## The Catalyst conversion cue ([signal Events.catalyst_converted]): the
+## The Catalyst conversion cue ([signal SkillNode.catalyst_converted]): the
 ## authority's resolve on a shadow world has no audience, the replay of the
 ## rebuilt record on the live world (the authority's own and every peer's)
 ## announces each take of a Catalyst row once, with what it converted into;
@@ -84,14 +84,15 @@ func test_resolve_is_silent_and_the_rebuilt_replay_announces_once() -> void:
 	var n: SkillNode = await _alone()
 	(CombatWorld.live().combat_for(n) as NodeCombat).apply_status(_def, 3.0)
 	var outcome := _beat(n)
-	watch_signals(Events)
+	watch_signals(n)
 	await _drain(outcome, _shadow)
-	assert_signal_emit_count(Events, "catalyst_converted", 0, "a shadow world has no audience")
+	assert_signal_emit_count(n, "catalyst_converted", 0, "a shadow world has no audience")
 	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
 	await _drain(rebuilt, CombatWorld.live())
-	assert_signal_emit_count(Events, "catalyst_converted", 1, "the replay announces the take")
+	assert_signal_emit_count(n, "catalyst_converted", 1, "the replay announces the take")
 	# The payload is the stacks made (ratio 1 : 1 here), keyed by landing element.
-	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, {_fire.id(): 3}])
+	assert_signal_emitted_with_parameters(n, "catalyst_converted", [{_fire.id(): 3}])
+	assert_false(Events.has_signal(&"catalyst_converted"), "the cue is node-local, never on the bus")
 
 
 ## The world turn's terrain pass is no record: [EndTurnCommand] reproduces it on
@@ -109,9 +110,10 @@ func test_a_world_turn_conversion_announces_once() -> void:
 	slice.add_terrain(_fire, t - slice.terrain_t())
 	(live.combat_for(hot) as NodeCombat).add_terrain(_fire, t + 4 * t * (1 + deg))
 	slice.apply_status(_def, 3.0)
-	watch_signals(Events)
+	watch_signals(n)
 	live.flow_temperature(1)
 	assert_eq(int(slice.get_status_power(_def.id)), 0, "the flow primed N: the store converted")
 	assert_gt(slice.terrain_t(), t, "N is past T")
-	assert_signal_emit_count(Events, "catalyst_converted", 1, "the world turn announces its take")
-	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, {_fire.id(): 3}])
+	assert_signal_emit_count(n, "catalyst_converted", 1, "the world turn announces its take")
+	assert_signal_emitted_with_parameters(n, "catalyst_converted", [{_fire.id(): 3}])
+	assert_false(Events.has_signal(&"catalyst_converted"), "the cue is node-local, never on the bus")

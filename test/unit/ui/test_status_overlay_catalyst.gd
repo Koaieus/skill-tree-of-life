@@ -117,3 +117,20 @@ func test_a_fully_spent_row_still_pulses_the_crystals_it_had() -> void:
 	assert_eq(layer.crystals.size(), 0, "fixture: the take spent the row")
 	_nodes[0].catalyst_converted.emit({_element(&"fire").id(): 3})
 	assert_eq(layer.pulse_crystals.size(), 3, "the pulse flashes the crystals spent")
+
+
+# ── Fog ─────────────────────────────────────────────────────────────────────
+
+func test_a_fogged_carrier_hides_its_crystals_and_pulse() -> void:
+	_nodes[0].get_combat().apply_status(_CATALYST, 3.0)
+	var layer := _layer(_nodes[0])
+	assert_true(layer.visible, "fixture: a revealed carrier shows its crystals")
+	_nodes[0].revealed = false
+	assert_false(layer.visible, "fog hides a carrier's Catalyst")
+	_nodes[0].catalyst_converted.emit({})
+	assert_false(layer.visible, "nor does a fogged conversion pulse")
+	_nodes[0].lantern_lit = true
+	assert_true(layer.visible, "a lantern gives the revealed look")
+	_nodes[0].lantern_lit = false
+	_nodes[0].revealed = true
+	assert_true(layer.visible, "revealed again, the crystals return")
