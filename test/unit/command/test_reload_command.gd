@@ -127,7 +127,12 @@ func test_special_arrows_are_flat_never_times_leaves() -> void:
 	assert_eq(w.quiver().stock_of(&"arrow"), 4 * w.per_leaf())
 	var catalyst := floori(w.player.stat_board.get_value(&"catalyst_aspect"))
 	assert_eq(w.quiver().stock_of(&"catalyst"), catalyst, "the starter Catalyst, flat too")
-	assert_eq(w.quiver().total_stock(), 4 * w.per_leaf() + 1 + catalyst)
+	var elements := 0
+	for element in ElementRoster.shared().elements:
+		var count := floori(w.player.stat_board.get_value(element.stat.id))
+		assert_eq(w.quiver().stock_of(element.ammo.id), count, "%s's arrow, flat too" % element.id())
+		elements += count
+	assert_eq(w.quiver().total_stock(), 4 * w.per_leaf() + 1 + catalyst + elements)
 	assert_eq(roundi(w.quiver().current), 4 * w.per_leaf(), "current is the plain bin alone")
 
 
