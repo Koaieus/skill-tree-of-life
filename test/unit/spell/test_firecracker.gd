@@ -107,6 +107,7 @@ func test_no_node_lands_in_two_waves() -> void:
 			edges.append([i - 6, i])
 	var b := _board(pos, edges)
 	var outcome := _resolve(b, 1)
+	assert_gt(_landings(outcome).size(), 1, "the wave leaves the seed")
 	for node in b.n:
 		assert_lte(_beats_of(outcome, node).size(), 1, "%s lands at most once" % node.name)
 

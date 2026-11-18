@@ -130,7 +130,7 @@ func test_world_turn_decay_then_turn_start_refill() -> void:
 
 # --- the temp face: inert, and nothing on the swing --------------------------
 # A temp barrel is inert like any barrel: it never writes its carrier's row, is
-# never counted as a barrel, and adds nothing to a swing.
+# never counted as a barrel, and never adds to the turn-start refill.
 
 func _temp_barrels(n: SkillNode, count: int) -> Array[CatalystBarrelAddon]:
 	var out: Array[CatalystBarrelAddon] = []
@@ -142,25 +142,15 @@ func _temp_barrels(n: SkillNode, count: int) -> Array[CatalystBarrelAddon]:
 	return out
 
 
-## A two-vertex blade over [pivot, member], filled the way a swing fills it.
-func _filled(pivot: SkillNode, member: SkillNode) -> BladeState:
-	var positions: Array[Vector2] = [Vector2.ZERO, Vector2(80, 0)]
-	var radii: Array[float] = [16.0, 16.0]
-	var edges: Array[Vector2i] = [Vector2i(0, 1)]
-	var state := BladeState.build(positions, 0, edges, radii)
-	var nodes: Array[SkillNode] = [pivot, member]
-	BladeVertexFill.new().fill(state, nodes)
-	return state
-
-
 func test_a_temp_barrel_never_writes_the_carriers_status_nor_counts_as_a_barrel() -> void:
-	var pivot := _node("Pivot")
 	var member := _node("Member")
 	_alloc.force_allocate(_entity, member)
 	var map := _barrels(member, 1)
 	_set_charges(member, 1.0)
 	var before := _charges(member)
 	_temp_barrels(member, 1)
-	_filled(pivot, member)
 	assert_eq(_charges(member), before, "the carrier's catalyst row is never written")
 	assert_eq(map[0].barrel_count(), 1, "barrel_count skips the temp")
+	_set_charges(member, 0.0)
+	_entity.begin_turn()
+	assert_eq(_charges(member), 1.0, "the turn-start refill reads the one real barrel")

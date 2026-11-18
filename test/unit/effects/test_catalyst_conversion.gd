@@ -553,13 +553,25 @@ func test_a_hits_centre_landing_converts_nothing() -> void:
 	var n := pair[0]
 	var nc := CombatWorld.live().combat_for(n)
 	var heat := nc.terrain_t()
+	assert_eq(int(nc.get_status_power(_CATALYST_TRES.id)), 5, "fixture: N holds 5 Catalyst")
 	var span := _hit_on(n, {})
+	var poison := StatusInstance.new()
+	poison.def = _POISON_TRES
+	poison.power = 2.0
+	poison.raw = true
+	poison.target = n
+	poison.attacker = _attacker
+	poison.schedule_index = 0
+	span.append(poison)
 	var hits := _land(span)
 	var centre := _on(hits, n).filter(func(h: HitInstance) -> bool: return not span.has(h))
 	assert_gt(centre.size(), 0, "fixture: Burning's disc landed a centre copy on N")
+	assert_true(centre.any(func(h: HitInstance) -> bool: return h is StatusInstance and (h as StatusInstance).def == _POISON_TRES),
+			"fixture: the centre copy carries the Poison rider")
 	for h: HitInstance in centre:
 		assert_false(h is StatusInstance and [_fire.terrain, _ice.terrain, _lightning.terrain].has((h as StatusInstance).def),
 				"the centre copy carries no terrain rider")
+	assert_eq(int(nc.get_status_power(_CATALYST_TRES.id)), 5, "N's Catalyst row still reads 5: the centre landing took none")
 	assert_lte(nc.terrain_t(), heat, "nothing converted: no Heat appears")
 
 

@@ -148,23 +148,12 @@ func _status_on(hits: Array, node: SkillNode, id: StringName) -> Array:
 	return hits.filter(func(h): return h is StatusInstance and h.target == node and h.def.id == id)
 
 
-## Land every rider of [param hits] (all but the arrow) on the live board.
-func _land(hits: Array) -> void:
-	for h in hits:
-		if h is CureInstance or h is StatusInstance:
-			h.land_on(h.target.get_combat(), CombatWorld.live())
-
-
 ## Land [param hits] through the gather on the live world, beat by beat; the
 ## copies its go-offs appended past the authored hits.
 func _fire(hits: Array[HitInstance]) -> Array[HitInstance]:
 	var authored := hits.size()
 	await OutcomeApplier.drain(HitQueue.over(hits), CombatWorld.live(), BeatClock.instant_clock())
 	return hits.slice(authored)
-
-
-func _poison_copies(copies: Array) -> Array:
-	return copies.filter(func(h): return h is StatusInstance and h.def.id == _POISON_DEF.id)
 
 
 func test_a_poison_arrow_on_a_burning_node_spends_heat_and_blasts_poison_outward() -> void:
@@ -185,7 +174,15 @@ func test_a_poison_arrow_on_a_burning_node_spends_heat_and_blasts_poison_outward
 	if rode.size() == 1 and own.size() == 1:
 		assert_eq(rode[0].power, ceilf(own[0].power * _burning().share), "a copy's rider lands ceil(r × share)")
 	assert_false(hits.any(func(h): return h is CureInstance), "the spend lands at the read: no CureInstance")
-	assert_lt(_heat(_f.target), before, "the disc spends Heat, 1 per node reached")
+	var marks := hits.filter(func(h): return h.blast_mark != null and h.blast_mark.centre == _f.target)
+	assert_false(marks.is_empty(), "fixture: the go-off left its BlastMark")
+	if marks.is_empty():
+		return
+	# The disc reaches every node in its radius, friend or foe; only hostiles take a copy.
+	var reached := EuclideanRangeFinder.new().gather_reach(_f.target, _f.graph.navigator, marks[0].blast_mark.reach)
+	reached.erase(_f.target)
+	assert_gt(reached.size(), 1, "fixture: the disc reaches past the one hostile it hits")
+	assert_eq(before - _heat(_f.target), reached.size(), "the disc spends Heat, 1 per other node reached")
 
 
 func test_catalyst_only_landings_plant_and_never_go_off() -> void:
@@ -215,6 +212,7 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 	var plain := _shoot(null)
 	assert_eq(plain.size(), 1, "a plain arrow emits nothing")
 	assert_eq(plain[0].hit_key, 0, "and stays keyless")
+	assert_true((await _fire(plain)).is_empty(), "a plain arrow on Catalyst alone: no boom either")
 
 
 

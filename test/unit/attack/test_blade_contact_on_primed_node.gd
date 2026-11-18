@@ -100,13 +100,14 @@ func test_a_contact_on_a_burning_node_lands_one_hit_and_sets_the_disc_off() -> v
 	_prime(_f.target, 1)
 	var heat := _heat(_f.target)
 	var hits := _contact(gate)
+	assert_eq(hits.size(), 1, "the contact is one hit: no rider, no charge")
 	var copies := await _land(hits)
 	assert_true((hits[0] as BladeDamageInstance).admitted, "the contact lands its hit")
+	assert_lt(hits[0].hp_after, hits[0].hp_before, "and its hit damages the struck node")
 	assert_true(gate.result.pops.is_empty(), "no piece pops on a contact")
 	assert_eq(copies.filter(func(h): return h.target == _f.target and h is DamageInstance).size(), 1,
 			"the disc's centre landing on the struck node")
 	assert_lt(_heat(_f.target), heat, "the disc spent the node's Heat")
-	assert_eq(_charges(_f.leaves[0]), 1.0, "the piece's source node keeps its Catalyst")
 
 
 func test_a_contact_on_a_catalyst_only_node_blasts_nothing_and_spends_none() -> void:
@@ -115,12 +116,13 @@ func test_a_contact_on_a_catalyst_only_node_blasts_nothing_and_spends_none() -> 
 	_charge(_f.target, 2.0)
 	var held := _charges(_f.target)
 	var hits := _contact(gate)
+	assert_eq(hits.size(), 1, "the contact is one hit: no rider, no charge")
 	var copies := await _land(hits)
 	assert_true((hits[0] as BladeDamageInstance).admitted, "the contact lands its hit")
+	assert_lt(hits[0].hp_after, hits[0].hp_before, "and its hit damages the struck node")
 	assert_true(gate.result.pops.is_empty(), "no piece pops on a contact")
 	assert_true(copies.is_empty(), "Catalyst never goes off")
 	assert_eq(_charges(_f.target), held, "the struck node's Catalyst is untouched")
-	assert_eq(_charges(_f.leaves[0]), 1.0, "the piece's source node keeps its Catalyst")
 
 
 # --- a real swing: a plain contact is its landing's head -----------------------
