@@ -636,20 +636,6 @@ func _convert_landing(node: SkillNode, landing: Dictionary, batch: TerrainSettle
 			_add(batch, node, roster.by_id(id), int(out[id]))
 
 
-## The settle seat's take inside the gather ([method TerrainSettle.commit]'s
-## take, bound to the node and def): [param spent] Catalyst off
-## [param slice]'s row of [param def], recorded with the stacks it made
-## ([param converted]), committed and recorded at once, so the
-## rest of the commit and the beat's later commits read the row after it and a
-## replay takes it too.
-func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: StatusDef) -> void:
-	if slice == null:
-		return
-	var rows: Dictionary = {}
-	_row_change(rows, slice.real(), def, -float(spent), converted)
-	_commit_rows(rows)
-
-
 ## The land commit's seat: the settle seat's readers ([param inner]), each
 ## handed a noted node's ints from before the generation's land step in place
 ## of the commit's own. A head's riders land through their rows before the
@@ -680,6 +666,20 @@ class _LandedFrom:
 		var pre: Array = _pre.get(node, [pre_t, pre_charge])
 		for r in _inner:
 			r.read(node, int(pre[0]), int(pre[1]), post_t, post_charge, sums)
+
+
+## The settle seat's take inside the gather ([method TerrainSettle.commit]'s
+## take, bound to the node and def): [param spent] Catalyst off
+## [param slice]'s row of [param def], recorded with the stacks it made
+## ([param converted]), committed and recorded at once, so the
+## rest of the commit and the beat's later commits read the row after it and a
+## replay takes it too.
+func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: StatusDef) -> void:
+	if slice == null:
+		return
+	var rows: Dictionary = {}
+	_row_change(rows, slice.real(), def, -float(spent), converted)
+	_commit_rows(rows)
 
 
 func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:

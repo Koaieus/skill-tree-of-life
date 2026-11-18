@@ -439,8 +439,14 @@ func test_a_heads_own_riders_priming_the_node_convert_the_leftover_at_settle() -
 	assert_gt(_t(), 2, "fixture: the head's Charge stays under T")
 	_put(_t(), 0)
 	_plant(3)
-	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	var span := _hit_on(_b, {_fire: 1, _lightning: 1})
+	_land(span)
 	assert_eq(_store(), 0, "the land split takes 1 + 1, the head's crossing of T converts the tied 1")
+	var taken := 0.0
+	for op: Array in span[0].row_ops:
+		if op[2] == _def:
+			taken += float(op[3])
+	assert_eq(taken, -3.0, "the head records the whole take, land's 2 and the seat's 1: a replay takes it too")
 
 
 func test_a_heads_crossing_reaches_the_seat_when_the_split_converts_nothing() -> void:
