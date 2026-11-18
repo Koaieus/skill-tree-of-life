@@ -89,8 +89,8 @@ var attacker: Entity = null
 ## [member AttackOutcome.crit_stream] — for a gather head as its beat opens
 ## ([method HitGather.stage_one]), for any other lead ([member paired] null)
 ## in [method OutcomeApplier.land_one] as it lands; a rider never draws, it
-## [method copy_crit_from] its lead. On a replay the recorded value lands as-is, and the VFX layer reads
-## it off that rebuilt record. The multiplier it implies is applied in
+## [method copy_crit_from] its lead. On a replay the recorded value lands
+## as-is, and the VFX layer reads it off that rebuilt record. The multiplier it implies is applied in
 ## [method land_on], by [method CritRoll.apply]; see [CritRoll].
 var is_crit: bool = false
 ## The effective multiplier applied on a crit (default 1.0 = normal hit).
