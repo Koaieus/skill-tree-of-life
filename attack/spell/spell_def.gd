@@ -149,9 +149,11 @@ const UNCAPPED := 1 << 62
 ## [member infusion_capacity_per_degree] per degree above [member min_degree].
 ## The one home of the formula; the base cap is [code]capacity_at(min_degree)[/code].
 ## An [code]INF[/code] base answers [constant UNCAPPED] at every degree.
-@warning_ignore("unused_parameter")
 func capacity_at(degree: int) -> int:
-	return 0
+	if is_inf(infusion_capacity):
+		return UNCAPPED
+	return maxi(0, floori(infusion_capacity)) \
+			+ infusion_capacity_per_degree * maxi(0, degree - min_degree)
 
 ## Spell-specific crit conditions. Evaluated per landing in addition to
 ## the universal [code]crit_chance[/code] stat roll. Multiple conditions

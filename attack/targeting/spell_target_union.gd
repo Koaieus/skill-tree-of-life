@@ -65,6 +65,14 @@ var best_source: Dictionary[SkillNode, SkillNode] = {}
 ## even when [member per_source] is empty.
 var source_capacity: Dictionary[SkillNode, int] = {}
 
+## target -> the best [member source_capacity] among its reaching sources.
+var _best_capacity: Dictionary[SkillNode, int] = {}
+
+## source -> its node-local `spell_damage` and stable id, snapshotted once per
+## build so [member best_source] and [method source_for] rank with one key.
+var _power: Dictionary[SkillNode, float] = {}
+var _stable_id: Dictionary[SkillNode, int] = {}
+
 
 ## True iff at least one owned node can cast the spell at all. Distinct from
 ## [method has_targets] — see [member sources].
@@ -97,16 +105,28 @@ func can_target(node: SkillNode) -> bool:
 
 ## The caster this union would use for [param node], or null if it isn't a
 ## target. What [MagicAttackPlan] stamps as its source on a target click.
-@warning_ignore("unused_parameter")
+##
+## With [param points] above 0, the strongest caster among those reaching
+## [param node] that also CARRY that many aspect points ([member source_capacity]),
+## by [member best_source]'s own tiebreak; null when none carries — the
+## loadout gates the caster, never the target. Walks the sources once: a pick
+## or a gated write may ask, a hover or a frame must not.
 func source_for(node: SkillNode, points: int = 0) -> SkillNode:
-	return best_source.get(node)
+	if points <= 0:
+		return best_source.get(node)
+	var best: SkillNode = null
+	for source in per_source:
+		if not per_source[source].has(node) or source_capacity.get(source, 0) < points:
+			continue
+		if best == null or _outranks(source, best):
+			best = source
+	return best
 
 
-## The best capacity among the sources reaching [param target], 0 when it is
-## not a target.
-@warning_ignore("unused_parameter")
+## The best [member source_capacity] among the sources reaching [param target]
+## — the most aspect points any caster can carry onto it. 0 for a non-target.
 func best_capacity(target: SkillNode) -> int:
-	return 0
+	return _best_capacity.get(target, 0)
 
 
 ## Legal targets reachable from [param source] alone, membership-only — the
@@ -168,6 +188,7 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 	for src in sources:
 		if src != null:
 			union._source_set[src] = true
+			union.source_capacity[src] = _capacity_of(spell, src, attacker)
 	if union.sources.is_empty():
 		return union
 
@@ -201,6 +222,18 @@ static func build_for(spell: SpellDef, attacker: Entity, graph: Graph,
 	return union
 
 
+## [method SpellBook.capacity_of], or its [SpellBook]-free mirror on the same
+## owned-subgraph degree [method _eligible_sources_without_book] reads: 0 for a
+## node that cannot cast [param spell].
+static func _capacity_of(spell: SpellDef, source: SkillNode, attacker: Entity) -> int:
+	if attacker.spellbook != null:
+		return attacker.spellbook.capacity_of(spell, source, attacker)
+	if attacker.navigator == null or source.owned_by != attacker:
+		return 0
+	var degree := attacker.navigator.get_degree(source)
+	return spell.capacity_at(degree) if degree >= spell.min_degree else 0
+
+
 ## [SpellBook]-free eligibility, mirroring
 ## [method MagicAttackPlan._source_meets_min_degree]'s fallback: tests and
 ## scripted setups that never build a book still get a working gate.
@@ -215,26 +248,32 @@ static func _eligible_sources_without_book(spell: SpellDef, attacker: Entity) ->
 
 
 ## Collapse [member per_source] into [member best_source]: strongest local
-## `spell_damage` wins, lowest stable id breaks a tie. Reads the id through
+## `spell_damage` wins, lowest stable id breaks a tie; and, in the same pass,
+## each target's [method best_capacity]. Reads the id through
 ## the graph rather than caching one on the node, so a node that isn't
 ## registered (a hand-built fixture) simply falls back to insertion order via
 ## a stable id of 0 — deterministic within a peer, which is all a test needs.
 func _pick_best_sources(graph: Graph) -> void:
 	for source in per_source:
-		var power := float(source.get_local_value(&"spell_damage"))
-		var id := graph.get_stable_id(source) if graph != null else 0
+		_power[source] = float(source.get_local_value(&"spell_damage"))
+		_stable_id[source] = graph.get_stable_id(source) if graph != null else 0
+	for source in per_source:
+		var capacity: int = source_capacity.get(source, 0)
 		for target: SkillNode in per_source[source]:
+			if capacity > _best_capacity.get(target, -1):
+				_best_capacity[target] = capacity
 			var incumbent: SkillNode = best_source.get(target)
-			if incumbent == null:
+			if incumbent == null or _outranks(source, incumbent):
 				best_source[target] = source
-				continue
-			var inc_power := float(incumbent.get_local_value(&"spell_damage"))
-			if power > inc_power:
-				best_source[target] = source
-			elif power == inc_power:
-				var inc_id := graph.get_stable_id(incumbent) if graph != null else 0
-				if id < inc_id:
-					best_source[target] = source
+
+
+## Does [param a] beat [param b] as a caster — more local `spell_damage`, or
+## a tie broken by the lower stable id. The one tiebreak behind
+## [member best_source] and [method source_for].
+func _outranks(a: SkillNode, b: SkillNode) -> bool:
+	if _power[a] != _power[b]:
+		return _power[a] > _power[b]
+	return _stable_id[a] < _stable_id[b]
 
 
 ## Merged reach for the whole union, as [RangeFinder]'s own metric: node ->
