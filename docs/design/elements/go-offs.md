@@ -50,7 +50,7 @@ the cap and decay are the brakes.
 
 **Size.** Burning's disc is Euclidean, radius = A × (√power + B) × node
 radius with A = 2 and B = 1, power = the excess (owner, 2026-11-10, picked
-A=2, B=1 over today's ×3, A=2 B=2 and a 1:1 fit; the form is the owner's:
+A=2, B=1 over a flat ×3, A=2 B=2 and a 1:1 fit; the form is the owner's:
 *"`r(p) = A*(sqrt(p) + B) * node_radius` … edge hops have no min distance.
 euclidean has. so this might help?"*). The offset keeps a small blast alive:
 on 150 px spacing power 1 / 2 / 3 / 4 reaches 0.7 / 2.1 / 3.0 / 3.6 other
@@ -66,20 +66,8 @@ shape's by its seed node's. A and B are knobs, a starter feel and not
 a fit to the map (owner: *"we are not here to settle on a shape based on the
 procgen settings, we just want to set a good feel of an explosion size, and
 if we change procgen node spacing settings later we might or might not tune
-the explosion size with it"*). Today's Explosive disc keeps its ×3 until the
-retag deletes it.
-Shocked's hops: level
+the explosion size with it"*). Shocked's hops: level
 L at count > L² × T (owner: *"T = 1 hop, 4T = 2 hops, 9T = 3 hops"*). Knobs.
-
-**Go-off zero is exempt from the whole-hit landing until the retag** (pass
-reading, tentative, not the owner's; [hit-resolution.md](hit-resolution.md) § Landing resolution). The
-ported Explosive disc is authored at share 0.5 with no centre copy
-(`GoOff.lands_on_own_node` false on it, true by default), which keeps today's
-tests green: the alternative, following whole-hit now, re-points
-`test_explosive_charges` ("never the centre"), `test_blast_mark` ("the centre's
-own hits carry no mark") and `test_heal_spell_blast`, and doubles bystander
-damage. A mask-excluded charged node inside the disc does not chain, as today.
-Frozen's shatter is tuned to match the doubling, a knob left open.
 
 ## The reach rule (owner's atomics, 2026-11-04)
 

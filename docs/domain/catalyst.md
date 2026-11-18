@@ -71,15 +71,16 @@ any other landing.
 
 **At land.** `HitGather._convert_landing` runs once per node per land commit:
 when Heat, Cold or Charge stacks land on a node holding Catalyst (a hit's or a
-copy's riders, an arc's transferred Charge), the row converts over their sum
-before the terrain write, and the stacks it makes join that write. They count
+copy's riders), the row converts over their sum before the terrain write, and the stacks it makes join that write. They count
 toward the same hit's primed-ness and power: a node at T − 4 with 3 Catalyst,
 hit by 2 Heat, ends at T + 1 and goes off within that hit. Copies are hits, so
 a copy's Heat rider converts the reached node's Catalyst; a centre landing and
 a hit with no Heat, Cold or Charge rider convert nothing. Arrivals of one
 generation on one node convert once, over their summed stacks. The take is a
 row op on the hit (`HitInstance.row_ops`), so the authority's replay and a
-peer's take it alike.
+peer's take it alike. A go-off's transfer (`GoOffResult.transfer`) converts
+nothing: it joins the generation's spends, never the landing sum, and no
+go-off fills it yet — Shocked's Charge transfer is #1806's.
 
 **At settle.** `TerrainSettle.PrimeConversion` (`combat/terrain/terrain_settle.gd`),
 one reader per `CatalystStatus` in the status roster, runs at every commit of

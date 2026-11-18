@@ -151,7 +151,7 @@ padding`, 150 px on both the first level and coop / versus: about 4.7 node
 radii, not 2. Nothing sits closer than 150 px centre to centre, so a 32 px
 node needs a radius of 118 px to be touched. At A × √p alone the disc
 (radius = A × √p × 32 px) reaches **no node below power 4 at A=2** and none
-below power 2 at A=3 (today's Explosive disc); with the first reading, ×1,
+below power 2 at A=3; with the first reading, ×1,
 nothing until power 14. A node is hit when any part of it touches the disc.
 
 Fire, other nodes inside a disc of power p (centre excluded):

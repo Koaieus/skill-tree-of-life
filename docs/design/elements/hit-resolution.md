@@ -244,29 +244,16 @@ from scored options).**
   shrapnel fraction collapse into one knob per go-off, default 1 since
   2026-11-10 ("Every landing is a whole hit", below), so the round-up is
   idle at the default.
-- **Today's explosive detonation is ported first, as go-off zero** (owner:
+- **Going off is one contract, `GoOff`, on the element** (owner:
   *"optoin 1. and for Charge / Shocked: an ArcEffect? or howzat? or shared
-  base class between these?"*). The resolver lands with detonation re-hosted
-  on the go-off contract, proving it on the shipped tests and deleting both
-  spend ledgers; the game keeps its blast until Burning inherits it. The
-  contract is one small `GoOff` resource on the `Element` def (owner,
-  2026-11-09: *"i think it should sit on Element def, going off is just
-  about their thing"*): a disc subclass (go-off zero, then Burning
-  unchanged with another power source) and an edge subclass (Shocked);
-  `DetonateEffect` and `BlastEffect` dissolve into the gather plus the disc
-  subclass, and no `ArcEffect` exists. Ice's *admits* sits beside it, on
-  the `Element` def too; pass reading, tentative: Ice's shatter is a third,
-  point subclass, the 0D go-off (above). Explosive is not an element, so go-off zero's disc
-  rides the Explosive `Aspect` def under the same field name until the
-  Catalyst retag deletes it (pass pick, tentative). Lead call, tentative:
-  go-off zero keeps today's numbers until that retag, share 0.5 and no
-  centre copy. The owner left interim states to the lead rather than
-  picking this (2026-11-10, night: *"Tbf i don't care anything about
-  intermediate state so long it's all as it should be when all issues are
-  done"*).
-  Following the whole hit at once instead would double the shipped blast's
-  bystander damage (share 0.5 → 1) and give its centre a copy it never
-  takes now, re-pointing the shipped explosive tests for an interim state.
+  base class between these?"*; 2026-11-09: *"i think it should sit on
+  Element def, going off is just about their thing"*). It hangs on the
+  element's band (`ElementBand.go_off`), beside Ice's *admits*
+  (`ElementBand.admits`). `DetonateEffect` and `BlastEffect` dissolved into
+  the gather plus the disc subclass, `DiscGoOff`, which Burning's disc is;
+  no `ArcEffect` exists. Shocked's go-off is meant as an edge subclass and
+  Ice's shatter, pass reading, tentative, as a third, point subclass, the
+  0D go-off (above); neither is built yet.
 - **The applier drains an open worklist** (owner picked it over the head
   landing its own copies). Landing a gather head appends its entries' hits
   to the applier's queue, compiled through one stamping callable the landing

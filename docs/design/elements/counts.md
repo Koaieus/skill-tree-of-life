@@ -94,7 +94,7 @@ one hop".
 sentence an aspect count already says"* (§ The count is supply), so it takes
 the sources an aspect count has: a pool roll in its school's pool (Fire in
 STR's, Ice in DEX's, Lightning in INT's — the reach triad; today
-`procgen/pools/dexterity.tres` rolls `explosive_aspect` the same way), the
+`procgen/pools/dexterity.tres` rolls `catalyst_aspect` the same way), the
 inner tree, found and stolen modifiers. **Starter count: 1 in every element
 for now, 3 each for the dev sandbox's Player** (owner, 2026-11-09: *"1 in
 each for now, 3 each for the dev_sandbox's Player (for instant testing)"*), a
