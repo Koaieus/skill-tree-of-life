@@ -46,8 +46,8 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ## 14: a node row carries `_R_TERRAIN_T` and `_R_CHARGE` (terrain, #1794). A 13
 ##     still loads: the short row decodes as no terrain.
 ## 15: the explosive aspect's resources and stat ids were renamed to Catalyst,
-##     and a save interns `res://` paths and stat ids; no row moved. Older
-##     files are refused.
+##     a save interns `res://` paths and its board names stat ids; no row
+##     moved. Older files are refused.
 const FORMAT_VERSION := 15
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
 const MIN_FORMAT_VERSION := 15

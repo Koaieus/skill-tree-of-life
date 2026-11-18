@@ -55,7 +55,7 @@ const _ROW_LAYOUT_PINS := {
 	# node's terrain (#1794). A 13 still loads: its short rows decode as none.
 	14: "4bc004d19d93bf5ed8d09b9c486f4d0a84da50f75d2f70cfe6cfb88cd40fe51e",
 	# 15: the explosive aspect's resources and stat ids took the name Catalyst,
-	# and a save interns both. No row moved, so the hash is 14's; older files
+	# a save interns the paths and its board names the ids. No row moved, so the hash is 14's; older files
 	# are refused (MIN is 15).
 	15: "4bc004d19d93bf5ed8d09b9c486f4d0a84da50f75d2f70cfe6cfb88cd40fe51e",
 }
@@ -140,7 +140,7 @@ func test_a_version_11_file_is_refused() -> void:
 
 
 ## A v14 file interns the pre-Catalyst `res://` paths (the explosive status,
-## the explosive barrel addon) and stat ids its rows name; loading it would
+## the explosive barrel addon) and names the old stat ids; loading it would
 ## `load()` paths that no longer exist and drop those rows silently, so it is
 ## refused.
 func test_a_version_14_file_is_refused() -> void:
