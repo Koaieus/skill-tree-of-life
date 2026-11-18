@@ -432,6 +432,29 @@ func test_a_landing_that_splits_and_primes_converts_the_leftover_at_settle() -> 
 	assert_eq(_store(), 0, "the row ends at 0")
 
 
+func test_a_heads_own_riders_priming_the_node_convert_the_leftover_at_settle() -> void:
+	_widen()
+	StatusRoster.shared().statuses.append(_def)
+	assert_gt(_t(), 2, "fixture: the head's Charge stays under T")
+	_put(_t(), 0)
+	_plant(3)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	assert_eq(_store(), 0, "the land split takes 1 + 1, the head's crossing of T converts the tied 1")
+	_put(_t(), 0)
+	_plant(1)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	assert_eq(_store(), 0, "a split that converts nothing still leaves the head's crossing to the seat")
+
+
+func test_a_heads_riders_on_an_already_primed_node_convert_nothing_more() -> void:
+	_widen()
+	StatusRoster.shared().statuses.append(_def)
+	_put(_t() + 1, 0)
+	_plant(1)
+	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
+	assert_eq(_store(), 1, "primed before the head: the seat converts nothing, the tied 1 stays")
+
+
 func test_two_bands_crossing_at_once_split_by_their_excess() -> void:
 	# Tentative (not the owner's): the store splits over the crossed elements,
 	# weighted by each one's excess past T (1 and 2 here, so 3 splits 1 : 2).
