@@ -22,10 +22,6 @@ identity = ExtResource("identity_ref")
 entity_modifiers = Array[ExtResource("2_mod")]([SubResource("Resource_barrel_aspect")])
 description = "A Catalyst barrel. Its owner gains +1 Catalyst Aspect (one more Catalyst arrow per reload); at each of the owner's turn starts, an allocated carrier tops its Catalyst up to one stack per barrel it carries. Removing a barrel takes one stack off. Catalyst never goes off: Heat, Cold or Charge landing on its node converts it into that element, and it decays every world turn."
 temp_placeable = false
-temp_cost_blade_size = 2
-temp_cost_aspects = Dictionary[StringName, int]({
-&"catalyst_aspect": 1
-})
 role = 0
 
 [node name="Visual" type="Node2D" parent="."]
