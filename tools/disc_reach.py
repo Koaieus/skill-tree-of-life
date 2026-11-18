@@ -14,7 +14,7 @@ What it ports (a Python re-implementation of the generator, not a binding):
   - procgen/modules/topology.gd                    min spacing = 2 * max node radius + padding
   - attack/range_finder/euclidean_range_finder.gd  a node is hit when d - candidate_radius <= reach
 Disc radius (px) = A * (sqrt(power) + B) * node_radius. B = 0 is a plain multiplier (today's
-Explosive disc is A = 3). Sources are random nodes of the whole graph (centre excluded from the
+Catalyst disc is A = 3). Sources are random nodes of the whole graph (centre excluded from the
 count); every node has the same radius. The first-level radius ramp is NOT ported.
 
 Validation, both at the defaults (spacing 150, node radius 32, 10 maps, 300 sources, seed 1):

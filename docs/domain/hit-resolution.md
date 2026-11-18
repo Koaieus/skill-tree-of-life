@@ -523,7 +523,7 @@ changing: the Catalyst retag deletes it, #1801; the blade's explosive path goes,
 
 Go-off zero is the Explosive detonation, ported onto the gather as a disc
 `GoOff`. `DiscGoOff` (`elements/disc_go_off.gd`) is authored as
-`Aspect.go_off` on `aspects/defs/explosive.tres`, and `HitGather` fires it
+`Aspect.go_off` on `aspects/defs/catalyst.tres`, and `HitGather` fires it
 beside the element bands at each node's read, once per node per hit, with no
 band test. It is handed the head's `hit_load` (a spell's `DetonateUse` load,
 a blade piece's charges, an arrow's 0; a copy's 0). It reads the node's stored

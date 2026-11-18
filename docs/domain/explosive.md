@@ -25,9 +25,9 @@ Where a detonation sits in one hit's landing (the walk, the beat, rider order): 
 
 changing: a swung blade piece no longer carries its node's charges, #1802; see docs/design/elements/go-offs.md
 
-`effects/status/explosive.tres` is a `StatusDef` (id `explosive`, tag
+`effects/status/catalyst.tres` is a `StatusDef` (id `explosive`, tag
 `charge`, `default_face = Detonate`). Its spread, `ExplosiveSpread`
-(`effects/status/spread/explosive_spread.gd`), is the one owner of a
+(`effects/status/spread/catalyst_spread.gd`), is the one owner of a
 charge's boom shape: go-off zero's disc (`DiscGoOff`) asks `radius_for`
 and never computes a reach itself.
 
@@ -37,7 +37,7 @@ and never computes a reach itself.
   `damage_per_charge` per charge; nothing spills onto a neighbour.
 - **A core** with no charges of its own reads and spends its owner's
   entity-hosted ones (`DiscGoOff.present_on`).
-- **Barrel addon** (`skill_node/addons/explosive_barrel_addon.gd`): not
+- **Barrel addon** (`skill_node/addons/catalyst_barrel_addon.gd`): not
   unique; at the owner's turn start an allocated carrier tops its charges up
   to its barrel count (flat, never stat-scaled), a barrel leaving spends one
   charge if there is one. It carries no radius or blade logic: a swung
@@ -57,7 +57,7 @@ tagging `DetonateUse` because `effects/` may not name `attack/`.
 | use | the load | where |
 |---|---|---|
 | `DetonateUse` | spent at the hit as go-off zero's load, through the formula below; load 0 still sets off charges present | `LoadBag.detonate_load` (`DetonateUse.spend`) → each head's `hit_load` (`SpellResolver`'s stamper); an arrow's is 0; a blade contact's is its piece's charges (`LiveGate.stamp_load`) |
-| `PlantUse` | lands as the status rider at `power = load`; spends nothing, no blast from this hit | `LoadBag.riders` via `PlantUse.spend` (one `ApplyStatusEffect` per `PlantUse` concept); goo ammo `attack/ammo/types/explosive.tres` (an `ApplyStatusEffect` rider, `explosive_stacks_per_hit`) |
+| `PlantUse` | lands as the status rider at `power = load`; spends nothing, no blast from this hit | `LoadBag.riders` via `PlantUse.spend` (one `ApplyStatusEffect` per `PlantUse` concept); goo ammo `attack/ammo/types/catalyst.tres` (an `ApplyStatusEffect` rider, `explosive_stacks_per_hit`) |
 | `FuelUse` | no rider; the load only shapes the spell, read from `PropagationContext.load` | Firecracker's `FuelBlastReach` (`attack/spell/propagation/reach/fuel_blast_reach.gd`) |
 
 **The PlantUse skip.** A hit whose span carries an Explosive row (a
@@ -70,7 +70,7 @@ affinity (house convention: about half a `DetonateUse` row's), no per-face knob.
 
 Go-off zero is the Explosive detonation as a disc `GoOff`: `DiscGoOff`
 (`elements/disc_go_off.gd`), authored as `Aspect.go_off` on
-`aspects/defs/explosive.tres`. `HitGather` fires it at a node's read, once per
+`aspects/defs/catalyst.tres`. `HitGather` fires it at a node's read, once per
 node per hit ([hit-resolution.md](hit-resolution.md) § "Go-off zero: Explosive
 detonation"). For a hit carrying `load` on a node holding `present` charges:
 
@@ -194,11 +194,11 @@ All tentative, easy to change.
 
 | knob | default | owner | what |
 |---|---|---|---|
-| `resonance` | 1 | `ExplosiveSpread` (on `effects/status/explosive.tres`) | the shared chunk's weight on each side |
+| `resonance` | 1 | `ExplosiveSpread` (on `effects/status/catalyst.tres`) | the shared chunk's weight on each side |
 | `reach_per_radius` | 3.0 | `ExplosiveSpread` | blast reach at power 1, in the node's own radius |
 | `charge_exponent` | 0.5 | `ExplosiveSpread` | reach ∝ power^this, in halves |
 | `damage_per_charge` | 2.0 | `ExplosiveSpread` | death-blast damage per charge |
-| `share` | 0.5 | go-off zero's `DiscGoOff` (`Aspect.go_off` in `aspects/defs/explosive.tres`) | a copy's share of the hit: damage × share, riders ceil(r × share) |
+| `share` | 0.5 | go-off zero's `DiscGoOff` (`Aspect.go_off` in `aspects/defs/catalyst.tres`) | a copy's share of the hit: damage × share, riders ceil(r × share) |
 | `lands_on_own_node` | false | go-off zero's `DiscGoOff` | no copy on the struck node |
 
 No `blast_radius` stat on any board: nothing targets blast size
@@ -222,4 +222,4 @@ is a load-0 spark that sets off charges it lands on.
 `test/unit/attack/test_gather_aspect_go_off.gd`, `test/unit/attack/test_blast_mark.gd`,
 `test/unit/attack/test_blade_explosive.gd` (the piece's side, verdicts),
 `test/unit/spell/test_heal_spell_blast.gd`, `test/unit/spell/test_firecracker.gd`,
-`test/unit/skill_node/test_explosive_barrel_addon.gd`.
+`test/unit/skill_node/test_catalyst_barrel_addon.gd`.
