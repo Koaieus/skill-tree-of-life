@@ -19,6 +19,7 @@
 [ext_resource type="Resource" path="res://stats_system/defs/blade_damage.tres" id="def_blade_damage"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_size.tres" id="def_blade_size"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_half.tres" id="def_blade_speed_half"]
+[ext_resource type="Resource" path="res://stats_system/defs/blade_temperature_speed.tres" id="def_blade_temperature_speed"]
 [ext_resource type="Resource" path="res://stats_system/defs/blade_speed_multiplier_max.tres" id="def_blade_speed_multiplier_max"]
 [ext_resource type="Resource" path="res://stats_system/defs/blunting.tres" id="def_blunting"]
 [ext_resource type="Resource" path="res://stats_system/defs/bounty.tres" id="def_bounty"]
@@ -131,6 +132,12 @@ resource_name = "blade_size"
 script = ExtResource("2_scalar")
 definition = ExtResource("def_blade_size")
 base_value = 1.0
+
+[sub_resource type="Resource" id="scalar_blade_temperature_speed"]
+resource_name = "blade_temperature_speed"
+script = ExtResource("2_scalar")
+definition = ExtResource("def_blade_temperature_speed")
+base_value = 0.5
 
 [sub_resource type="Resource" id="scalar_blade_speed_half"]
 resource_name = "blade_speed_half"
@@ -668,6 +675,7 @@ blade_damage = SubResource("scalar_blade_damage")
 blunting = SubResource("scalar_blunting")
 blade_speed_multiplier_max = SubResource("scalar_blade_speed_multiplier_max")
 blade_speed_half = SubResource("scalar_blade_speed_half")
+blade_temperature_speed = SubResource("scalar_blade_temperature_speed")
 crit_chance = SubResource("scalar_crit_chance")
 crit_multiplier = SubResource("scalar_crit_multiplier")
 intrinsic_modifiers = Array[ExtResource("12_3edt8")]([SubResource("mod_per_to_vision"), SubResource("mod_per_to_sensor"), SubResource("mod_wis_to_xp_pt"), SubResource("mod_str_to_blade_damage"), SubResource("mod_str_to_blade_size"), SubResource("mod_dex_to_range"), SubResource("mod_int_to_cast_range_distance"), SubResource("mod_int_to_cast_range_hops"), SubResource("mod_int_to_infusion_slots"), SubResource("mod_dex_to_ranged_damage"), SubResource("mod_int_to_spell_damage"), SubResource("mod_con_to_node_health"), SubResource("mod_con_to_health"), SubResource("mod_level_to_con"), SubResource("mod_max_shots_to_volleys"), SubResource("mod_innate_blade_damage"), SubResource("mod_innate_ranged_damage"), SubResource("mod_innate_spell_damage")])

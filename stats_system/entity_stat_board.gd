@@ -206,6 +206,10 @@ extends StatBoard
 ## half of blade_speed_multiplier_max's bonus is collected. Calibrated near a
 ## short blade's apex speed so early melee already benefits.
 @export var blade_speed_half: ScalarStat
+## c in the sweep factor clamp(1 + c·t/T, 1−c, 1+c) (#1804) — how much a
+## contacted node's signed terrain t scales the contact speed the curve above
+## reads: Heat speeds a contact up, Cold slows it. Read clamped to [0, 0.95].
+@export var blade_temperature_speed: ScalarStat
 
 @export_group("Crit")
 @export var crit_chance: ScalarStat		## Probability (0..1) a hit crits. Baseline 5%.

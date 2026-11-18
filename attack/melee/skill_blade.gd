@@ -425,10 +425,11 @@ func get_shard_field() -> ShatterField:
 
 
 func _speed_multiplier(ev: BladeHitEvent) -> float:
-	var board: StatBoard = owned_by.stat_board if owned_by != null else null
-	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
-	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
-	return BladeState.speed_damage_multiplier(ev.speed, m, v_half)
+	var node := ev.target as SkillNode
+	var slice := node.get_combat() if node != null and is_instance_valid(node) else null
+	var t := slice.terrain_t() if slice != null else 0
+	var threshold := slice.terrain_threshold() if slice != null else 0
+	return BladeDamageInstance.contact_multiplier(owned_by, ev.speed, t, threshold)
 
 
 ## Stop any in-flight playback. Emits playback_finished so awaiters wake up.

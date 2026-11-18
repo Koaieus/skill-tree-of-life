@@ -174,6 +174,11 @@ class LiveGate extends RefCounted:
 	func last_pop() -> Pop:
 		return _last_pop
 
+	## The swing's [BladeState] this gate reads: what a contact's
+	## [method BladeDamageInstance.go_off_source] names its vertex by.
+	func state() -> BladeState:
+		return _state
+
 	## True if `ev`'s damage should actually land right now. Call exactly
 	## once per event, in true time order — mutates `result` when a contact
 	## turns out to be a live pop.
@@ -200,6 +205,20 @@ class LiveGate extends RefCounted:
 		# other (its root is not exempt, because there is no second root).
 		if ev.particle_idx == _state.pivot_index:
 			return true
+		if not _admit_spikes(ev, node, real_node, w):
+			return false
+		# A one-shot vertex: its first admitted contact lands, then the vertex
+		# dies at that contact's `t`, so every later contact is refused above.
+		# The admitted contact carries the pop ([method last_pop]).
+		var idx := ev.particle_idx
+		if idx < _state.vertex_one_shot.size() and _state.vertex_one_shot[idx] != 0:
+			_kill(idx, ev.t, real_node, 0.0)
+		return true
+
+	## The defender's spike verdict on a live vertex contact: false iff this
+	## contact pops the vertex (and so deals no damage).
+	func _admit_spikes(ev: BladeHitEvent, node: NodeCombat, real_node: SkillNode,
+			w: CombatWorld) -> bool:
 		if _attacker != null and node.ownership_bit(_attacker) == SkillNode.Ownership.MINE:
 			return true  # your own spike can't pop your own blade
 		var pool := _spikes_pool(node)

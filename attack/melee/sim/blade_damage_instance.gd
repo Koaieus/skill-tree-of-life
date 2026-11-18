@@ -36,19 +36,49 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 	resolve_gate(world)
 	if not admitted:
 		return
-	# #779: `amount` still holds the COEFFICIENT MeleeAttackPlan.resolve_against
-	# stamped it with — vertex_damage[particle_idx] for a vertex, and a flat 0
-	# for an edge, which carries no damage at all (ADR 0005) — the curve is
-	# applied HERE, once, on the authority's own resolve, never on a peer's
-	# replay. AttackRecord.rebuild() never constructs a BladeDamageInstance (it
-	# rebuilds a plain DamageInstance and carries the post-mitigation number
-	# instead, per ADR 0002 / docs/domain/melee-blade-sim.md's determinism
-	# note), so this multiply cannot run twice.
-	var board: StatBoard = attacker.stat_board if attacker != null else null
+	# `amount` is already the raw amount: [method stamp_at_gather] multiplied
+	# the curve in once, on the authority's gather. A peer's rebuilt plain
+	# [DamageInstance] carries the post-mitigation number instead (ADR 0002).
+	super.land_on(node, world)
+
+
+## The raw amount, stamped as this contact's beat opens its gather, on the
+## gather's world: the minted coefficient (`vertex_damage[i]`) × the speed curve
+## at the contact's speed scaled by the sweep factor of the node it lands on,
+## read before generation 0 lands any rider. Before armor: the break read
+## mitigates it. A refused contact is stamped too, and lands nothing.
+func stamp_at_gather(world: CombatWorld) -> void:
+	var t := 0
+	var threshold := 0
+	var slice := world.combat_for(target) if world != null and target != null else null
+	if slice != null:
+		t = slice.terrain_t()
+		threshold = slice.terrain_threshold()
+	amount *= contact_multiplier(attacker, _event.speed, t, threshold)
+
+
+## The speed curve one contact deals at, [param speed] scaled by the sweep
+## factor at a node of signed [param t] and threshold [param threshold],
+## [param wielder]'s board read (a boardless fixture: m 1, c 0). The one
+## formula the gather stamp and [method SkillBlade._speed_multiplier] share.
+static func contact_multiplier(wielder: Entity, speed: float, t: int, threshold: int) -> float:
+	var board: StatBoard = wielder.stat_board if wielder != null else null
 	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
 	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
-	amount *= BladeState.speed_damage_multiplier(_event.speed, m, v_half)
-	super.land_on(node, world)
+	var c := clampf(BladeState.stat_value(board, &"blade_temperature_speed", 0.0), 0.0, 0.95)
+	var factor := BladeState.temperature_speed_factor(t, threshold, c)
+	return BladeState.speed_damage_multiplier(speed * factor, m, v_half)
+
+
+## The contacting vertex's copied terrain, a second store the gather sets off
+## at this contact's node: every vertex contact answers one, primed or inert.
+func go_off_source() -> GoOffSource:
+	var state := _gate.state() if _gate != null else null
+	if state == null or _event == null or _event.particle_idx < 0:
+		return null
+	var idx := _event.particle_idx
+	return GoOffSource.new(state, idx, state.copy_read(idx),
+			func(e: Element, n: int) -> void: state.spend_copy(idx, e, n))
 
 
 ## The gate, decided once — by this contact's [method land_on] or by a
@@ -63,6 +93,11 @@ func resolve_gate(world: CombatWorld) -> void:
 	_gate_resolved = true
 	if _gate.admit(_event, world):
 		admitted = true
+		# An admitted contact may still pop its vertex (a one-shot vertex lands,
+		# then dies): the hit carries that pop as a refused spike contact does.
+		var popped := _gate.last_pop()
+		if popped != null:
+			popped_vertex = popped.defender
 		return
 	# A refusal is either "target already dead / vertex already popped" —
 	# nothing to say, #502's "no dud for melee" — or THIS contact popping a
