@@ -87,6 +87,14 @@ class ScoredCandidate:
 	## Empty = the plan's bare default (N = max, all base). Same shape as
 	## [member RangedAttackPlan.ammo]: ordered `{type, count}` entries.
 	var ammo: Array[Dictionary] = []
+	## MAGIC only: the `{concept id: points}` fill this candidate was scored
+	## with ([AiInfusionPicker]) — what [method AIController._arm_magic_plan]
+	## spends, so the launch carries the fill that was scored.
+	var infusion: Dictionary[StringName, int] = {}
+	## MAGIC only: the cap [member infusion] was picked against — the spell's
+	## base cap below FIGHTER, the source's capacity from FIGHTER up; 0 for
+	## any other mode. [method AiCombatScorer.pick_best]'s tie read.
+	var infusion_cap: int = 0
 
 	var ev: float = 0.0
 	var is_kill: bool = false

@@ -688,6 +688,111 @@ func test_a_source_below_min_degree_is_never_a_magic_candidate() -> void:
 
 
 # ---------------------------------------------------------------------------
+# #1814 — the AI overclocks by habit: base cap below FIGHTER, the source's cap
+# from FIGHTER up, and an equal score on one target goes to the bigger cap
+# ---------------------------------------------------------------------------
+
+const _VENOM_SPELL: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
+const _BASE_CAP := 4
+const _PER_DEGREE := 3
+
+
+## N0 - N1 - L owned (degrees 1 / 2 / 1 against a min_degree of 1), N1 - H0
+## one hop: every owned node reaches H0 within the spell's 3 hops, and N1 is
+## one degree overqualified. Every node keeps the board's spell_damage, so the
+## casters are equal but for capacity. Returns the fixture spell, whose base
+## cap and per-degree bonus are finite whatever the class default is.
+func _overqualified_fixture() -> SpellDef:
+	_enemy.stat_board.vision_range.base_value = 6000.0
+	_add_edge(_nodes[1], _nodes[2])
+	var leaf := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	leaf.name = "L_leaf"
+	_graph.add_skill_node(leaf)
+	leaf.global_position = Vector2(100.0, 100.0)
+	_add_edge(_nodes[1], leaf)
+	await get_tree().process_frame # the mirrors see the edge before allocation
+	_alloc.force_allocate(_enemy, leaf)
+	var spell: SpellDef = _VENOM_SPELL.duplicate()
+	spell.min_degree = 1
+	spell.infusion_capacity = float(_BASE_CAP)
+	spell.infusion_capacity_per_degree = _PER_DEGREE
+	_enemy.get_spellbook().learn(spell)
+	# One slot, and far more poison than any cap here.
+	_enemy.stat_board.intelligence.base_value = 10.0
+	_enemy.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
+	assert_eq(_enemy.navigator.get_degree(_nodes[1]), 2, "fixture: N1 is one degree up")
+	assert_eq(_enemy.navigator.get_degree(_nodes[0]), 1, "fixture: N0 sits at min_degree")
+	return spell
+
+
+func _total(c: AiCombatScorer.ScoredCandidate) -> int:
+	var sum := 0
+	for id in c.infusion:
+		sum += c.infusion[id]
+	return sum
+
+
+func _magic_candidates(spell: SpellDef) -> Array[AiCombatScorer.ScoredCandidate]:
+	var out: Array[AiCombatScorer.ScoredCandidate] = []
+	for c in _ai._gather_magic_candidates(AiRecon.visible_enemy_nodes(_enemy)):
+		if c.spell == spell:
+			out.append(c)
+	return out
+
+
+func test_below_fighter_every_magic_probe_fills_to_the_base_cap() -> void:
+	var spell := await _overqualified_fixture()
+	_ai.ai_tier = AIController.Tier.BRAWLER
+	var candidates := _magic_candidates(spell)
+	assert_gt(candidates.size(), 1, "fixture: more than one caster reaches H0")
+	for c in candidates:
+		assert_eq(_total(c), _BASE_CAP, "%s fills to the base cap, never past it" % c.source_node.name)
+
+
+func test_from_fighter_the_overqualified_caster_fills_past_base_and_wins() -> void:
+	var spell := await _overqualified_fixture()
+	_ai.ai_tier = AIController.Tier.FIGHTER
+	var candidates := _magic_candidates(spell)
+	var from_n1: AiCombatScorer.ScoredCandidate = null
+	for c in candidates:
+		if c.source_node == _nodes[1]:
+			from_n1 = c
+		else:
+			assert_eq(_total(c), _BASE_CAP, "a min_degree caster carries the base cap alone")
+	assert_not_null(from_n1, "fixture: N1 is a candidate source")
+	if from_n1 == null:
+		return
+	assert_gt(_total(from_n1), _BASE_CAP, "the overqualified probe fills past base")
+	assert_lte(_total(from_n1), _BASE_CAP + _PER_DEGREE, "...to its own capacity, no further")
+	var best := AiCombatScorer.pick_best(candidates)
+	assert_eq(best.source_node, _nodes[1], "the overqualified caster is the one chosen")
+
+
+func _tied(target: SkillNode, spell: SpellDef, cap: int, source: SkillNode) -> AiCombatScorer.ScoredCandidate:
+	var c := AiCombatScorer.ScoredCandidate.new()
+	c.mode = BattleSystem.AttackMode.MAGIC
+	c.target = target
+	c.spell = spell
+	c.source_node = source
+	c.infusion_cap = cap
+	c.total = 5.0
+	return c
+
+
+func test_an_equal_score_on_one_target_goes_to_the_bigger_cap() -> void:
+	var low := _tied(_nodes[2], _SPARK_SPELL, _BASE_CAP, _nodes[0])
+	var high := _tied(_nodes[2], _SPARK_SPELL, _BASE_CAP + _PER_DEGREE, _nodes[1])
+	assert_eq(AiCombatScorer.pick_best([low, high] as Array[AiCombatScorer.ScoredCandidate]), high,
+			"same target, same spell, same score: the higher-capacity source wins")
+	var elsewhere := _tied(_nodes[1], _SPARK_SPELL, _BASE_CAP + _PER_DEGREE, _nodes[0])
+	assert_eq(AiCombatScorer.pick_best([low, elsewhere] as Array[AiCombatScorer.ScoredCandidate]), low,
+			"a tie across targets keeps the first, as before")
+	var other_spell := _tied(_nodes[2], _VENOM_SPELL, _BASE_CAP + _PER_DEGREE, _nodes[1])
+	assert_eq(AiCombatScorer.pick_best([low, other_spell] as Array[AiCombatScorer.ScoredCandidate]), low,
+			"a tie across spells keeps the first, as before")
+
+
+# ---------------------------------------------------------------------------
 # #958 — fire-to-kill / reload loop: the AI never single-shots
 # ---------------------------------------------------------------------------
 

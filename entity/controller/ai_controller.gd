@@ -678,7 +678,7 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 		var entry: Array = pre[i]
 		var spell: SpellDef = entry[0]
 		if not infusions.has(spell):
-			infusions[spell] = AiInfusionPicker.pick(entity, spell)
+			infusions[spell] = AiInfusionPicker.pick(entity, spell, SpellDef.UNCAPPED)
 		var source: SkillNode = entry[1]
 		var target: SkillNode = entry[2]
 		var probe := MagicAttackPlan.new()
@@ -722,7 +722,7 @@ func _arm_magic_plan(plan: MagicAttackPlan, candidate: AiCombatScorer.ScoredCand
 		plan.aim_angle = candidate.aim_angle
 	else:
 		plan.target = candidate.target
-	_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell))
+	_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell, SpellDef.UNCAPPED))
 
 
 ## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored

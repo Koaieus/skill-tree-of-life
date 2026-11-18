@@ -2,7 +2,8 @@ extends GutTest
 
 ## The AI fills its infusion slots greedily (#1464): by floor(aspect x rate)
 ## descending, ties by roster order, each taking what it holds up to what the
-## spell's `infusion_capacity` leaves.
+## cap the caller passes leaves (#1814: the AI's cap is its tier's, never the
+## spell's bare number).
 
 const _VENOM: SpellDef = preload("res://attack/spell/defs/venom_burst.tres")
 
@@ -25,30 +26,40 @@ func _caster(intelligence: float, poison: float, blind: float, curse: float = 0.
 
 
 func test_one_slot_takes_the_higher_ingest() -> void:
-	var picked := AiInfusionPicker.pick(_caster(10, 3, 5), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(10, 3, 5), _VENOM, SpellDef.UNCAPPED)
 	assert_eq(picked, {&"poison": 3} as Dictionary[StringName, int], "poison 3 x2 = 6 beats blindness 5")
 
 
 func test_two_slots_take_both() -> void:
-	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), _VENOM, SpellDef.UNCAPPED)
 	assert_eq(picked.get(&"poison", 0), 3)
 	assert_eq(picked.get(&"blindness", 0), 5)
 
 
 func test_each_pick_takes_all_it_holds() -> void:
-	var picked := AiInfusionPicker.pick(_caster(100, 40, 0, 20), _VENOM)
+	var picked := AiInfusionPicker.pick(_caster(100, 40, 0, 20), _VENOM, SpellDef.UNCAPPED)
 	assert_eq(picked, {&"poison": 40, &"curse": 20} as Dictionary[StringName, int], "no shared pool")
 
 
-func test_capacity_bounds_the_cast() -> void:
-	var spell: SpellDef = _VENOM.duplicate()
-	spell.infusion_capacity = 2.0
-	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), spell)
+func test_the_passed_cap_bounds_the_cast() -> void:
+	var picked := AiInfusionPicker.pick(_caster(100, 3, 5), _VENOM, 2)
 	assert_eq(picked, {&"poison": 2} as Dictionary[StringName, int])
 
 
+func test_a_pick_never_exceeds_its_cap() -> void:
+	var atk := _caster(1000, 40, 30, 20)
+	for cap in [0, 1, 7, 45, 89]:
+		var total := 0
+		var picked := AiInfusionPicker.pick(atk, _VENOM, cap)
+		for id in picked:
+			total += picked[id]
+		assert_lte(total, cap, "cap %d" % cap)
+	var uncapped := AiInfusionPicker.pick(atk, _VENOM, SpellDef.UNCAPPED)
+	assert_eq(uncapped.get(&"poison", 0), 40, "an uncapped pick takes all it holds")
+
+
 func test_no_slots_picks_nothing() -> void:
-	assert_true(AiInfusionPicker.pick(_caster(0, 3, 5), _VENOM).is_empty())
+	assert_true(AiInfusionPicker.pick(_caster(0, 3, 5), _VENOM, SpellDef.UNCAPPED).is_empty())
 
 
 # ── the launched plan carries the pick ──────────────────────────────────
@@ -80,6 +91,7 @@ func test_launched_ai_plan_carries_the_pick() -> void:
 	var c := AiCombatScorer.ScoredCandidate.new()
 	c.mode = BattleSystem.AttackMode.MAGIC
 	c.spell = _VENOM
+	c.infusion = AiInfusionPicker.pick(atk, _VENOM, SpellDef.UNCAPPED)
 	var ok: bool = await ai._execute_candidate(c)
 	assert_true(ok, "the stub plan launches")
 	var sent := (battle.launched as MagicAttackPlan).to_dict(null)

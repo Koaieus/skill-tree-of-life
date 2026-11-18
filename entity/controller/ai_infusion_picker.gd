@@ -11,7 +11,7 @@ extends RefCounted
 
 ## `{concept id: points}` for [param spell] cast by [param entity]; empty when
 ## nothing can be spent.
-static func pick(entity: Entity, spell: SpellDef) -> Dictionary[StringName, int]:
+static func pick(entity: Entity, spell: SpellDef, _cap: int) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	if entity == null or spell == null or entity.stat_board == null:
 		return out
