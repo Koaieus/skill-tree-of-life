@@ -12,7 +12,8 @@ var centre: SkillNode = null
 ## The blast's reach in px: the go-off's own ([member GoOffResult.reach]),
 ## never a visual guess.
 var reach: float = 0.0
-## The go-off's power ([member GoOffResult.power]).
+## The go-off's power ([member GoOffResult.power]): a disc's power, or an
+## edge go-off's level, the hops its arc draws.
 var power: int = 0
 ## The identities of the status rows the blast's copies carry.
 var riders: Array[Identity] = []

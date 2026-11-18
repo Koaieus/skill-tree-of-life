@@ -36,8 +36,8 @@ var transfer: Dictionary = {}
 var share: float = 1.0
 var own_damage: float = 0.0
 ## What the go-off's [BlastMark] draws: its reach in px and its power, filled
-## by a go-off that has them (the disc's radius and power at the read);
-## 0 when it does not.
+## by a go-off that has them (a disc's radius and power at the read; an edge
+## go-off's hop level as power, with no px reach); 0 when it does not.
 var reach: float = 0.0
 var power: int = 0
 
