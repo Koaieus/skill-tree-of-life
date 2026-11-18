@@ -201,6 +201,8 @@ static func gallery() -> Array[Dictionary]:
 	return [
 		{"name": "Damage",          "text": "7",           "style": damage()},
 		{"name": "Crit",            "text": "18!",         "style": crit()},
+		{"name": "Sweep: Heat",     "text": "FAST",        "style": sweep(true)},
+		{"name": "Sweep: Cold",     "text": "SLOW",        "style": sweep(false)},
 		{"name": "Node heal",       "text": "+5",          "style": node_heal()},
 		{"name": "Entity wound",    "text": "+1 W",        "style": entity_wound()},
 		{"name": "Entity heal",     "text": "-1 WOUNDS",   "style": entity_heal()},

@@ -125,7 +125,7 @@ unmeasured, which is how a real desync passes clean.
 | `h_tgt`, `h_org`, `h_atk` | `h_kind` — reclassified to HEAL on a `min_damage_taken` underflow |
 | `h_at` (arrival clock) | `h_hp0` / `h_hp1` / `h_hpm` — the HP bars |
 | `h_crit` + the `FLAG_CRIT` bit | the `FLAG_GATED` bit (decided at land) |
-| the whole timeline (`e_*`) | `h_pop`, and every `d_*` — the forced-dealloc sets |
+| the whole timeline (`e_*`) | `h_pop`, `h_swp` (the sweep cue, read off the gather's world), and every `d_*` — the forced-dealloc sets |
 
 `h_flags` is the one field **split between** the columns: the crit bit is a
 **seeded roll** and belongs to RESOLVE, while `FLAG_GATED` shares the byte and
