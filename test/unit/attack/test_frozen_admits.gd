@@ -219,8 +219,9 @@ func _bursts(outcome: AttackOutcome) -> Array:
 			.map(func(h: HitInstance) -> float: return h.amount)
 
 
-## H primed on Lightning, its go-off reaching F only: each hit on H sends F one
-## copy, carrying the hit's terrain riders.
+## H primed on Lightning, its go-off reaching F only: the next hit on H sends F
+## one copy, carrying the hit's terrain riders. The go-off spends H's Charge:
+## re-prime before each gather.
 func _copy_from_h() -> void:
 	_set_charge(_h, _t(_h) + 1)
 	_b.reach_of = {_h: [_f]}
@@ -238,6 +239,7 @@ func test_a_copy_under_the_breaker_is_absorbed_and_lands_its_terrain() -> void:
 	assert_eq(_cold(_f), cold + 3, "its Cold lands all the same")
 	assert_eq(_bursts(out), [], "and no burst")
 
+	_copy_from_h()
 	_set_cold(_f, cold)
 	out = _gather([_span(_h, tau * 0.5, {_fire.terrain: 1, _POISON: 2})])
 	assert_eq(_entries(out, _f).size(), 0, "a Heat copy is absorbed as well")
@@ -275,6 +277,7 @@ func test_a_copy_at_the_breaker_or_a_crit_copy_breaks_the_ice() -> void:
 	assert_almost_eq(float(_bursts(out)[0]) if _bursts(out).size() == 1 else -1.0,
 			_burst_of(_f, e), 0.001, "one burst of excess × fraction × M")
 
+	_copy_from_h()
 	_set_cold(_f, _t(_f) + e)
 	var span := _span(_h, tau * 0.4)
 	_crit(span[0], 1.5)
@@ -296,6 +299,7 @@ func test_the_damage_breaker_reads_the_mitigated_number() -> void:
 	assert_eq(_entries(out, _f).size(), 0, "D − a < τ: absorbed")
 	assert_eq(_cold(_f), _t(_f) + 2, "no break")
 
+	_copy_from_h()
 	_mod(_f, &"min_damage_taken", tau)
 	out = _gather([_span(_h, d, {}, DamageInstance.Type.PHYSICAL)])
 	assert_eq(_damage(_entries(out, _f)).size(), 1 + _fa.break_channels, "the floor ≥ τ breaks it")
@@ -312,6 +316,7 @@ func test_an_unallocated_frozen_node_breaks_only_by_a_crit() -> void:
 	assert_eq(_entries(out, _f).size(), 0, "no holder, no flat breaker: absorbed whatever its damage")
 	assert_eq(_cold(_f), cold + 1, "its terrain riders still land")
 
+	_copy_from_h()
 	_set_cold(_f, cold)
 	var span := _span(_h, 1.0)
 	_crit(span[0])
