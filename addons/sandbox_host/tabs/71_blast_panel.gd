@@ -23,7 +23,7 @@ const _LAYER_SCENE := preload("res://ui/vfx/rider_blast_layer.tscn")
 var _visual: BlastVisual = null
 var _roster: AspectRoster = AspectRoster.shared()
 var _elements: ElementRoster = ElementRoster.shared()
-## Go-off identity per [member _go_off] item; null = go-off zero's plain ring.
+## Go-off identity per [member _go_off] item; null = the plain ring.
 var _go_offs: Array[Identity] = []
 ## Rider identity per picker box, in roster order.
 var _picks: Dictionary[CheckBox, Identity] = {}
@@ -59,9 +59,9 @@ func _build_picker() -> void:
 		_picks[box] = aspect.identity
 
 
-## "Go-off zero" (the plain ring), then each element band that names an identity.
+## The plain ring (no go-off), then each element band that names an identity.
 func _build_go_offs() -> void:
-	_go_off.add_item("Go-off zero (Catalyst)")
+	_go_off.add_item("Plain ring (no go-off)")
 	_go_offs.append(null)
 	for element in _elements.elements:
 		if element == null:

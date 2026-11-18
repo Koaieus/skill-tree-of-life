@@ -30,14 +30,10 @@ extends RefCounted
 ##   every path on, else the answer may end the paths there
 ##   ([member HitInstance.path_ends] on a head); then, once per node per hit,
 ##   each band the node sits in after the riders fires its [GoOff]
-##   ([method GoOff.fire_in], on the gather's world), and each [Aspect] with a
-##   [member Aspect.go_off] fires that, by no band test (go-off zero's seat
-##   until the Catalyst retag, #1799; a hit planting the aspect's own row does
-##   not set it off). The spends and transfers of the whole generation (the
-##   breaks' included) commit together through [TerrainSettle], an aspect
-##   go-off's on its holder's row of [member Aspect.status] beside them
-##   ([method _spend_row]), before the next generation's admit. A Catalyst take
-##   the settle seat makes inside either commit goes through the row seat too
+##   ([method GoOff.fire_in], on the gather's world). The spends and transfers
+##   of the whole generation (the breaks' included) commit together through
+##   [TerrainSettle] before the next generation's admit. A Catalyst take the
+##   settle seat makes inside either commit goes through the row seat
 ##   ([method _seat_take]).
 ## [br]The once-per-node set is the hit's: a node it already landed takes a later
 ## copy as an entry only, and does not go off again. Each go-off that reaches a
@@ -131,10 +127,6 @@ var _marks: Dictionary = {}
 ## `Arrival -> float`: a merged arrival's largest single share, the one its
 ## terrain riders land at ([method _join]).
 var _rider_share: Dictionary = {}
-## The aspects whose go-off the read fires ([method _aspect_go_offs]), read
-## off the roster once per gather.
-var _aspects: Array[Aspect] = []
-var _aspects_read := false
 
 
 ## A shatter's burst of [param hp] HP, bare: what [AttackRecord] rebuilds a
@@ -277,7 +269,6 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
 	var spends := TerrainSettle.Batch.new()
-	var rows: Dictionary = {}  # [SkillNode, HostKind] -> {StatusDef: delta}: the row changes (_row_change)
 	var next: Array[Arrival] = []
 	var bursts: Array[HitInstance] = []
 	for node in nodes:
@@ -295,17 +286,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 					continue
 				_spend(spends, node, e, result)
 				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
-			for aspect: Aspect in _aspect_go_offs():
-				if _plants(h, aspect.status):
-					continue
-				var result := aspect.go_off.fire_in(_world, node, read, hit_load)
-				if result == null:
-					continue
-				_spend_row(rows, node, aspect.status, result.spend_at_read())
-				_append_reach(h, node, result, aspect.go_off, generation + 1, next, null, aspect.identity)
 	_release(generation, spends, next)
 	TerrainSettle.commit(spends, _seat_take)
-	_commit_rows(rows)
 	_entries.append_array(bursts)
 	return next
 
@@ -676,48 +658,6 @@ func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoO
 			continue
 		seen[reach.node] = true
 		_add(batch, reach.node, e, int(result.transfer.get(reach.node, 0)))
-
-
-## The aspects whose [member Aspect.go_off] the read fires beside the bands:
-## go-off zero's seat until the Catalyst retag deletes it (#1799, #1801).
-func _aspect_go_offs() -> Array[Aspect]:
-	if _aspects_read:
-		return _aspects
-	_aspects_read = true
-	var roster := AspectRoster.shared()
-	if roster == null:
-		return _aspects
-	for aspect in roster.aspects:
-		if aspect != null and aspect.go_off != null and aspect.status != null:
-			_aspects.append(aspect)
-	return _aspects
-
-
-## Whether [param h] plants [param def]'s row: a hit landing that aspect's own
-## status does not set it off (today's PlantUse skip, ported as go-off zero's;
-## #1801 deletes it with the aspect seat).
-static func _plants(h: _Hit, def: StatusDef) -> bool:
-	for hit in h.span:
-		var s := hit as StatusInstance
-		if s != null and s.def != null and s.def.id == def.id:
-			return true
-	return false
-
-
-## [param total] stacks off the row of [param def] that [param node] holds,
-## summed into [param rows] with the generation's other spends on that holder:
-## the node's slice, or on a core with none its owner's entity-hosted row
-## ([method DiscGoOff.present_on]'s rule), resolved at the read.
-func _spend_row(rows: Dictionary, node: SkillNode, def: StatusDef, total: int) -> void:
-	if total <= 0 or def == null:
-		return
-	var slice := _slice(node)
-	if slice == null:
-		return
-	var kind := StatusInstance.HostKind.NODE
-	if slice.get_status_power(def.id) <= 0.0 and slice.is_core() and slice.owner() != null:
-		kind = StatusInstance.HostKind.ENTITY
-	_row_change(rows, node, kind, def, -float(total))
 
 
 ## The gather's one seat for a status-row change: [param delta] on the row of

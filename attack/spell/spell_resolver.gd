@@ -140,8 +140,7 @@ static func _resolve(
 	# The cast's intake riders (null = the spell as authored), run after the
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
-	# A [DetonateUse] load rides each head as its `hit_load` (the stamper
-	# below), which the gather's go-off reads; a [FuelUse] load never passes.
+	# A [FuelUse] load never passes: it only shapes the spell.
 	var load_bag := cast_infusion.bag(spell)
 	var riders := load_bag.riders
 	# Riders are fresh per cast, so gating them in place is safe.
@@ -338,9 +337,6 @@ static func _resolve(
 				# N places that can.
 				alctx.stamper = func(hit: HitInstance) -> void:
 					hit.attacker = ctx.caster
-					# The head's load for the gather's go-off (#1799); a copy's is 0.
-					if hit.is_head:
-						hit.hit_load = load_bag.detonate_load
 					_crit_at_head(spell, alctx, hit, crit_rng, world)
 					# Magic's structural parameter is purely ORDINAL -- which wave
 					# this landing belongs to, nothing more. The compiler turns it

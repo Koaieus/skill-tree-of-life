@@ -40,16 +40,13 @@ extends Resource
 	set(value):
 		plants = value
 		emit_changed()
-## How a hit spends this row's load ([LoadUse]); null takes the concept
-## status's default ([method resolved_use]).
+## How a hit spends this row's load ([LoadUse]); null plants it
+## ([method default_use]).
 @export var use: LoadUse = null:
 	set(value):
 		use = value
 		emit_changed()
 
-## [member StatusDef.default_face]'s detonate tag; see [method use_for_status].
-const _DEFAULT_DETONATE_TAG := 1
-static var _default_detonate: DetonateUse = null
 static var _default_plant: PlantUse = null
 
 ## The concept id this row keys on (`&"poison"`); `&""` unset.
@@ -78,21 +75,15 @@ static func concept_status(id: StringName) -> StatusDef:
 	return StatusRoster.shared().by_concept(id)
 
 
-## [member use], or — left null — its concept status's default
-## ([method use_for_status]).
+## [member use], or — left null — [method default_use].
 func resolved_use() -> LoadUse:
-	return use if use != null else use_for_status(status())
+	return use if use != null else default_use()
 
 
-## The shared default [LoadUse] for a concept whose status is [param def]: the
-## one place [member StatusDef.default_face]'s int tag (`effects/` may not name
-## `attack/`) maps to a use — 1 → [DetonateUse], anything else, or no status,
-## → [PlantUse]. The defaults are shared: never mutate one.
-static func use_for_status(def: StatusDef) -> LoadUse:
-	if def != null and def.default_face == _DEFAULT_DETONATE_TAG:
-		if _default_detonate == null:
-			_default_detonate = DetonateUse.new()
-		return _default_detonate
+## The shared [PlantUse] every row without a [member use] takes, whatever its
+## concept: the load lands as the concept's status rider. Shared: never
+## mutate it.
+static func default_use() -> LoadUse:
 	if _default_plant == null:
 		_default_plant = PlantUse.new()
 	return _default_plant
@@ -104,7 +95,7 @@ func refuses() -> bool:
 
 
 ## The row's tooltip line, as its [method resolved_use] describes it
-## ([method LoadUse.describe]): a plant's or a detonation's is
+## ([method LoadUse.describe]): a plant's is
 ## [method StatusDef.applies_line] of the innate load — the fold the landing
 ## itself uses, so a [param board] carrying the attacker's
 ## `<family>_stacks_per_hit` scales it here exactly as it scales the rider —

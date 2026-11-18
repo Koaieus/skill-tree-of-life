@@ -7,7 +7,7 @@ extends Node2D
 ## guess) and fading, in the [member identity]'s heat. Drawn in [method _draw],
 ## no particles. Riders are layered by [member companions] — scenes
 ## instantiated at [method play] and each handed [member riders]; empty = the
-## plain catalyst ring. Knobs are tentative defaults, easy to change.
+## plain ring. Knobs are tentative defaults, easy to change.
 
 signal finished
 
@@ -48,7 +48,7 @@ signal finished
 		identity = value
 		queue_redraw()
 ## Opacity of a filled disc under the ring, in the ring's colour; 0 = a bare
-## ring (go-off zero). [BlastVFX] raises it for an element's disc (Burning).
+## ring (a mark naming no go-off). [BlastVFX] raises it for an element's disc (Burning).
 ## Tentative, easy to change.
 @export_range(0.0, 1.0, 0.01) var disc_fill: float = 0.0:
 	set(value):

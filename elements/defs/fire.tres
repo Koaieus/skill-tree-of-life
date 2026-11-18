@@ -11,9 +11,6 @@
 
 [sub_resource type="Resource" id="burning_disc"]
 script = ExtResource("8_disc")
-power_source = 1
-radius_source = 1
-spend_source = 1
 damage_per_power = 2.0
 
 [sub_resource type="Resource" id="band_primed"]

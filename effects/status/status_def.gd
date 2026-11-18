@@ -61,12 +61,6 @@ var icon: Texture2D:
 var tint: Color:
 	get:
 		return identity.tint if identity != null else Color.WHITE
-## How an intake row of this concept spends its load when it authors no
-## `use` of its own: 1 = detonate (spent at the hit as a blast), 2 = plant
-## (lands as this status's rider). An int tag because `effects/` may not name
-## `attack/` (module-deps); `AspectIntake.use_for_status` is the one place it
-## maps to a `LoadUse`.
-@export_enum("Detonate:1", "Plant:2") var default_face: int = 2
 ## Classification tags a consumer may filter on (`&"debuff"`, `&"dot"`, …).
 ## Metadata only — nothing grants these to the node.
 @export var tags: Array[StringName] = []

@@ -101,22 +101,14 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	return out
 
 
-## The load this cast spends at each hit as a blast: the sum its
-## [DetonateUse] concepts contribute ([method bag]) — an catalyst row left on
-## its status default, today. A [FuelUse] load only shapes the spell, a [PlantUse] load
-## lands as a rider.
-func detonate_load(spell: SpellDef) -> int:
-	return bag(spell).detonate_load
-
-
 ## The [LoadUse] concept [param id] resolves to on [param spell]: its intake
 ## row's [method AspectIntake.resolved_use], else — an infused concept with no
-## row — its status's default ([method AspectIntake.use_for_status]).
+## row — the shared default ([method AspectIntake.default_use]).
 static func use_of(spell: SpellDef, id: StringName) -> LoadUse:
 	var row := intake_of(spell, id)
 	if row != null:
 		return row.resolved_use()
-	return AspectIntake.use_for_status(status_of(spell, id))
+	return AspectIntake.default_use()
 
 
 ## The status concept [param id] lands as on [param spell]: its listed row's
