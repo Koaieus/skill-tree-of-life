@@ -158,9 +158,10 @@ var edges: Array[Vector2i] = []
 ## instead: an index in this set is gone for every purpose ([method
 ## BladePopResolver._reachable_from_pivot] does not traverse it, [BladeHitScan]
 ## does not query it, its distance constraint is dropped by [method
-## remove_edge]). [b]#781's bunker break is the only thing that writes here[/b]
-## — ADR 0005 retired the spike-drain severance that used to, since a spike
-## destroys matter and a bunker destroys structure.
+## remove_edge]). Two things write here: #781's bunker break, and [method
+## remove_vertex], which marks a corpse's incident edges — ADR 0005 retired the
+## spike-drain severance, since a spike destroys matter and a bunker destroys
+## structure. A bunker break alone is recorded as a severance (`severed_at`).
 var removed_edges: Dictionary = {}
 var constraints: Array[BladeConstraint] = []
 ## The swing's bunker field (#781), or null — which is every swing with no
@@ -345,11 +346,20 @@ static func _brace_spans(brace: BladeDistanceConstraint, joint: int, other: int)
 ## weld the survivors to a corpse. So does every brace whose JOINT dies — the
 ## same rule as [method remove_edge]'s: its two edges died with the joint, so
 ## it holds no angle, only two survivors at a hidden fixed distance.
+##
+## [b]Every incident edge is marked in [member removed_edges][/b]: an edge
+## hanging off a corpse is not swinging, so any reader asking "is this edge
+## live" by [member removed_edges] alone gets the right answer. Only the set is
+## written — no [BladePopResolver] severance record, since nothing broke it.
 func remove_vertex(idx: int) -> bool:
 	if idx < 0 or idx >= positions.size() or removed_vertices.has(idx):
 		return false
 	removed_vertices[idx] = true
 	inv_masses[idx] = 0.0
+	for e_idx in edges.size():
+		var e := edges[e_idx]
+		if e.x == idx or e.y == idx:
+			removed_edges[e_idx] = true
 	for i in range(constraints.size() - 1, -1, -1):
 		var dc := constraints[i] as BladeDistanceConstraint
 		if dc == null:
