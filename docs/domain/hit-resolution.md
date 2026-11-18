@@ -179,8 +179,6 @@ what make that order meaningful.
 
 ## Landing against a world: `CombatWorld`
 
-changing: the live world runs the world turn's temperature flow, #1795; see docs/design/elements/terrain.md
-
 ```
 record replay (every machine): OutcomeApplier.apply(outcome, CombatWorld.live(),  clock)
 resolution, always:            OutcomeApplier.apply(outcome, CombatWorld.shadow(), clock)
