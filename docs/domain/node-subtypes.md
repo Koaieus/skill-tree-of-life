@@ -20,7 +20,7 @@ blight) in its own pack.
 | School | Aspects | Potency in pack | Supply in pack |
 |---|---|---|---|
 | STR | Bleeding, Weakness | none yet | `bleeding_aspect`, `weakness_aspect` |
-| DEX | Poison, Explosive, Mark | poison | `poison_aspect`, `explosive_aspect`, `mark_aspect` |
+| DEX | Poison, Catalyst, Mark | poison | `poison_aspect`, `catalyst_aspect`, `mark_aspect` |
 | INT | Curse, Hex | curse | `curse_aspect`, `hex_aspect` |
 | CON | Wither, Sunder | wither | `wither_aspect`, `sunder_aspect` |
 | PER | Scout, Blindness | blindness | `scout_aspect`, `blindness_aspect` |

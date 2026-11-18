@@ -15,8 +15,6 @@ Guard: `test/unit/aspects/test_aspect_roster.gd`.
 
 ## Stat (prerequisite for every other cell)
 
-changing: explosive_aspect retagged catalyst_aspect, #1801; see docs/design/elements/terrain.md
-
 - `stats_system/defs/<concept>_aspect.tres`, a child of the `aspects`
   parent (ADR 0029) with `identity` + `role = COUNT`, on
   `stats_system/stat_def_roster.tres` — no board field: every entity board
@@ -35,7 +33,7 @@ changing: explosive_aspect retagged catalyst_aspect, #1801; see docs/design/elem
 
 ## Arrow (ranged column)
 
-changing: one ammo type per element with a stock cap, #1810; the explosive arrow becomes the Catalyst goo arrow, #1801; see docs/design/elements/counts.md, docs/design/elements/forge.md, docs/design/elements/terrain.md
+changing: one ammo type per element with a stock cap, #1810; see docs/design/elements/counts.md, docs/design/elements/forge.md
 
 One `AmmoType` resource, `attack/ammo/types/<concept>.tres`, plus one line
 on `attack/ammo/ammo_type_roster.tres` (hard `ExtResource` edges; a folder
@@ -61,8 +59,6 @@ distinct mint stats, order invariants, own scene per statused type),
 
 ### On-hit shelf
 
-changing: DetonateUse goes, #1801; see docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/hit-resolution.md
-
 `RangedDamageFormula.ride` builds one `HitLanding` per arrow, anchored at its
 slot in the outcome (paired to it, so a gated arrow duds every rider), runs
 each effect, then places the span: every rider just after the arrow, in authored
@@ -81,11 +77,12 @@ coordinator finds its riders by that key (`riders_of`). What an arrow may carry:
 (`attack/ammo/ammo_type.gd`). An arrow's damage is the arrow itself
 (`damage_scale`); no damage-dealing rider exists.
 
-**A blast is not on the shelf.** An Explosive detonation is go-off zero, a
-`DiscGoOff` on the Explosive `Aspect` (`Aspect.go_off`). `HitGather` fires
-it when a hit reaches a charged node, so nothing authors it on an arrow, and
-an arrow that plants explosive never sets it off
-(`docs/domain/explosive.md`).
+**A blast is not on the shelf.** The only blast is a band's go-off
+(Burning's disc on `elements/defs/fire.tres`), which `HitGather` fires when a
+hit reaches a primed node, so nothing authors it on an arrow. Catalyst's goo
+arrow (`attack/ammo/types/catalyst.tres`, `order` 2) is a plain arrow whose one
+rider is an `ApplyStatusEffect` of Catalyst: it plants like a poison arrow, and
+on a primed node it sets it off like any hit (`docs/domain/catalyst.md`).
 
 **Markers need no plumbing.** A volley lands in `order`, and every landing
 reads the target's live slice, so a status an early arrow landed is already
@@ -158,7 +155,7 @@ Gotchas:
 | blindness | inert blunt tip; grit trail; smoke cloud burst spread over riders |
 | corruption | beating club tip; swelling blip trail; delayed pop burst; pustule sprite |
 | curse | inert tip and trail; contracting ring at the node |
-| explosive | pulsing fuse tip; spark trail (second shed emitter) |
+| catalyst | slender crystal shard tip; spark trail (second shed emitter) |
 | greed | pulsing tip; tumbling coin trail; gilt ring |
 | mark | pulsing tip; eye sigil blinking open at the node |
 | poison | fading neon tip; froth (second shed emitter) |
@@ -198,7 +195,7 @@ A spell is many facets, each its own design call:
 |---|---|
 | identity | `id`, `name`, `tagline`, `description`, `icon` |
 | cast gate | `min_degree`, `carve_shape` |
-| reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter; its `reach` swaps graph neighbours for another candidate set, e.g. Firecracker's `FuelBlastReach`) |
+| reach | `targeting` (a `Targeting` with a range finder), `propagation` (`PropagationConfig` + filter; its `reach` swaps graph neighbours for another candidate set) |
 | payload | `power`, `on_hit_effects` (`DamageEffect`, `HealEffect` …; the one on-hit vocabulary for every mode, see `docs/domain/effect-system.md` and ADR 0044) |
 | status | `intakes` (`AspectIntake{identity, innate, affinity_gain, affinity_cost, use}`) + `ingest_gain` / `ingest_cost` (§ Infusion, ADR 0060) |
 | crit | `crit_conditions` (`LandingCondition`s) |
@@ -213,7 +210,7 @@ The design work is what else the spell does, so it is not "damage plus status" a
 
 ## Infusion (magic column — ADR 0047, ADR 0060, #1250)
 
-changing: DetonateUse, FuelUse and detonate_load deleted, #1801; shape and ride fields, #1809; point cap grows with the caster node's degree, #1814; see docs/design/elements/counts.md, docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/forge.md, docs/design/elements/hit-resolution.md
+changing: shape and ride fields, #1809; point cap grows with the caster node's degree, #1814; see docs/design/elements/counts.md, docs/design/elements/go-offs.md, docs/design/elements/terrain.md, docs/design/elements/forge.md, docs/design/elements/hit-resolution.md
 
 Five words, one meaning each (owner, 2026-10-13, #1593):
 
@@ -227,10 +224,10 @@ Five words, one meaning each (owner, 2026-10-13, #1593):
 
 A spell's status is the **load** of its intake rows, not an authored rider:
 
-- `attack/spell/aspect_intake.gd`: `AspectIntake{identity, innate, affinity_gain, affinity_cost, plants, use}` — points at the concept's `Identity` (a concept with no status can be listed); `status()` is `plants` when the row names one (#1660 B2; no shipped row sets it yet), else the concept's `StatusDef` by id — an element's terrain when the row names an element (`ElementRoster.by_id`), else `StatusRoster.by_concept` (#1800). Its `get_description` gives the tooltip's line, as its use's `describe`. `use` is a `LoadUse` resource (`attack/spell/load_use/`, ADR 0070): `PlantUse` (lands the status rider; owns `stack_terms` and `power_from`), `DetonateUse` (spent at the hit as a blast), `FuelUse` (spends nothing), `CleanseUse` (the load is the cap of one shared `CleanseEffect` per cast, found in the bag's riders by `template`); null takes the concept status's `StatusDef.default_face` through `AspectIntake.use_for_status` (`resolved_use()`; explosive detonates, everything else plants). A **shaping intake** (`use = FuelUse`, Firecracker's explosive fuel) lands no rider: its load still counts in `load_of` and the readouts, and a spread or reach reads it from `PropagationContext.load` (the cast's `load_of`), never from `riders` — Firecracker's `FuelBlastReach` burns it as fuel.
+- `attack/spell/aspect_intake.gd`: `AspectIntake{identity, innate, affinity_gain, affinity_cost, plants, use}` — points at the concept's `Identity` (a concept with no status can be listed); `status()` is `plants` when the row names one (#1660 B2; no shipped row sets it yet), else the concept's `StatusDef` by id — an element's terrain when the row names an element (`ElementRoster.by_id`), else `StatusRoster.by_concept` (#1800). Its `get_description` gives the tooltip's line, as its use's `describe`. `use` is a `LoadUse` resource (`attack/spell/load_use/`, ADR 0070): `PlantUse` (lands the status rider; owns `stack_terms` and `power_from`) or `CleanseUse` (the load is the cap of one shared `CleanseEffect` per cast, found in the bag's riders by `template`); null plants, through the one shared `AspectIntake.default_use()` (`resolved_use()`). A spread or reach may still read the cast's load from `PropagationContext.load` (the cast's `load_of`).
 - `attack/spell/spell_def.gd`: `intakes: Array[AspectIntake]` and the ingest pair `ingest_gain` / `ingest_cost` (default 1:1; ingest 0 refuses every infusion).
 - `attack/spell/spell_def.gd`: `infusion_capacity` (most points one cast of this spell takes in total; `INF` = each aspect capped only by its own stat).
-- `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `ratio_of` (affinity × ingest as a `gain:cost` `Vector2i`), `gained` (⌊points × gain / cost⌋), `load_of` = innate + `gained`, `riders` / `detonate_load` (both read `bag`: one walk over `load_of`, each concept with load above 0 spending it through `use_of(spell, id).spend(...)` into a `LoadBag`); `rate_of` is that ratio as a float, for display and the refusal test only. Riders are one `ApplyStatusEffect` per `PlantUse` concept with a status (a `PlantUse.power_from` is copied onto its rider: the rider lands that named `CarriedScalar`'s value instead of the load wherever the payload carries one — Fault Line's crack, #1721) (a `DetonateUse` load is `detonate_load`, spent at the hit; a `FuelUse` load only shapes the spell); every concept finds its status through `AspectIntake.concept_status` (an element's terrain by `ElementRoster.by_id`, else `StatusRoster.by_concept` in `effects/status_roster.gd`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
+- `attack/spell/infusion.gd`: `Infusion.innate(spell)` / `for_cast(spell, points)`, `points` (concept id → points), `ratio_of` (affinity × ingest as a `gain:cost` `Vector2i`), `gained` (⌊points × gain / cost⌋), `load_of` = innate + `gained`, `riders` (reads `bag`: one walk over `load_of`, each concept with load above 0 spending it through `use_of(spell, id).spend(...)` into a `LoadBag`); `rate_of` is that ratio as a float, for display and the refusal test only. Riders are one `ApplyStatusEffect` per `PlantUse` concept with a status (a `PlantUse.power_from` is copied onto its rider: the rider lands that named `CarriedScalar`'s value instead of the load wherever the payload carries one — Fault Line's crack, #1721); every concept finds its status through `AspectIntake.concept_status` (an element's terrain by `ElementRoster.by_id`, else `StatusRoster.by_concept` in `effects/status_roster.gd`). `AspectRoster` ranks above `attack`, so it can't serve that lookup. A new `effects/status/*.tres` joins `effects/status_roster.tres` (`test_status_roster.gd` pins it).
 - `attack/aspect_currency.gd`: `AspectCurrency.cap_of(attacker, stat_id)`, the one floored board read behind melee's `currency_cap` and magic's caps; `stat_of(concept)` = the concept's COUNT facet id (`StatRegistry.facet_def`).
 - `attack/plan/magic_attack_plan.gd`: `infusion` (never null; innate after `set_spell`), `set_infusion(id, points)`, `aspect_overrun()` (per-aspect stat + `infusion_slots` + total over `floor(infusion_capacity)` when finite + refused points), the `"infusion"` wire key (only when points are spent; `from_dict` ungated, ADR 0035), and the preview and launch resolves both carry it.
 - `stats_system/defs/infusion_slots.tres`: derived on `entity/default_entity_board.tres` from INT, a threshold ladder at 10 / 100 / 1000 (development tuning, owner 2026-10-14; 100 / 1000 / 10000 later) — breadth. There is **no shared points pool** (#1574, owner 2026-10-12; the √INT `infusion_points` stat of #1462 is deleted): depth is the aspect held. Nothing is consumed (ADR 0047), so a socketed aspect carries the most it can — `min(<concept>_aspect, what infusion_capacity leaves)` — and `ArmedStack.clamp_infusion` (memory restore) and `AiInfusionPicker.pick` fill each kept aspect to that.

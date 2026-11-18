@@ -259,7 +259,7 @@ stat and addon, shipped or planned.
 
 **The Tag column (owner, 2026-10-05).** *"a 1-3 word sharp summary of
 what it is or what kind of jargon could capture it perfectly"*. The owner's
-examples: poison → DoT; explosive (now Catalyst) → AoE; corruption → buildup, %dmg, spread;
+examples: poison → DoT; explosive → AoE (the aspect is Catalyst now, its tag *converter*); corruption → buildup, %dmg, spread;
 curse → fragility *("cuz raises damage floor?")*, spill. The four tags the pass proposed (anti-heal, vision debuff, reveal, armor debuff)
 were closed as written by the owner, 2026-10-06 (round 9); every Tag is now the owner's.
 

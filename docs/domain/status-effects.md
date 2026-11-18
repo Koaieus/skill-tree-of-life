@@ -8,8 +8,6 @@ bypass are [defense-axes.md](defense-axes.md).
 
 ## The status slice
 
-changing: Catalyst rows decay once per world turn, #1801; see docs/design/elements/terrain.md
-
 - **Definition.** `StatusDef` (`effects/status/status_def.gd`) is a `.tres`-authored
   resource: id, tags, `power_max`, a `decay` slot, `reapply` policy, `on_dealloc`,
   display identity. Subclasses override `_on_applied` / `_on_tick` / `_on_removed`
@@ -45,12 +43,18 @@ changing: Catalyst rows decay once per world turn, #1801; see docs/design/elemen
     the **world turn** (`TurnManager._end_world_turn`, one every N played turn
     ends, N = the living carriers; ADR 0055; N is read through the rate rule
     `TurnManager.world_clock`, per carrier by default, #1795), in tree order,
-    then the unowned `LINGER` rows tick once, then the terrain pass
+    then the unowned `LINGER` rows tick once, then every live node's
+    `decay_per_world_turn` rows (`CombatWorld.tick_world_turn_decay`), then the terrain pass
     (`CombatWorld.flow_temperature`, #1795), and the beat flushes. No upkeep, no regen.
 - **Deallocation.** `CLEAR` rows release and spill
   (`NodeCombat.release_statuses(true)`, which hands back only the released rows);
   `LINGER` rows stay on the node, are never spilled, and while it is unowned tick
-  once per world turn (`CombatWorld.tick_lingering`, ADR 0055). A death strip
+  once per world turn (`CombatWorld.tick_lingering`, ADR 0055).
+- **World-turn decay.** A def that sets `StatusDef.decay_per_world_turn`
+  (Catalyst's) never ticks at its holder's turn end: `StatusHost` skips its node
+  rows in `tick_statuses`, and `CombatWorld.tick_world_turn_decay` ticks them once
+  per world turn, over the live nodes kept in `CombatWorld._world_turn_decay`.
+  An entity-hosted row of such a def still ticks at the turn end. A death strip
   (`force_deallocate`, either branch of `EntityCombat.apply_cascade`) releases
   every row, `LINGER` included.
 - **Spill.** One strip atom, `EntityCombat.strip_node(n, cause)`, is the only
@@ -128,8 +132,6 @@ changing: Catalyst rows decay once per world turn, #1801; see docs/design/elemen
   purpose-built shape for that need.
 
 ## The DoT model
-
-changing: Explosive's decay row becomes Catalyst's, #1801; see docs/design/elements/hit-resolution.md
 
 The status slice carries
 five damage-over-time families, each named by the defensive axis it bypasses (the axes:
@@ -218,7 +220,7 @@ multiplier climbs back through zero, nulling healing, then restoring it.
 
 | Status | Shape (`effects/status/*.tres`) |
 |---|---|
-| Poison, Curse, Sunder, Marked, Scouted, Hexed, Explosive | `FlatDecay`, `per_tick` 1 (Explosive's `.tres` leaves the default, 1.0) |
+| Poison, Curse, Sunder, Marked, Scouted, Hexed, Catalyst | `FlatDecay`, `per_tick` 1 (Catalyst's `.tres` leaves the default, 1.0, and ticks it once per world turn, not at the turn end) |
 | Wither, Weakened | `FractionDecay`, `fraction` 0.25 removed |
 | Blindness | `FractionDecay`, `fraction` 0.7 removed, ACCUMULATE (`effects/status/blindness.gd`) |
 | Bleeding | `RampDecay` — `start` 1, `step` 1 while resting; the ramp position is `NodeStatus.decay_step`, reset by exertion |
