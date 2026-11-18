@@ -297,6 +297,133 @@ func _flat(stat_id: StringName, amount: float) -> StatModifier:
 	return m
 
 
+# ── 3b. overqualified casting: per-source capacity ─────────────────────────
+#
+# Owned degrees 1/2/1 on a min_degree-1 spell: the middle node is one degree
+# overqualified, so it carries B + K and the leaves carry B. The loadout gates
+# the caster, never the target.
+
+const _B := 4.0
+const _K := 3
+
+
+func _capped_spell(max_hops: int, min_degree: int = 1) -> SpellDef:
+	var spell := _spell(_hostile_hop_targeting(max_hops), min_degree)
+	spell.infusion_capacity = _B
+	spell.infusion_capacity_per_degree = _K
+	return spell
+
+
+func _degree(n: SkillNode) -> int:
+	return _attacker.navigator.get_degree(n)
+
+
+## The per-target pick stated from first principles: among the sources that
+## reach [param target] and carry [param points], the highest local
+## `spell_damage`, lowest stable id on a tie; null when none carries.
+func _carrying_pick(union: SpellTargetUnion, spell: SpellDef, target: SkillNode,
+		points: int) -> SkillNode:
+	var best: SkillNode = null
+	for c in _contenders(union, target):
+		if spell.capacity_at(_degree(c)) < points:
+			continue
+		if best == null:
+			best = c
+			continue
+		var pc := float(c.get_local_value(&"spell_damage"))
+		var pb := float(best.get_local_value(&"spell_damage"))
+		if pc > pb or (pc == pb and _graph.get_stable_id(c) < _graph.get_stable_id(best)):
+			best = c
+	return best
+
+
+func test_the_loadout_hides_no_target_and_best_capacity_is_per_target() -> void:
+	var spell := _capped_spell(2)
+	var base := floori(spell.infusion_capacity)
+	var overqualified := base + spell.infusion_capacity_per_degree
+	assert_eq(_degree(_mine[1]), spell.min_degree + 1, "precondition: the middle is one degree up")
+	var empty := _plan_for(spell)
+	var loaded := _plan_for(spell)
+	loaded.set_infusion(&"poison", overqualified + 1)
+	assert_eq(loaded.infusion.total_points(), overqualified + 1,
+			"precondition: the loaded plan holds more than any caster carries")
+	var u_empty := SpellTargetUnion.build(spell, _attacker, _graph, empty)
+	var u_loaded := SpellTargetUnion.build(spell, _attacker, _graph, loaded)
+	assert_eq(u_empty.sources.size(), 3)
+	assert_eq(u_loaded.sources.size(), 3, "the loadout strands no caster")
+	assert_eq(_ids(u_loaded.targets()), _ids(u_empty.targets()), "the loadout hides no target")
+	assert_true(u_loaded.can_target(_theirs[0]) and u_loaded.can_target(_theirs[1]),
+			"precondition: both enemy nodes are targets")
+	for t in u_loaded.targets():
+		var expect := overqualified if _contenders(u_loaded, t).has(_mine[1]) else base
+		assert_eq(u_loaded.best_capacity(t), expect, "best capacity among the casters reaching it")
+	assert_eq(u_loaded.best_capacity(_theirs[0]), overqualified, "the middle node reaches it")
+	assert_eq(u_loaded.best_capacity(_theirs[1]), base, "only the frontier leaf reaches it")
+	assert_eq(u_loaded.best_capacity(_mine[0]), 0, "a non-target carries nothing")
+
+
+func test_source_capacity_reads_the_formula_at_each_casters_degree() -> void:
+	var spell := _capped_spell(2)
+	var union := SpellTargetUnion.build(spell, _attacker, _graph, _plan_for(spell))
+	for src in union.sources:
+		assert_eq(union.source_capacity[src], spell.capacity_at(_degree(src)))
+
+
+func test_the_bookless_fallback_answers_the_same_capacities() -> void:
+	var spell := _capped_spell(2)
+	var with_book := SpellTargetUnion.build(spell, _attacker, _graph, _plan_for(spell))
+	_attacker.spellbook = null
+	var bookless := SpellTargetUnion.build(spell, _attacker, _graph, _plan_for(spell))
+	assert_eq(bookless.sources.size(), 3, "precondition: the fallback finds the casters")
+	for src in with_book.sources:
+		assert_eq(bookless.source_capacity[src], with_book.source_capacity[src])
+	for t in with_book.targets():
+		assert_eq(bookless.best_capacity(t), with_book.best_capacity(t))
+
+
+## [method SpellTargetUnion.build_for] takes an explicit, possibly stale list:
+## a listed node that cannot cast the spell carries 0, book or no book.
+func test_an_ineligible_listed_source_carries_nothing() -> void:
+	var picky := _capped_spell(3, 2)
+	var with_book := SpellTargetUnion.build_for(picky, _attacker, _graph, _mine)
+	assert_eq(with_book.source_capacity[_mine[0]], 0, "a degree-1 leaf cannot cast a min_degree-2 spell")
+	assert_eq(with_book.source_capacity[_mine[1]], picky.capacity_at(_degree(_mine[1])))
+	_attacker.spellbook = null
+	var bookless := SpellTargetUnion.build_for(picky, _attacker, _graph, _mine)
+	for n in _mine:
+		assert_eq(bookless.source_capacity[n], with_book.source_capacity[n])
+
+
+func test_source_for_points_is_the_strongest_caster_that_carries_them() -> void:
+	var spell := _capped_spell(3)
+	var base := floori(spell.infusion_capacity)
+	var overqualified := base + spell.infusion_capacity_per_degree
+	for boost in [false, true]:
+		if boost:
+			# The strongest node is a degree-1 leaf: it wins only what it carries.
+			_mine[2].add_local_modifier(_flat(&"spell_damage", 50.0))
+		var union := SpellTargetUnion.build(spell, _attacker, _graph, _plan_for(spell))
+		for t in union.targets():
+			assert_eq(union.source_for(t, 0), union.best_source[t], "points 0 is best_source")
+			for points in [0, base, base + 1, overqualified, overqualified + 1]:
+				assert_eq(union.source_for(t, points), _carrying_pick(union, spell, t, points),
+						"boost %s, %d points" % [boost, points])
+
+
+func test_a_stronger_caster_below_the_points_is_passed_over() -> void:
+	var spell := _capped_spell(2)
+	var base := floori(spell.infusion_capacity)
+	var overqualified := base + spell.infusion_capacity_per_degree
+	_mine[2].add_local_modifier(_flat(&"spell_damage", 50.0))
+	var union := SpellTargetUnion.build(spell, _attacker, _graph, _plan_for(spell))
+	var t := _theirs[0]
+	assert_eq(_ids(_contenders(union, t)), _ids([_mine[1], _mine[2]]),
+			"precondition: the middle and the frontier leaf reach it")
+	assert_eq(union.source_for(t, base), _mine[2], "the stronger leaf carries the base")
+	assert_eq(union.source_for(t, base + 1), _mine[1], "past the leaf's cap, the middle carries")
+	assert_null(union.source_for(t, overqualified + 1), "nothing carries more than every cap")
+
+
 # ── 4. the two dead ends are different states ──────────────────────────────
 
 func test_no_eligible_source_is_distinct_from_no_valid_target() -> void:

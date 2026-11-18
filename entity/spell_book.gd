@@ -122,6 +122,15 @@ func is_castable(spell: SpellDef, source: SkillNode, attacker: Entity) -> bool:
 	return _node_meets_source_requirements(spell, source, attacker)
 
 
+## "What can this node carry" — the sibling of [method is_castable]: the
+## aspect points [param spell] cast from [param source] takes, by
+## [method SpellDef.capacity_at] at the same owned-subgraph degree the
+## eligibility gate reads. 0 for a node that cannot cast it at all.
+@warning_ignore("unused_parameter")
+func capacity_of(spell: SpellDef, source: SkillNode, attacker: Entity) -> int:
+	return 0
+
+
 func _node_meets_source_requirements(spell: SpellDef, source: SkillNode,
 		attacker: Entity) -> bool:
 	if attacker == null or attacker.navigator == null:

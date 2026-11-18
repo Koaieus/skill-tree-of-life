@@ -60,6 +60,11 @@ var per_source: Dictionary[SkillNode, Dictionary] = {}
 ## source a target maps to, and the source ships in the launch command.
 var best_source: Dictionary[SkillNode, SkillNode] = {}
 
+## source -> the aspect points a cast from it carries
+## ([method SpellBook.capacity_of]), over every entry of [member sources] —
+## even when [member per_source] is empty.
+var source_capacity: Dictionary[SkillNode, int] = {}
+
 
 ## True iff at least one owned node can cast the spell at all. Distinct from
 ## [method has_targets] — see [member sources].
@@ -92,8 +97,16 @@ func can_target(node: SkillNode) -> bool:
 
 ## The caster this union would use for [param node], or null if it isn't a
 ## target. What [MagicAttackPlan] stamps as its source on a target click.
-func source_for(node: SkillNode) -> SkillNode:
+@warning_ignore("unused_parameter")
+func source_for(node: SkillNode, points: int = 0) -> SkillNode:
 	return best_source.get(node)
+
+
+## The best capacity among the sources reaching [param target], 0 when it is
+## not a target.
+@warning_ignore("unused_parameter")
+func best_capacity(target: SkillNode) -> int:
+	return 0
 
 
 ## Legal targets reachable from [param source] alone, membership-only — the

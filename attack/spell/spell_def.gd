@@ -134,6 +134,25 @@ var icon: Texture2D:
 ## socketed aspect; INF leaves each aspect capped only by its `<concept>_aspect`.
 @export var infusion_capacity: float = INF
 
+## Points a caster node adds to [member infusion_capacity] per degree of its
+## owned subgraph above [member min_degree] — overqualified casting. Tentative.
+@export_range(0, 20) var infusion_capacity_per_degree: int = 5
+
+## What [method capacity_at] answers for an [code]INF[/code]
+## [member infusion_capacity]: a total no loadout reaches, the same bound
+## [method MagicAttackPlan.socket_points] walks an uncapped spell against.
+const UNCAPPED := 1 << 62
+
+
+## The most aspect points one cast of this spell takes from a caster node of
+## owned-subgraph [param degree]: the base cap plus
+## [member infusion_capacity_per_degree] per degree above [member min_degree].
+## The one home of the formula; the base cap is [code]capacity_at(min_degree)[/code].
+## An [code]INF[/code] base answers [constant UNCAPPED] at every degree.
+@warning_ignore("unused_parameter")
+func capacity_at(degree: int) -> int:
+	return 0
+
 ## Spell-specific crit conditions. Evaluated per landing in addition to
 ## the universal [code]crit_chance[/code] stat roll. Multiple conditions
 ## run as OR — if ANY returns true, the hit crits. Follows the same
