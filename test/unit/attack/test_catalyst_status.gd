@@ -216,9 +216,8 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 
 
 ## A dud arrow (its gate refuses: the target fell before it lands) takes no
-## part in stage one: a primed node keeps its Heat and throws nothing. Plain
-## and typed: a typed arrow's span opens on its status rider, whose gate is
-## the arrow's.
+## part in stage one: a primed node keeps its Heat and throws nothing, plain
+## or typed (its status rider lands as a dud).
 func test_a_dud_arrow_sets_off_nothing() -> void:
 	for ammo: AmmoType in [null, _POISON_ARROW]:
 		await _board()

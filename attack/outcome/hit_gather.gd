@@ -163,8 +163,7 @@ static func is_burst(hit: HitInstance) -> bool:
 ## [method OutcomeApplier.land_one] is handed it: each fresh head still
 ## undecided draws its crit here, in list order, against [param world] as the
 ## beat opens ([method _open_head]). Null on a replay: nothing draws. Then its
-## gate is asked ([method HitInstance.resolve_gate] of its lead: the head, or
-## the hit a status head rides): a head its gate refuses keeps its crit and
+## gate is asked ([method HitInstance.resolve_gate]): a head its gate refuses keeps its crit and
 ## stamp but takes no part — no go-off, no spend, no copies. So the gate reads
 ## the world as the beat opens, before any hit of the beat lands.
 static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQueue,
@@ -199,9 +198,8 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		h.source = h.head.go_off_source()
 		gather._open_head(h, crit_rng)
 		# A head its gate refuses takes no part: no go-off, no spend, no copies.
-		var lead := h.head.paired if h.head.paired != null else h.head
-		lead.resolve_gate(world)
-		if not lead.landed():
+		h.head.resolve_gate(world)
+		if not h.head.landed():
 			h.source = null
 			continue
 		var a := Arrival.new()

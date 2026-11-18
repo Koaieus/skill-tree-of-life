@@ -296,9 +296,10 @@ before its hit and lift it).
   skipped); its status falls through to the entity
   ([Statuses landing](#statuses-landing)). A terrain rider is never dudded.
 - **The gate is memoized.** `resolve_gate(world)` decides a hit's veto once;
-  the first asker decides it — the hit's own `land_on`, or a rider through
-  `rider_gated`, which asks it first (only a hand-built list puts a rider
-  ahead of its hit now). `landed()` reads the verdict (base: not
+  the first asker decides it — on a fresh resolve, `HitGather.stage_one` as
+  a gather head's beat opens ([Catalyst at the land step](#catalyst-at-the-land-step));
+  otherwise the hit's own `land_on`, or a rider through `rider_gated`, which
+  asks it first (only a hand-built list puts a rider ahead of its hit now). `landed()` reads the verdict (base: not
   `gated`; melee's unadmitted contact overrides it). `RangedHitInstance` runs
   its `passes_gate` there, `BladeDamageInstance` its `LiveGate.admit` with the
   spike pop and `popped_vertex`, so a pop happens once whichever lands first.
@@ -546,8 +547,7 @@ or Charge and converts nothing. A node the landing primes converts its
 leftover at the settle (`TerrainSettle.PrimeConversion`). Only a head that
 lands sets a node off: a refused arrival leaves the node alone, arrows
 included (owner, 2026-11-18, #1802). `HitGather.stage_one` asks each fresh
-head's gate (`HitInstance.resolve_gate` of its lead: the head, or the hit a
-status head rides) once it has stamped and drawn its crit, and a head its gate
+head's gate (`HitInstance.resolve_gate`) once it has stamped and drawn its crit, and a head its gate
 refuses (a dud arrow, `RangedDamageFormula.passes_gate`; a blade contact that
 pops on spikes, whose vertex was already popped, or whose target was
 deallocated, `BladePopResolver.LiveGate.admit`) takes no part: no go-off, no

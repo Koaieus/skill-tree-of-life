@@ -353,8 +353,8 @@ func is_aspect_rider() -> bool:
 
 
 ## Decide this hit's land-time veto, once — the first asker triggers it: the
-## gather as this hit's beat opens ([method HitGather.stage_one], a head or
-## the lead a status head rides: a refused head sets nothing off), a rider
+## gather as this hit's beat opens ([method HitGather.stage_one], of a head:
+## a refused head sets nothing off), a rider
 ## that lands ahead of it ([method rider_gated]) or this hit's own
 ## [method land_on]. A no-op once decided, so a gate with a side effect (a
 ## spike pop) runs exactly once per hit. Base: no veto. Read the verdict with
