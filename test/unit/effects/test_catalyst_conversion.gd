@@ -6,8 +6,7 @@ extends GutTest
 ## share; and the prime conversion seated in the settle routine
 ## ([TerrainSettle.PrimeConversion]). Acceptance 1 (through `converted()` and
 ## `convert()` alone), 2 (the settle routine called directly) and 4's cap.
-## Every def is built here: `catalyst.tres` is the retag unit's, so no current
-## behaviour moves. Fixture: A - B - C, B owned (graph degree 2); T and the cap
+## The probe def is built here; the shipped-def cases at the end read `catalyst.tres` (acceptance 1's centre, 3, 4, 4b). Fixture: A - B - C, B owned (graph degree 2); T and the cap
 ## are read off B, never a literal.
 
 var _w: TestWorld
@@ -513,14 +512,18 @@ func test_the_shipped_def_is_a_catalyst_status_that_decays_per_world_turn() -> v
 
 
 func test_a_hits_centre_landing_converts_nothing() -> void:
-	var pair: Array[SkillNode] = await _pair(1.0)
+	var pair: Array[SkillNode] = await _burning_pair(5)
 	var n := pair[0]
 	var nc := CombatWorld.live().combat_for(n)
-	nc.apply_status(_CATALYST_TRES, 2.0)
 	var heat := nc.terrain_t()
-	var hits := _land(_hit_on(n, {}))
-	assert_gt(hits.size(), 0, "fixture: the hit landed")
-	assert_eq(nc.terrain_t(), heat, "no Heat/Cold/Charge rider: nothing converts, no Heat appears")
+	var span := _hit_on(n, {})
+	var hits := _land(span)
+	var centre := _on(hits, n).filter(func(h: HitInstance) -> bool: return not span.has(h))
+	assert_gt(centre.size(), 0, "fixture: Burning's disc landed a centre copy on N")
+	for h: HitInstance in centre:
+		assert_false(h is StatusInstance and [_fire.terrain, _ice.terrain, _lightning.terrain].has((h as StatusInstance).def),
+				"the centre copy carries no terrain rider")
+	assert_lte(nc.terrain_t(), heat, "nothing converted: no Heat appears")
 
 
 ## A goo (or poison) arrow's head plus its one [param def] rider on Burning N,
@@ -532,6 +535,7 @@ func _goo_on_m(pair: Array[SkillNode], def: StatusDef, stacks: int) -> Dictionar
 	var nc := CombatWorld.live().combat_for(n)
 	nc.add_terrain(_fire, nc.terrain_threshold() + 1 - nc.terrain_t())
 	var heat := nc.terrain_t()
+	var catalyst := int(nc.get_status_power(_CATALYST_TRES.id))
 	var span := _hit_on(n, {})
 	var s := StatusInstance.new()
 	s.def = def
@@ -549,6 +553,7 @@ func _goo_on_m(pair: Array[SkillNode], def: StatusDef, stacks: int) -> Dictionar
 	return {
 		"reached_m": _on(hits, m).size() > 0,
 		"added_on_m": carried,
+		"catalyst_kept": int(nc.get_status_power(_CATALYST_TRES.id)) == catalyst,
 		"heat_kept": nc.terrain_t() <= heat,
 	}
 
@@ -567,12 +572,12 @@ func test_a_goo_arrow_on_a_burning_node_sets_it_off_and_converts_nothing() -> vo
 	var goo := _goo_on_m(pair, _CATALYST_TRES, 2)
 	assert_true(goo.reached_m, "the Burning disc reached M: the arrow set N off like any hit")
 	assert_gt(float(goo.added_on_m), 0.0, "the copy carries the Catalyst rider over the disc")
+	assert_true(goo.catalyst_kept, "N's own Catalyst is neither converted nor lost")
 	assert_true(goo.heat_kept, "no Heat lands: N's own Catalyst converts into none, its Heat only falls (Burning's own spend)")
 
 
-## N holds no Catalyst here: go-off zero's disc (until it dies) reads N's own
-## row, and a poison arrow would set it off where a goo arrow's own-aspect skip
-## would not.
+## N holds no Catalyst here: go-off zero's disc reads N's own row, and a
+## poison arrow sets it off where a goo arrow's own-aspect skip does not.
 func test_goo_plants_the_same_stacks_as_poison_on_the_same_board() -> void:
 	var pair: Array[SkillNode] = await _burning_pair(0)
 	var poison := _goo_on_m(pair, _POISON_TRES, 2)
@@ -616,9 +621,9 @@ func test_the_row_decays_once_when_the_world_turn_closes_by_the_per_tick_rate() 
 
 
 func test_the_loss_per_world_turn_is_at_most_the_fire_bands() -> void:
-	var rate := int((_CATALYST_TRES.decay as FlatDecay).per_tick)
+	var rate := (_CATALYST_TRES.decay as FlatDecay).per_tick
 	var band := _fire.bands[0] as ElementBand
-	assert_lte(rate, band.decay_per_world_turn, "Catalyst fades no faster than the Fire band")
+	assert_lte(rate, float(band.decay_per_world_turn), "Catalyst fades no faster than the Fire band")
 
 
 func _store_of(def: StatusDef) -> int:
