@@ -57,10 +57,22 @@ func per_reload_stat_id() -> StringName:
 ## type"; ADR 0041). The base arrow ignores it — its cap is the `arrows` pool's
 ## max. Owner tunes.
 @export_range(1, 9999) var max_stock: int = Quiver.DEFAULT_MAX_STOCK
+## A bin banks this many reloads' mint: the cap is `stock_cap_reloads × mint`
+## ([method stock_cap]). 0 keeps the flat [member max_stock]. An element arrow
+## sets it so a high count never banks a thousand arrows (tentative knob).
+@export_range(0, 20) var stock_cap_reloads: int = 0
 ## What this type's arrow looks like in flight — a [StatusArrow]-family scene
 ## (`ui/vfx/projectile/visual/`). Null → the volley coordinator's default
 ## [member ArrowVolleyCoordinator.visual_scene], today's plain [LightArrow].
 @export var visual_scene: PackedScene = null
+
+
+## This type's bin cap given its per-reload [param mint]: `stock_cap_reloads ×
+## mint` when that is positive, else the flat [member max_stock] (a zero count
+## still banks what a gallery or loot hands it). Every [method Quiver.add] /
+## [method Quiver.room_for] caller passes this, never [member max_stock].
+func stock_cap(mint: int) -> int:
+	return max_stock if mint >= 0 else max_stock
 
 
 ## The first non-null [method OnHitEffect.status_def] in [member on_hit_effects]

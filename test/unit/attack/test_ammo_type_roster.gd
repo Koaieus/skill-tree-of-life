@@ -8,7 +8,8 @@ const _ROSTER := preload("res://attack/ammo/ammo_type_roster.tres")
 const _STATS := preload("res://stats_system/stat_def_roster.tres")
 const _DIR := "res://attack/ammo/types"
 const _IDS: Array[StringName] = [&"arrow", &"poison", &"scout", &"corruption",
-		&"curse", &"wither", &"sunder", &"blindness", &"greed", &"weakness", &"bleeding", &"mark", &"catalyst"]
+		&"curse", &"wither", &"sunder", &"blindness", &"greed", &"weakness", &"bleeding", &"mark", &"catalyst",
+		&"fire", &"ice", &"lightning"]
 
 
 func test_roster_covers_every_type_on_disk() -> void:
@@ -54,9 +55,30 @@ func test_statused_specials_order_below_base_and_scout_stays_last() -> void:
 	for t in _ROSTER.types:
 		if t.id == AmmoTypeRoster.BASE_ID or t.is_scout() or t.first_status_def() == null:
 			continue
-		assert_eq(t.first_status_def().id, t.id, "%s carries its own status" % t.id)
+		var element := ElementRoster.shared().by_id(t.id)
+		if element != null:
+			assert_eq(t.first_status_def(), element.terrain, "%s carries its element's terrain status" % t.id)
+		else:
+			assert_eq(t.first_status_def().id, t.id, "%s carries its own status" % t.id)
 		assert_lt(t.order, base.order, "%s volleys before the base arrow" % t.id)
 	assert_eq(_ROSTER.sorted().back().id, &"scout")
+
+
+## An arrow is an aspect subtype or an element, never both: each element's
+## type is its id, minting its COUNT facet, riding its terrain stack.
+func test_every_element_has_its_arrow() -> void:
+	for id in [&"fire", &"ice", &"lightning"]:
+		var t := _ROSTER.by_id(id)
+		assert_not_null(t, "%s arrow registered" % id)
+		if t == null:
+			continue
+		var element := ElementRoster.shared().by_id(id)
+		assert_not_null(element)
+		if element == null:
+			continue
+		assert_eq(t.per_reload_stat_id(), element.stat.id, "%s mints its element count" % id)
+		assert_eq(t.on_hit_effects.size(), 1, "%s rides one terrain stack" % id)
+		assert_eq(t.first_status_def(), element.terrain)
 
 
 ## The flare: the rider is splashed. A lone node has no neighbours to reach,

@@ -545,3 +545,39 @@ func test_the_refresh_after_a_launch_flies_nothing_back() -> void:
 	assert_eq(_flights().requested.size(), 0)
 	_attacker.stat_board.arrows.take(_ARROW, 1)
 	assert_eq(_requested(_ARROW, ArrowFlightLayer.TO_PILE), 1, "outside a launch a shrink flies again")
+
+
+## #1810 acceptance 4: stocked element bins get one card each, placed by the
+## type's authored `order` like any card, and reorder through the row.
+func test_element_arrows_get_a_card_each_and_reorder_like_any_card() -> void:
+	var elements: Array[StringName] = [&"fire", &"ice", &"lightning"]
+	for id in elements:
+		assert_not_null(_ROSTER.by_id(id), "%s arrow registered" % id)
+		_attacker.stat_board.arrows.add(id, 1)
+	for id in elements:
+		_body.set_special(id, 1)
+	await get_tree().process_frame
+	var expected: Array[StringName] = []
+	for t in _ROSTER.sorted():
+		if _attacker.stat_board.arrows.stock_of(t.id) > 0 or t.id == _ARROW \
+				or int(_attacker.reload_yield().get(t.id, 0)) > 0:
+			expected.append(t.id)
+	var before := _card_ids()
+	assert_eq(before, expected, "one card per stocked type, in authored order")
+	for id in elements:
+		assert_true(before.has(id), "%s has a card" % id)
+	var row := _body.get_node_or_null("%Roster") as ReorderRow
+	assert_not_null(row)
+	if row == null or before.size() < 3:
+		return
+	var moved: Array[StringName] = [before[2]]
+	for i in before.size():
+		if i != 2:
+			moved.append(before[i])
+	watch_signals(row)
+	var third := row.items()[2]
+	row.begin_drag(third, third.position.x + 5.0)
+	row.drag_to(-20.0 + 5.0)
+	row.end_drag()
+	assert_signal_emitted_with_parameters(row, "order_changed", [moved])
+	assert_eq(_ctl.armed_stack.memory_for(_attacker).ranged.order, moved, "the preference holds it")

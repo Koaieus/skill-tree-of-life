@@ -331,3 +331,61 @@ func _worked_board() -> EntityStatBoard:
 	b.node_health.base_value = 10.0
 	b.min_damage_taken.base_value = 3.0
 	return b
+
+
+# ── Element arrows (#1810) ───────────────────────────────────────────────
+
+const _HEAT := &"fire"
+const _CHARGE := &"lightning"
+const _COLD := &"ice"
+const _AMMO_ROSTER: AmmoTypeRoster = preload("res://attack/ammo/ammo_type_roster.tres")
+
+
+## The authored stacks one arrow of [param id] plants: its one rider's power.
+func _rider_stacks(id: StringName) -> int:
+	var t := _AMMO_ROSTER.by_id(id)
+	assert_not_null(t, "%s arrow registered" % id)
+	if t == null:
+		return -1
+	return int((t.on_hit_effects[0] as ApplyStatusEffect).power)
+
+
+## An element-arrow volley onto [_target], landed synchronously. Crit pinned
+## to 0: an arrow's crit is drawn at land, and a crit must not move the stacks.
+func _fire_elements(ammo: Array[Dictionary]) -> void:
+	_attacker.stat_board.crit_chance.base_value = 0.0
+	for entry in ammo:
+		_attacker.stat_board.arrows.add(entry.type, entry.count)
+	var bs := _battle_system()
+	var plan := bs.new_plan(BattleSystem.AttackMode.RANGED, bs.turn_manager.current_entity) as RangedAttackPlan
+	plan.set_target(_target)
+	plan.ammo = ammo
+	assert_eq(plan.validate(), [] as Array[String], "no per-volley element cap")
+	await bs.launch_attack(plan)
+
+
+func test_a_mixed_element_volley_fires_in_list_order() -> void:
+	for id in [_HEAT, _CHARGE, _COLD]:
+		_attacker.stat_board.arrows.add(id, 1)
+	var p := _plan()
+	p.ammo = [{"type": _HEAT, "count": 1}, {"type": _CHARGE, "count": 1}, {"type": _COLD, "count": 1}]
+	assert_eq(p.validate(), [] as Array[String], "one of each element passes, no cap")
+	assert_eq(_seq_ids(p), [_HEAT, _CHARGE, _COLD] as Array[StringName])
+
+
+func test_a_mixed_element_volley_nets_heat_against_cold_and_adds_charge() -> void:
+	var combat := _target.get_combat()
+	var t0 := combat.terrain_t()
+	var c0 := combat.charge()
+	await _fire_elements([{"type": _HEAT, "count": 1}, {"type": _CHARGE, "count": 1},
+			{"type": _COLD, "count": 1}] as Array[Dictionary])
+	assert_eq(combat.charge() - c0, _rider_stacks(_CHARGE), "Charge rises by its rider's stacks")
+	assert_eq(combat.terrain_t() - t0, _rider_stacks(_HEAT) - _rider_stacks(_COLD),
+			"t moves by Heat − Cold")
+
+
+func test_a_lone_heat_arrow_raises_t_by_its_stacks() -> void:
+	var combat := _target.get_combat()
+	var t0 := combat.terrain_t()
+	await _fire_elements([{"type": _HEAT, "count": 1}] as Array[Dictionary])
+	assert_eq(combat.terrain_t() - t0, _rider_stacks(_HEAT))
