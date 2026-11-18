@@ -7,7 +7,7 @@ extends GutTest
 ## captures and rebuilds it, and [method HitGather.feed] lands it where a
 ## re-drained or rebuilt beat would gather (acceptance 4's invariant). The
 ## holder is the one the gather resolved: the node's own slice, or a bare
-## core's owner. Here a [DiscGoOff] the test authors on the Explosive [Aspect],
+## core's owner. Here a [DiscGoOff] the test authors on the Catalyst [Aspect],
 ## as `test_gather_aspect_go_off.gd` builds one; nothing on master authors one.
 ## Each test gathers on a shadow first (the authority's resolve), then replays
 ## on the untouched live world, which starts from the same store.
@@ -28,7 +28,7 @@ func before_each() -> void:
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
 	await get_tree().process_frame
-	_aspect = AspectRoster.shared().by_id(&"explosive")
+	_aspect = AspectRoster.shared().by_id(&"catalyst")
 	_was = _aspect.go_off
 	var disc := DiscGoOff.new()
 	disc.lands_on_own_node = false
@@ -45,21 +45,21 @@ func after_each() -> void:
 
 
 func _def() -> StatusDef:
-	return StatusRoster.shared().by_concept(&"explosive")
+	return StatusRoster.shared().by_concept(&"catalyst")
 
 
-func _spread() -> ExplosiveSpread:
-	return _def().spread as ExplosiveSpread
+func _spread() -> CatalystSpread:
+	return _def().spread as CatalystSpread
 
 
-## The Explosive charges on [param n]'s slice of [param world].
+## The Catalyst charges on [param n]'s slice of [param world].
 func _held(n: SkillNode, world: CombatWorld) -> int:
-	return int(world.combat_for(n).get_status_power(&"explosive"))
+	return int(world.combat_for(n).get_status_power(&"catalyst"))
 
 
-## The Explosive charges on Red's entity-hosted rows in [param world].
+## The Catalyst charges on Red's entity-hosted rows in [param world].
 func _owners(world: CombatWorld) -> int:
-	return int(world.combat_for_entity(_red).get_status_power(&"explosive"))
+	return int(world.combat_for_entity(_red).get_status_power(&"catalyst"))
 
 
 ## A node whose hitbox sits [param edge] px from [param centre]'s centre, due east.

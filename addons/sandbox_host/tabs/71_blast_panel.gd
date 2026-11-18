@@ -46,10 +46,10 @@ func _ready() -> void:
 	_play()
 
 
-## One box per roster aspect but explosive (a blast strips its own charges).
+## One box per roster aspect but catalyst (a blast strips its own charges).
 func _build_picker() -> void:
 	for aspect in _roster.aspects:
-		if aspect == null or aspect.identity == null or aspect.id() == &"explosive":
+		if aspect == null or aspect.identity == null or aspect.id() == &"catalyst":
 			continue
 		var box := CheckBox.new()
 		box.text = aspect.identity.noun if not aspect.identity.noun.is_empty() else String(aspect.id())
@@ -61,7 +61,7 @@ func _build_picker() -> void:
 
 ## "Go-off zero" (the plain ring), then each element band that names an identity.
 func _build_go_offs() -> void:
-	_go_off.add_item("Go-off zero (Explosive)")
+	_go_off.add_item("Go-off zero (Catalyst)")
 	_go_offs.append(null)
 	for element in _elements.elements:
 		if element == null:

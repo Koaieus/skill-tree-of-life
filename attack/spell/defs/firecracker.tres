@@ -3,7 +3,7 @@
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="2_intake"]
 [ext_resource type="Script" path="res://attack/spell/load_use/fuel_use.gd" id="2_fuel_use"]
-[ext_resource type="Resource" path="res://identity/defs/explosive.tres" id="2_explosive"]
+[ext_resource type="Resource" path="res://identity/defs/catalyst.tres" id="2_catalyst"]
 [ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="3_crit_base"]
 [ext_resource type="Script" path="res://attack/spell/condition/no_edge_to_source_condition.gd" id="3_crit_gap"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="4_effect"]
@@ -22,7 +22,7 @@ script = ExtResource("2_fuel_use")
 
 [sub_resource type="Resource" id="fuel"]
 script = ExtResource("2_intake")
-identity = ExtResource("2_explosive")
+identity = ExtResource("2_catalyst")
 innate = 6
 use = SubResource("fuel_use")
 
@@ -67,7 +67,7 @@ id = &"firecracker"
 name = "Firecracker"
 tagline = "Each landing is a blast; the next wave lands on all it hits."
 identity = ExtResource("7_identity")
-description = "Pops on an enemy node, and the pop is a blast: every enemy node inside it is where the next wave lands, edge or no edge. Its explosive is fuel, not cargo: each wave burns one, so the blasts shrink while the damage holds. A blast whose centre shares no edge with a node it hits CRITS there. Every pop sets off one charge on a charged node, and infused poison rides that charge's blast."
+description = "Pops on an enemy node, and the pop is a blast: every enemy node inside it is where the next wave lands, edge or no edge. Its catalyst is fuel, not cargo: each wave burns one, so the blasts shrink while the damage holds. A blast whose centre shares no edge with a node it hits CRITS there. Every pop sets off one charge on a charged node, and infused poison rides that charge's blast."
 power = 0.3
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("4_effect")]([SubResource("dmg")])

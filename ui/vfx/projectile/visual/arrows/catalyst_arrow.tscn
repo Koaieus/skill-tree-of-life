@@ -23,7 +23,7 @@ scale_min = 0.05
 scale_max = 0.12
 color_ramp = SubResource("GradientTexture1D_sparks")
 
-[node name="ExplosiveArrow" instance=ExtResource("1_base")]
+[node name="CatalystArrow" instance=ExtResource("1_base")]
 
 [node name="Sparks" parent="." index="1" instance=ExtResource("2_shed")]
 show_on_dud = false

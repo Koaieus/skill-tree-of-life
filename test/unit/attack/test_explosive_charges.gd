@@ -1,11 +1,11 @@
 extends GutTest
 
-## The explosive charge status (#1594): its def's decay, its death removal
-## (every charge spent at once) and [method ExplosiveSpread.radius_for]'s
+## The catalyst charge status (#1594): its def's decay, its death removal
+## (every charge spent at once) and [method CatalystSpread.radius_for]'s
 ## shape. Ratios, never the authored literals — knobs move.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
-const _EXPLOSIVE_PATH := "res://effects/status/explosive.tres"
+const _CATALYST_PATH := "res://effects/status/catalyst.tres"
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -33,42 +33,42 @@ func before_each() -> void:
 
 
 func _def() -> StatusDef:
-	return load(_EXPLOSIVE_PATH) as StatusDef
+	return load(_CATALYST_PATH) as StatusDef
 
 
-func _spread() -> ExplosiveSpread:
-	return _def().spread as ExplosiveSpread
+func _spread() -> CatalystSpread:
+	return _def().spread as CatalystSpread
 
 
 # --- acceptance 8: radius_for ratios ---------------------------------------
 
 func test_radius_doubles_with_node_radius() -> void:
-	var s := ExplosiveSpread.new()
+	var s := CatalystSpread.new()
 	var r := s.radius_for(32.0, 1)
 	assert_gt(r, 0.0, "one charge reaches somewhere")
 	assert_almost_eq(s.radius_for(64.0, 1) / r, 2.0, 0.0001, "the bomb is the node: radius scales linearly")
 
 
 func test_radius_doubles_when_charges_go_times_four() -> void:
-	var s := ExplosiveSpread.new()
+	var s := CatalystSpread.new()
 	assert_almost_eq(s.radius_for(32.0, 12) / s.radius_for(32.0, 3), 2.0, 0.0001, "sqrt(charges)")
 
 
 func test_radius_flat_at_exponent_zero() -> void:
-	var s := ExplosiveSpread.new()
+	var s := CatalystSpread.new()
 	s.charge_exponent = 0.0
 	assert_almost_eq(s.radius_for(32.0, 9), s.radius_for(32.0, 1), 0.0001, "exponent 0 ignores charges")
 
 
 func test_radius_zero_without_charges() -> void:
-	assert_eq(ExplosiveSpread.new().radius_for(32.0, 0), 0.0, "no charge, no boom")
+	assert_eq(CatalystSpread.new().radius_for(32.0, 0), 0.0, "no charge, no boom")
 
 
 # --- acceptance 6: decay ------------------------------------------------------
 
 func test_two_charges_lose_per_tick_at_turn_end() -> void:
 	var def := _def()
-	assert_not_null(def, "explosive.tres authored")
+	assert_not_null(def, "catalyst.tres authored")
 	var per_tick: float = (def.decay as FlatDecay).per_tick
 	var c := _nodes[0].get_combat()
 	c.apply_status(def, 2.0)
@@ -125,15 +125,15 @@ func _charge(node: SkillNode, n: float) -> void:
 
 
 func _charges(node: SkillNode) -> float:
-	return node.get_combat().get_status_power(&"explosive")
+	return node.get_combat().get_status_power(&"catalyst")
 
 
-func _explosive_arrow() -> AmmoType:
+func _catalyst_arrow() -> AmmoType:
 	var apply := ApplyStatusEffect.new()
 	apply.def = _def()
 	apply.power = 1.0
 	var ammo := AmmoType.new()
-	ammo.id = &"test_explosive"
+	ammo.id = &"test_catalyst"
 	ammo.on_hit_effects = [apply]
 	return ammo
 
@@ -158,9 +158,9 @@ func _land(hits: Array) -> void:
 			h.land_on(h.target.get_combat(), CombatWorld.live())
 
 
-## Go-off zero's disc, as Explosive's aspect authors it.
+## Go-off zero's disc, as Catalyst's aspect authors it.
 func _disc() -> DiscGoOff:
-	return (load("res://aspects/defs/explosive.tres") as Aspect).go_off as DiscGoOff
+	return (load("res://aspects/defs/catalyst.tres") as Aspect).go_off as DiscGoOff
 
 
 ## Land [param hits] through the gather on the live world, beat by beat; the
@@ -215,14 +215,14 @@ func test_a_poison_arrow_on_two_charges_spends_one_and_blasts_poison_outward() -
 	assert_almost_eq(_charges(_f.target), 1.0, 0.0001, "left holding 1 charge")
 
 
-func test_explosive_only_landings_arm_and_never_fire() -> void:
+func test_catalyst_only_landings_arm_and_never_fire() -> void:
 	await _board()
-	var ammo := _explosive_arrow()
+	var ammo := _catalyst_arrow()
 	await _fire(_shoot(ammo))
 	var per_landing := _charges(_f.target)
-	assert_gt(per_landing, 0.0, "an explosive arrow plants")
+	assert_gt(per_landing, 0.0, "an catalyst arrow plants")
 	for i in 2:
-		assert_true((await _fire(_shoot(ammo))).is_empty(), "an explosive-only hit never goes off")
+		assert_true((await _fire(_shoot(ammo))).is_empty(), "an catalyst-only hit never goes off")
 	assert_almost_eq(_charges(_f.target), 3.0 * per_landing, 0.0001, "N landings leave N x one landing's charges")
 
 
@@ -266,7 +266,7 @@ func test_a_detonate_load_on_charges_spends_the_shared_chunk_and_blasts_poison()
 	assert_eq(_status_on(copies, _f.cluster[0], _POISON_DEF.id).size(), 1, "poison rides the blast")
 	for h in copies:
 		if h is StatusInstance:
-			assert_ne(h.def.id, &"explosive", "a DETONATE load plants nothing")
+			assert_ne(h.def.id, &"catalyst", "a DETONATE load plants nothing")
 	assert_almost_eq(_charges(_f.target), 0.0, 0.0001, "spends max(1, min(3, 2)) = 2")
 
 
@@ -314,11 +314,11 @@ func test_five_sparks_on_a_five_patch_each_take_one() -> void:
 func test_a_plant_row_with_poison_on_a_charged_node_plants_and_never_blasts() -> void:
 	await _board()
 	_charge(_f.target, 2.0)
-	var explosive := ApplyStatusEffect.new()
-	explosive.def = _def()
-	explosive.power = 1.0
-	var span := _spell_span([_poison_rider(), explosive] as Array[OnHitEffect], 0)
-	var planted := _status_on(span, _f.target, &"explosive")
+	var catalyst := ApplyStatusEffect.new()
+	catalyst.def = _def()
+	catalyst.power = 1.0
+	var span := _spell_span([_poison_rider(), catalyst] as Array[OnHitEffect], 0)
+	var planted := _status_on(span, _f.target, &"catalyst")
 	assert_eq(planted.size(), 1, "fixture: the charge rides the hit")
 	assert_eq(_status_on(span, _f.target, _POISON_DEF.id).size(), 1, "fixture: so does the poison")
 	assert_true((await _fire(span)).is_empty(), "a PLANT hit never blasts")
@@ -432,7 +432,7 @@ func test_a_core_hosted_charge_spends_off_the_entity() -> void:
 	assert_true(core.get_combat().is_core(), "fixture: cluster[0] is the hostile core")
 	_f.hostile.get_combat().apply_status(_def(), 2.0)
 	await _fire(_shoot(null, core))
-	assert_almost_eq(_f.hostile.get_combat().get_status_power(&"explosive"), 1.0, 0.0001,
+	assert_almost_eq(_f.hostile.get_combat().get_status_power(&"catalyst"), 1.0, 0.0001,
 			"the core-hosted charge sets off, spent off the entity")
 	assert_almost_eq(_charges(core), 0.0, 0.0001, "the node held none and holds none")
 
@@ -452,33 +452,33 @@ func test_a_dud_arrow_spends_no_charge() -> void:
 	assert_almost_eq(_charges(_f.target), 2.0, 0.0001, "a dud spends nothing")
 
 
-# --- the shipped explosive arrow (#1398) ---------------------------------------
+# --- the shipped catalyst arrow (#1398) ---------------------------------------
 
-const _EXPLOSIVE_ARROW_PATH := "res://attack/ammo/types/explosive.tres"
+const _CATALYST_ARROW_PATH := "res://attack/ammo/types/catalyst.tres"
 
 
-func _shipped_explosive_arrow() -> AmmoType:
-	var ammo := load(_EXPLOSIVE_ARROW_PATH) as AmmoType
-	assert_not_null(ammo, "explosive.tres authored")
+func _shipped_catalyst_arrow() -> AmmoType:
+	var ammo := load(_CATALYST_ARROW_PATH) as AmmoType
+	assert_not_null(ammo, "catalyst.tres authored")
 	return ammo
 
 
-func test_three_shipped_explosive_arrows_plant_three_landings_and_never_fire() -> void:
+func test_three_shipped_catalyst_arrows_plant_three_landings_and_never_fire() -> void:
 	await _board()
-	var ammo := _shipped_explosive_arrow()
+	var ammo := _shipped_catalyst_arrow()
 	if ammo == null:
 		return
 	assert_true((await _fire(_shoot(ammo))).is_empty(), "the first plants")
 	var per_landing := _charges(_f.target)
 	assert_gt(per_landing, 0.0, "the shipped arrow plants")
 	for i in 2:
-		assert_true((await _fire(_shoot(ammo))).is_empty(), "an explosive arrow never goes off")
+		assert_true((await _fire(_shoot(ammo))).is_empty(), "an catalyst arrow never goes off")
 	assert_almost_eq(_charges(_f.target), 3.0 * per_landing, 0.0001, "three arrows, three landings' charges")
 
 
-func test_a_poison_arrow_behind_a_shipped_explosive_arrow_cashes_one_charge_in() -> void:
+func test_a_poison_arrow_behind_a_shipped_catalyst_arrow_cashes_one_charge_in() -> void:
 	await _board()
-	var ammo := _shipped_explosive_arrow()
+	var ammo := _shipped_catalyst_arrow()
 	if ammo == null:
 		return
 	await _fire(_shoot(ammo))
@@ -487,8 +487,8 @@ func test_a_poison_arrow_behind_a_shipped_explosive_arrow_cashes_one_charge_in()
 	assert_almost_eq(_charges(_f.target), planted - 1.0, 0.0001, "one charge gone")
 
 
-func test_the_explosive_aspect_mints_the_shipped_arrow() -> void:
-	var aspect := load("res://aspects/defs/explosive.tres") as Aspect
-	assert_not_null(aspect.ammo, "explosive aspect sets ammo")
+func test_the_catalyst_aspect_mints_the_shipped_arrow() -> void:
+	var aspect := load("res://aspects/defs/catalyst.tres") as Aspect
+	assert_not_null(aspect.ammo, "catalyst aspect sets ammo")
 	if aspect.ammo != null:
-		assert_eq(aspect.ammo.resource_path, _EXPLOSIVE_ARROW_PATH)
+		assert_eq(aspect.ammo.resource_path, _CATALYST_ARROW_PATH)

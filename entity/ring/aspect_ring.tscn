@@ -12,7 +12,7 @@
 [ext_resource type="Resource" path="res://aspects/defs/weakness.tres" id="asp_weakness"]
 [ext_resource type="Resource" path="res://identity/defs/dexterity.tres" id="id_dexterity"]
 [ext_resource type="Resource" path="res://aspects/defs/poison.tres" id="asp_poison"]
-[ext_resource type="Resource" path="res://aspects/defs/explosive.tres" id="asp_explosive"]
+[ext_resource type="Resource" path="res://aspects/defs/catalyst.tres" id="asp_catalyst"]
 [ext_resource type="Resource" path="res://identity/defs/intelligence.tres" id="id_intelligence"]
 [ext_resource type="Resource" path="res://aspects/defs/curse.tres" id="asp_curse"]
 [ext_resource type="Resource" path="res://aspects/defs/mark.tres" id="asp_mark"]
@@ -74,19 +74,19 @@ stat_id = &"poison_stacks_per_hit"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_ExplosiveT1"]
+[sub_resource type="Resource" id="m_CatalystT1"]
 resource_local_to_scene = true
-resource_name = "+1 Explosive Aspect"
+resource_name = "+1 Catalyst Aspect"
 script = ExtResource("5_mod")
-stat_id = &"explosive_aspect"
+stat_id = &"catalyst_aspect"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
-[sub_resource type="Resource" id="m_ExplosiveT2"]
+[sub_resource type="Resource" id="m_CatalystT2"]
 resource_local_to_scene = true
-resource_name = "+1 Explosive Stacks Per Hit"
+resource_name = "+1 Catalyst Stacks Per Hit"
 script = ExtResource("5_mod")
-stat_id = &"explosive_stacks_per_hit"
+stat_id = &"catalyst_stacks_per_hit"
 value = 1.0
 metadata/_custom_type_script = "uid://che6xhl6srqh3"
 
@@ -284,23 +284,23 @@ sector = ExtResource("id_dexterity")
 tier = 2
 entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_PoisonT2")])
 
-[node name="ExplosiveT1" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="CatalystT1" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(134, -41)
 
-[node name="RingCellAddon" parent="Nodes/ExplosiveT1" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_explosive")
+[node name="RingCellAddon" parent="Nodes/CatalystT1" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_catalyst")
 sector = ExtResource("id_dexterity")
 tier = 1
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ExplosiveT1")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CatalystT1")])
 
-[node name="ExplosiveT2" parent="Nodes" instance=ExtResource("2_skill")]
+[node name="CatalystT2" parent="Nodes" instance=ExtResource("2_skill")]
 position = Vector2(241, -65)
 
-[node name="RingCellAddon" parent="Nodes/ExplosiveT2" instance=ExtResource("4_addon")]
-aspect = ExtResource("asp_explosive")
+[node name="RingCellAddon" parent="Nodes/CatalystT2" instance=ExtResource("4_addon")]
+aspect = ExtResource("asp_catalyst")
 sector = ExtResource("id_dexterity")
 tier = 2
-entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_ExplosiveT2")])
+entity_modifiers = Array[ExtResource("5_mod")]([SubResource("m_CatalystT2")])
 
 [node name="DexterityKeystone" parent="Nodes" instance=ExtResource("6_key1")]
 position = Vector2(286, -165)
@@ -513,20 +513,20 @@ to = NodePath("../../Nodes/PoisonT1")
 from = NodePath("../../Nodes/PoisonT1")
 to = NodePath("../../Nodes/PoisonT2")
 
-[node name="E_Core_ExplosiveT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+[node name="E_Core_CatalystT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/Core")
-to = NodePath("../../Nodes/ExplosiveT1")
+to = NodePath("../../Nodes/CatalystT1")
 
-[node name="E_ExplosiveT1_ExplosiveT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ExplosiveT1")
-to = NodePath("../../Nodes/ExplosiveT2")
+[node name="E_CatalystT1_CatalystT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CatalystT1")
+to = NodePath("../../Nodes/CatalystT2")
 
 [node name="E_PoisonT1_DexterityKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
 from = NodePath("../../Nodes/PoisonT1")
 to = NodePath("../../Nodes/DexterityKeystone")
 
-[node name="E_ExplosiveT1_DexterityKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ExplosiveT1")
+[node name="E_CatalystT1_DexterityKeystone" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CatalystT1")
 to = NodePath("../../Nodes/DexterityKeystone")
 
 [node name="E_Core_CurseT1" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
@@ -629,8 +629,8 @@ to = NodePath("../../Nodes/WisdomKeystone")
 from = NodePath("../../Nodes/WeaknessT2")
 to = NodePath("../../Nodes/PoisonT2")
 
-[node name="E_ExplosiveT2_CurseT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
-from = NodePath("../../Nodes/ExplosiveT2")
+[node name="E_CatalystT2_CurseT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]
+from = NodePath("../../Nodes/CatalystT2")
 to = NodePath("../../Nodes/CurseT2")
 
 [node name="E_MarkT2_WitherT2" parent="Edges" node_paths=PackedStringArray("from", "to") instance=ExtResource("3_edge")]

@@ -4,7 +4,7 @@ extends LoadUse
 
 ## The load spends nothing at the hit — no rider, no blast; it only shapes the
 ## spell, which reads it from [member PropagationContext.load] (Firecracker's
-## explosive fuel feeding its [FuelBlastReach]).
+## catalyst fuel feeding its [FuelBlastReach]).
 
 
 func describe(row: AspectIntake, _board: StatBoard = null, _read_node: SkillNode = null) -> String:

@@ -161,7 +161,7 @@ func test_same_seed_rolls_the_same_modifiers() -> void:
 	var pool_set := _set_of([
 		_pool(_BUDGET_STAT, [] as Array[StringName]),
 		_pool(_SUPPLY_STAT, [&"supply"] as Array[StringName]),
-		_pool(&"explosive_aspect", [&"budget", &"supply"] as Array[StringName]),
+		_pool(&"catalyst_aspect", [&"budget", &"supply"] as Array[StringName]),
 	] as Array[StatPool])
 	var sub := _subtype(&"blight", [_roll_pass(&"supply", 0.5), _roll_pass(&"supply", 0.5)] as Array[RollPass])
 	for s in 20:

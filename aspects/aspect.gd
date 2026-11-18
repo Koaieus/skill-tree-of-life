@@ -17,7 +17,7 @@ extends Resource
 @export var identity: Identity = null
 ## The `<concept>_aspect` count stat, a child of the `aspects` family parent.
 @export var stat: StatDef = null
-## The concept's status (explosive's is its charges). Null for a concept
+## The concept's status (catalyst's is its charges). Null for a concept
 ## with none.
 @export var status: StatusDef = null
 ## The concept's special arrow. Null until its arrow cell lands.
@@ -32,7 +32,7 @@ extends Resource
 @export var blast_layer: PackedScene = null
 ## What a node primed by this concept does when a hit sets it off: the same
 ## field as [member ElementBand.go_off], read by [HitGather] beside the element
-## bands. Null for a concept with none; Explosive's alone is authored, go-off
+## bands. Null for a concept with none; Catalyst's alone is authored, go-off
 ## zero's [DiscGoOff], until the Catalyst retag deletes it.
 @export var go_off: GoOff = null
 

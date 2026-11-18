@@ -1,12 +1,12 @@
 @tool
-class_name ExplosiveBarrelAddon
+class_name CatalystBarrelAddon
 extends SkillNodeAddon
-## Explosive × Addon: the barrel. Not unique — barrels stack, and each is one
-## explosive charge its carrier holds: at the owner's turn start an ALLOCATED
+## Catalyst × Addon: the barrel. Not unique — barrels stack, and each is one
+## catalyst charge its carrier holds: at the owner's turn start an ALLOCATED
 ## carrier tops its charges up to the number of barrels it carries (flat,
 ## never stat-scaled — a count of explosions, not a magnitude), and a barrel
 ## leaving spends one charge if there is one. The blast's size is the node's
-## own (the bomb is the node, [ExplosiveSpread]); a barrel carries no radius
+## own (the bomb is the node, [CatalystSpread]); a barrel carries no radius
 ## logic and no blade code — a swung piece's lives are its node's charges.
 ##
 ## Charge writes go through the carrier's status host: the refill lands as
@@ -17,7 +17,7 @@ extends SkillNodeAddon
 ## stack to its vertex's swing copy of the charges, which the swing spends
 ## like any other charge — one temp barrel, one blast.
 
-## The charge this barrel refills — the Explosive aspect's status.
+## The charge this barrel refills — the Catalyst aspect's status.
 @export var charge_status: StatusDef = null
 
 
@@ -68,7 +68,7 @@ func barrel_count() -> int:
 		return 0
 	var n := 0
 	for a in carrier.get_addons():
-		if a is ExplosiveBarrelAddon and not a.is_temporary:
+		if a is CatalystBarrelAddon and not a.is_temporary:
 			n += 1
 	return n
 
@@ -82,12 +82,12 @@ func barrel_index() -> int:
 	for a in carrier.get_addons():
 		if a == self:
 			return i
-		if a is ExplosiveBarrelAddon:
+		if a is CatalystBarrelAddon:
 			i += 1
 	return -1
 
 
-## The carrier's live explosive charges (0 without a combat slice, e.g. in
+## The carrier's live catalyst charges (0 without a combat slice, e.g. in
 ## the editor).
 func charges() -> float:
 	if charge_status == null or carrier == null or carrier.get_combat() == null:

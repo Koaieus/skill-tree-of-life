@@ -1,10 +1,10 @@
 extends GutTest
 
 ## #1799 (Unit F-a): [HitGather] fires an [member Aspect.go_off] at its read,
-## beside the element bands and never behind their band test (Explosive has no
+## beside the element bands and never behind their band test (Catalyst has no
 ## terrain axis, so no band). Here a [DiscGoOff] the test authors on the
-## Explosive [Aspect]; nothing on master authors one. The go-off's spend
-## commits on the holder's Explosive row with the generation's other spends,
+## Catalyst [Aspect]; nothing on master authors one. The go-off's spend
+## commits on the holder's Catalyst row with the generation's other spends,
 ## summed, clamped at 0; its mark takes the disc's reach and power; it reads
 ## the gather's world, a cast's shadow included. Generation 0 reads the
 ## pre-beat store, a copy's generation the store the one before it left
@@ -27,7 +27,7 @@ func before_each() -> void:
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
 	await get_tree().process_frame
-	_aspect = AspectRoster.shared().by_id(&"explosive")
+	_aspect = AspectRoster.shared().by_id(&"catalyst")
 	_was = _aspect.go_off
 	_disc = DiscGoOff.new()
 	_aspect.go_off = _disc
@@ -39,21 +39,21 @@ func after_each() -> void:
 
 
 func _def() -> StatusDef:
-	return StatusRoster.shared().by_concept(&"explosive")
+	return StatusRoster.shared().by_concept(&"catalyst")
 
 
-func _spread() -> ExplosiveSpread:
-	return _def().spread as ExplosiveSpread
+func _spread() -> CatalystSpread:
+	return _def().spread as CatalystSpread
 
 
 func _charge(holder: Object, n: int) -> void:
 	holder.get_combat().apply_status(_def(), float(n))
 
 
-## The Explosive charges on [param n]'s slice of [param world] (live when null).
+## The Catalyst charges on [param n]'s slice of [param world] (live when null).
 func _held(n: SkillNode, world: CombatWorld = null) -> int:
 	var w := world if world != null else CombatWorld.live()
-	return int(w.combat_for(n).get_status_power(&"explosive"))
+	return int(w.combat_for(n).get_status_power(&"catalyst"))
 
 
 ## A node whose hitbox sits [param edge] px from [param centre]'s centre, due east.
@@ -189,7 +189,7 @@ func test_a_core_with_no_charges_spends_off_its_owners_entity_rows() -> void:
 	assert_not_null(mark, "the core goes off on its owner's charges")
 	if mark != null:
 		assert_eq(mark.power, DiscGoOff.power_of(3, 2, _spread().resonance), "power reads the entity's rows")
-	var left := CombatWorld.live().combat_for_entity(_red).get_status_power(&"explosive")
+	var left := CombatWorld.live().combat_for_entity(_red).get_status_power(&"catalyst")
 	assert_almost_eq(left, 2.0 - DiscGoOff.spend_of(3, 2), 0.0001, "and the spend comes off them")
 
 

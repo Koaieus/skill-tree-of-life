@@ -430,5 +430,5 @@ func test_a_new_disc_keeps_go_off_zeros_values() -> void:
 	var fresh := DiscGoOff.new()
 	assert_eq(fresh.damage_per_power, 0.0, "no own damage by default")
 	assert_eq(fresh.spend_source, DiscGoOff.Spend.SPEND_OF, "spend_of by default")
-	assert_eq(fresh.power_source, DiscGoOff.Power.EXPLOSIVE_CHARGES, "go-off zero's power")
-	assert_eq(fresh.radius_source, DiscGoOff.Radius.EXPLOSIVE_SPREAD, "go-off zero's radius")
+	assert_eq(fresh.power_source, DiscGoOff.Power.CATALYST_CHARGES, "go-off zero's power")
+	assert_eq(fresh.radius_source, DiscGoOff.Radius.CATALYST_SPREAD, "go-off zero's radius")

@@ -6,7 +6,7 @@ extends GutTest
 ## the gather mints carries the generation of the read its go-off fired at,
 ## through the record too (#1799, ADR 0091 §1).
 
-const _EXPLOSIVE := preload("res://effects/status/explosive.tres")
+const _CATALYST := preload("res://effects/status/catalyst.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _BLIND := preload("res://effects/status/blindness.tres")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -31,7 +31,7 @@ var _fire_bands: Array[ElementBand] = []
 func before_each() -> void:
 	_f = await VolleyBoardFixture.build(self, true)
 	_f.target.base_radius = 40.0
-	_f.target.get_combat().apply_status(_EXPLOSIVE, 2.0)
+	_f.target.get_combat().apply_status(_CATALYST, 2.0)
 	_fire = ElementRoster.shared().by_id(&"fire")
 	_fire_bands = _fire.bands.duplicate()
 
@@ -100,7 +100,7 @@ func test_one_mark_rides_every_inner_hit_at_the_sims_reach() -> void:
 		return
 	for h in inner:
 		assert_true(is_same(h.blast_mark, mark), "one mark on every inner hit")
-	var spread := _EXPLOSIVE.spread as ExplosiveSpread
+	var spread := _CATALYST.spread as CatalystSpread
 	var power := DiscGoOff.power_of(3, 2, spread.resonance)
 	assert_almost_eq(mark.reach, spread.radius_for(_f.target.radius, power), 0.001, "the sim's reach")
 	assert_eq(mark.power, power, "the detonation's power reaches the mark")

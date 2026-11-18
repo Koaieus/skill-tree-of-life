@@ -40,7 +40,7 @@ func test_poison_has_no_spread_and_is_resisted_by_poison_resistance() -> void:
 
 
 func test_spreading_statuses_describe_their_spread() -> void:
-	for id: StringName in [&"bleeding", &"curse", &"corruption", &"explosive"]:
+	for id: StringName in [&"bleeding", &"curse", &"corruption", &"catalyst"]:
 		var spread := _section(_status(id), StatusSections.SPREAD)
 		assert_true(spread != null and not spread.is_empty(), "%s has a Spread section" % id)
 
@@ -57,13 +57,13 @@ func test_every_spread_leaf_describes_itself_distinctly_with_its_number() -> voi
 	spill.spread_fraction = 0.4
 	var sandpile := SandpileSpread.new()
 	sandpile.burn = 3
-	var explosive := ExplosiveSpread.new()
-	explosive.damage_per_charge = 7.0
+	var catalyst := CatalystSpread.new()
+	catalyst.damage_per_charge = 7.0
 	var flat := FlatDiffusion.new()
 	flat.min_diff = 5
 	var fraction := FractionDiffusion.new()
 	fraction.fraction = 0.3
-	var expect := {spill: "40%", sandpile: "3", explosive: "7", flat: "5", fraction: "30%"}
+	var expect := {spill: "40%", sandpile: "3", catalyst: "7", flat: "5", fraction: "30%"}
 	var seen := {}
 	for leaf: StatusSpread in expect:
 		var text := leaf.describe()

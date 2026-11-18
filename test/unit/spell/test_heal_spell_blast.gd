@@ -1,14 +1,14 @@
 extends GutTest
 
 ## A heal SPELL (the healing beam's shape: one [HealEffect]) landing on a
-## charged node with a DETONATE explosive load blasts a share of its heal —
+## charged node with a DETONATE catalyst load blasts a share of its heal —
 ## never damage — onto the nodes in reach its own mask admits. A spell
 ## landing rides its own heal the way an arrow's landing rides its arrow, so
 ## the go-off's copies are heals. Geometry is derived from the shipped
-## explosive knobs, never literals.
+## catalyst knobs, never literals.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
-const _EXPLOSIVE: StatusDef = preload("res://effects/status/explosive.tres")
+const _CATALYST: StatusDef = preload("res://effects/status/catalyst.tres")
 const _ANY := 15
 const _FRIENDLY := SkillNode.Ownership.MINE | SkillNode.Ownership.ALLY
 const _LOAD := 3
@@ -22,8 +22,8 @@ func before_each() -> void:
 	h = H.new()
 
 
-func _spread() -> ExplosiveSpread:
-	return _EXPLOSIVE.spread as ExplosiveSpread
+func _spread() -> CatalystSpread:
+	return _CATALYST.spread as CatalystSpread
 
 
 func _heal_spell(mask: int) -> SpellDef:
@@ -50,15 +50,15 @@ func _board() -> Dictionary:
 	var power := DiscGoOff.power_of(_LOAD, _CHARGES, _spread().resonance)
 	var reach := _spread().radius_for(n[1].radius, power)
 	assert_between(reach, 101.0, 90000.0, "fixture: the blast reaches nodes 2 and 3, never 0")
-	n[1].get_combat().apply_status(_EXPLOSIVE, float(_CHARGES))
+	n[1].get_combat().apply_status(_CATALYST, float(_CHARGES))
 	graph.navigator.reconcile()
 	return {graph = graph, atk = atk, n = n}
 
 
 func _cast(b: Dictionary, spell: SpellDef) -> AttackOutcome:
 	var n: Array = b.n
-	var inf := Infusion.for_cast(spell, {&"explosive": _LOAD})
-	assert_eq(inf.detonate_load(spell), _LOAD, "fixture: the explosive load detonates")
+	var inf := Infusion.for_cast(spell, {&"catalyst": _LOAD})
+	assert_eq(inf.detonate_load(spell), _LOAD, "fixture: the catalyst load detonates")
 	return SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, inf)
 
 
@@ -79,9 +79,9 @@ func _land(outcome: AttackOutcome) -> Array[HitInstance]:
 	return outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
 
 
-## Go-off zero's share, as Explosive's aspect authors it.
+## Go-off zero's share, as Catalyst's aspect authors it.
 func _share() -> float:
-	return (load("res://aspects/defs/explosive.tres") as Aspect).go_off.share
+	return (load("res://aspects/defs/catalyst.tres") as Aspect).go_off.share
 
 
 func test_a_heal_spell_under_an_ally_mask_blasts_a_heal_onto_friendlies_only() -> void:

@@ -19,7 +19,7 @@ extends PropagationReach
 ## reducer silently picks one front's fuel at random.
 
 ## The aspect whose load is the fuel.
-@export var fuel_aspect: StringName = &"explosive"
+@export var fuel_aspect: StringName = &"catalyst"
 ## Fuel burnt per hop, flat.
 @export_range(0, 10, 1, "or_greater") var fuel_per_jump: int = 1
 ## Blast radius per point of fuel, in scene pixels.

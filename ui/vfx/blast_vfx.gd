@@ -89,7 +89,7 @@ static func layers_for(riders: Array[Identity], roster: AspectRoster, generic: P
 
 
 ## The element identity whose band holds [param go_off] (Fire for Burning), so
-## a disc plays in its element's colour; null for go-off zero's Explosive, a
+## a disc plays in its element's colour; null for go-off zero's Catalyst, a
 ## null go-off or a band no element holds: the visual keeps its scene default.
 static func look_for(go_off: Identity, elements: ElementRoster) -> Identity:
 	if go_off == null or elements == null:

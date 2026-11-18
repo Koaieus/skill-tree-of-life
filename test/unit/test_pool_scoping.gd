@@ -121,7 +121,7 @@ func _reachable_stat_ids(primary: StringName,
 const _SUPPLY_HOME := {
 	&"bleeding_aspect": &"strength",
 	&"weakness_aspect": &"strength",
-	&"explosive_aspect": &"dexterity",
+	&"catalyst_aspect": &"dexterity",
 	&"curse_aspect": &"intelligence",
 	&"mark_aspect": &"dexterity",
 	&"wither_aspect": &"constitution",

@@ -6,7 +6,7 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres")
-const _EXPLOSIVE_STATUS := preload("res://effects/status/explosive.tres")
+const _CATALYST_STATUS := preload("res://effects/status/catalyst.tres")
 const _POISON := &"poison"
 
 var h: SpellTestHelper
@@ -268,7 +268,7 @@ func test_a_cast_over_uncharged_nodes_plants_nothing() -> void:
 	var outcome := _resolve(b, 1)
 	for hit in outcome.hits:
 		if hit is StatusInstance:
-			assert_ne(hit.def.id, &"explosive", "fuel never plants")
+			assert_ne(hit.def.id, &"catalyst", "fuel never plants")
 	assert_false(outcome.hits.any(func(x): return x is CureInstance), "nothing to set off")
 
 
@@ -278,9 +278,9 @@ func test_a_charged_node_goes_off_per_arrival_off_one_read_and_its_blast_carries
 	var b := _three_blasts({7: Vector2(0, -(2.0 * _rad() + 8.0))})
 	var n: Array = b.n
 	var a: SkillNode = n[5]
-	var spread := _EXPLOSIVE_STATUS.spread as ExplosiveSpread
+	var spread := _CATALYST_STATUS.spread as CatalystSpread
 	assert_gt(spread.radius_for(n[7].radius, 2), 2.0 * _rad() + 8.0 - n[7].radius, "fixture: G inside A's pop")
-	a.get_combat().apply_status(_EXPLOSIVE_STATUS, 2.0)
+	a.get_combat().apply_status(_CATALYST_STATUS, 2.0)
 	# The pop gathers over the global mirror, which a hand-built board fills
 	# only on reconcile.
 	(b.graph as Graph).navigator.reconcile()
@@ -294,6 +294,6 @@ func test_a_charged_node_goes_off_per_arrival_off_one_read_and_its_blast_carries
 		if h.blast_mark != null and h.blast_mark.centre == a and not powers.has(h.blast_mark):
 			powers.append(h.blast_mark)
 	assert_eq(powers.map(func(m: BlastMark) -> int: return m.power), [2, 2, 2], "three hits, three go-offs off the pre-beat 2")
-	assert_almost_eq(a.get_combat().get_status_power(&"explosive"), 0.0, 0.0001, "their spends summed, clamped at 0")
+	assert_almost_eq(a.get_combat().get_status_power(&"catalyst"), 0.0, 0.0001, "their spends summed, clamped at 0")
 	var blast_poison := copies.filter(func(x): return x is StatusInstance and x.def.id == _POISON and x.target != a)
 	assert_false(blast_poison.is_empty(), "the blast carries poison outward")

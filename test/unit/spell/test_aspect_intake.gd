@@ -178,7 +178,7 @@ func test_apply_status_description_is_the_status_applies_line() -> void:
 
 # ── A shaping-only intake (use = FuelUse) ──────────────────────────────────
 
-const _EXPLOSIVE_ID := preload("res://identity/defs/explosive.tres")
+const _CATALYST_ID := preload("res://identity/defs/catalyst.tres")
 
 
 func _shaping(identity: Identity, innate: int) -> AspectIntake:
@@ -191,12 +191,12 @@ func _shaping(identity: Identity, innate: int) -> AspectIntake:
 
 func test_a_shaping_intake_lands_no_rider_but_keeps_its_load() -> void:
 	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_EXPLOSIVE_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
+	spell.intakes = [_shaping(_CATALYST_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)
 	var riders := inf.riders(spell)
 	assert_eq(riders.size(), 1, "only the poison rides")
 	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
-	assert_eq(inf.load_of(spell), {&"explosive": 6, &"poison": 2} as Dictionary[StringName, int])
+	assert_eq(inf.load_of(spell), {&"catalyst": 6, &"poison": 2} as Dictionary[StringName, int])
 
 
 func test_a_shaping_intake_with_a_status_still_lands_no_rider() -> void:
@@ -228,43 +228,43 @@ func _row(identity: Identity, innate: int, use: LoadUse = null) -> AspectIntake:
 	return a
 
 
-func test_an_explosive_row_left_inherit_detonates_and_lands_no_rider() -> void:
-	var row := _row(_EXPLOSIVE_ID, 3)
-	assert_true(row.resolved_use() is DetonateUse, "explosive's status authors DETONATE")
+func test_an_catalyst_row_left_inherit_detonates_and_lands_no_rider() -> void:
+	var row := _row(_CATALYST_ID, 3)
+	assert_true(row.resolved_use() is DetonateUse, "catalyst's status authors DETONATE")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)
 	assert_true(inf.riders(spell).is_empty(), "a DETONATE load is spent at the hit, never planted")
-	assert_eq(inf.load_of(spell).get(&"explosive", 0), 3, "the load still counts")
+	assert_eq(inf.load_of(spell).get(&"catalyst", 0), 3, "the load still counts")
 	assert_eq(inf.detonate_load(spell), 3, "and is the hit's detonation load")
 
 
 func test_a_poison_row_left_inherit_plants_its_rider() -> void:
 	var row := _row(_POISON.identity, 2)
-	assert_true(row.resolved_use() is PlantUse, "any concept but explosive defaults PLANT")
+	assert_true(row.resolved_use() is PlantUse, "any concept but catalyst defaults PLANT")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var riders := Infusion.innate(spell).riders(spell)
 	assert_eq(riders.size(), 1)
 	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
 	assert_eq((riders[0] as ApplyStatusEffect).power, 2.0)
-	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "no explosive, no detonation load")
+	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "no catalyst, no detonation load")
 
 
-func test_an_explosive_row_authored_plant_lands_the_explosive_rider_at_its_load() -> void:
+func test_an_catalyst_row_authored_plant_lands_the_catalyst_rider_at_its_load() -> void:
 	var spell := SpellDef.new()
-	spell.intakes = [_row(_EXPLOSIVE_ID, 3, PlantUse.new())] as Array[AspectIntake]
-	var inf := Infusion.for_cast(spell, {&"explosive": 2})
+	spell.intakes = [_row(_CATALYST_ID, 3, PlantUse.new())] as Array[AspectIntake]
+	var inf := Infusion.for_cast(spell, {&"catalyst": 2})
 	var riders := inf.riders(spell)
 	assert_eq(riders.size(), 1, "PLANT overrides the concept's DETONATE")
-	assert_eq((riders[0] as ApplyStatusEffect).def.id, &"explosive")
+	assert_eq((riders[0] as ApplyStatusEffect).def.id, &"catalyst")
 	assert_eq((riders[0] as ApplyStatusEffect).power, 5.0, "power = load (3 innate + 2 infused)")
 	assert_eq(inf.detonate_load(spell), 0, "a planted load never detonates")
 
 
 func test_a_fuel_row_has_no_detonation_load() -> void:
 	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_EXPLOSIVE_ID, 6)] as Array[AspectIntake]
+	spell.intakes = [_shaping(_CATALYST_ID, 6)] as Array[AspectIntake]
 	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "fuel shapes the spell, never blasts")
 
 
@@ -291,19 +291,19 @@ func test_a_resolve_exposes_the_load_to_the_spread() -> void:
 	var spy := LoadSpy.new()
 	var config := helper.make_config(spy, helper.owner_enemy(), helper.max_reducer(), {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.intakes = [_shaping(_EXPLOSIVE_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
-	var inf := Infusion.for_cast(spell, {&"explosive": 3})
+	spell.intakes = [_shaping(_CATALYST_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
+	var inf := Infusion.for_cast(spell, {&"catalyst": 3})
 	var n := graph.get_skill_nodes()
 	SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, inf)
 	assert_true(spy.called, "the spread ran")
 	assert_eq(spy.seen, inf.load_of(spell) as Dictionary, "ctx.load is load_of")
-	assert_eq(spy.seen.get(&"explosive", 0), 9)
+	assert_eq(spy.seen.get(&"catalyst", 0), 9)
 
 
 func test_the_shipped_firecracker_row_is_fuel() -> void:
 	var spell := load("res://attack/spell/defs/firecracker.tres") as SpellDef
-	var row := Infusion.intake_of(spell, &"explosive")
-	assert_not_null(row, "firecracker lists explosive")
+	var row := Infusion.intake_of(spell, &"catalyst")
+	assert_not_null(row, "firecracker lists catalyst")
 	assert_true(row.resolved_use() is FuelUse, "its use deserialises as a FuelUse")
 	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "its innate 6 is fuel, never a detonation load")
 
@@ -311,11 +311,11 @@ func test_the_shipped_firecracker_row_is_fuel() -> void:
 # ── The row's LoadUse ───────────────────────────────────────────────────
 
 func test_a_fuel_use_row_describes_itself_without_applies() -> void:
-	var row := _row(_EXPLOSIVE_ID, 6)
+	var row := _row(_CATALYST_ID, 6)
 	row.use = FuelUse.new()
 	var line := row.get_description()
 	assert_false(line.contains("Applies"), "fuel lands nothing: %s" % line)
-	assert_true(line.contains("Explosive"), "it names its concept: %s" % line)
+	assert_true(line.contains("Catalyst"), "it names its concept: %s" % line)
 
 
 func test_a_row_with_no_use_on_a_plant_default_status_plants_at_its_load() -> void:

@@ -17,7 +17,7 @@ const _PAST := 0.5
 ## `[load, present, spent, power]` at resonance 1 (acceptance 1's table).
 const _TABLE := [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 6], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]
 ## Rows sit this far apart on y, so no disc reaches another row's nodes. A
-## centre is allocated: an unowned node hosts no Explosive charge.
+## centre is allocated: an unowned node hosts no Catalyst charge.
 const _ROW_GAP := 5000.0
 
 var _w: TestWorld
@@ -29,17 +29,17 @@ func before_each() -> void:
 	await get_tree().process_frame
 
 
-func _explosive() -> StatusDef:
-	return StatusRoster.shared().by_concept(&"explosive")
+func _catalyst() -> StatusDef:
+	return StatusRoster.shared().by_concept(&"catalyst")
 
 
-func _spread() -> ExplosiveSpread:
-	return _explosive().spread as ExplosiveSpread
+func _spread() -> CatalystSpread:
+	return _catalyst().spread as CatalystSpread
 
 
 func _charge(holder: Object, n: int) -> void:
 	if n > 0:
-		holder.get_combat().apply_status(_explosive(), float(n))
+		holder.get_combat().apply_status(_catalyst(), float(n))
 
 
 func _read(node: SkillNode) -> TerrainRead:
@@ -135,8 +135,8 @@ func test_a_core_with_no_charges_reads_its_owners_entity_rows() -> void:
 
 
 # --- acceptance 3a: go-off zero and the whole hit, end to end (Unit F) ---------
-## Through [HitGather]'s stage one, on a disc the test authors on the Explosive
-## [Aspect] (F-c authors it on explosive.tres): an arrow-shaped hit (a load-0
+## Through [HitGather]'s stage one, on a disc the test authors on the Catalyst
+## [Aspect] (F-c authors it on catalyst.tres): an arrow-shaped hit (a load-0
 ## damage head, 3 Poison) on a 2-charge node with one hostile inside the disc.
 ## The knobs are read from the instance, never literals.
 
@@ -154,7 +154,7 @@ func after_each() -> void:
 
 
 func _authored(share: float, own_node: bool) -> DiscGoOff:
-	_aspect = AspectRoster.shared().by_id(&"explosive")
+	_aspect = AspectRoster.shared().by_id(&"catalyst")
 	_was = _aspect.go_off
 	var disc := DiscGoOff.new()
 	disc.share = share
@@ -220,8 +220,8 @@ func _damage_of(hits: Array) -> Array:
 
 
 func test_go_off_zero_lands_one_copy_per_disc_node_and_none_on_the_struck_node() -> void:
-	var disc := AspectRoster.shared().by_id(&"explosive").go_off as DiscGoOff
-	assert_not_null(disc, "Explosive's aspect authors go-off zero's disc")
+	var disc := AspectRoster.shared().by_id(&"catalyst").go_off as DiscGoOff
+	assert_not_null(disc, "Catalyst's aspect authors go-off zero's disc")
 	if disc == null:
 		return
 	assert_false(disc.lands_on_own_node, "go-off zero adds no centre copy (the lead call)")

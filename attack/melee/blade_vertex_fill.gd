@@ -18,7 +18,7 @@ extends RefCounted
 const VERTEX_STATS: Array[StringName] = [&"blade_damage", &"blunting"]
 ## The [BladeState] array each of [constant VERTEX_STATS] lands in.
 const STATE_ARRAYS: Array[StringName] = [&"vertex_damage", &"vertex_blunting"]
-const EXPLOSIVE := &"explosive"
+const EXPLOSIVE := &"catalyst"
 const DEFLECTION := &"deflection"
 
 

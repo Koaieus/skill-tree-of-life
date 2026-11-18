@@ -1,6 +1,6 @@
 extends GutTest
 
-## Explosive charges on blade contacts: the piece's side alone. A charged
+## Catalyst charges on blade contacts: the piece's side alone. A charged
 ## piece spends max(1, min(N, M)) of its own charges on a contact and pops when
 ## it ends at 0; it arms no board blast, and no node's side reaches the blade
 ## pieces. The gate never reads-and-spends the struck node: its charges are
@@ -19,7 +19,7 @@ func before_each() -> void:
 	_f.target.base_radius = 40.0
 
 
-func _spread() -> ExplosiveSpread:
+func _spread() -> CatalystSpread:
 	return BladePopResolver.LiveGate.explosive_spread()
 
 
@@ -114,7 +114,7 @@ func test_an_uncharged_piece_on_a_charged_node_lands_and_pops_nothing() -> void:
 	assert_eq(gate.result.dead_at, {}, "no piece pops: the node reaches no blade piece")
 	assert_true(gate.result.contacts.is_empty(), "an uncharged piece makes no contact row")
 	assert_eq(gate.node_charges(_f.target.get_combat()), 2, "the gate spends nothing off the node")
-	assert_eq(_f.target.get_combat().get_status_power(&"explosive"), 2.0, "and writes nothing")
+	assert_eq(_f.target.get_combat().get_status_power(&"catalyst"), 2.0, "and writes nothing")
 
 
 func test_both_charged_larger_piece_lives_on_with_the_difference() -> void:
@@ -244,5 +244,5 @@ func test_two_contacts_of_one_sample_on_a_charged_node_read_the_pre_beat_charges
 		if h.blast_mark != null and not marks.has(h.blast_mark):
 			marks.append(h.blast_mark)
 	assert_eq(marks.map(func(m: BlastMark) -> int: return m.power), [3, 3], "both read the pre-beat 3")
-	assert_almost_eq(_f.target.get_combat().get_status_power(&"explosive"), 1.0, 0.0001,
+	assert_almost_eq(_f.target.get_combat().get_status_power(&"catalyst"), 1.0, 0.0001,
 			"their spends summed: 3 − 1 − 1")

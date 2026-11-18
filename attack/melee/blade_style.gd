@@ -148,7 +148,7 @@ extends Resource
 		charge_tier = value
 		emit_changed()
 ## The [Identity] whose tint a charge bead wears, looked up in [IdentityRoster].
-@export var charge_identity: StringName = &"explosive":
+@export var charge_identity: StringName = &"catalyst":
 	set(value):
 		charge_identity = value
 		emit_changed()

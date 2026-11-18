@@ -7,7 +7,7 @@ extends GutTest
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _POISON := preload("res://effects/status/poison.tres")
-const _EXPLOSIVE_ID := preload("res://identity/defs/explosive.tres")
+const _CATALYST_ID := preload("res://identity/defs/catalyst.tres")
 
 var _f: VolleyBoardFixture
 
@@ -35,7 +35,7 @@ func _spell_heads(detonate: int) -> Array[HitInstance]:
 	var spell := helper.make_spell(config, [DamageEffect.new(), _poison_rider()], 10.0)
 	if detonate > 0:
 		var row := AspectIntake.new()
-		row.identity = _EXPLOSIVE_ID
+		row.identity = _CATALYST_ID
 		row.innate = detonate
 		spell.intakes = [row] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)

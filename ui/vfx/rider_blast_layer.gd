@@ -3,7 +3,7 @@ class_name RiderBlastLayer
 extends Node2D
 
 ## The generic rider layer on a board blast: a thinner ring in the rider's own
-## [member Identity.tint], trailing the explosive ring ([BlastVisual]) by
+## [member Identity.tint], trailing the catalyst ring ([BlastVisual]) by
 ## [member lag] per layer and landing with it. [BlastVisual] hands it
 ## [member rider], [member layer], [member radius] and [member duration] at
 ## play; a row with its own look authors [member Aspect.blast_layer] instead.

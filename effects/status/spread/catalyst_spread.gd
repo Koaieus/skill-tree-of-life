@@ -1,8 +1,8 @@
 @tool
-class_name ExplosiveSpread
+class_name CatalystSpread
 extends StatusSpread
 
-## The explosive status's spread and the ONE owner of a charge's boom shape:
+## The catalyst status's spread and the ONE owner of a charge's boom shape:
 ## go-off zero's disc ([DiscGoOff]) asks [method radius_for] and never computes
 ## a reach itself. The bomb is the
 ## node: reach = node radius × [member reach_per_radius] ×

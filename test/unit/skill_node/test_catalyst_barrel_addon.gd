@@ -1,14 +1,14 @@
 extends GutTest
 
-## `explosive_barrel_addon.tscn` — Explosive × Addon. Barrels stack; at the
-## owner's turn start an allocated carrier tops its explosive charges up to
+## `catalyst_barrel_addon.tscn` — Catalyst × Addon. Barrels stack; at the
+## owner's turn start an allocated carrier tops its catalyst charges up to
 ## its barrel count, and removing a barrel spends one charge if any. Counts
 ## are read off the carrier's barrels and the live status, never literals.
 
 const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 const _GRAPH_SCENE := preload("res://graph/graph.tscn")
-const _BARREL_SCENE := preload("res://skill_node/addons/defs/explosive_barrel_addon.tscn")
-const _EXPLOSIVE := preload("res://effects/status/explosive.tres")
+const _BARREL_SCENE := preload("res://skill_node/addons/defs/catalyst_barrel_addon.tscn")
+const _CATALYST := preload("res://effects/status/catalyst.tres")
 
 var _graph: Graph
 var _alloc: AllocationSystem
@@ -38,24 +38,24 @@ func _node(nm: String) -> SkillNode:
 	return sn
 
 
-func _barrels(n: SkillNode, count: int) -> Array[ExplosiveBarrelAddon]:
-	var out: Array[ExplosiveBarrelAddon] = []
+func _barrels(n: SkillNode, count: int) -> Array[CatalystBarrelAddon]:
+	var out: Array[CatalystBarrelAddon] = []
 	for i in count:
-		var b := _BARREL_SCENE.instantiate() as ExplosiveBarrelAddon
+		var b := _BARREL_SCENE.instantiate() as CatalystBarrelAddon
 		n.add_child(b)
 		out.append(b)
 	return out
 
 
 func _charges(n: SkillNode) -> float:
-	return n.get_combat().get_status_power(_EXPLOSIVE.id)
+	return n.get_combat().get_status_power(_CATALYST.id)
 
 
 func _set_charges(n: SkillNode, target: float) -> void:
 	var c := n.get_combat()
-	c.remove_status(_EXPLOSIVE.id)
+	c.remove_status(_CATALYST.id)
 	if target > 0.0:
-		c.apply_status(_EXPLOSIVE, target)
+		c.apply_status(_CATALYST, target)
 
 
 # --- acceptance 1: turn-start refill, allocated only --------------------------
@@ -128,15 +128,15 @@ func test_turn_end_decay_then_turn_start_refill() -> void:
 	assert_eq(_charges(n), full, "the next turn start refills what decayed")
 
 
-# --- the temp face: one Explosive Status Stack on the swing's working copy ----
+# --- the temp face: one Catalyst Status Stack on the swing's working copy ----
 # A temp barrel is inert like any barrel; on apply it adds one stack to its
 # vertex's `vertex_charges` (the swing's copy of the node's charges), and that
 # stack is what the swing spends as the head's load. The node's own row is untouched.
 
-func _temp_barrels(n: SkillNode, count: int) -> Array[ExplosiveBarrelAddon]:
-	var out: Array[ExplosiveBarrelAddon] = []
+func _temp_barrels(n: SkillNode, count: int) -> Array[CatalystBarrelAddon]:
+	var out: Array[CatalystBarrelAddon] = []
 	for i in count:
-		var b := _BARREL_SCENE.instantiate() as ExplosiveBarrelAddon
+		var b := _BARREL_SCENE.instantiate() as CatalystBarrelAddon
 		b.is_temporary = true
 		n.add_child(b)
 		out.append(b)
@@ -193,14 +193,14 @@ func test_a_temp_barrel_never_writes_the_carriers_status_nor_counts_as_a_barrel(
 	var before := _charges(member)
 	_temp_barrels(member, 1)
 	_filled(pivot, member)
-	assert_eq(_charges(member), before, "the carrier's explosive row is never written")
+	assert_eq(_charges(member), before, "the carrier's catalyst row is never written")
 	assert_eq(map[0].barrel_count(), 1, "barrel_count skips the temp")
 
 
 func test_a_swing_spends_a_temp_barrels_stack_off_the_piece_once() -> void:
 	var f := await VolleyBoardFixture.build(self, true)
 	var piece := f.leaves[0]
-	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0, "no live charges")
+	assert_eq(piece.get_combat().get_status_power(_CATALYST.id), 0.0, "no live charges")
 	_temp_barrels(piece, 1)
 	var positions: Array[Vector2] = [Vector2(-400, 0), Vector2(430, 0)]
 	var radii: Array[float] = [16.0, 16.0]
@@ -220,5 +220,5 @@ func test_a_swing_spends_a_temp_barrels_stack_off_the_piece_once() -> void:
 	assert_eq(di.hit_load, 1, "the head carries the temp's one stack as its load")
 	gate.admit(ev, CombatWorld.live())
 	assert_eq(state.vertex_charges[1], 0, "the stack is spent")
-	assert_eq(piece.get_combat().get_status_power(_EXPLOSIVE.id), 0.0,
+	assert_eq(piece.get_combat().get_status_power(_CATALYST.id), 0.0,
 			"nothing reached the board's status rows")

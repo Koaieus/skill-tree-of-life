@@ -254,7 +254,7 @@ class LiveGate extends RefCounted:
 
 	const _EXPLOSIVE_NONE := 0
 	const _EXPLOSIVE_REFUSE := 1
-	const EXPLOSIVE := &"explosive"
+	const EXPLOSIVE := &"catalyst"
 
 	## The explosive cause, the piece's side alone. With the piece's charges
 	## N (the swing's working copy), the struck node's M read live and
@@ -285,8 +285,8 @@ class LiveGate extends RefCounted:
 		return _EXPLOSIVE_NONE
 
 	## One side's power: its own charges plus the shared chunk weighted by
-	## [member ExplosiveSpread.resonance]; 0 for a side that holds none.
-	static func side_power(own: int, shared: int, spread: ExplosiveSpread) -> int:
+	## [member CatalystSpread.resonance]; 0 for a side that holds none.
+	static func side_power(own: int, shared: int, spread: CatalystSpread) -> int:
 		return own + spread.resonance * shared if own > 0 else 0
 
 	## The piece's charges left this swing.
@@ -313,9 +313,9 @@ class LiveGate extends RefCounted:
 		_state.vertex_charges[idx] = maxi(0, _state.vertex_charges[idx] - count)
 
 	## The explosive status's spread, or null if the roster has none.
-	static func explosive_spread() -> ExplosiveSpread:
+	static func explosive_spread() -> CatalystSpread:
 		var def := explosive_def()
-		return def.spread as ExplosiveSpread if def != null else null
+		return def.spread as CatalystSpread if def != null else null
 
 	static func explosive_def() -> StatusDef:
 		var roster := StatusRoster.shared()

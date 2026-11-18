@@ -15,9 +15,9 @@ extends GoOff
 ## values, never subclassed for them. Every read's class default and the own
 ## damage's is go-off zero's value ([member radius_a] and [member radius_b]
 ## feed [code]Radius.DISC[/code] alone, so they are inert there). Go-off zero
-## (#1799) is today's explosive detonation ported onto the gather: power is [method power_of] over the node's stored
-## Explosive charges and the head's load, the radius
-## [method ExplosiveSpread.radius_for], and the spend [method spend_of] —
+## (#1799) is today's catalyst detonation ported onto the gather: power is [method power_of] over the node's stored
+## Catalyst charges and the head's load, the radius
+## [method CatalystSpread.radius_for], and the spend [method spend_of] —
 ## committed whatever the disc reaches, a lone charged node included, so it
 ## rides [member GoOffResult.nodeless_cost] and no reached node costs anything
 ## (Carried, tentative, not the owner's; #1799 NOTES); no own damage.
@@ -26,16 +26,16 @@ extends GoOff
 ## (none reached: spend 0 and no go-off, the base [GoOff] law) and
 ## [member damage_per_power] 2. Power 0 is no go-off.
 
-## Where the disc's power comes from. [code]EXPLOSIVE_CHARGES[/code] is go-off
-## zero's: [method power_of] over the stored Explosive charges and the head's
+## Where the disc's power comes from. [code]CATALYST_CHARGES[/code] is go-off
+## zero's: [method power_of] over the stored Catalyst charges and the head's
 ## load, the terrain read ignored. [code]HEAT_EXCESS[/code] is Burning's: the
 ## read's Heat over its T ([method Terrain.excess]), read after the hit's
 ## riders landed, the overflow past the cap included.
-enum Power { EXPLOSIVE_CHARGES, HEAT_EXCESS }
-## Where the disc's radius comes from. [code]EXPLOSIVE_SPREAD[/code] is go-off
-## zero's: [method ExplosiveSpread.radius_for] (node radius × 3 × √power).
+enum Power { CATALYST_CHARGES, HEAT_EXCESS }
+## Where the disc's radius comes from. [code]CATALYST_SPREAD[/code] is go-off
+## zero's: [method CatalystSpread.radius_for] (node radius × 3 × √power).
 ## [code]DISC[/code] is Burning's: [method disc_radius] off the node's own radius.
-enum Radius { EXPLOSIVE_SPREAD, DISC }
+enum Radius { CATALYST_SPREAD, DISC }
 ## What the disc spends going off. [code]SPEND_OF[/code] is go-off zero's:
 ## [method spend_of], nodeless, whatever the disc reaches.
 ## [code]PER_NODE[/code] is the base [GoOff] law, Burning's: 1 per other node
@@ -43,9 +43,9 @@ enum Radius { EXPLOSIVE_SPREAD, DISC }
 enum Spend { SPEND_OF, PER_NODE }
 
 ## The disc's power source (see [enum Power]).
-@export var power_source: Power = Power.EXPLOSIVE_CHARGES
+@export var power_source: Power = Power.CATALYST_CHARGES
 ## The disc's radius source (see [enum Radius]).
-@export var radius_source: Radius = Radius.EXPLOSIVE_SPREAD
+@export var radius_source: Radius = Radius.CATALYST_SPREAD
 ## The disc's spend (see [enum Spend]).
 @export var spend_source: Spend = Spend.SPEND_OF
 ## [method disc_radius]'s A, the scale (ADR 0084 §2). Tentative knob (#1800).
@@ -59,7 +59,7 @@ enum Spend { SPEND_OF, PER_NODE }
 ## Tentative knob (#1800).
 @export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
 
-const EXPLOSIVE := &"explosive"
+const CATALYST := &"catalyst"
 
 ## Answers geometry only, at whatever reach it is asked ([method _within]).
 var _finder: EuclideanRangeFinder = null
@@ -97,7 +97,7 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: i
 ## [param read] (the gather's, after the generation's riders landed).
 func power_at(node: SkillNode, read: TerrainRead, hit_load: int, world: CombatWorld = null) -> int:
 	match power_source:
-		Power.EXPLOSIVE_CHARGES:
+		Power.CATALYST_CHARGES:
 			var spread := _spread()
 			if spread == null:
 				return 0
@@ -125,7 +125,7 @@ func radius_at(node: SkillNode, power: int) -> float:
 	if node == null:
 		return 0.0
 	match radius_source:
-		Radius.EXPLOSIVE_SPREAD:
+		Radius.CATALYST_SPREAD:
 			var spread := _spread()
 			return spread.radius_for(node.radius, power) if spread != null else 0.0
 		Radius.DISC:
@@ -159,16 +159,16 @@ static func power_of(load: int, present: int, resonance: int) -> int:
 	return maxi(load, 0) + maxi(present, 0) + 2 * resonance * maxi(shared, 0)
 
 
-## `[holder, charges]`: the Explosive charges stored on [param slice] — or, on
+## `[holder, charges]`: the Catalyst charges stored on [param slice] — or, on
 ## a core with none, its owner's entity-hosted ones. The holder is what a
 ## spend comes off ([NodeCombat] or [EntityCombat]).
 static func present_on(slice: NodeCombat) -> Array:
 	if slice == null:
 		return [null, 0.0]
-	var power := slice.get_status_power(EXPLOSIVE)
+	var power := slice.get_status_power(CATALYST)
 	if power <= 0.0 and slice.is_core() and slice.owner() != null:
 		var core := slice.owner()
-		return [core, core.get_status_power(EXPLOSIVE)]
+		return [core, core.get_status_power(CATALYST)]
 	return [slice, power]
 
 
@@ -200,7 +200,7 @@ func _within(node: SkillNode, reach: float) -> Array[SkillNode]:
 	return out
 
 
-static func _spread() -> ExplosiveSpread:
+static func _spread() -> CatalystSpread:
 	var roster := StatusRoster.shared()
-	var def := roster.by_concept(EXPLOSIVE) if roster != null else null
-	return def.spread as ExplosiveSpread if def != null else null
+	var def := roster.by_concept(CATALYST) if roster != null else null
+	return def.spread as CatalystSpread if def != null else null

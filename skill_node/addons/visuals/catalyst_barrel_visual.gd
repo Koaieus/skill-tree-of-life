@@ -1,5 +1,5 @@
 @tool
-class_name ExplosiveBarrelVisual
+class_name CatalystBarrelVisual
 extends AddonVisual
 ## One segment of the barrel stack: barrels draw a "database flowchart"
 ## cylinder pile standing in elevation on the carrier's rim, one segment per
@@ -9,7 +9,7 @@ extends AddonVisual
 ## A structure, so it stands on a bearing off the rim, never on the centre
 ## (docs/domain/addon-visual-registers.md); lower-left, clear of the
 ## watchtower's lower-right default and the bars straight up. The index and
-## the charge count are read off the parent [ExplosiveBarrelAddon], which
+## the charge count are read off the parent [CatalystBarrelAddon], which
 ## redraws this on the carrier's status and addon changes.
 
 ## Where on the rim the stack stands, clockwise from +X in screen space.
@@ -41,7 +41,7 @@ const _SIDE_DARKEN := 0.35
 
 
 func _draw() -> void:
-	var addon := get_parent() as ExplosiveBarrelAddon
+	var addon := get_parent() as CatalystBarrelAddon
 	var index := 0
 	var lit := true
 	var hue := Color(0.95, 0.55, 0.2)

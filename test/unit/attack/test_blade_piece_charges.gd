@@ -25,14 +25,14 @@ func _build_blade(charges: int, spend_window: float = 0.2) -> SkillBlade:
 	var nodes: Array[SkillNode] = [pivot, member]
 	var fill := BladeVertexFill.new()
 	blade.build_from_skill_nodes(nodes, pivot, [[pivot, member]], null, fill)
-	# The fixture nodes carry no explosive status; arm the member's piece the
+	# The fixture nodes carry no catalyst status; arm the member's piece the
 	# way the fill would have, then rebuild the visuals from it.
 	blade.state.vertex_charges[1] = charges
 	blade._snapshot_build_charges()
 	return blade
 
 
-## One explosive contact on piece 1 at `t`: the striker held `n`, the node `m`
+## One catalyst contact on piece 1 at `t`: the striker held `n`, the node `m`
 ## (resonance 1), so both powers are what the resolver would have recorded.
 func _contact(t: float, n: int, m: int, verdict: int) -> BladePopResolver.Contact:
 	var row := BladePopResolver.Contact.new(t, null)

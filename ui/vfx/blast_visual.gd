@@ -7,7 +7,7 @@ extends Node2D
 ## guess) and fading, in the [member identity]'s heat. Drawn in [method _draw],
 ## no particles. Riders are layered by [member companions] — scenes
 ## instantiated at [method play] and each handed [member riders]; empty = the
-## plain explosive ring. Knobs are tentative defaults, easy to change.
+## plain catalyst ring. Knobs are tentative defaults, easy to change.
 
 signal finished
 
@@ -41,7 +41,7 @@ signal finished
 	set(value):
 		emissive_tier = value
 		queue_redraw()
-## Whose colour the ring carries — the explosive identity by default, an
+## Whose colour the ring carries — the catalyst identity by default, an
 ## element's when [BlastVFX] restyles a disc by its go-off.
 @export var identity: Identity = null:
 	set(value):
@@ -60,7 +60,7 @@ signal finished
 ## one per rider).
 @export var companions: Array[PackedScene] = []
 
-## The blast's rider identities, explosive stripped ([member BlastMark.riders]).
+## The blast's rider identities, catalyst stripped ([member BlastMark.riders]).
 var riders: Array[Identity] = []
 
 ## 0 → 1 across [member duration]; 1 at rest so the editor shows the full ring.
