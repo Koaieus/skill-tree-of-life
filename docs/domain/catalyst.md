@@ -111,8 +111,9 @@ are #1810's.
 start an allocated carrier tops its Catalyst up to its barrel count (flat,
 never stat-scaled), and a barrel leaving takes one off if there is one. It
 carries no radius or blast logic. The shipped barrel is not temp-placeable
-(`catalyst_barrel_addon.tscn`: `temp_placeable = false`), so no blade carries
-one; the addon's temp branch (no refill, no removal spend) is unreached.
+(`catalyst_barrel_addon.tscn`: `temp_placeable = false`), so the swing tray
+never offers it; the addon still guards a temp barrel (no refill, no removal
+spend, the carrier's row never written).
 
 ## The blade
 
