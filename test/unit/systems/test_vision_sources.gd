@@ -216,8 +216,11 @@ func test_the_light_is_gone_at_t() -> void:
 func test_a_heat_write_on_a_lit_node_refreshes_the_light() -> void:
 	var l := _lit_pair()
 	_vision._watch_statuses(l)
+	await get_tree().process_frame
+	assert_false(_vision.is_visible(l), "sanity: L sits in A's fog")
 	_heat(l, 1)
 	await get_tree().process_frame
+	assert_true(_vision.is_visible(l), "lit: the recompute applied the light")
 	assert_false(_vision._recompute_deferred.is_queued(), "sanity: settled")
 	_heat(l, 4)
 	assert_true(_vision._recompute_deferred.is_queued(), "an excess move inside Burning requests one")
@@ -230,6 +233,7 @@ func test_a_heat_write_on_a_lit_node_refreshes_the_light() -> void:
 	assert_true(_vision._recompute_deferred.is_queued(), "dropping to T requests one")
 	await get_tree().process_frame
 	assert_eq(_burning([_a] as Array[Entity]).size(), 0, "its source is gone")
+	assert_false(_vision.is_visible(l), "and the recompute retired the light")
 
 
 func test_an_unlit_write_and_a_shadow_write_request_nothing() -> void:

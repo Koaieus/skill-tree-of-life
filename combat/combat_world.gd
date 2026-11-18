@@ -412,8 +412,10 @@ func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Stat
 ## effect with no record, side-blind, and nothing on an unallocated node. Run by
 ## [method TurnManager._end_world_turn] before [method flow_temperature], so it
 ## reads the pre-diffusion t; never inside [TerrainSettle]. Amounts are read
-## from one snapshot, then minted; a node an earlier burn left unheld or freed
-## takes nothing. Removals go out in the turn's one [method flush_removals]. A
+## from one snapshot, then minted in [member SkillNode.stable_id] order (a burn
+## that kills a holder can unhold a later node, so the index's insertion order
+## must never decide it); a node an earlier burn left unheld or freed takes
+## nothing. Removals go out in the turn's one [method flush_removals]. A
 ## shadow world refuses.
 func burn_terrain() -> void:
 	if _shadow:
@@ -430,6 +432,8 @@ func burn_terrain() -> void:
 			continue
 		var excess := Terrain.excess(node.terrain_count(fire), node.terrain_threshold())
 		burns.append([node, band.burn_per_excess * excess])
+	burns.sort_custom(func(p: Array, q: Array) -> bool:
+		return (p[0] as NodeCombat).host.stable_id < (q[0] as NodeCombat).host.stable_id)
 	for b: Array in burns:
 		var node: NodeCombat = b[0]
 		if is_instance_valid(node.host) and node.is_allocated():
@@ -438,7 +442,8 @@ func burn_terrain() -> void:
 
 ## One world-turn tick of every node row whose def sets
 ## [member StatusDef.decay_per_world_turn] — run by
-## [method TurnManager._end_world_turn] right after [method tick_lingering].
+## [method TurnManager._end_world_turn] after [method tick_lingering] and
+## [method burn_terrain].
 ## Snapshot iteration; a node slice whose host is gone is dropped.
 func tick_world_turn_decay() -> void:
 	if _shadow:

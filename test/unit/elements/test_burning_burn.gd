@@ -172,6 +172,26 @@ func test_death_dealloc_and_retake_leave_t_and_the_burn_resumes() -> void:
 			"the burn resumes for the next holder")
 
 
+func test_the_burn_order_is_the_stable_id_order_never_the_index_order() -> void:
+	_w.allocate(_a, [_x])
+	_w.allocate(_b, [_z])
+	var order: Array = []
+	for n: SkillNode in [_x, _z]:
+		n.damaged.connect(func(_amt: float, _src: HitInstance) -> void: order.append(n))
+	_heat(_x, 1)
+	_heat(_z, 1)
+	CombatWorld.live().burn_terrain()
+	var first := order.duplicate()
+	for n: SkillNode in [_x, _z]:
+		_c(n).add_terrain(_fire, -_c(n).terrain_t())
+	order.clear()
+	_heat(_z, 1)
+	_heat(_x, 1)
+	CombatWorld.live().burn_terrain()
+	assert_eq(first.size(), 2, "sanity: both burned")
+	assert_eq(order, first, "the same order whichever was heated first")
+
+
 func test_the_overflow_band_burns_by_the_whole_excess() -> void:
 	assert_eq(_band(1).burn_per_excess, _band(0).burn_per_excess,
 			"the overflow band burns as Burning does")
