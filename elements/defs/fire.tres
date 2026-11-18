@@ -20,6 +20,7 @@ go_off = SubResource("burning_disc")
 travel = 3
 decay_per_world_turn = 1
 light = true
+burn_per_excess = 1.0
 excess_names = Dictionary[int, String]({
 2: "Blaze",
 0: "Inferno"
@@ -31,6 +32,8 @@ at_cap = true
 go_off = SubResource("burning_disc")
 travel = 3
 decay_per_world_turn = 2
+light = true
+burn_per_excess = 1.0
 
 [resource]
 script = ExtResource("1_element")

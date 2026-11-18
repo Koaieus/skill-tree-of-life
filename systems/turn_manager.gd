@@ -434,9 +434,10 @@ func _note_played_turn_end() -> void:
 ## The world's turn end (ADR 0055). A world turn only ends: no start, no
 ## upkeep, no regen. Every living turnless host plays out its turn end
 ## ([method Entity.resolve_turn_end]: own statuses, owned nodes, spread) in
-## tree order, then every unowned LINGER row ticks once, then the terrain pass
-## ([method CombatWorld.flow_temperature]: diffusion, then decay), then one
-## flush. Runs
+## tree order, then every unowned LINGER row ticks once, then Burning burns
+## its holders ([method CombatWorld.burn_terrain], on the pre-diffusion t),
+## then the terrain pass ([method CombatWorld.flow_temperature]: diffusion,
+## then decay), then one flush. Runs
 ## inside [method end_turn], so [EndTurnCommand] reproduces it on every peer.
 func _end_world_turn() -> void:
 	for e in _turnless_entities():
@@ -444,6 +445,7 @@ func _end_world_turn() -> void:
 		if is_instance_valid(e) and not e.is_dead:
 			e.resolve_turn_end()
 	CombatWorld.live().tick_lingering()
+	CombatWorld.live().burn_terrain()
 	CombatWorld.live().tick_world_turn_decay()
 	CombatWorld.live().flow_temperature(terrain_steps_per_world_turn)
 	CombatWorld.live().flush_removals()

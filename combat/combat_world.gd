@@ -405,8 +405,35 @@ func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Stat
 		slice.host.announce_catalyst_converted(converted)
 
 
+## Burning burns its holder (`docs/design/elements/go-offs.md`, the trigger
+## table): every indexed node whose Fire band sets
+## [member ElementBand.burn_per_excess] takes that × its excess (Heat − T, the
+## overflow included) as TRUE damage through [method DotTick.mint] — a world
+## effect with no record, side-blind, and nothing on an unallocated node. Run by
+## [method TurnManager._end_world_turn] before [method flow_temperature], so it
+## reads the pre-diffusion t; never inside [TerrainSettle]. Amounts are read
+## from one snapshot, then minted; a node an earlier burn left unheld or freed
+## takes nothing. Removals go out in the turn's one [method flush_removals]. A
+## shadow world refuses.
 func burn_terrain() -> void:
-	pass
+	if _shadow:
+		return
+	var fire := TerrainSettle.element_on(Terrain.Axis.HEAT)
+	if fire == null:
+		return
+	var burns: Array = []  # [NodeCombat, float]
+	for node in terrain_nodes():
+		if node.terrain_t() <= 0 or not node.is_allocated():
+			continue
+		var band := node.terrain_band(fire)
+		if band == null or band.burn_per_excess <= 0.0:
+			continue
+		var excess := Terrain.excess(node.terrain_count(fire), node.terrain_threshold())
+		burns.append([node, band.burn_per_excess * excess])
+	for b: Array in burns:
+		var node: NodeCombat = b[0]
+		if is_instance_valid(node.host) and node.is_allocated():
+			DotTick.mint(node, b[1], HitInstance.AmountBasis.FLAT)
 
 
 ## One world-turn tick of every node row whose def sets
