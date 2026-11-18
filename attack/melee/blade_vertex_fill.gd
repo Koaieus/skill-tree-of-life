@@ -57,28 +57,43 @@ func _read(node: SkillNode, stat_id: StringName, own: Array[ModifierBins] = []) 
 	return float(node.get_local_value(stat_id))
 
 
-## Vertex [param i]'s copy as Ice's Frozen answer reads it: the band's
-## [FrozenAdmits] and the copy's excess over T, or empty when the copy is not
-## Frozen (nor Deep freeze).
+## Vertex [param i]'s copy as Ice's Frozen answer reads it: see
+## [method frozen_of].
 static func _frozen_copy(state: BladeState, i: int) -> Array:
-	var ice := ElementRoster.shared().by_id(&"ice")
-	if ice == null or i < 0 or i >= state.vertex_t.size():
+	if i < 0 or i >= state.vertex_t.size():
 		return []
-	var read := state.copy_read(i)
+	return frozen_of(state.copy_read(i))
+
+
+## A terrain [param read] as Ice's Frozen answer reads it: the band's
+## [FrozenAdmits] and the count's excess over T, or empty when the read is not
+## Frozen (nor Deep freeze).
+static func frozen_of(read: TerrainRead) -> Array:
+	var ice := ElementRoster.shared().by_id(&"ice")
+	if ice == null or read == null:
+		return []
 	var band := read.band(ice)
 	if band == null or not band.admits is FrozenAdmits:
 		return []
 	return [band.admits, Terrain.excess(read.count(ice), read.threshold)]
 
 
-## A Frozen vertex's concentrate overlay: one MULTIPLY bin on its
-## `blade_damage` read, `1 + vertex_bonus_per_excess × excess` (no base term).
-## Every other stat, and a vertex whose copy is not Frozen, gets none.
 func _frozen_overlay(state: BladeState, i: int, node: SkillNode, stat_id: StringName) -> Array[ModifierBins]:
+	if i < 0 or i >= state.vertex_t.size():
+		return []
+	return frozen_overlay(state.copy_read(i), node, stat_id)
+
+
+## A Frozen vertex's concentrate overlay: one MULTIPLY bin on its
+## `blade_damage` read, `1 + vertex_bonus_per_excess × excess` (no base term),
+## off the vertex's copy [param read] — the fill's copy, or the source node's
+## live read ([method MeleeAttackPlan.swing_value]): the copy is that read.
+## Every other stat, and a read that is not Frozen, gets none.
+static func frozen_overlay(read: TerrainRead, node: SkillNode, stat_id: StringName) -> Array[ModifierBins]:
 	var out: Array[ModifierBins] = []
 	if stat_id != &"blade_damage" or node == null:
 		return out
-	var frozen := _frozen_copy(state, i)
+	var frozen := frozen_of(read)
 	if frozen.is_empty():
 		return out
 	var m := StatModifier.new()

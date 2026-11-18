@@ -629,13 +629,18 @@ var _temp_scaler := LocalScaleMutator.new()
 
 
 ## This swing's number for [param node]'s [param stat_id]: the node's local
-## read with the swing's temp overlays ([method overlays_for]) folded in.
+## read with the swing's temp overlays ([method overlays_for]) and a Frozen
+## node's concentrate ([method BladeVertexFill.frozen_overlay]) folded in.
 ## [code]null[/code] for a node not in the plan (neither pivot nor member) —
 ## "no swing view", so a reader falls back to the bare node.
 func swing_value(node: SkillNode, stat_id: StringName) -> Variant:
 	if node == null or not _temp_upgrade_carriers().has(node):
 		return null
-	return node.get_local_value_with(stat_id, overlays_for(node, stat_id))
+	var overlays := overlays_for(node, stat_id)
+	# A Frozen member's concentrate, off the read its vertex copies at build.
+	overlays.append_array(BladeVertexFill.frozen_overlay(
+			TerrainRead.of(node.get_combat(), node), node, stat_id))
+	return node.get_local_value_with(stat_id, overlays)
 
 
 static func _targets(mod_stat: StringName, read_stat: StringName) -> bool:
