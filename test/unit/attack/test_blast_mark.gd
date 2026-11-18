@@ -15,7 +15,7 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 class _ChainGoOff extends GoOff:
 	var reach_of: Dictionary = {}
 
-	func _reach(node: SkillNode, _read: TerrainRead, _hit_load: int) -> Array[GoOffResult.Reach]:
+	func _reach(node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:
 		var out: Array[GoOffResult.Reach] = []
 		for n: SkillNode in reach_of.get(node, []):
 			out.append(GoOffResult.Reach.new(n))

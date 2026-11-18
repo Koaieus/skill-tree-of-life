@@ -197,7 +197,7 @@ func test_the_disc_reaches_by_the_radius_function_from_its_own_node() -> void:
 	assert_almost_eq(in2.radius, r, 0.001, "fixture: the reached nodes keep radius R")
 	for pair in [[c1, 1], [c4, 4], [c2, 1]]:
 		_set_heat(pair[0], _t(pair[0]) + pair[1])
-	var one := disc.fire_in(CombatWorld.live(), c1, TerrainRead.of(_combat(c1), c1), 0)
+	var one := disc.fire_in(CombatWorld.live(), c1, TerrainRead.of(_combat(c1), c1))
 	var got := _reached(one)
 	assert_true(got.has(in1) and got.has(wild), "excess 1 reaches the node at r − 0.1R, and an unowned one inside")
 	assert_false(got.has(out1), "not the one at r + 0.1R")
@@ -205,9 +205,9 @@ func test_the_disc_reaches_by_the_radius_function_from_its_own_node() -> void:
 	assert_eq(got.size(), 2, "row 0's disc reaches exactly In1 and Wild")
 	assert_eq(one.spend(), got.size(), "1 Heat per node reached")
 	assert_eq(one.power, 1, "power is the excess")
-	var four := disc.fire_in(CombatWorld.live(), c4, TerrainRead.of(_combat(c4), c4), 0)
+	var four := disc.fire_in(CombatWorld.live(), c4, TerrainRead.of(_combat(c4), c4))
 	assert_eq(_reached(four), [in4], "excess 4 reaches r(4) − 0.1R, not r(4) + 0.1R")
-	var two := disc.fire_in(CombatWorld.live(), c2, TerrainRead.of(_combat(c2), c2), 0)
+	var two := disc.fire_in(CombatWorld.live(), c2, TerrainRead.of(_combat(c2), c2))
 	assert_eq(_reached(two), [in2], "a 2R origin sizes the disc by its own radius")
 	assert_almost_eq(two.reach, _r(disc, 1, c2.radius), 0.01, "the mark's reach is the origin's disc")
 
@@ -384,7 +384,7 @@ func test_the_defs_knobs_move_the_disc_and_the_function_together() -> void:
 	disc.radius_b = _saved[1] + 0.5
 	var want := disc.radius_a * (1.0 + disc.radius_b) * c.radius
 	assert_almost_eq(disc.disc_radius(1, c.radius), want, 0.001, "the function follows A and B")
-	var result := disc.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c), 0)
+	var result := disc.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c))
 	assert_almost_eq(result.reach, want, 0.001, "and Burning's disc with it")
 
 
@@ -436,8 +436,8 @@ func test_a_new_disc_spends_one_heat_per_node_reached_and_nothing_nodeless() -> 
 	var a := _east(c, &"A", 0.5 * _r(fresh, 1, c.radius))
 	await _own([c, a])
 	_set_heat(c, _t(c) + 1)
-	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c), 3)
-	assert_eq(result.power, 1, "power is Heat's excess, the head's load ignored")
+	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c))
+	assert_eq(result.power, 1, "power is Heat's excess")
 	assert_almost_eq(result.reach, _r(fresh, 1, c.radius), 0.001, "the reach is disc_radius")
 	assert_eq(_reached(result), [a], "it reaches A")
 	assert_eq(result.cost.get(a, 0), 1, "1 per node reached")
@@ -450,6 +450,6 @@ func test_a_new_disc_reaching_no_other_node_spends_nothing() -> void:
 	var c := _at(&"C", Vector2.ZERO)
 	await _own([c])
 	_set_heat(c, _t(c) + 1)
-	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c), 3)
+	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c))
 	assert_true(result.reached.is_empty(), "no node reached")
 	assert_eq(result.spend(), 0, "spend 0")

@@ -280,7 +280,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				var band := read.band(e)
 				if band == null or band.go_off == null:
 					continue
-				var result := band.go_off.fire_in(_world, node, read, 0)
+				var result := band.go_off.fire_in(_world, node, read)
 				if result == null:
 					continue
 				_spend(spends, node, e, result)

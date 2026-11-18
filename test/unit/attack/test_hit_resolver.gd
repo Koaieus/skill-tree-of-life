@@ -32,11 +32,11 @@ class _TestGoOff extends GoOff:
 	var seq: Array = []
 	var hp: Callable = Callable()
 
-	func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+	func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 		seq.append("fire:%s" % node.name)
-		log.append({node = node, count = read.count(element), hit_load = hit_load,
+		log.append({node = node, count = read.count(element),
 				hp = hp.call() if hp.is_valid() else 0.0})
-		var r := super(node, read, hit_load)
+		var r := super(node, read)
 		if nodeless_of.has(node):
 			r.cost = {}
 			r.nodeless_cost = int(nodeless_of[node])
@@ -46,7 +46,7 @@ class _TestGoOff extends GoOff:
 		r.own_damage = own_damage
 		return r
 
-	func _reach(node: SkillNode, _read: TerrainRead, _hit_load: int) -> Array[GoOffResult.Reach]:
+	func _reach(node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:
 		var out: Array[GoOffResult.Reach] = []
 		for n: SkillNode in reach_of.get(node, []):
 			out.append(GoOffResult.Reach.new(n))
@@ -61,7 +61,7 @@ class _TestGoOff extends GoOff:
 class _ShapeOnly extends GoOff:
 	var nodes: Array[SkillNode] = []
 
-	func _reach(_node: SkillNode, _read: TerrainRead, _hit_load: int) -> Array[GoOffResult.Reach]:
+	func _reach(_node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:
 		var out: Array[GoOffResult.Reach] = []
 		for n in nodes:
 			out.append(GoOffResult.Reach.new(n))
@@ -340,18 +340,18 @@ func test_stage_one_gathers_every_reached_node_before_any_payload_lands() -> voi
 # 2 ─────────────────────────────────────────────────────────────────────────────
 func test_the_base_go_off_spends_one_per_other_node_reached() -> void:
 	var read := TerrainRead.of(_c(_h), _h)
-	assert_eq(GoOff.new().fire(_h, read, 0).spend(), 0, "the bare base reaches nothing, spends nothing")
+	assert_eq(GoOff.new().fire(_h, read).spend(), 0, "the bare base reaches nothing, spends nothing")
 	var shape := _ShapeOnly.new()
 	var three: Array[SkillNode] = [_n1, _n2, _n3]
 	shape.nodes = three
-	var r := shape.fire(_h, read, 0)
+	var r := shape.fire(_h, read)
 	assert_eq(r.spend(), 3, "spend = the other nodes reached")
 	assert_eq(r.reached.size(), 3, "every node of the shape reached")
 	assert_eq(r.share, shape.share, "share = its exported share")
 	assert_eq(r.own_damage, 0.0, "own damage 0")
 	var own: Array[SkillNode] = [_h]
 	shape.nodes = own
-	assert_eq(shape.fire(_h, read, 0).spend(), 0, "its own node is no node reached")
+	assert_eq(shape.fire(_h, read).spend(), 0, "its own node is no node reached")
 
 	_fire.bands[0].go_off = shape
 	var none: Array[SkillNode] = []

@@ -94,9 +94,9 @@ func test_the_disc_spends_one_per_node_reached_and_reaches_by_disc_radius() -> v
 	for r: Array in rows:
 		var power: int = r[0]
 		var centre: SkillNode = r[1]
-		var result := disc.fire(centre, _read(centre), 3)
+		var result := disc.fire(centre, _read(centre))
 		var reached := _reached(result)
-		assert_eq(disc.power_at(centre, _read(centre), 3), power, "power is Heat's excess, the load ignored (%d)" % power)
+		assert_eq(disc.power_at(centre, _read(centre)), power, "power is Heat's excess (%d)" % power)
 		assert_eq(result.spend(), reached.size(), "1 per node reached at power %d" % power)
 		assert_eq(result.nodeless_cost, 0, "nothing nodeless at power %d" % power)
 		assert_almost_eq(result.share, disc.share, 0.0001, "the copies ride the disc's share")
@@ -113,14 +113,14 @@ func test_heat_at_t_is_no_go_off() -> void:
 	_w.allocate(_w.add_entity("Red"), [centre])
 	await get_tree().process_frame
 	_prime(centre, 0)
-	var result := DiscGoOff.new().fire(centre, _read(centre), 3)
+	var result := DiscGoOff.new().fire(centre, _read(centre))
 	assert_eq(result.power, 0, "no excess, no power")
 	assert_true(result.reached.is_empty(), "power 0 is no go-off")
 	assert_eq(result.spend(), 0, "and no spend")
 
 
 # --- end to end: Burning's whole hit through the gather -------------------------
-## An arrow-shaped hit (a load-0 damage head, 3 Poison, 1 Heat) tips a node at
+## An arrow-shaped hit (a damage head, 3 Poison, 1 Heat) tips a node at
 ## T to T + 1, one hostile inside the disc. The knobs are read from Fire's
 ## instance, never literals.
 

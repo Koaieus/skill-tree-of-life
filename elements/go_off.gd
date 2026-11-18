@@ -6,7 +6,7 @@ extends Resource
 ## gives the contract; #1799 the disc, #1806 the edge). [HitGather] calls
 ## [method fire_in] (which defaults to [method fire]) at a node's read, handing it the node's terrain after the
 ## generation's element riders landed as sums (never the pre-beat snapshot;
-## ADR 0083 §1, §5) and the hit's load (the head's; 0 on a copy). The gather
+## ADR 0083 §1, §5). The gather
 ## commits the spend it returns as returned, and makes entries (each reached
 ## node, plus the centre copy) only when the reach holds a node.
 ##
@@ -24,10 +24,10 @@ extends Resource
 @export var lands_on_own_node := true
 
 
-func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
-	for reach in _reach(node, read, hit_load):
+	for reach in _reach(node, read):
 		if reach == null or reach.node == null or reach.node == node or out.cost.has(reach.node):
 			continue
 		out.reached.append(reach)
@@ -39,12 +39,12 @@ func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
 ## the world it gathers on (a cast's shadow included). Base: [method fire],
 ## which reads nothing off a store; a go-off that reads one (#1799's disc)
 ## overrides this and has [method fire] read the live world.
-func fire_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
-	return fire(node, read, hit_load)
+func fire_in(_world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffResult:
+	return fire(node, read)
 
 
 ## The shape: the other nodes this go-off reaches from [param node], by shape
 ## alone, allocated or not (ADR 0084 §7). Base: none.
-func _reach(_node: SkillNode, _read: TerrainRead, _hit_load: int) -> Array[GoOffResult.Reach]:
+func _reach(_node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:
 	var out: Array[GoOffResult.Reach] = []
 	return out

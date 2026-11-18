@@ -40,21 +40,21 @@ var _finder: EuclideanRangeFinder = null
 
 
 ## The disc on the live world ([method fire_in] with none).
-func fire(node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
-	return fire_in(null, node, read, hit_load)
+func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
+	return fire_in(null, node, read)
 
 
 ## The disc going off at [param node] off [param read] (the gather's, after
 ## the generation's riders landed): its spend, its reach, and the
 ## [BlastMark]'s reach and power ([member GoOffResult.reach],
-## [member GoOffResult.power]). [param world] and [param hit_load] are the
-## [GoOff] contract's; the disc reads neither.
-func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: int) -> GoOffResult:
+## [member GoOffResult.power]). [param world] is the [GoOff] contract's; the
+## disc does not read it.
+func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
 	if node == null:
 		return out
-	var power := power_at(node, read, hit_load, world)
+	var power := power_at(node, read, world)
 	if power <= 0:
 		return out
 	out.power = power
@@ -69,7 +69,7 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead, hit_load: i
 ## The disc's power at [param node]: its one power read, through
 ## [member power_source], off [param read] (the gather's, after the
 ## generation's riders landed).
-func power_at(_node: SkillNode, read: TerrainRead, _hit_load: int, _world: CombatWorld = null) -> int:
+func power_at(_node: SkillNode, read: TerrainRead, _world: CombatWorld = null) -> int:
 	match power_source:
 		Power.HEAT_EXCESS:
 			return Terrain.excess(maxi(read.t, 0), read.threshold) if read != null else 0
