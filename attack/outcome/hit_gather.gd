@@ -740,7 +740,7 @@ func _commit_rows(rows: Dictionary) -> void:
 
 ## One recorded row change ([member HitInstance.row_ops]) on [param world]: the
 ## node's slice; nothing when the node is gone. A Catalyst take on a live world
-## also announces [signal Events.catalyst_converted] with the op's converted
+## also announces [signal SkillNode.catalyst_converted] with the op's converted
 ## stacks (the replay's cue; a shadow stays silent).
 static func _apply_row(world: CombatWorld, op: Array) -> void:
 	var node: SkillNode = op[0]

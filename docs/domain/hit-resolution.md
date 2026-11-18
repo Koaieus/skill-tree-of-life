@@ -530,7 +530,7 @@ nothing; no go-off fills it yet (Shocked's Charge transfer, #1806). It calls
 primed-ness and power, read after the riders land (ADR 0083 §1). The take
 rides as a row op on the hit (`HitInstance.row_ops`), so the authority's
 live replay and a peer's take the same Catalyst; every live world announces
-it as `Events.catalyst_converted`, peers included, and a shadow stays silent. A centre landing carries no Heat, Cold
+it as `SkillNode.catalyst_converted`, peers included, and a shadow stays silent. A centre landing carries no Heat, Cold
 or Charge and converts nothing. A node the landing primes converts its
 leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
 go-offs before any head's own gate runs at land, so a head its gate refuses

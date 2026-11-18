@@ -107,6 +107,14 @@ var blips: Array[Rect2] = []
 ## The Catalyst layer (node hosts, [enum Layer] CATALYST only): one crystal
 ## per stack, and the tint its conversion pulse flashes in.
 var crystals: Array[Rect2] = []
+## Fog (CATALYST layer): a node not [member SkillNode.revealed] (nor lantern-lit)
+## shows no crystals and no pulse. Written by [method SkillNode._apply_sensed_state].
+var concealed: bool = false:
+	set(v):
+		if concealed == v:
+			return
+		concealed = v
+		refresh()
 ## The last non-empty crystal row: a take spends the row before its cue lands,
 ## so the pulse flashes these.
 var _last_crystals: Array[Rect2] = []
@@ -170,7 +178,7 @@ func refresh() -> void:
 	var rows := _rows()
 	if layer == Layer.CATALYST:
 		_build_crystals(rows)
-		visible = not crystals.is_empty() or is_pulsing()
+		visible = not concealed and (not crystals.is_empty() or is_pulsing())
 		set_process(is_pulsing())
 		queue_redraw()
 		return
@@ -198,6 +206,8 @@ func _process(delta: float) -> void:
 ## spent in [method pulse_tint] of [param converted] (a running pulse's tint,
 ## else the crystal tint, when it names no element).
 func _on_catalyst_converted(converted: Dictionary = {}) -> void:
+	if concealed:
+		return
 	_pulse_tint = pulse_tint(converted, _pulse_tint if is_pulsing() else _crystal_tint)
 	pulse_crystals = crystals.duplicate() if not crystals.is_empty() else _last_crystals.duplicate()
 	if pulse_crystals.is_empty():

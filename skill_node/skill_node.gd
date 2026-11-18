@@ -80,10 +80,12 @@ signal terrain_band_changed(element: Element, from: ElementBand, to: ElementBand
 ## the counts off [method get_combat]. A shadow write never fires it. The
 ## terrain bars repaint on it.
 signal terrain_changed
-## Live only: this node's Catalyst row was spent into terrain; [param converted]
-## maps element id → stacks made. Node-local twin of
-## [signal Events.catalyst_converted], emitted beside it by
-## [method announce_catalyst_converted]; the node's Catalyst layer pulses on it.
+## Live only: this node's Catalyst row was spent into terrain (the land step's
+## conversion or the settle seat's prime); [param converted] maps element id →
+## the stacks it made (after the trade, not the Catalyst spent). Emitted where
+## a recorded row change is applied to a LIVE world ([HitGather]) and by the
+## world turn's take ([CombatWorld]), so the authority's replay and every peer
+## announce it alike; a shadow never does. The node's Catalyst layer pulses on it.
 signal catalyst_converted(converted: Dictionary)
 ## Emitted after every allocation_level change, once the local-scale mutator
 ## has retuned this node's modifiers — a listener re-reads level-dependent
@@ -307,6 +309,7 @@ var self_loops: Array[Edge] = []
 @onready var hover_ring: Node2D = $Visuals/HoverRing
 @onready var core_health_bar: CoreHealthBar = $Visuals/CoreHealthBar
 @onready var _health_bar: HealthBar = $Visuals/HealthBar
+@onready var _catalyst_layer: StatusOverlay = get_node_or_null(^"Visuals/CatalystLayer")
 @onready var _node_visuals: Node2D = $Visuals/NodeVisualsComposite
 @onready var terrain_bars: TerrainBars = $Visuals/TerrainBars
 
@@ -797,6 +800,9 @@ func _apply_sensed_state() -> void:
 	# which `_node_visuals.sensed` above already hid wholesale.
 	var _is_core := owned_by != null and owned_by.core_location == self
 	core_health_bar.visible = look_revealed and _is_core
+	# Catalyst is readable detail: fog gates it like the core bar.
+	if _catalyst_layer != null:
+		_catalyst_layer.concealed = not look_revealed
 	for a in _addons:
 		a.visible = not look_sensed
 	sensed_changed.emit()
@@ -1615,12 +1621,10 @@ func notify_terrain_changed() -> void:
 	terrain_changed.emit()
 
 
-## Live only: the conversion cue, node-local first ([signal catalyst_converted],
-## the node's own Catalyst layer) then on the bus ([signal Events.catalyst_converted]).
-## The caller holds the live-only gate.
+## Live only: the conversion cue ([signal catalyst_converted]). The caller
+## holds the live-only gate.
 func announce_catalyst_converted(converted: Dictionary) -> void:
 	catalyst_converted.emit(converted)
-	Events.catalyst_converted.emit(self, converted)
 
 
 ## [signal terrain_band_changed] handler (#1796): the band glow, pushed into

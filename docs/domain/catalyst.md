@@ -136,17 +136,24 @@ Heat landing or the node's priming does. It authors no crit.
 
 ## The look
 
-Catalyst on a node reads as violet crystals: `StatusOverlay` draws one
-crystal per stack (`crystal_size`, at most `crystal_cap`). A conversion
-announces `Events.catalyst_converted(node, converted)` — `{element id: stacks
-made}`, carried in the take's row op (`AttackRecord` columns `rw_cn/rw_ce/rw_cs`)
+Catalyst on a node reads as violet crystals: the node's own `StatusOverlay`
+in `Layer.CATALYST` (`Visuals/CatalystLayer`, outside the health bar's fade)
+draws one crystal per stack (`crystal_size`, at most `crystal_cap`). It sits
+south, under #1796's terrain bars: `TerrainBars.stack_below` keeps its top at
+`south_offset` while the bars are down and under the last drawn row while they
+are up (tentative: it snaps on show/hide). Fog hides it like the core bar
+(`StatusOverlay.concealed`, written by `SkillNode._apply_sensed_state` when the
+node is neither revealed nor lantern-lit). A conversion announces the
+node-local `SkillNode.catalyst_converted(converted)` (via
+`announce_catalyst_converted`) — `{element id: stacks made}`, carried in the take's row op (`AttackRecord` columns `rw_cn/rw_ce/rw_cs`)
 for both the landing and the settle prime — once, from the live replay of the
 take (`HitGather`'s row-op apply; a shadow world stays silent). The world
 turn's terrain prime has no record: `CombatWorld._world_take` announces it on
 every peer's live world as `EndTurnCommand` reproduces the pass (a shadow
-stays silent there too). On either path the overlay
-flashes a pulse on that node in the dominant element's tint that fades over
-`conversion_pulse_seconds`. The barrel (`catalyst_barrel_visual.gd`) is a pile
+stays silent there too). On either path the layer flashes the crystals the
+take spent (the last drawn row) in the tint of the element that made the most
+stacks (`StatusOverlay.pulse_tint`; the first named on a tie), swelling by
+`conversion_pulse_swell` and fading over `conversion_pulse_seconds`. The barrel (`catalyst_barrel_visual.gd`) is a pile
 of faceted violet crystals on the carrier's rim, lit while the carrier holds
 the matching stack; the goo arrow (`catalyst_arrow.tscn`) is a slender
 crystal shard; the icon is `assets/icons/aspects/catalyst.png`.
