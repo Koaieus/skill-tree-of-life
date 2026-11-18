@@ -283,7 +283,7 @@ func test_clamp_over_melee_badges_the_clamp_while_the_glow_stays_red() -> void:
 func test_the_badge_forwards_the_addon_scenes_own_icon() -> void:
 	# Not a second copy of the texture reference: the tray card the player
 	# pressed a second earlier renders this exact Texture2D off the same scene.
-	var upgrade: PackedScene = _catalog.offered()[1]
+	var upgrade: PackedScene = _iconed_upgrade()
 	_ctl.on_attack_mode_requested(BattleSystem.AttackMode.MELEE)
 	_arm_on_blade(upgrade)
 
@@ -495,3 +495,15 @@ func test_the_palette_does_not_restate_the_attribute_colours() -> void:
 
 func test_an_unmapped_palette_key_falls_through_rather_than_blanking() -> void:
 	assert_eq(_PALETTE.color_for(&"no_such_action"), Color.TRANSPARENT)
+
+
+## The first offered temp upgrade whose addon authors an icon: an icon-less
+## scene (an element addon before its art lands) makes the badge fall back.
+func _iconed_upgrade() -> PackedScene:
+	for scene: PackedScene in _catalog.offered():
+		var probe := scene.instantiate()
+		var has_icon := (probe as SkillNodeAddon).icon != null
+		probe.free()
+		if has_icon:
+			return scene
+	return null
