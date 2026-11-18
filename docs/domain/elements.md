@@ -55,7 +55,7 @@ stores a band here: #1794's band function reads `bands` against
 | `at_cap` | true: the threshold is the node's cap k × T and `threshold_multiple` is ignored; only the last band |
 | `identity` | the band's display atom; null falls back to the band below |
 | `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning and overflow bands hold a `DiscGoOff` (#1800, #1803), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
-| `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); null on every band. #1807 owns the answer |
+| `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); set on both Ice bands (one `FrozenAdmits`, § Ice on the node: Frozen), null elsewhere |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
 | `light` | the band is a light source: every viewer sees a disc of `DiscGoOff.disc_radius(excess, R)` (§ Burning burns and lights) |

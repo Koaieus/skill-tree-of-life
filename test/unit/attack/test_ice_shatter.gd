@@ -42,6 +42,7 @@ var _fire: Element
 var _light: Element
 var _fa: FrozenAdmits
 var _ice_admits: Array = []
+var _spend_fraction := 1.0
 var _light_bands: Array[ElementBand] = []
 var _b: _TestGoOff
 var _orig := 0
@@ -66,6 +67,7 @@ func before_each() -> void:
 	_fire = ElementRoster.shared().by_id(&"fire")
 	_light = ElementRoster.shared().by_id(&"lightning")
 	_fa = _ice.bands[0].admits as FrozenAdmits
+	_spend_fraction = _fa.shatter_spend_fraction
 	_ice_admits = _ice.bands.map(func(b: ElementBand) -> Admits: return b.admits)
 	_light_bands = _light.bands.duplicate()
 	_b = _TestGoOff.new()
@@ -76,6 +78,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	_fa.shatter_spend_fraction = _spend_fraction
 	for i in _ice.bands.size():
 		_ice.bands[i].admits = _ice_admits[i]
 	_light.bands = _light_bands
@@ -219,7 +222,6 @@ func test_a_break_spends_to_T_and_bursts_the_excess_as_true_damage() -> void:
 	_fa.shatter_spend_fraction = 0.5
 	_set_cold(_f, _t(_f) + e)
 	_crit_burst(_t(_f) + e)
-	_fa.shatter_spend_fraction = 1.0
 	assert_eq(_cold(_f), _t(_f) + e - roundi(e * 0.5), "a lower fraction leaves T plus the unspent share")
 
 
