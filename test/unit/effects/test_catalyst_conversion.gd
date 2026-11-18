@@ -434,12 +434,19 @@ func test_a_landing_that_splits_and_primes_converts_the_leftover_at_settle() -> 
 
 func test_a_heads_own_riders_priming_the_node_convert_the_leftover_at_settle() -> void:
 	_widen()
-	StatusRoster.shared().statuses.append(_def)
+	var roster := StatusRoster.shared()  # held: an unheld load() is freed, the append lost
+	roster.statuses.append(_def)
 	assert_gt(_t(), 2, "fixture: the head's Charge stays under T")
 	_put(_t(), 0)
 	_plant(3)
 	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
 	assert_eq(_store(), 0, "the land split takes 1 + 1, the head's crossing of T converts the tied 1")
+
+
+func test_a_heads_crossing_reaches_the_seat_when_the_split_converts_nothing() -> void:
+	_widen()
+	var roster := StatusRoster.shared()  # held: an unheld load() is freed, the append lost
+	roster.statuses.append(_def)
 	_put(_t(), 0)
 	_plant(1)
 	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
@@ -448,7 +455,8 @@ func test_a_heads_own_riders_priming_the_node_convert_the_leftover_at_settle() -
 
 func test_a_heads_riders_on_an_already_primed_node_convert_nothing_more() -> void:
 	_widen()
-	StatusRoster.shared().statuses.append(_def)
+	var roster := StatusRoster.shared()  # held: an unheld load() is freed, the append lost
+	roster.statuses.append(_def)
 	_put(_t() + 1, 0)
 	_plant(1)
 	_land(_hit_on(_b, {_fire: 1, _lightning: 1}))
