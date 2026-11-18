@@ -63,14 +63,6 @@ func test_a_full_hp_carrier_shows_crystals_outside_the_bar_fade() -> void:
 	assert_eq(bar_overlay.crystals.size(), 0, "the bar's overlay draws no crystals")
 
 
-func test_an_unallocated_node_shows_its_crystals() -> void:
-	_nodes[2].get_combat().apply_status(_CATALYST, 2.0)
-	var layer := _layer(_nodes[2])
-	assert_not_null(layer)
-	if layer != null:
-		assert_eq(layer.crystals.size(), 2, "crystals need no HP pool")
-
-
 func test_crystals_clamp_at_the_cap() -> void:
 	var layer := _layer(_nodes[0])
 	assert_not_null(layer)

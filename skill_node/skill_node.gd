@@ -1615,6 +1615,14 @@ func notify_terrain_changed() -> void:
 	terrain_changed.emit()
 
 
+## Live only: the conversion cue, node-local first ([signal catalyst_converted],
+## the node's own Catalyst layer) then on the bus ([signal Events.catalyst_converted]).
+## The caller holds the live-only gate.
+func announce_catalyst_converted(converted: Dictionary) -> void:
+	catalyst_converted.emit(converted)
+	Events.catalyst_converted.emit(self, converted)
+
+
 ## [signal terrain_band_changed] handler (#1796): the band glow, pushed into
 ## the composite like [method _sync_status_tint] pushes the status tint — the
 ## element's colour into the slot of the int it counts on (Charge, or heat and

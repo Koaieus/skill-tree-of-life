@@ -753,7 +753,7 @@ static func _apply_row(world: CombatWorld, op: Array) -> void:
 		return
 	slice.adjust_status_power(op[2], float(op[3]))
 	if float(op[3]) < 0.0 and op[2] is CatalystStatus and not world.is_shadow():
-		Events.catalyst_converted.emit(node, op[4] if op.size() > 4 else {})
+		node.announce_catalyst_converted(op[4] if op.size() > 4 else {})
 
 
 ## [param total] stacks off [param node]'s store of [param e]: summed with the

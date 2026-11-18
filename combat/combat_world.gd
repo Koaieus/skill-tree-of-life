@@ -402,7 +402,7 @@ func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Stat
 		return
 	slice.adjust_status_power(def, -float(spent))
 	if not _shadow and slice.host != null:
-		Events.catalyst_converted.emit(slice.host, converted)
+		slice.host.announce_catalyst_converted(converted)
 
 
 ## One world-turn tick of every node row whose def sets

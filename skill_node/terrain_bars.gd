@@ -84,6 +84,11 @@ const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
 ## How long the spread cue holds the bars up after fading in, seconds. Tentative.
 @export_range(0.0, 5.0, 0.05) var flash_hold_s: float = 0.8
 
+## What sits under the bars (the node's Catalyst layer): its top edge is kept
+## at [member south_offset] while the bars are down, under the last row while
+## they are up ([method stack_bottom]). Tentative placement.
+@export var stack_below: Control
+
 ## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of hover.
 var pinned: bool = false:
 	set(value):
@@ -304,6 +309,7 @@ func _update_visibility() -> void:
 			_bound = false
 			_subs.clear()
 		set_process(false)
+		_place_below()
 
 
 func _fade_to(alpha: float) -> void:
@@ -316,12 +322,25 @@ func _fade_to(alpha: float) -> void:
 	_fade_tween.tween_property(self, "modulate:a", alpha, _FADE_IN_S if alpha > 0.0 else _FADE_OUT_S)
 
 
+## The y, below the node centre, under everything the bars draw right now:
+## [member south_offset] when none are shown.
+func stack_bottom() -> float:
+	var rows := _bars.size() if is_shown() else 0
+	return south_offset + rows * (bar_height + gap * 2.0 + label_size)
+
+
+func _place_below() -> void:
+	if stack_below != null:
+		stack_below.position.y = stack_bottom()
+
+
 ## Re-read the bars and repaint; the flicker runs only while a tail is up.
 func _refresh() -> void:
 	if not is_node_ready() or Engine.is_editor_hint():
 		queue_redraw()
 		return
 	_bars = bars_for(_node, max_overflow_blocks) if _node != null else []
+	_place_below()
 	var tail := false
 	for b in _bars:
 		tail = tail or b.layout.overflow_blocks > 0

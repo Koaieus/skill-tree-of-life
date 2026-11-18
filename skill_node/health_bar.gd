@@ -49,6 +49,10 @@ var _bound: bool = false
 ## The node's own status rows ([StatusOverlay]); bound to the node's
 ## [NodeCombat], so it never shows the owner's rows.
 @onready var _overlay: StatusOverlay = get_node_or_null(^"StatusOverlay")
+## The node's free-standing Catalyst layer (a [StatusOverlay] in
+## [enum StatusOverlay.Layer] CATALYST, outside this bar's fade); bound beside
+## [member _overlay] to the same rows.
+@export var catalyst_layer: StatusOverlay
 ## Bench pin ([member SkillNode.pin_health_bar]): shown regardless of HP or hover.
 var pinned: bool = false:
 	set(value):
@@ -92,6 +96,8 @@ func _on_owner_changed() -> void:
 	_release()
 	if _overlay != null:
 		_overlay.bind(_skill_node.get_combat(), _skill_node.statuses_changed)
+	if catalyst_layer != null:
+		catalyst_layer.bind(_skill_node.get_combat(), _skill_node.statuses_changed)
 	var allocated := _skill_node.is_allocated()
 	_pool = _skill_node.node_board.get_stat(&"node_health") as PoolStat \
 			if allocated and _skill_node.node_board != null else null

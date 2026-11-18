@@ -6,7 +6,9 @@ extends Control
 ## for ONE host's rows; a full-rect child of the bar it annotates. [method bind]
 ## takes a [NodeCombat] or [EntityCombat] plus its statuses-changed signal; the bar
 ## pushes its DRAWN fill via [method set_fill]. [method refresh] rebuilds the model
-## and `_draw` only paints it. Node hosts add a corruption layer.
+## and `_draw` only paints it. Node hosts add a corruption layer. One overlay
+## draws one [enum Layer]: a bar's overlay the statuses, a skill node's own
+## free-standing overlay the Catalyst crystals (outside the bar's fade).
 ## See docs/domain/hud-widgets.md
 
 ## One band of the projected-damage segment: one damaging row, stacked back
@@ -24,6 +26,16 @@ class IconEntry:
 	var count: int = -1
 	var rect: Rect2
 
+## What one overlay draws. STATUS: the segment, icon row and corruption, over
+## a bar. CATALYST: one crystal per Catalyst stack and the conversion pulse,
+## on a skill node's own overlay; it never fades with a bar, so a full-HP or
+## unallocated carrier shows its crystals.
+enum Layer { STATUS, CATALYST }
+
+@export var layer: Layer = Layer.STATUS:
+	set(v):
+		layer = v
+		refresh()
 ## Edge of one icon, px. Tentative, easy to change.
 @export_range(4.0, 32.0, 1.0) var icon_size: float = 10.0:
 	set(v):
@@ -69,6 +81,9 @@ class IconEntry:
 		refresh()
 ## Seconds a conversion pulse takes to fade. Tentative, easy to change.
 @export_range(0.05, 2.0, 0.05) var conversion_pulse_seconds: float = 0.5
+## How much a pulsing crystal swells at the pulse's start (1 = not at all).
+## Tentative, easy to change.
+@export_range(1.0, 3.0, 0.05) var conversion_pulse_swell: float = 1.6
 ## How far the corruption tint darkens for a pending chunk. Tentative.
 @export_range(0.0, 1.0, 0.05) var chunk_darken: float = 0.45:
 	set(v):
@@ -89,9 +104,12 @@ var icons: Array[IconEntry] = []
 var chunks: Array[Rect2] = []
 var ghost: Rect2 = Rect2()
 var blips: Array[Rect2] = []
-## The Catalyst layer (node hosts only): one crystal per stack, and the tint
-## its conversion pulse flashes in.
+## The Catalyst layer (node hosts, [enum Layer] CATALYST only): one crystal
+## per stack, and the tint its conversion pulse flashes in.
 var crystals: Array[Rect2] = []
+## The last non-empty crystal row: a take spends the row before its cue lands,
+## so the pulse flashes these.
+var _last_crystals: Array[Rect2] = []
 var _crystal_tint: Color = Color.WHITE
 var _pulse_left: float = 0.0
 ## The conversion pulse's colour: the landing element's tint ([method _on_catalyst_converted]).
@@ -120,8 +138,9 @@ func _notification(what: int) -> void:
 func bind(host: Object, changed: Signal = Signal()) -> void:
 	_subs.clear()
 	_host = host
-	if _host is NodeCombat:
-		_subs.on(Events.catalyst_converted, _on_catalyst_converted)
+	_last_crystals.clear()
+	if layer == Layer.CATALYST and _host is NodeCombat and (_host as NodeCombat).real() != null:
+		_subs.on((_host as NodeCombat).real().catalyst_converted, _on_catalyst_converted)
 	if _host != null and not changed.is_null():
 		_subs.on(changed, _on_rows_changed)
 	_on_rows_changed()
@@ -148,15 +167,20 @@ func refresh() -> void:
 	ghost = Rect2()
 	critical = false
 	var rows := _rows()
-	visible = not rows.is_empty() or _pulse_left > 0.0
+	if layer == Layer.CATALYST:
+		_build_crystals(rows)
+		visible = not crystals.is_empty() or is_pulsing()
+		set_process(is_pulsing())
+		queue_redraw()
+		return
+	visible = not rows.is_empty()
 	if rows.is_empty():
-		set_process(_pulse_left > 0.0)
+		set_process(false)
 		queue_redraw()
 		return
 	_build_segments(rows)
 	_build_icons(rows)
-	_build_crystals(rows)
-	set_process(not blips.is_empty() or _pulse_left > 0.0)
+	set_process(not blips.is_empty())
 	queue_redraw()
 
 
@@ -169,28 +193,40 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## The cue: [param node] is this overlay's own node. The pulse takes the tint
-## of the element [param converted] made the most stacks of (the first on a
-## tie; tentative). One naming none keeps a running pulse's tint; else the
-## crystal tint.
-func _on_catalyst_converted(node: SkillNode, converted: Dictionary) -> void:
-	var slice := _host as NodeCombat if _host != null and is_instance_valid(_host) else null
-	if slice == null or slice.real() != node:
-		return
-	var tint := _pulse_tint if _pulse_left > 0.0 else _crystal_tint
+## The cue, heard on this overlay's own node: flash the crystals the take
+## spent in [method pulse_tint] of [param converted] (a running pulse's tint,
+## else the crystal tint, when it names no element).
+func _on_catalyst_converted(converted: Dictionary = {}) -> void:
+	_pulse_tint = pulse_tint(converted, _pulse_tint if is_pulsing() else _crystal_tint)
+	pulse_crystals = crystals.duplicate() if not crystals.is_empty() else _last_crystals.duplicate()
+	if pulse_crystals.is_empty():
+		pulse_crystals.append(Rect2(0.0, 0.0, crystal_size, crystal_size * 1.6))
+	_pulse_left = conversion_pulse_seconds
+	visible = true
+	set_process(true)
+	queue_redraw()
+
+
+func is_pulsing() -> bool:
+	return _pulse_left > 0.0
+
+
+## The pulse's colour for a conversion: the tint of the element [param converted]
+## made the most stacks of, the first named on a tie (tentative); [param fallback]
+## when it names no known element.
+static func pulse_tint(converted: Dictionary, fallback: Color) -> Color:
+	var tint := fallback
 	var most := 0
 	for id: Variant in converted:
 		var e := ElementRoster.shared().by_id(id)
 		if int(converted[id]) > most and e != null and e.identity != null:
 			most = int(converted[id])
 			tint = e.identity.tint
-	_pulse_tint = tint
-	_pulse_left = conversion_pulse_seconds
-	visible = true
-	set_process(true)
+	return tint
 
 
-## One crystal per stack of the node's Catalyst row, above the icon row.
+## One crystal per stack of the node's Catalyst row, left to right from the
+## overlay's top-left; clamped at [member crystal_cap].
 func _build_crystals(rows: Array[NodeStatus]) -> void:
 	if not (_host is NodeCombat):
 		return
@@ -198,16 +234,15 @@ func _build_crystals(rows: Array[NodeStatus]) -> void:
 		if not (row.def is CatalystStatus) or row.power <= 0.0:
 			continue
 		_crystal_tint = row.def.tint
-		var y := -icon_size - icon_gap - crystal_size * 1.6
-		if not blips.is_empty():
-			y -= blip_size + blip_gap
 		for i in mini(roundi(row.power), crystal_cap):
-			crystals.append(Rect2(i * (crystal_size + icon_gap), y, crystal_size, crystal_size * 1.6))
+			crystals.append(Rect2(i * (crystal_size + icon_gap), 0.0, crystal_size, crystal_size * 1.6))
+		_last_crystals = crystals.duplicate()
 		return
 
 
 func _on_rows_changed() -> void:
-	_rewire_degree()
+	if layer == Layer.STATUS:
+		_rewire_degree()
 	refresh()
 
 
@@ -329,12 +364,9 @@ func _draw() -> void:
 		draw_rect(s.rect, s.color)
 	if not blips.is_empty():
 		_draw_corruption()
-	for r in crystals:
-		_draw_crystal(r)
-	if _pulse_left > 0.0:
-		var glow := _pulse_tint.lerp(Color.WHITE, 0.5)
-		glow.a = _pulse_left / maxf(conversion_pulse_seconds, 0.01)
-		draw_rect(Rect2(Vector2.ZERO, size), glow)
+	if layer == Layer.CATALYST:
+		_draw_catalyst()
+		return
 	var font := ThemeDB.fallback_font
 	var font_size := maxi(int(icon_size * 0.8), 6)
 	for e in icons:
@@ -367,8 +399,24 @@ func _draw_corruption() -> void:
 		draw_rect(blips[i], hot.lerp(dark, 1.0 - pulse) if critical and last else _corruption_tint)
 
 
-## A faceted violet crystal filling [param r]: a lit left half, a darker right.
-func _draw_crystal(r: Rect2) -> void:
+func _draw_catalyst() -> void:
+	for r in crystals:
+		_draw_crystal(r, _crystal_tint)
+	if not is_pulsing():
+		return
+	# The spent crystals flash in the landing element's tint, swelling and fading.
+	var t := _pulse_left / maxf(conversion_pulse_seconds, 0.01)
+	var tint := _pulse_tint.lerp(Color.WHITE, 0.35 * t)
+	tint.a = t
+	var grow := lerpf(1.0, conversion_pulse_swell, t)
+	for r in pulse_crystals:
+		_draw_crystal(r.grow_individual(
+				r.size.x * (grow - 1.0) * 0.5, r.size.y * (grow - 1.0) * 0.5,
+				r.size.x * (grow - 1.0) * 0.5, r.size.y * (grow - 1.0) * 0.5), tint)
+
+
+## A faceted crystal filling [param r] in [param tint]: a lit left half, a darker right.
+func _draw_crystal(r: Rect2, tint: Color) -> void:
 	var mid := r.position.x + r.size.x * 0.5
 	var shoulder := r.position.y + r.size.y * 0.3
 	var apex := Vector2(mid, r.position.y)
@@ -376,14 +424,7 @@ func _draw_crystal(r: Rect2) -> void:
 	var left := Vector2(r.position.x, shoulder)
 	var right := Vector2(r.end.x, shoulder)
 	draw_colored_polygon(PackedVector2Array([apex, right, Vector2(r.end.x, r.end.y - r.size.y * 0.2), base,
-			Vector2(r.position.x, r.end.y - r.size.y * 0.2), left]), _crystal_tint.darkened(0.35))
+			Vector2(r.position.x, r.end.y - r.size.y * 0.2), left]), tint.darkened(0.35))
 	draw_colored_polygon(PackedVector2Array([apex, left, Vector2(r.position.x, r.end.y - r.size.y * 0.2), base]),
-			_crystal_tint)
+			tint)
 
-
-func is_pulsing() -> bool:
-	return false
-
-
-static func pulse_tint(_converted: Dictionary, fallback: Color) -> Color:
-	return fallback

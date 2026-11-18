@@ -91,7 +91,7 @@ visible = false
 script = ExtResource("4_hover")
 style = ExtResource("5_glow")
 
-[node name="HealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922168]
+[node name="HealthBar" type="ProgressBar" parent="Visuals" unique_id=1764922168 node_paths=PackedStringArray("catalyst_layer")]
 modulate = Color(1, 1, 1, 0)
 z_index = 10
 offset_left = -31.0
@@ -103,6 +103,7 @@ theme_override_styles/background = SubResource("StyleBoxFlat_r2qlo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_3po0j")
 show_percentage = false
 script = ExtResource("6_r2qlo")
+catalyst_layer = NodePath("../CatalystLayer")
 
 [node name="StatusOverlay" parent="Visuals/HealthBar" instance=ExtResource("9_overlay")]
 layout_mode = 1
@@ -127,8 +128,23 @@ layout_mode = 1
 [node name="ShotsPips" parent="Visuals" instance=ExtResource("8_pips")]
 z_index = 10
 
-[node name="TerrainBars" parent="Visuals" instance=ExtResource("11_terrain_bars")]
+[node name="TerrainBars" parent="Visuals" node_paths=PackedStringArray("stack_below") instance=ExtResource("11_terrain_bars")]
 z_index = 10
+stack_below = NodePath("../CatalystLayer")
+
+[node name="CatalystLayer" parent="Visuals" instance=ExtResource("9_overlay")]
+z_index = 10
+layout_mode = 0
+anchors_preset = 0
+anchor_right = 0.0
+anchor_bottom = 0.0
+grow_horizontal = 1
+grow_vertical = 1
+offset_left = -31.0
+offset_top = 46.0
+offset_right = 31.0
+offset_bottom = 54.0
+layer = 1
 
 [node name="Feedback" type="Node" parent="." node_paths=PackedStringArray("host", "visuals", "hover_ring", "node_visuals")]
 script = ExtResource("10_feedback")
