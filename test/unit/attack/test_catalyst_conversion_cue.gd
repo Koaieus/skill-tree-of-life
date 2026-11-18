@@ -3,7 +3,9 @@ extends GutTest
 ## The Catalyst conversion cue ([signal Events.catalyst_converted]): the
 ## authority's resolve on a shadow world has no audience, the replay of the
 ## rebuilt record on the live world (the authority's own and every peer's)
-## announces each take of a Catalyst row once, with what it converted into.
+## announces each take of a Catalyst row once, with what it converted into;
+## the world turn's terrain pass, run on every peer's live world, announces its
+## own takes the same way.
 
 const _PATH := "res://test/_tmp/catalyst_cue_probe.tres"
 
