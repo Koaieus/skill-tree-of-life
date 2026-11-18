@@ -275,11 +275,13 @@ func test_a_cast_over_uncharged_nodes_plants_nothing() -> void:
 ## Three hits of one wave on A each go off off one read of the pre-beat 2
 ## (it used to pop once per wave); their spends sum and clamp at 0.
 func test_a_charged_node_goes_off_per_arrival_off_one_read_and_its_blast_carries_poison() -> void:
+	pending("a Catalyst-charged node no longer goes off: go-off zero's disc is gone; "
+			+ "#1801 F re-points Firecracker to plant Heat and blast through Burning's disc")
+	return
+	@warning_ignore("unreachable_code")
 	var b := _three_blasts({7: Vector2(0, -(2.0 * _rad() + 8.0))})
 	var n: Array = b.n
 	var a: SkillNode = n[5]
-	var spread := _CATALYST_STATUS.spread as CatalystSpread
-	assert_gt(spread.radius_for(n[7].radius, 2), 2.0 * _rad() + 8.0 - n[7].radius, "fixture: G inside A's pop")
 	a.get_combat().apply_status(_CATALYST_STATUS, 2.0)
 	# The pop gathers over the global mirror, which a hand-built board fills
 	# only on reconcile.
