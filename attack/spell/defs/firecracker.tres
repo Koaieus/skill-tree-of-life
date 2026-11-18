@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://attack/spell/spell_def.gd" id="1_spell"]
 [ext_resource type="Script" path="res://attack/spell/aspect_intake.gd" id="2_intake"]
 [ext_resource type="Resource" path="res://identity/defs/fire.tres" id="2_fire"]
+[ext_resource type="Resource" path="res://identity/defs/catalyst.tres" id="2_catalyst"]
 [ext_resource type="Script" path="res://attack/spell/condition/landing_condition.gd" id="3_crit_base"]
 [ext_resource type="Script" path="res://attack/spell/condition/no_edge_to_source_condition.gd" id="3_crit_gap"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/on_hit_effect.gd" id="4_effect"]
@@ -19,6 +20,11 @@
 script = ExtResource("2_intake")
 identity = ExtResource("2_fire")
 innate = 6
+
+[sub_resource type="Resource" id="catalyst"]
+script = ExtResource("2_intake")
+identity = ExtResource("2_catalyst")
+innate = 0
 
 [sub_resource type="Resource" id="crit_gap"]
 script = ExtResource("3_crit_gap")
@@ -61,6 +67,6 @@ description = "Pops on an enemy node and walks outward through every enemy neigh
 power = 0.3
 propagation = SubResource("prop")
 on_hit_effects = Array[ExtResource("4_effect")]([SubResource("dmg")])
-intakes = Array[ExtResource("2_intake")]([SubResource("heat")])
+intakes = Array[ExtResource("2_intake")]([SubResource("heat"), SubResource("catalyst")])
 crit_conditions = Array[ExtResource("3_crit_base")]([SubResource("crit_gap")])
 targeting = SubResource("targeting")
