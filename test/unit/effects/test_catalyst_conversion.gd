@@ -501,5 +501,127 @@ func test_cap_off_leaves_the_row_to_power_max() -> void:
 	assert_eq(_store(), cap + 5, "power_max 0 is uncapped")
 
 
-# Acceptance 4's "lands only on allocated nodes, clears on dealloc" and 4b's
-# numbers read catalyst.tres: the retag unit's.
+# ── Acceptance 1 (centre), 3, 4 and 4b: the shipped def ──────────────────────
+
+const _CATALYST_TRES := preload("res://effects/status/catalyst.tres")
+const _POISON_TRES := preload("res://effects/status/poison.tres")
+
+
+func test_the_shipped_def_is_a_catalyst_status_that_decays_per_world_turn() -> void:
+	assert_true(_CATALYST_TRES is CatalystStatus, "catalyst.tres carries the CatalystStatus script")
+	assert_true(_CATALYST_TRES.decay_per_world_turn, "decays on the world turn, not its holder's")
+
+
+func test_a_hits_centre_landing_converts_nothing() -> void:
+	var pair: Array[SkillNode] = await _pair(1.0)
+	var n := pair[0]
+	var nc := CombatWorld.live().combat_for(n)
+	nc.apply_status(_CATALYST_TRES, 2.0)
+	var heat := nc.terrain_t()
+	var hits := _land(_hit_on(n, {}))
+	assert_gt(hits.size(), 0, "fixture: the hit landed")
+	assert_eq(nc.terrain_t(), heat, "no Heat/Cold/Charge rider: nothing converts, no Heat appears")
+
+
+## A goo (or poison) arrow's head plus its one [param def] rider on Burning N,
+## landed; what M, inside N's disc, ends holding of [param def] and what N's
+## own Catalyst and Heat did.
+func _goo_on_m(pair: Array[SkillNode], def: StatusDef, stacks: int) -> Dictionary:
+	var n := pair[0]
+	var m := pair[1]
+	var nc := CombatWorld.live().combat_for(n)
+	nc.add_terrain(_fire, nc.terrain_threshold() + 1 - nc.terrain_t())
+	var heat := nc.terrain_t()
+	var span := _hit_on(n, {})
+	var s := StatusInstance.new()
+	s.def = def
+	s.power = float(stacks)
+	s.raw = true
+	s.target = n
+	s.attacker = _attacker
+	s.schedule_index = 0
+	span.append(s)
+	var hits := _land(span)
+	var carried := 0.0
+	for e: HitInstance in _on(hits, m):
+		if e is StatusInstance and (e as StatusInstance).def == def:
+			carried += (e as StatusInstance).power
+	return {
+		"reached_m": _on(hits, m).size() > 0,
+		"added_on_m": carried,
+		"heat_kept": nc.terrain_t() <= heat,
+	}
+
+
+func _burning_pair(catalyst: int = 2) -> Array[SkillNode]:
+	var pair: Array[SkillNode] = await _pair(1.0)
+	var nc := CombatWorld.live().combat_for(pair[0])
+	nc.add_terrain(_fire, nc.terrain_threshold() + 1 - nc.terrain_t())
+	if catalyst > 0:
+		nc.apply_status(_CATALYST_TRES, float(catalyst))
+	return pair
+
+
+func test_a_goo_arrow_on_a_burning_node_sets_it_off_and_converts_nothing() -> void:
+	var pair: Array[SkillNode] = await _burning_pair()
+	var goo := _goo_on_m(pair, _CATALYST_TRES, 2)
+	assert_true(goo.reached_m, "the Burning disc reached M: the arrow set N off like any hit")
+	assert_gt(float(goo.added_on_m), 0.0, "the copy carries the Catalyst rider over the disc")
+	assert_true(goo.heat_kept, "no Heat lands: N's own Catalyst converts into none, its Heat only falls (Burning's own spend)")
+
+
+## N holds no Catalyst here: go-off zero's disc (until it dies) reads N's own
+## row, and a poison arrow would set it off where a goo arrow's own-aspect skip
+## would not.
+func test_goo_plants_the_same_stacks_as_poison_on_the_same_board() -> void:
+	var pair: Array[SkillNode] = await _burning_pair(0)
+	var poison := _goo_on_m(pair, _POISON_TRES, 2)
+	var goo := _goo_on_m(pair, _CATALYST_TRES, 2)
+	assert_gt(float(poison.added_on_m), 0.0, "fixture: poison planted on M")
+	assert_eq(goo.added_on_m, poison.added_on_m, "Catalyst adds what Poison adds, stacks under both caps")
+
+
+func test_catalyst_lands_only_on_allocated_nodes() -> void:
+	var free := _w.add_node(&"Free", Vector2(0.0, -40000.0))
+	await get_tree().process_frame
+	var fc := free.get_combat()
+	fc.apply_status(_CATALYST_TRES, 3.0)
+	assert_eq(int(fc.get_status_power(_CATALYST_TRES.id)), 0, "an unallocated node takes none")
+	_node.apply_status(_CATALYST_TRES, 3.0)
+	assert_eq(int(_node.get_status_power(_CATALYST_TRES.id)), 3, "an allocated node takes it")
+
+
+func test_catalyst_clears_on_dealloc() -> void:
+	_node.apply_status(_CATALYST_TRES, 3.0)
+	assert_eq(int(_node.get_status_power(_CATALYST_TRES.id)), 3, "fixture: planted")
+	_w.allocator().force_deallocate(_b)
+	assert_eq(int(_node.get_status_power(_CATALYST_TRES.id)), 0, "the row is cleared")
+
+
+func test_the_row_decays_once_when_the_world_turn_closes_by_the_per_tick_rate() -> void:
+	var tm: TurnManager = autofree(TurnManager.new())
+	tm.entity_root = _w.graph
+	add_child(tm)
+	# P (holder) and Q are the two carriers; Q has no node.
+	_node.apply_status(_CATALYST_TRES, 5.0)
+	var rate := int((_CATALYST_TRES.decay as FlatDecay).per_tick)
+	assert_gt(rate, 0, "fixture: the def decays")
+	assert_gt(5 - rate, 0, "fixture: N above the rate")
+	tm.start_turn(_holder)
+	assert_eq(TurnManager.world_turn_period(2, tm.world_clock), 2, "PER_CARRIER: a world turn per 2 turn ends")
+	tm.end_turn()
+	assert_eq(_store_of(_CATALYST_TRES), 5, "after the first played turn end the row is unchanged")
+	tm.end_turn()
+	assert_eq(_store_of(_CATALYST_TRES), 5 - rate, "after the second, down by the per-tick decay, once")
+
+
+func test_the_loss_per_world_turn_is_at_most_the_fire_bands() -> void:
+	var rate := int((_CATALYST_TRES.decay as FlatDecay).per_tick)
+	var band := _fire.bands[0] as ElementBand
+	assert_lte(rate, band.decay_per_world_turn, "Catalyst fades no faster than the Fire band")
+
+
+func _store_of(def: StatusDef) -> int:
+	return int(_node.get_status_power(def.id))
+
+

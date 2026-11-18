@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="StatusDef" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="CatalystStatus" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://effects/status/status_def.gd" id="1_status_def"]
+[ext_resource type="Script" path="res://effects/status/catalyst.gd" id="1_status_def"]
 [ext_resource type="Script" path="res://effects/status/decay/flat_decay.gd" id="2_decay"]
 [ext_resource type="Script" path="res://effects/status/spread/catalyst_spread.gd" id="3_spread"]
 [ext_resource type="Resource" path="res://identity/defs/catalyst.tres" id="4_identity"]
@@ -19,6 +19,7 @@ identity = ExtResource("4_identity")
 description = "Catalyst stored on a node, waiting to become an element. Heat, Cold or Charge that lands on the node converts a share of the store into those stacks; a node that crosses into Burning, Frozen or Shocked converts what is left into that element. Catalyst fades by itself each world turn."
 tags = Array[StringName]([&"catalyst"])
 power_max = 0.0
+decay_per_world_turn = true
 decay = SubResource("Resource_decay")
 spread = SubResource("Resource_spread")
 display_max = 10.0
