@@ -171,8 +171,8 @@ func test_a_poison_arrow_on_a_burning_node_spends_heat_and_blasts_poison_outward
 	assert_false(copies.any(func(h): return h.target == _f.cluster[1]), "not past its reach")
 	var rode := _status_on(copies, _f.cluster[0], _POISON_DEF.id)
 	assert_eq(rode.size(), 1, "the poison rides the blast")
-	if rode.size() == 1 and own.size() == 1:
-		assert_eq(rode[0].power, ceilf(own[0].power * _burning().share), "a copy's rider lands ceil(r × share)")
+	assert_eq(own.size(), 1, "fixture: the arrow carries one Poison rider")
+	assert_eq(rode[0].power, ceilf(own[0].power * _burning().share), "a copy's rider lands ceil(r × share)")
 	assert_false(hits.any(func(h): return h is CureInstance), "the spend lands at the read: no CureInstance")
 	var marks := hits.filter(func(h): return h.blast_mark != null and h.blast_mark.centre == _f.target)
 	assert_false(marks.is_empty(), "fixture: the go-off left its BlastMark")
