@@ -3,9 +3,9 @@
 What *is*. Catalyst is an element-generic converter that sits on a node: the
 Heat, Cold or Charge that lands on its node, or the band its node primes
 into, takes the store with it. The calls are the owner's (2026-11-09 and
-2026-11-11) in [`docs/design/elements/terrain.md`](../design/elements/terrain.md)
-§ The threshold model, recorded on #1801; the design record is
-[`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Catalyst. The
+2026-11-11), recorded on #1801.
+Design record: [`docs/design/elements/terrain.md`](../design/elements/terrain.md) § The threshold model.
+Design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Catalyst. The
 blast is Burning's disc, never Catalyst's: [elements.md](elements.md)
 § "Burning's disc (#1800)".
 
