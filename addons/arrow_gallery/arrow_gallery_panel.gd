@@ -341,16 +341,23 @@ func _describe(outcome: AttackOutcome, ammo: AmmoType, preset: Preset) -> String
 			% [ammo.id, arrows.size(), Preset.keys()[preset].capitalize(), duds, held, heals, crits]
 
 
-## The arrows of a committed volley: every hit but the status riders and the
-## go-off copies (a copy carries its [BlastMark]). Not
-## [method AttackOutcome.damage_hits] — that drops a hit mitigation flipped to
-## a heal (rebuilt from the record as a [HealInstance]), which is exactly the
-## Gained beat.
+## The arrows of a committed volley: every hit but the status riders, the
+## go-off copies (a copy carries its [BlastMark]), a shatter's extra landings
+## (a clone sharing its arrow's [member HitInstance.hit_key]) and its burst (no
+## ammo type). Not [method AttackOutcome.damage_hits] — that drops a hit
+## mitigation flipped to a heal (rebuilt from the record as a [HealInstance]),
+## which is exactly the Gained beat.
 static func arrows_of(outcome: AttackOutcome) -> Array[HitInstance]:
 	var out: Array[HitInstance] = []
+	var seen: Dictionary[int, bool] = {}
 	for hit in outcome.hits:
-		if (hit is DamageInstance or hit is HealInstance) and hit.blast_mark == null:
-			out.append(hit)
+		if not (hit is DamageInstance or hit is HealInstance) or hit.blast_mark != null:
+			continue
+		if hit.ammo_type_id.is_empty() or seen.has(hit.hit_key):
+			continue
+		if hit.hit_key != 0:
+			seen[hit.hit_key] = true
+		out.append(hit)
 	return out
 
 func _refresh_status() -> void:
