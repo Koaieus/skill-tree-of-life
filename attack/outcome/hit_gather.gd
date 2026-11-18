@@ -309,6 +309,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 		for h: _Hit in landing:
 			for e: Element in ElementRoster.shared().elements:
 				var band := read.band(e)
+				_conduct(h, node, e, band, spends)
 				if band == null or band.go_off == null:
 					continue
 				if _vertex_disc(h, node, e) != null and band.go_off is DiscGoOff:
@@ -324,6 +325,24 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	TerrainSettle.commit(spends, _seat_take)
 	_entries.append_array(bursts)
 	return next
+
+
+## A spell walk through its head's own [param node] in a band that conducts
+## (Shocked): the band's [member ElementBand.conduct_cost] off the node's
+## store of [param e], in [param spends] with the read's go-off spends (one
+## settle, summed), and the head marked [member HitInstance.conducted] for the
+## expansion step. Only a head whose walk can leave the node pays
+## ([member HitInstance.walk_spreads]); paid on arrival, so a walk whose
+## spread then picks nothing has still paid. Once per hit: a node is read
+## once per hit.
+func _conduct(h: _Hit, node: SkillNode, e: Element, band: ElementBand,
+		spends: TerrainSettle.Batch) -> void:
+	if band == null or band.travel != ElementBand.Travel.CONDUCTS:
+		return
+	if node != h.head.target or not h.head.walk_spreads:
+		return
+	_spend_stacks(spends, node, e, band.conduct_cost)
+	h.head.conducted = true
 
 
 ## The node's second [Admits] read (ADR 0083 §2; ADR 0091 §1, §4), once per node
