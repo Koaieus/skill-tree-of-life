@@ -576,10 +576,10 @@ func test_a_goo_arrow_on_a_burning_node_sets_it_off_and_converts_nothing() -> vo
 	assert_true(goo.heat_kept, "no Heat lands: N's own Catalyst converts into none, its Heat only falls (Burning's own spend)")
 
 
-## N holds no Catalyst here: go-off zero's disc reads N's own row, and a
-## poison arrow sets it off where a goo arrow's own-aspect skip does not.
+## N holds Catalyst of its own: nothing but Burning's disc sets N off, so
+## either arrow reaches M alike.
 func test_goo_plants_the_same_stacks_as_poison_on_the_same_board() -> void:
-	var pair: Array[SkillNode] = await _burning_pair(0)
+	var pair: Array[SkillNode] = await _burning_pair()
 	var poison := _goo_on_m(pair, _POISON_TRES, 2)
 	var goo := _goo_on_m(pair, _CATALYST_TRES, 2)
 	assert_gt(float(poison.added_on_m), 0.0, "fixture: poison planted on M")

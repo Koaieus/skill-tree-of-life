@@ -129,8 +129,7 @@ class PrimeConversion:
 
 ## The readers every [method commit] runs: one [PrimeConversion] per
 ## [CatalystStatus] the status roster authors, each handed [param take] (see
-## [member PrimeConversion.take]). None does until the retag unit's
-## `catalyst.tres`, so until then the seat is empty and no settle moves.
+## [member PrimeConversion.take]); `catalyst.tres` is one.
 static func seat(take := Callable()) -> Array[SettleReader]:
 	var out: Array[SettleReader] = []
 	var roster := StatusRoster.shared()
