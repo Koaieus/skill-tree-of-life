@@ -1,161 +1,138 @@
-# Explosive — charges, faces, the spend/power formula, go-off zero, the blade contact
+# Catalyst — the store, the trade, both triggers, cap, decay, barrel, goo arrow
 
-What *is*. The calls are ADR 0061 and ADR 0062 (the default face on
-`StatusDef`, the blade's second target set), from the owner's rulings on
-#1608 (comments 6176828602 and 6177810352, 2026-10-14) and #1609 (comment
-6178627285). The passages still open (Flamestrike, "both" from one heal, the
-death-blast carrier, the rejected list) stay in the
-design record: [`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Explosive.
+What *is*. Catalyst is an element-generic converter that sits on a node: the
+Heat, Cold or Charge that lands on its node, or the band its node primes
+into, takes the store with it. The calls are the owner's (2026-11-09 and
+2026-11-11) in [`docs/design/elements/terrain.md`](../design/elements/terrain.md)
+§ The threshold model, recorded on #1801; the design record is
+[`docs/design/aspect_matrix.md`](../design/aspect_matrix.md) § Catalyst. The
+blast is Burning's disc, never Catalyst's: [elements.md](elements.md)
+§ "Burning's disc (#1800)".
 
-changing: the Explosive aspect is retagged Catalyst, go-off zero is deleted and this doc becomes `catalyst.md`, #1801; see docs/design/elements/terrain.md
+Where the land conversion sits in one hit's landing (the walk, the beat, rider
+order): [hit-resolution.md](hit-resolution.md) § "Catalyst at the land step".
 
-Where a detonation sits in one hit's landing (the walk, the beat, rider order): [hit-resolution.md](hit-resolution.md) § "Go-off zero: Explosive detonation".
+## The status
 
-## Vocabulary
+`effects/status/catalyst.tres` is a `CatalystStatus` (`effects/status/catalyst.gd`,
+a `StatusDef`): id `catalyst`, tag `catalyst`, identity
+`identity/defs/catalyst.tres` (violet). The Catalyst `Aspect`
+(`aspects/defs/catalyst.tres`, school DEX) names it with the count
+`catalyst_aspect`, the facets `catalyst_stacks_per_hit` / `catalyst_resistance`,
+the goo arrow, the barrel and Firecracker; it carries no `GoOff`.
 
-- A **hit** is the catch-all: a blade contact, an arrow landing, a spell
-  landing (`HitInstance` / `HitLanding` / `OnHitEffect`).
-- A hit's explosive **load** is the explosive it carries, its head's
-  `HitInstance.hit_load`: a spell row's detonate load, a blade piece's charges. An arrow carries load 0; goo
-  ammo plants instead (below).
-- A node's **charges** (`present`) are the Explosive status stacks on it.
-  A charge is a life: a blade piece's charges are what it spends per contact.
+- **Planting.** A row naming Catalyst takes the default `PlantUse`
+  (`AspectIntake.default_use()`), so a landing plants Catalyst at its load. It
+  lands only on allocated nodes, and `on_dealloc` clears it.
+- **Cap.** The row caps at its node's k × T (`NodeCombat.terrain_cap`, #1794)
+  while `cap_k_times_t` is on: `_on_applied` trims a landing or a move that took
+  it past. `power_max` stays 0.
+- **Decay.** `FlatDecay`, `per_tick` 1.0 (the default), once per **world
+  turn**, never at its holder's turn end: the def sets
+  `StatusDef.decay_per_world_turn`, so `StatusHost` skips the row in
+  `tick_statuses` and `CombatWorld.tick_world_turn_decay` ticks it, run by
+  `TurnManager._end_world_turn` right after `tick_lingering`. The live world
+  keeps the holders in `CombatWorld._world_turn_decay`. Its loss per world turn
+  stays at or under the Fire band's `decay_per_world_turn` (a pinned
+  invariant, both read from the defs).
+- **Death.** Its spread, `CatalystSpread`
+  (`effects/status/spread/catalyst_spread.gd`), burns a removed node's whole
+  row in one transfer on a cause in `triggers` (default death only); nothing
+  spills onto a neighbour. The burn writes the row off and deals no damage of
+  its own.
 
-## Charges are a status
+## The trade
 
-changing: a swung blade piece no longer carries its node's charges, #1802; see docs/design/elements/go-offs.md
+`CatalystStatus.converted(store, landing)` is the pure split: landing stacks
+by element id in, Catalyst parts by element id out, the store's leftover being
+`store` minus their sum. It takes no primary element; only the landing Heat,
+Cold and Charge stacks count. Each element's share `store × w / W` is
+floored, the stacks left go one per element down the remainders, largest
+first, a whole tied group at a time, and a group the leftover cannot cover
+stays Catalyst ([rounding.md](rounding.md), the Catalyst row).
 
-`effects/status/catalyst.tres` is a `StatusDef` (id `explosive`, tag
-`charge`, `default_face = Detonate`). Its spread, `ExplosiveSpread`
-(`effects/status/spread/catalyst_spread.gd`), is the one owner of a
-charge's boom shape: go-off zero's disc (`DiscGoOff`) asks `radius_for`
-and never computes a reach itself.
+| store | landing | converts | left |
+|---|---|---|---|
+| 3 | 2 Heat | 3 → Heat (node gains 5 Heat) | 0 |
+| 3 | 1 Heat + 2 Charge | 1 Heat, 2 Charge | 0 |
+| 5 | 1 Heat + 2 Charge | 2 Heat, 3 Charge (shares 1.67, 3.33) | 0 |
+| 3 | 1 Heat + 1 Charge | 1 Heat, 1 Charge | 1 |
+| 1 | 1 Heat + 1 Charge | nothing (tied) | 1 |
 
-- **Decay**: `FlatDecay`, one charge off each turn end.
-- **Death**: `ExplosiveSpread.on_removed` burns every charge of a node
-  removed by a cause in `triggers` (default death only) in one transfer,
-  `damage_per_charge` per charge; nothing spills onto a neighbour.
-- **A core** with no charges of its own reads and spends its owner's
-  entity-hosted ones (`DiscGoOff.present_on`).
-- **Barrel addon** (`skill_node/addons/catalyst_barrel_addon.gd`): not
-  unique; at the owner's turn start an allocated carrier tops its charges up
-  to its barrel count (flat, never stat-scaled), a barrel leaving spends one
-  charge if there is one. It carries no radius or blade logic: a swung
-  piece's lives are its node's charges.
+Each part trades at `ratio_in` : `ratio_out` (`traded`: `part × ratio_out /
+ratio_in`, integer division); `spent` takes the least Catalyst that buys
+those stacks, so the rest of a part stays Catalyst. `CatalystStatus.convert`
+is the one door that takes a node's row: split, trade, take the spent
+Catalyst off the row (or hand it to a `take` callable), and return the stacks
+to land. The converted stacks obey the element's k × T cap and overflow like
+any other landing.
 
-## Three faces
+## Two triggers
 
-changing: `FuelUse` is deleted, #1801; see docs/design/elements/go-offs.md
+**At land.** `HitGather._convert_landing` runs once per node per land commit:
+when Heat, Cold or Charge stacks land on a node holding Catalyst (a hit's or a
+copy's riders, an arc's transferred Charge), the row converts over their sum
+before the terrain write, and the stacks it makes join that write. They count
+toward the same hit's primed-ness and power: a node at T − 4 with 3 Catalyst,
+hit by 2 Heat, ends at T + 1 and goes off within that hit. Copies are hits, so
+a copy's Heat rider converts the reached node's Catalyst; a centre landing and
+a hit with no Heat, Cold or Charge rider convert nothing. Arrivals of one
+generation on one node convert once, over their summed stacks. The take is a
+row op on the hit (`HitInstance.row_ops`), so the authority's replay and a
+peer's take it alike.
 
-What a hit's load does is `AspectIntake.use` (a `LoadUse`) on the spell's intake row
-(`attack/spell/aspect_intake.gd`): left null (the default) it resolves through
-the concept status's `StatusDef.default_face` (`resolved_use()`,
-`use_for_status()`); explosive authors `DetonateUse`, every other status `PlantUse`, a
-concept with no status `PlantUse`. `StatusDef.default_face` is an int enum
-tagging `DetonateUse` because `effects/` may not name `attack/`.
+**At settle.** `TerrainSettle.PrimeConversion` (`combat/terrain/terrain_settle.gd`),
+one reader per `CatalystStatus` in the status roster, runs at every commit of
+the settle seat: a land batch, a spend batch, every world-turn diffusion step
+and the decay sweep. When a commit takes Heat, Cold or Charge from inert
+(≤ T) to primed (> T), the whole row left converts into that element and
+joins the same write. Two counts crossing in one commit split the store by
+their excess past T (tentative). Flow at or below T never converts, and an
+already-primed node does not convert again. It is never hooked on
+`terrain_band_changed`, which stays display-only. A landing that splits and
+also primes converts at land first; the settle then converts the leftover:
+Heat T − 1 with 3 Catalyst, hit by 1 Heat + 1 Charge, ends at Heat T + 2 and
+the row at 0.
 
-| use | the load | where |
-|---|---|---|
-| `DetonateUse` | spent at the hit as go-off zero's load, through the formula below; load 0 still sets off charges present | `LoadBag.detonate_load` (`DetonateUse.spend`) → each head's `hit_load` (`SpellResolver`'s stamper); an arrow's is 0; a blade contact's is its piece's charges (`LiveGate.stamp_load`) |
-| `PlantUse` | lands as the status rider at `power = load`; spends nothing, no blast from this hit | `LoadBag.riders` via `PlantUse.spend` (one `ApplyStatusEffect` per `PlantUse` concept); goo ammo `attack/ammo/types/catalyst.tres` (an `ApplyStatusEffect` rider, `explosive_stacks_per_hit`) |
-| `FuelUse` | no rider; the load only shapes the spell, read from `PropagationContext.load` | Firecracker's `FuelBlastReach` (`attack/spell/propagation/reach/fuel_blast_reach.gd`) |
+## The goo arrow
 
-**The PlantUse skip.** A hit whose span carries an Explosive row (a
-`PlantUse` rider, goo ammo) does not set go-off zero off (`HitGather._plants`):
-a hit that plants never blasts, and a riderless hit still goes off. The face is the carrier's author's choice (spell row, ammo
-def, addon), never the player's; a `PlantUse` row's price is its authored
-affinity (house convention: about half a `DetonateUse` row's), no per-face knob.
+`attack/ammo/types/catalyst.tres` ("Catalyst Arrow", `order` 2) is a plain
+arrow whose one rider is an `ApplyStatusEffect` of Catalyst, sized by
+`catalyst_stacks_per_hit`; it plants as a poison arrow plants Poison. A
+planting hit is a hit: on a primed node it sets it off, and its copies carry
+the Catalyst rider over the disc. It lands no Heat, Cold or Charge, so the
+node's own Catalyst is neither converted nor lost. The element arrows as ammo
+are #1810's.
 
-## Spend and power
+## The barrel
 
-Go-off zero is the Explosive detonation as a disc `GoOff`: `DiscGoOff`
-(`elements/disc_go_off.gd`), authored as `Aspect.go_off` on
-`aspects/defs/catalyst.tres`. `HitGather` fires it at a node's read, once per
-node per hit ([hit-resolution.md](hit-resolution.md) § "Go-off zero: Explosive
-detonation"). For a hit carrying `load` on a node holding `present` charges:
+`skill_node/addons/catalyst_barrel_addon.gd`, not unique: at the owner's turn
+start an allocated carrier tops its Catalyst up to its barrel count (flat,
+never stat-scaled), and a barrel leaving takes one off if there is one. It
+carries no radius or blast logic.
 
-```
-shared = min(load, present)
-spent  = max(1, shared) if present > 0 else 0          # DiscGoOff.spend_of — a spark always takes one
-power  = load + present + 2 · resonance · shared       # DiscGoOff.power_of; resonance = 1
-       = (load + r·shared) + (present + r·shared)      # the striker's side + the node's side
-```
+## Firecracker
 
-A go-off happens iff `power > 0`, so load 0 on a clean node is a plain hit.
-`present` is the node's stored Explosive row as the arrival's generation
-starts: the pre-beat store for a beat's own arrivals, the store the
-generation before left for a copy (ADR 0091 §1). No rider of the triggering
-hit joins it. The spend is committed whatever the disc reaches, a lone charged
-node included (lead call, tentative), on the holder's row, summed with the
-generation's other spends there and clamped at 0. The load is **offered,
-never consumed** by the formula: each reservoir pays its own spend. An arrow
-has no reservoir (infusion is paid at cast); a blade piece pays
-`max(1, shared)` per contact off its own working copy (below).
+`attack/spell/defs/firecracker.tres` walks an edge wave (`FanAllSpread` over
+enemy nodes, `max_hops` 10, `MaxDamageReducer`), and its first row names Fire
+(`innate` 6, the default `PlantUse`), so each landing plants Heat. A node the
+Heat tips into Burning goes off through Burning's disc; Firecracker has no
+blast of its own. A second row names Catalyst at `innate` 0: infused points
+plant Catalyst beside the Heat, which the Heat then converts (an intended
+combo). It crits on `NoEdgeToSourceCondition`: a hit whose blast centre (its
+payload's `predecessor`) shares no edge with the node.
 
-| hit | present | load | power | left |
-|---|---|---|---|---|
-| plain arrow | 0 | 0 | none, no blast | 0 |
-| plain arrow | 5 | 0 | 5 | 4 |
-| load 3 | 0 | 3 | 3 | 0 |
-| load 3 | 5 | 3 | 14 | 2 |
-| load 3 | 1 | 3 | 6 | 0 |
+## The look
 
-Five sparks on a 5-patch fire 5, 4, 3, 2, 1 in turn, with no ledger: each
-arrow is its own beat (`outcome_schedule.gd`, one entry per hit outside a
-spell), so it lands and spends on the world before the next arrow reads.
-Arrivals of one beat on one node (two landings of one spell wave, two blade
-contacts of one sample) each go off from one read of the node. Their spends
-are summed and clamped at 0.
-
-## The blast carries the hit
-
-The disc takes every node within its reach of the centre, the centre
-excluded, by shape alone, allocated or not (`DiscGoOff._within`, over the
-graph's global `Navigator`). The hit's own target mask then decides which of
-them take a copy: a node it misses takes none and does not chain. The reach
-is **the bomb is the node**:
-
-```
-reach = centre.radius × reach_per_radius × power^charge_exponent   # ExplosiveSpread.radius_for, fed the power
-```
-
-Uncapped; at `charge_exponent = 0.5` area is linear in power. The gather
-lands a copy of the triggering hit's whole span on each node the disc takes,
-one generation later. A copy is `paired` to the head, carries its crit, and
-deals damage × `share` with each status rider at ceil(stacks × `share`), one
-row per status. Go-off zero adds no damage of its own. Go-off zero authors
-`share` 0.5 and `lands_on_own_node` false (lead call, tentative, until the
-Catalyst retag), so the struck node takes the hit alone and each disc node
-takes one copy at half the damage. A copy never plants explosive, because a
-hit that plants never goes off. A damage spell's landing has no paired hit. A
-heal spell's landing rides its own heal (`LandingContext.ride_heal`), so its
-copies heal at `share` × the heal, under the same landing mask. A heal never
-gates, so ADR 0044's "a spell gates nothing" still holds for both, while its
-"paired stays null" holds for damage spells only.
-
-Each go-off that reaches a node mints one `BlastMark` (centre, reach, power,
-the copies' status rider ids, the generation it fired at) and stamps it on
-every copy. `OutcomeApplier` announces it once (`Events.blast_landed`) and
-`BlastVFX` draws the disc from it, staggering a cascade's discs by
-generation (`generation_stagger`).
-
-**Burning's disc** is a second `DiscGoOff`, on Fire's Burning band
-(`elements/defs/fire.tres`). Its power is Heat's excess over T, its radius
-`disc_radius`, its spend 1 Heat per node reached, its own damage
-`damage_per_power` × power, and it lands share 1 with a centre landing. A node
-both charged and Burning sets off both discs at its one read:
-[elements.md](elements.md) § "Burning's disc and dual reach (#1800)".
-
-## Chains
-
-A copy is a load-0 hit on the node it lands on, so a charged node a copy
-reaches goes off in turn, one generation later, reading the store the
-generation before left. The once-per-node set is the hit's: a node where a
-hit already went off takes a later copy of that hit as a landing only and does
-not go off again. Another hit of the same beat may still set it off. A chained
-copy carries the root hit's payload flat (damage × share, riders
-ceil(r × share)), never share². Blade pieces are never chained: a pop is the
-blade sim's event, not a hit.
+Catalyst on a node reads as violet crystals: `StatusOverlay` draws one
+crystal per stack (`crystal_size`, at most `crystal_cap`). A conversion
+announces `Events.catalyst_converted(node, spent)` once, from the live replay
+of the take (`HitGather`'s row-op apply; a shadow world stays silent), and the
+overlay flashes a pulse on that node that fades over
+`conversion_pulse_seconds`. The barrel (`catalyst_barrel_visual.gd`) is a pile
+of faceted violet crystals on the carrier's rim, lit while the carrier holds
+the matching stack; the goo arrow (`catalyst_arrow.tscn`) is a slender
+crystal shard; the icon is `assets/icons/aspects/catalyst.png`.
 
 ## The blade contact: one contact, two sides
 
@@ -188,38 +165,26 @@ its 5 for the gather. A 3-charge piece on clean nodes: 3 → 2 → 1 → pop.
 
 ## Knobs
 
-changing: the knobs go with the Catalyst retag, #1801; see docs/design/elements/go-offs.md
-
 All tentative, easy to change.
 
 | knob | default | owner | what |
 |---|---|---|---|
-| `resonance` | 1 | `ExplosiveSpread` (on `effects/status/catalyst.tres`) | the shared chunk's weight on each side |
-| `reach_per_radius` | 3.0 | `ExplosiveSpread` | blast reach at power 1, in the node's own radius |
-| `charge_exponent` | 0.5 | `ExplosiveSpread` | reach ∝ power^this, in halves |
-| `damage_per_charge` | 2.0 | `ExplosiveSpread` | death-blast damage per charge |
-| `share` | 0.5 | go-off zero's `DiscGoOff` (`Aspect.go_off` in `aspects/defs/catalyst.tres`) | a copy's share of the hit: damage × share, riders ceil(r × share) |
-| `lands_on_own_node` | false | go-off zero's `DiscGoOff` | no copy on the struck node |
+| `ratio_in` / `ratio_out` | 1 / 1 | `CatalystStatus` (`effects/status/catalyst.tres`) | the trade rate, Catalyst : landing element; editor feedback in the status sandbox tab |
+| `cap_k_times_t` | true | `CatalystStatus` | cap the row at its node's k × T; off leaves `power_max` alone |
+| `per_tick` | 1.0 | the def's `FlatDecay` | Catalyst lost per world turn |
+| `triggers` | death | `CatalystSpread` | which removal causes burn the row |
+| `resonance` | 1 | `CatalystSpread` | the blade piece pass's shared-chunk weight (#1802's) |
+| `crystal_size`, `crystal_cap`, `conversion_pulse_seconds` | 5.0, 6, 0.5 | `StatusOverlay` | the look |
 
-No `blast_radius` stat on any board: nothing targets blast size
-(`docs/domain/stat-knobs-and-bins.md` §1).
-
-## Firecracker (`FuelUse`)
-
-changing: Firecracker's row names Fire and plants Heat; `FuelUse` and `FuelBlastReach` are deleted, #1801; see docs/design/elements/terrain.md
-
-`attack/spell/defs/firecracker.tres`: each landing is a euclidean blast
-whose hits are the next wave (`FuelBlastReach`, edges play no part); fuel is
-the cast's explosive load less `fuel_per_jump` per hop, the radius shrinks
-with it, and the cast ends at fuel 0 or `max_hops`. A hit crits when its
-blast's centre shares no edge with the node. It plants no charges; every pop
-is a load-0 spark that sets off charges it lands on.
+`CatalystSpread.damage_per_charge` is still authored and described, but no
+code reads it: the death burn deals no damage.
 
 ## Guards
 
-`test/unit/attack/test_explosive_charges.gd` (formula, spend, reach, chains),
-`test/unit/elements/test_disc_go_off.gd` (the disc, the whole-hit alternative),
-`test/unit/attack/test_gather_aspect_go_off.gd`, `test/unit/attack/test_blast_mark.gd`,
-`test/unit/attack/test_blade_explosive.gd` (the piece's side, verdicts),
-`test/unit/spell/test_heal_spell_blast.gd`, `test/unit/spell/test_firecracker.gd`,
-`test/unit/skill_node/test_catalyst_barrel_addon.gd`.
+`test/unit/effects/test_catalyst_conversion.gd` (the split, both triggers,
+cap, allocation, the world-turn decay, the goo arrow),
+`test/unit/spell/test_firecracker.gd`,
+`test/unit/skill_node/test_catalyst_barrel_addon.gd`,
+`test/unit/elements/test_burning_go_off.gd` and
+`test/unit/elements/test_disc_go_off.gd` (the blast it feeds),
+`test/unit/attack/test_blade_explosive.gd` (the piece's side, #1802's).

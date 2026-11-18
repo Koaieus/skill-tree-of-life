@@ -63,8 +63,7 @@ opens on a bare status (an infusion's, say) has that status as its head. The
 head carries the gather's state:
 
 - `hit_load`: what its own `GoOff.fire` is handed. It is 0 unless the landing
-  site sets one (a spell's `DetonateUse` load, a blade piece's charges), and a
-  copy's is 0.
+  site sets one (a blade piece's charges), and a copy's is 0.
 - `gathered`: set once stage one ran the head, so a second drain of the same
   objects feeds its ops instead of gathering again.
 - `terrain_ops`: the beat's net terrain change, `[node, dt, dcharge]` per
@@ -517,29 +516,23 @@ bullet-by-bullet contract:
 [status-effects.md](status-effects.md) § "StatusInstance.land_on: which slice,
 which host"; the stacks fold and resistance: § "The DoT model".
 
-## Go-off zero: Explosive detonation
+## Catalyst at the land step
 
-changing: the Catalyst retag deletes it, #1801; the blade's explosive path goes, #1802; see docs/design/elements/go-offs.md
-
-Go-off zero is the Explosive detonation, ported onto the gather as a disc
-`GoOff`. `DiscGoOff` (`elements/disc_go_off.gd`) is authored as
-`Aspect.go_off` on `aspects/defs/catalyst.tres`, and `HitGather` fires it
-beside the element bands at each node's read, once per node per hit, with no
-band test. It is handed the head's `hit_load` (a spell's `DetonateUse` load,
-a blade piece's charges, an arrow's 0; a copy's 0). It reads the node's stored
-Explosive row as the arrival's generation starts, so no rider of the
-triggering hit joins its power. A hit whose span plants the Explosive row does
-not set it off (`HitGather._plants`, the PlantUse skip). Its spend,
-`spend_of`, is committed on the holder's row (the node's, or a bare core's
-entity row) whatever the disc reaches, summed with the generation's other
-spends and clamped at 0. Its copies land one generation later at `share` 0.5,
-none on the struck node (`lands_on_own_node` false). Each copy is stamped with
-the go-off's `BlastMark`, which `OutcomeApplier.apply` announces once.
-Burning's disc is a second instance of the same class, on Fire's band
-([elements.md](elements.md)). Stage one fires go-offs before any head's own
-gate runs at land, so a head its gate refuses (a dud arrow) has still set the
-node off. Whether it should is an open owner question (#1799;
-`test_a_dud_arrow_spends_no_charge` is held pending). A blade contact's gate
-in `BladePopResolver.LiveGate` spends the piece alone. The formula, reach,
-chains, the blade contact and the knobs: [explosive.md](explosive.md); the
-calls: [ADR 0061](../adr/0061-a-hits-explosive-load-resolves-through-the-intake-rows-face-and-a-blast-replicates-the-hit.md), [ADR 0062](../adr/0062-the-default-face-lives-on-the-status-def-and-a-blade-contact-lands-its-two-sides-on-two-target-sets.md).
+A node's Catalyst converts inside the gather's land step, not at a go-off:
+there is no aspect-hosted disc, and the only blast is a band's
+(Burning's, [elements.md](elements.md) § "Burning's disc (#1800)").
+`HitGather._convert_landing` runs once per node per land commit, over the
+Heat, Cold and Charge that the generation's arrivals land there (riders,
+copies' riders, an arc's transferred Charge), summed so their order cannot
+change the split. It calls `CatalystStatus.convert` before the terrain write;
+the stacks it makes join that write, so they count toward the hit's own
+primed-ness and power, read after the riders land (ADR 0083 §1). The take
+rides as a row op on the hit (`HitInstance.row_ops`), so the authority's
+live replay and a peer's take the same Catalyst, and the live replay alone
+announces `Events.catalyst_converted`. A centre landing carries no Heat, Cold
+or Charge and converts nothing. A node the landing primes converts its
+leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
+go-offs before any head's own gate runs at land, so a head its gate refuses
+(a dud arrow) has still set the node off; whether it should is an open owner
+question (#1799). The trade, both triggers and the knobs:
+[catalyst.md](catalyst.md).

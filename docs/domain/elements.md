@@ -234,22 +234,21 @@ returns it; null falls back to the concept's only status through
 `Infusion.load_of` / `use_of` so a row named by element resolves its status
 (below).
 
-## Burning's disc and dual reach (#1800)
+## Burning's disc (#1800)
 
-Fire's Burning band authors a second `DiscGoOff` (`elements/disc_go_off.gd`) on
-`elements/defs/fire.tres`. Every seam the class adds defaults to go-off zero's
-value — `power_source = EXPLOSIVE_CHARGES`, `radius_source =
-EXPLOSIVE_SPREAD`, `spend_source = SPEND_OF`, `damage_per_power = 0` — and
-Burning sets each:
+Fire's Burning band authors a `DiscGoOff` (`elements/disc_go_off.gd`) on
+`elements/defs/fire.tres`, the only blast on master (the Catalyst retag, #1801,
+deleted the aspect-hosted disc). The class has one power source and one
+radius law; `fire.tres` sets only `damage_per_power`:
 
 - **Power.** Heat's excess over T (`Power.HEAT_EXCESS`, `Terrain.excess` on the
   node's read), read after the hit's Heat rider has landed, the overflow past
   the cap included. Power ≤ 0 is no go-off.
 - **Radius.** `DiscGoOff.disc_radius(power, node_radius)` =
-  `radius_a × (√power + radius_b) ×` the origin node's radius (`Radius.DISC`).
+  `radius_a × (√power + radius_b) ×` the origin node's radius.
   `radius_a` (default 2) and `radius_b` (default 1) are tentative knobs
   (#1800).
-- **Spend.** `Spend.PER_NODE`: 1 Heat per other node reached, through
+- **Spend.** 1 Heat per other node reached (the base `GoOff` law), through
   `GoOffResult.cost` and the gather's `TerrainSettle` batch. A disc that
   reaches no other node spends nothing and does not go off (the base `GoOff`
   law); it has no nodeless cost.
@@ -259,12 +258,12 @@ Burning sets each:
   excluded; the hit's own `target_mask` decides which reached nodes take a
   copy. Its `BlastMark` names the band's identity (`Burning`).
 
-One read of a node fires both every band's `go_off` and every aspect's
-`go_off` (`HitGather._generation`, `attack/outcome/hit_gather.gd`) — dual
-reach. Each go-off adds its own centre entry when `lands_on_own_node` (the base
-default, true on Fire's disc). `HitGatherTunables.dedupe_dual_reach`
-(`attack/outcome/hit_gather_tunables.gd`, default false) folds a node's two
-copies of one head, in one generation, into one landing at the summed shares.
+One read of a node fires every band's `go_off` (`HitGather._generation`,
+`attack/outcome/hit_gather.gd`). Each go-off adds its own centre entry when
+`lands_on_own_node` (the base default, true on Fire's disc).
+`HitGatherTunables.dedupe_dual_reach` (`attack/outcome/hit_gather_tunables.gd`,
+default false) folds a node's two copies of one head, in one generation, into
+one landing at the summed shares.
 
 **The ride row's rekeying.** An intake row named by an element resolves its
 status by that element (`AspectIntake.concept_status` asks
