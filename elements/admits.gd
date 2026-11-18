@@ -10,7 +10,13 @@ extends Resource
 ## [param node], against [param before], the node's terrain before this
 ## generation's element riders land. True lands it; false absorbs it: the copy
 ## makes no entry (no damage, no aspect rider), but its element riders land all
-## the same. Never asked about a head or a centre copy. Base: lands everything.
+## the same. [param arrival] carries its damage facts ([member Arrival.amount],
+## its head's crit). Never asked about a head or a centre copy. Base: lands
+## everything.
+## [method admit] on [param world], the world the gather runs on (a cast's
+## shadow included): the call [HitGather] makes. Read the node's holder through
+## [code]world.combat_for(node)[/code], never [member SkillNode.owned_by]. Base:
+## [method admit].
 func admit_in(_world: CombatWorld, node: SkillNode, before: TerrainRead, arrival: Arrival) -> bool:
 	return admit(node, before, arrival)
 
@@ -25,6 +31,8 @@ func admit(_node: SkillNode, _before: TerrainRead, _arrival: Arrival) -> bool:
 ## [param arrivals], every arrival of the generation at the node, each with its
 ## own facts ([member Arrival.amount], its head's crit). Null, or the base
 ## answer, breaks nothing and ends nothing.
+## [method read] on [param world], as [method admit_in]: the call [HitGather]
+## makes. Base: [method read].
 func read_in(_world: CombatWorld, node: SkillNode, after: TerrainRead,
 		arrivals: Array[Arrival]) -> AdmitsAnswer:
 	return read(node, after, arrivals)

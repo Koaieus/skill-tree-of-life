@@ -223,7 +223,9 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 			at[a.node] = []
 			nodes.append(a.node)
 		at[a.node].append(a)
-	# Admit, against the terrain this generation starts from.
+		a.amount = _amount(a)
+	# Admit, against the terrain this generation starts from, each arrival
+	# handed its own amount (the second read's number too).
 	for node in nodes:
 		var before := TerrainRead.of(_slice(node), node)
 		for a: Arrival in at[node]:
@@ -304,7 +306,6 @@ func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation:
 		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> void:
 	var handed: Array[Arrival] = []
 	for a: Arrival in arrivals:
-		a.amount = _amount(a)
 		handed.append(a)
 	var ends := false
 	var broke := false
@@ -312,7 +313,7 @@ func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation:
 		var band := read.band(e)
 		if band == null or band.admits == null:
 			continue
-		var answer := band.admits.read(node, read, handed)
+		var answer := band.admits.read_in(_world, node, read, handed)
 		if answer == null:
 			continue
 		if answer.breakers.is_empty():
@@ -642,7 +643,7 @@ func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Statu
 func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 	for e: Element in ElementRoster.shared().elements:
 		var band := before.band(e)
-		if band != null and band.admits != null and not band.admits.admit(node, before, a):
+		if band != null and band.admits != null and not band.admits.admit_in(_world, node, before, a):
 			return false
 	return true
 
