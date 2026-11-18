@@ -228,27 +228,29 @@ func _row(identity: Identity, innate: int, use: LoadUse = null) -> AspectIntake:
 	return a
 
 
-func test_an_catalyst_row_left_inherit_detonates_and_lands_no_rider() -> void:
+func test_an_catalyst_row_left_inherit_plants_its_rider() -> void:
 	var row := _row(_CATALYST_ID, 3)
-	assert_true(row.resolved_use() is DetonateUse, "catalyst's status authors DETONATE")
+	assert_true(row.resolved_use() is PlantUse, "catalyst takes PlantUse by default")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)
-	assert_true(inf.riders(spell).is_empty(), "a DETONATE load is spent at the hit, never planted")
+	var riders := inf.riders(spell)
+	assert_eq(riders.size(), 1, "a Catalyst load lands as its rider")
+	if riders.size() == 1:
+		assert_eq((riders[0] as ApplyStatusEffect).def.id, &"catalyst")
+		assert_eq((riders[0] as ApplyStatusEffect).power, 3.0, "power = load")
 	assert_eq(inf.load_of(spell).get(&"catalyst", 0), 3, "the load still counts")
-	assert_eq(inf.detonate_load(spell), 3, "and is the hit's detonation load")
 
 
 func test_a_poison_row_left_inherit_plants_its_rider() -> void:
 	var row := _row(_POISON.identity, 2)
-	assert_true(row.resolved_use() is PlantUse, "any concept but catalyst defaults PLANT")
+	assert_true(row.resolved_use() is PlantUse, "every concept defaults PLANT")
 	var spell := SpellDef.new()
 	spell.intakes = [row] as Array[AspectIntake]
 	var riders := Infusion.innate(spell).riders(spell)
 	assert_eq(riders.size(), 1)
 	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
 	assert_eq((riders[0] as ApplyStatusEffect).power, 2.0)
-	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "no catalyst, no detonation load")
 
 
 func test_an_catalyst_row_authored_plant_lands_the_catalyst_rider_at_its_load() -> void:
@@ -256,16 +258,15 @@ func test_an_catalyst_row_authored_plant_lands_the_catalyst_rider_at_its_load() 
 	spell.intakes = [_row(_CATALYST_ID, 3, PlantUse.new())] as Array[AspectIntake]
 	var inf := Infusion.for_cast(spell, {&"catalyst": 2})
 	var riders := inf.riders(spell)
-	assert_eq(riders.size(), 1, "PLANT overrides the concept's DETONATE")
+	assert_eq(riders.size(), 1, "an authored PLANT plants")
 	assert_eq((riders[0] as ApplyStatusEffect).def.id, &"catalyst")
 	assert_eq((riders[0] as ApplyStatusEffect).power, 5.0, "power = load (3 innate + 2 infused)")
-	assert_eq(inf.detonate_load(spell), 0, "a planted load never detonates")
 
 
-func test_a_fuel_row_has_no_detonation_load() -> void:
+func test_a_fuel_row_plants_no_rider() -> void:
 	var spell := SpellDef.new()
 	spell.intakes = [_shaping(_CATALYST_ID, 6)] as Array[AspectIntake]
-	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "fuel shapes the spell, never blasts")
+	assert_true(Infusion.innate(spell).riders(spell).is_empty(), "fuel shapes the spell, never plants")
 
 
 ## Records the cast's load the first time it selects.
@@ -305,7 +306,7 @@ func test_the_shipped_firecracker_row_is_fuel() -> void:
 	var row := Infusion.intake_of(spell, &"catalyst")
 	assert_not_null(row, "firecracker lists catalyst")
 	assert_true(row.resolved_use() is FuelUse, "its use deserialises as a FuelUse")
-	assert_eq(Infusion.innate(spell).detonate_load(spell), 0, "its innate 6 is fuel, never a detonation load")
+	assert_true(Infusion.innate(spell).riders(spell).is_empty(), "its innate 6 is fuel, never a rider")
 
 
 # ── The row's LoadUse ───────────────────────────────────────────────────

@@ -1,9 +1,8 @@
 extends GutTest
 
-## The load a landing's head carries to the gather's go-off (#1799): a spell
-## landing stamps its cast's [member LoadBag.detonate_load], a blade contact
-## its piece's charges, an arrow stays at 0. No band or aspect authors a
-## go-off yet, so nothing authored reads it.
+## The load a landing's head carries ([member HitInstance.hit_load]): a blade
+## contact its piece's charges; a spell landing (a Catalyst row plants, never
+## loads) and an arrow stay at 0.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _POISON := preload("res://effects/status/poison.tres")
@@ -23,7 +22,7 @@ func _poison_rider() -> ApplyStatusEffect:
 	return e
 
 
-func _spell_heads(detonate: int) -> Array[HitInstance]:
+func _spell_heads(catalyst: int) -> Array[HitInstance]:
 	var helper := H.new()
 	var graph := helper.make_graph([[0, 1], [1, 2]], self)
 	var atk := helper.make_entity(graph, "A")
@@ -33,36 +32,35 @@ func _spell_heads(detonate: int) -> Array[HitInstance]:
 	helper.assign_owner(graph, atk, [0])
 	var config := helper.make_config(FanAllSpread.new(), helper.owner_enemy(), helper.max_reducer(), {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new(), _poison_rider()], 10.0)
-	if detonate > 0:
+	if catalyst > 0:
 		var row := AspectIntake.new()
 		row.identity = _CATALYST_ID
-		row.innate = detonate
+		row.innate = catalyst
 		spell.intakes = [row] as Array[AspectIntake]
 	var inf := Infusion.innate(spell)
-	assert_eq(inf.detonate_load(spell), detonate, "fixture: the cast's detonation load")
+	assert_eq(inf.riders(spell).size(), 1 if catalyst > 0 else 0, "fixture: a Catalyst row plants a rider")
 	var n := graph.get_skill_nodes()
 	return SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, inf).hits
 
 
-func _assert_spell(detonate: int) -> void:
+func _assert_spell(catalyst: int) -> void:
 	var heads := 0
 	var riders := 0
-	for h in _spell_heads(detonate):
+	for h in _spell_heads(catalyst):
 		if h.is_head:
 			heads += 1
-			assert_eq(h.hit_load, detonate, "a spell landing's head carries the cast's detonate load")
 		else:
 			riders += 1
-			assert_eq(h.hit_load, 0, "only the head carries a load")
+		assert_eq(h.hit_load, 0, "a spell landing never sets a load")
 	assert_gt(heads, 0, "fixture: the landing has a head")
 	assert_gt(riders, 0, "fixture: the span holds a non-head hit")
 
 
-func test_a_spell_head_carries_its_detonate_load() -> void:
+func test_a_catalyst_infused_spell_head_carries_no_load() -> void:
 	_assert_spell(3)
 
 
-func test_a_spell_without_a_detonate_load_stamps_zero() -> void:
+func test_a_spell_without_catalyst_stamps_zero() -> void:
 	_assert_spell(0)
 
 
