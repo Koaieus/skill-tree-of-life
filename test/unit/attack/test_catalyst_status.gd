@@ -236,7 +236,7 @@ func _shipped_catalyst_arrow() -> AmmoType:
 	return ammo
 
 
-func test_three_shipped_catalyst_arrows_plant_three_landings_and_never_fire() -> void:
+func test_three_shipped_catalyst_arrows_plant_three_landings_and_never_go_off() -> void:
 	await _board()
 	var ammo := _shipped_catalyst_arrow()
 	if ammo == null:
