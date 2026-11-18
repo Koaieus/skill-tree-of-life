@@ -45,9 +45,12 @@ enum LoadResult { OK, MISSING, CORRUPT, VERSION_MISMATCH }
 ##     moved down one. Older files are refused.
 ## 14: a node row carries `_R_TERRAIN_T` and `_R_CHARGE` (terrain, #1794). A 13
 ##     still loads: the short row decodes as no terrain.
-const FORMAT_VERSION := 14
+## 15: the explosive aspect's resources and stat ids were renamed to Catalyst,
+##     and a save interns `res://` paths and stat ids; no row moved. Older
+##     files are refused.
+const FORMAT_VERSION := 15
 ## The oldest file that still loads — see [constant FORMAT_VERSION].
-const MIN_FORMAT_VERSION := 13
+const MIN_FORMAT_VERSION := 15
 ## The single slot — mirrors [constant Settings.SAVE_PATH]'s `user://` home.
 const SLOT_PATH := "user://save.bin"
 const MAGIC := "STLS"

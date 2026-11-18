@@ -38,7 +38,9 @@ anything presentation-side.
   (procgen ceiling lifts live on the node board, not in `_R_MODS`); a v7 row
   loads with no channel and its lifts re-derived from the stake. A change
   that moves or reshapes a column raises `MIN_FORMAT_VERSION` to the new
-  version. The build `short_sha` is recorded for diagnostics only: a dev save
+  version. So does a rename of an interned `res://` path or stat id (Sunder
+  11, Mark 12, Catalyst 15): an older file would `load()` a path that no
+  longer exists and drop its rows silently. The build `short_sha` is recorded for diagnostics only: a dev save
   survives a commit.
 - **Atomic write** — `<slot>.tmp`, then rename over the slot.
 - **`bytes_to_var` only**, never `_with_objects`: a save file cannot carry code.
