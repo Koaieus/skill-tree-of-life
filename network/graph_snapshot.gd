@@ -99,11 +99,6 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 	for node in stale.values():
 		graph.remove_skill_node(node)
 	_reconcile_edges(graph, payload.get("edges", []) as Array, by_id, edges_before)
-	# Statuses after the edges: a row's cap (Catalyst's k × T) reads graph
-	# degree, so a restore over a graph still holding the old edges would trim
-	# the authority's row to a stale cap.
-	for row in (payload.get("nodes", []) as Array):
-		_reconcile_statuses(by_id[int((row as Array)[_R_STABLE_ID])], row as Array, res)
 	_reconcile_owner_mirrors(graph)
 
 
@@ -326,6 +321,7 @@ static func _decode_node(
 	# residual modifiers reconcile on top, reproducing the source's full list.
 	_reconcile_modifiers(node, row)
 	node.restore_current_hp(float(row[_R_HP]) / 100.0)
+	_reconcile_statuses(node, row, res)
 	return node
 
 
@@ -364,10 +360,9 @@ static func _reconcile_lifts(node: SkillNode, row: Array, stake: int) -> void:
 ## through [method NodeCombat.restore_status_row] — the key verbatim, never
 ## recomputed through the def (#1343). Going through the host rather than
 ## writing the dict means the 0→1 tick-subscription hook still fires, and the
-## clamp is the source's own. Run AFTER `owned_by` is assigned — a
+## clamp is the source's own. Run AFTER `owned_by` is assigned above — a
 ## `CLEAR` def's apply_status is a no-op on an unallocated node, same rule as
-## a live apply — and after the edges reconcile, since a cap (Catalyst's
-## k × T) reads graph degree.
+## a live apply.
 static func _reconcile_statuses(node: SkillNode, row: Array, res: Array) -> void:
 	node.get_combat().release_statuses()
 	for pair in (row[_R_STATUSES] as Array):
