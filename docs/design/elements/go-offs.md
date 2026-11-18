@@ -100,7 +100,7 @@ any other.
 
 **Chains** need no rule of their own: a copy landing on a primed node is a
 hit there, once per node per *hit* — per arrow, per spell wave, as
-`HitLanding.detonated` is today. Every link carries the root hit's payload
+`HitGather`'s per-hit `visited` set holds it. Every link carries the root hit's payload
 flat — `damage × s`, riders `ceil(r × s)`, never `s^k` (owner, 2026-11-05,
 #1735 fork 1: *"I am tempted to say: LET IT RIDE. The hit, all rider, no
 decay. Maybe raise you: for charge arcs hitting charged nodes also just keep
@@ -288,7 +288,7 @@ reach back. It is the counter-element, anti-reach; the other two are reach.
 
 This is a **school assignment**, the same thread every aspect already has
 (Poison under DEX, Greed under WIS, § Attributes and pairs in
-[aspect_matrix.md](aspect_matrix.md)), and it carries the same rule: a school
+[aspect_matrix.md](../aspect_matrix.md)), and it carries the same rule: a school
 **never scales** what it houses (ADR 0059; owner 2026-09-28). The triad couples
 by geography, colour, persona and which inner-tree sector holds the element —
 never by a fold. Two orthogonal threads then spread the content out: aspects

@@ -230,8 +230,8 @@ from scored options).**
   reading, tentative (no owner call): a multi-hop arc (Shocked level 2 and
   up) advances one hop per generation, so a Frozen node on its first ring
   is settled before the arc goes past it. The result never depends on the walk's order, and the routine is the
-  one the world-turn tick needs, whose go-offs have no order at all. The
-  per-wave `detonated` scope goes. Known consequence: several same-beat
+  one the world-turn tick needs, whose go-offs have no order at all. Known
+  consequence: several same-beat
   go-offs each read a deep store at full power before the clamp. **A blade
   follows the same rule** (owner, 2026-11-10, picked *one snapshot* over
   *sequential, as today*): two contacts of one sample on one node are hits of
