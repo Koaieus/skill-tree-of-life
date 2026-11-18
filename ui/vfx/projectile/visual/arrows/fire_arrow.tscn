@@ -1,5 +1,52 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/status_arrow.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://ui/vfx/projectile/visual/arrow_parts/arrow_shed_emitter.tscn" id="2_shed"]
+
+[sub_resource type="Gradient" id="Gradient_embers"]
+offsets = PackedFloat32Array(0, 0.1, 0.55, 1)
+colors = PackedColorArray(1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0.55, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_embers"]
+gradient = SubResource("Gradient_embers")
+
+[sub_resource type="Curve" id="Curve_embers_shrink"]
+_data = [Vector2(0, 1), 0.0, 0.0, 0, 0, Vector2(1, 0.2), 0.0, 0.0, 0, 0]
+point_count = 2
+
+[sub_resource type="CurveTexture" id="CurveTexture_embers_shrink"]
+curve = SubResource("Curve_embers_shrink")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_embers"]
+particle_flag_disable_z = true
+direction = Vector3(-1, 0, 0)
+spread = 35.0
+initial_velocity_min = 6.0
+initial_velocity_max = 18.0
+gravity = Vector3(0, -90, 0)
+turbulence_enabled = true
+turbulence_noise_strength = 2.0
+turbulence_noise_scale = 3.0
+scale_min = 0.12
+scale_max = 0.26
+scale_curve = SubResource("CurveTexture_embers_shrink")
+color_ramp = SubResource("GradientTexture1D_embers")
 
 [node name="FireArrow" instance=ExtResource("1_base")]
+
+[node name="Trail" parent="."]
+density = 0.0
+
+[node name="Embers" parent="." index="1" instance=ExtResource("2_shed")]
+show_on_dud = false
+show_on_absorbed = false
+process_material = SubResource("ParticleProcessMaterial_embers")
+amount = 28
+lifetime = 0.8
+tier = 3
+density = 0.8
+
+[node name="Tip" parent="."]
+length = 14.0
+width = 11.0
+tier = 3
