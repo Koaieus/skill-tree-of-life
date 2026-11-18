@@ -6,7 +6,7 @@ extends GutTest
 ## every verdict preset, each preset producing the verdict it exists to show.
 ##
 ## Instant mutation: the beat clock is the game's, not what this asserts, and
-## 16 types x 5 presets on the reveal clock would blow the 10 s budget.
+## 16 types x 5 presets on the reveal clock would blow the 15 s integration-tier budget.
 
 const _PANEL_PATH := "res://addons/arrow_gallery/arrow_gallery_panel.tscn"
 const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
