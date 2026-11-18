@@ -34,7 +34,10 @@ enum Power { HEAT_EXCESS }
 ## damage ∝ power"). 0 by default; Burning's 2 on Fire's instance.
 ## Tentative knob (#1800).
 @export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
-## STUB
+## The least a Burning node pays when a shape adds up with its disc and the
+## combined disc reaches anyone ([method fire_shaped_in]): its solo spend is
+## raised to this, the shortfall nodeless. 0 turns it off. Tentative knob
+## (#1828). Editor feedback: the sandbox host's blast tab.
 @export_range(0, 3) var solo_cost_floor := 1
 
 ## Answers geometry only, at whatever reach it is asked ([method _within]).
@@ -68,9 +71,44 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffRes
 	return out
 
 
-## STUB
-func fire_shaped_in(_world: CombatWorld, _node: SkillNode, _read: TerrainRead, _shape_power: float) -> GoOffResult:
-	return GoOffResult.new()
+## Fire's add-up (ADR 0084 §3, §4): a shape of [param shape_power] (the
+## caller's: a blade vertex's excess at fill, a cast's points × its per-point
+## power) and this disc at [param node] go off as ONE disc of
+## [method shape_disc_radius]. A Burning node ([method power_at] > 0) pays its
+## solo cost, 1 per reached node inside its own [method radius_at] disc, raised
+## to [member solo_cost_floor] (the shortfall nodeless) when the combined disc
+## reaches anyone; its own damage reads its excess only. A node that is not
+## Burning runs the shape alone: no spend, no power, no own damage. No shape
+## and no excess is no go-off; a disc reaching nobody spends nothing. Whether a
+## centre copy lands is the caller's. [method fire_in] is the unshaped disc.
+func fire_shaped_in(world: CombatWorld, node: SkillNode, read: TerrainRead, shape_power: float) -> GoOffResult:
+	var out := GoOffResult.new()
+	out.share = share
+	if node == null:
+		return out
+	var excess := power_at(node, read, world)
+	if excess <= 0:
+		if shape_power <= 0.0:
+			return out
+		out.reach = shape_disc_radius(shape_power, 0.0, node.radius)
+		for n in _within(node, out.reach):
+			out.reached.append(GoOffResult.Reach.new(n))
+		return out
+	out.power = excess
+	out.reach = shape_disc_radius(shape_power, excess, node.radius)
+	out.own_damage = damage_per_power * excess
+	var solo := {}
+	for n in _within(node, radius_at(node, excess)):
+		solo[n] = true
+	var spent := 0
+	for n in _within(node, out.reach):
+		out.reached.append(GoOffResult.Reach.new(n))
+		if solo.has(n):
+			out.cost[n] = 1
+			spent += 1
+	if not out.reached.is_empty():
+		out.nodeless_cost = maxi(solo_cost_floor - spent, 0)
+	return out
 
 
 ## The disc's power at [param node]: its one power read, through
@@ -91,20 +129,23 @@ func radius_at(node: SkillNode, power: int) -> float:
 	return disc_radius(power, node.radius)
 
 
-## The one radius function (ADR 0084 §2): `A × (√power + B) × node_radius`
-## over [member radius_a] and [member radius_b], [param node_radius] being the
-## ORIGIN node's (the disc's own node; a cast's seed). Pure. Its readers reach
-## it through Fire's def (`bands[0].go_off`): Burning's disc here, Burning's
-## light (#1805) and the Fire shape on a cast (#1812); none copies the formula.
-## Power ≤ 0 gives A × B × node_radius (a reader that gates on power does so
-## itself).
+## The unshaped disc's radius (ADR 0084 §2): `A × (√power + B) × node_radius`,
+## [method shape_disc_radius] with no shape. Pure. Its readers reach it through
+## Fire's def (`bands[0].go_off`): Burning's disc here, Burning's light (#1805)
+## and the Fire shape on a cast (#1812); none copies the formula. Power ≤ 0
+## gives A × B × node_radius (a reader that gates on power does so itself).
 func disc_radius(power: float, node_radius: float) -> float:
-	return radius_a * (sqrt(maxf(power, 0.0)) + radius_b) * node_radius
+	return shape_disc_radius(0.0, power, node_radius)
 
 
-## STUB
-func shape_disc_radius(_shape_power: float, _excess: float, _node_radius: float) -> float:
-	return 0.0
+## The one radius function (ADR 0084 §2, §3): `A × (√shape_power + √excess +
+## B) × node_radius` over [member radius_a] and [member radius_b],
+## [param node_radius] being the ORIGIN node's (the disc's own node; a cast's
+## seed). Pure; each root reads its term floored at 0, so shape 0 is
+## [method disc_radius] and excess 0 is the shape alone. A reader that gates on
+## power does so itself.
+func shape_disc_radius(shape_power: float, excess: float, node_radius: float) -> float:
+	return radius_a * (sqrt(maxf(shape_power, 0.0)) + sqrt(maxf(excess, 0.0)) + radius_b) * node_radius
 
 
 ## Every node whose hitbox touches the disc of [param reach] around
