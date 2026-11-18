@@ -96,6 +96,8 @@ var _crystal_tint: Color = Color.WHITE
 var _pulse_left: float = 0.0
 ## The conversion pulse's colour: the landing element's tint ([method _on_catalyst_converted]).
 var _pulse_tint: Color = Color.WHITE
+## The crystals the running pulse flashes: the row as last drawn before the take.
+var pulse_crystals: Array[Rect2] = []
 ## `N == T − 1`: one more stack, or one lost degree, cashes the chunks in.
 var critical: bool = false
 
@@ -377,3 +379,11 @@ func _draw_crystal(r: Rect2) -> void:
 			Vector2(r.position.x, r.end.y - r.size.y * 0.2), left]), _crystal_tint.darkened(0.35))
 	draw_colored_polygon(PackedVector2Array([apex, left, Vector2(r.position.x, r.end.y - r.size.y * 0.2), base]),
 			_crystal_tint)
+
+
+func is_pulsing() -> bool:
+	return false
+
+
+static func pulse_tint(_converted: Dictionary, fallback: Color) -> Color:
+	return fallback

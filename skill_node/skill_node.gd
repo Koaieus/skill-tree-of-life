@@ -80,6 +80,11 @@ signal terrain_band_changed(element: Element, from: ElementBand, to: ElementBand
 ## the counts off [method get_combat]. A shadow write never fires it. The
 ## terrain bars repaint on it.
 signal terrain_changed
+## Live only: this node's Catalyst row was spent into terrain; [param converted]
+## maps element id → stacks made. Node-local twin of
+## [signal Events.catalyst_converted], emitted beside it by
+## [method announce_catalyst_converted]; the node's Catalyst layer pulses on it.
+signal catalyst_converted(converted: Dictionary)
 ## Emitted after every allocation_level change, once the local-scale mutator
 ## has retuned this node's modifiers — a listener re-reads level-dependent
 ## state (a [LevelGatedModifier]'s dormancy) already current. Rides the stake
