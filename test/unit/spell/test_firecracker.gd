@@ -152,11 +152,13 @@ func test_a_landing_plants_heat_on_each_node_it_reaches() -> void:
 func test_a_landing_that_primes_a_node_sets_off_burnings_disc() -> void:
 	var disc := _fire().bands[0].go_off as DiscGoOff
 	var innate := float(Infusion.intake_of(FIRECRACKER, &"fire").innate)
+	assert_not_null(disc, "fixture: Burning's disc")
 	var rad := 32.0
 	var reach := disc.radius_a * (sqrt(innate) + disc.radius_b) * rad
 	var b := _board({1: Vector2.ZERO, 2: Vector2(rad + 0.5 * reach, 0)}, [[1, 2]])
 	var n: Array = b.n
 	var seed_node: SkillNode = n[1]
+	assert_almost_eq(seed_node.radius, rad, 0.01, "fixture: geometry assumes this node radius")
 	var combat := seed_node.get_combat()
 	combat.add_terrain(_fire(), combat.terrain_threshold() - combat.terrain_t())
 	(b.graph as Graph).navigator.reconcile()

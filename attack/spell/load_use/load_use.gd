@@ -4,8 +4,7 @@ extends Resource
 
 ## How a hit spends one intake row's **load** — the swappable part of an
 ## [AspectIntake] ([member AspectIntake.use]). Abstract: [PlantUse] lands it as
-## the concept's status rider; a subclass may spend nothing and only shape the
-## spell. A row with no use plants ([method AspectIntake.default_use]).
+## the concept's status rider ([CleanseUse] cures instead). A row with no use plants ([method AspectIntake.default_use]).
 ## See docs/adr/0070-an-intake-rows-load-use-is-a-swappable-resource.md.
 
 
