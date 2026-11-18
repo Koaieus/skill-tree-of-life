@@ -48,6 +48,13 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 
 @export var owned_by: Entity
 
+## The hue a Burning vertex ([method is_burning_vertex]) reads in on the blade,
+## lifted to [member burning_vertex_tier] onto its node's modulate. Tentative
+## knob; editor feedback: the sandbox host's melee tab.
+@export var burning_vertex_hue := Color(1.0, 0.55, 0.3)
+## The glow tier of a Burning vertex (`.claude/rules/hdr-color.md`).
+@export var burning_vertex_tier: Emissive.Tier = Emissive.Tier.LABEL
+
 ## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns.
 ## One resource per blade, so a sandbox can retune the whole swing live.
 @export var style: BladeStyle = BladeNode.DEFAULT_STYLE:
@@ -743,6 +750,8 @@ func _spawn_visuals() -> void:
 		bn.is_pivot = (i == state.pivot_index)
 		bn.style = style
 		bn.tint = tint
+		if is_burning_vertex(state, i):
+			bn.modulate = Emissive.at(burning_vertex_hue, Emissive.stops(burning_vertex_tier))
 		_nodes_container.add_child(bn)
 		bn.global_position = state.positions[i]
 		_node_visuals.append(bn)
@@ -754,6 +763,21 @@ func _spawn_visuals() -> void:
 		be.from = _node_visuals[e.x]
 		be.to = _node_visuals[e.y]
 		_edge_visuals.append(be)
+
+
+## Is vertex [param i] Burning? True iff its copied terrain sits in a band
+## whose go-off is a [DiscGoOff] (Fire's Burning): the vertex that booms the
+## node it touches ([method HitGather._fire_vertex_disc]). Read at build; a
+## copy spent under T mid-swing keeps the look until the next build.
+static func is_burning_vertex(blade_state: BladeState, i: int) -> bool:
+	if blade_state == null or i < 0 or i >= blade_state.vertex_t.size():
+		return false
+	var read := blade_state.copy_read(i)
+	for e: Element in ElementRoster.shared().elements:
+		var band := read.band(e)
+		if band != null and band.go_off is DiscGoOff:
+			return true
+	return false
 
 
 ## Light a sight marker on every scout vertex ([method is_scout_vertex]) of the

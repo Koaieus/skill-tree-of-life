@@ -309,6 +309,31 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   `HitGather`: the one Fire channel, whether a centre copy lands (ADR 0086 §4,
   §5), and who spends what.
 
+## The Burning vertex and the Heat addon (#1829)
+
+- **The Heat addon** (`skill_node/addons/defs/heat_addon.tscn`, look
+  `skill_node/addons/visuals/heat_visual.gd`): Fire's element addon, rider only,
+  one `ApplyStatusEffect` of `heat` at `power = 1` (tentative knob), costing 1
+  `fire_element`. Its vertex lands that Heat on every contact the gate admits.
+- **The Burning vertex.** A vertex whose terrain copy sits in a band that goes off
+  by a `DiscGoOff` (Fire's Burning: copy > T at fill) is a **Fire shape on the
+  node it touches**, of shape power copy − T (`power_at` on the copy), centred on
+  and sized by the contact node. `HitGather._fire_source` hands a disc band to
+  `_fire_vertex_disc`, which calls `fire_shaped_in` on the contact node's read:
+  - **Contact node Burning**: one Fire channel. The node's own plain `fire_in`
+    is skipped for that hit (`_vertex_disc`), the combined disc lands the
+    centre copy and mints one mark, and the node pays its solo cost (floored).
+  - **Contact node not Burning** (Frozen included): the shape runs alone, with a
+    mark but no centre copy (`_append_reach`'s `centre_copy = false`), no node
+    spend, no own damage; the mark's `power` is 0.
+  - The copy pays 1 per node the disc reaches, through the source's spend
+    (tentative pass pick: the alternative is the copy pays nothing beyond the
+    node's solo cost). A disc reaching nobody spends nothing. The source node is
+    never touched; a later contact goes off only while the copy stays > T.
+  - A go-off whose disc is not a `DiscGoOff` keeps the generic source path.
+- Guards: `test/unit/attack/melee/test_burning_vertex.gd`,
+  `test/unit/attack/melee/test_heat_addon.gd`.
+
 ## Burning burns and lights (#1805)
 
 Both are reads of a node's Fire band; nothing stores Burning. Fire's two

@@ -449,6 +449,7 @@ release. No forced `await physics_frame` (the resolve must complete synchronousl
 | Clamp | none (a brace per neighbour pair) | welds its joint; see `ClampAddon` |
 | Spike ring | `blade_damage` modifiers, a node-local `spikes` pool (scales 1:2:3 with allocation level) and `spike_regen` (`PerTurnMode.ADD`) | the spike ladder below |
 | Element addon (#1805 / #1806 / #1807 author the scenes) | one `ApplyStatusEffect` rider of the element's terrain status, no stat modifier, `temp_cost_aspects = {<element>_element: 1}` (pinned by `test_element_addon_shape.gd`) | the rider lands on that vertex's contacts only |
+| Heat | the element addon for Fire: one `ApplyStatusEffect` of `heat` at `power = 1` (the innate Heat per vertex; tentative knob), `temp_cost_aspects = {fire_element: 1}`, ember look `HeatVisual` | the vertex built from this node lands 1 Heat on every contact the gate admits, that vertex only; a refused contact lands nothing; a contact on a Frozen node is never refused |
 | Toxin | `+1 poison_aspect` on the owner's `entity_modifiers`; `+1 poison_stacks_per_hit` (x2 at level 3) | the blade vertex built from this node applies `poison` on every contact it lands, that vertex only; a refused contact applies nothing |
 
 **Spike ladder.** On contact, remaining `spikes` >= the attacking vertex's `blunting` (default 1, 2 on a spiked attacking vertex) deplete by `blunting` and pop the vertex (it deals no damage and severs everything downstream of it from the pivot); remaining < `blunting` drains the remainder and lets the vertex through for ordinary damage. `spikes` regenerates by `spike_regen` at the owner's turn start only, so a node under a blocker that never takes a turn absorbs a finite number of pops for the whole run. Ownership change resets the pool to full. `thorns` is not a stat; it is `armor` / `min_damage_taken`.
@@ -684,7 +685,12 @@ node's own band function; `spend_copy(i, element, n)` is the one write, on the
 copy only. A contact's head answers the gather a `GoOffSource`
 (`BladeDamageInstance.go_off_source`, off its gate's `state()`): `HitGather` fires
 each band the copy sits in from the struck node and pays through the source's
-callable, never off a node's ints; an inert copy fires nothing. A replay rebuilds
+callable, never off a node's ints; an inert copy fires nothing. A copy whose
+band goes off by a `DiscGoOff` (a **Burning vertex**) is not a disc of its own:
+it is a Fire shape on the node it touches (see `docs/domain/elements.md`, "The
+Burning vertex"). `SkillBlade.is_burning_vertex(state, i)` reads it, and such a
+vertex's BladeNode is lifted to `burning_vertex_hue` at `burning_vertex_tier`
+(tentative knobs on `SkillBlade`, read at build). A replay rebuilds
 plain `DamageInstance`s (null source) and feeds the recorded terrain, so it asks
 nothing.
 
