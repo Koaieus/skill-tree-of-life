@@ -4,16 +4,17 @@ extends DamageInstance
 ## Melee's land-time gate (#502). [method MeleeAttackPlan.resolve] stays pure
 ## and up-front — it still emits one of these per [BladeHitEvent], vertex or
 ## edge (#785), whether or not the swing will actually land it. The live re-check
-## (is_allocated() / owned_by / spike-pop, all against the REAL world) happens
-## here, in [method land_on], which [OutcomeApplier] calls once per hit in
-## [member HitInstance.arrival_time] order — by then any earlier hit in the
-## SAME swing has already cascaded (force-dealloc, etc.), so [member _gate]
-## sees live state, not the pre-swing snapshot [BladePopResolver.resolve]
-## computed for the AI/preview estimate. See docs/domain/attack-timeline.md.
+## (is_allocated() / owned_by / spike-pop, against the landing world) happens
+## here, in [method resolve_gate], asked as this contact's beat opens
+## ([method HitGather.stage_one]) — by then every earlier beat of the SAME
+## swing has cascaded (force-dealloc, etc.), so [member _gate] sees that state,
+## not the pre-swing snapshot [BladePopResolver.resolve] computed for the
+## AI/preview estimate; a refused contact sets nothing off. See
+## docs/domain/attack-timeline.md.
 
 var _event: BladeHitEvent
 var _gate: BladePopResolver.LiveGate
-## True once [method land_on] passed the gate — what a status riding this
+## True once [method resolve_gate] passed the gate — what a status riding this
 ## hit reads through [method landed] instead of re-asking the gate (#951): a
 ## second `admit` of the same event can pop the vertex twice.
 var admitted: bool = false
@@ -46,7 +47,8 @@ func land_on(node: NodeCombat, world: CombatWorld) -> void:
 ## gather's world: the minted coefficient (`vertex_damage[i]`) × the speed curve
 ## at the contact's speed scaled by the sweep factor of the node it lands on,
 ## read before generation 0 lands any rider. Before armor: the break read
-## mitigates it. A refused contact is stamped too, and lands nothing.
+## mitigates it. Stamped before the gate is asked: a refused contact is stamped
+## too, and lands nothing.
 func stamp_at_gather(world: CombatWorld) -> void:
 	var t := 0
 	var threshold := 0
@@ -90,8 +92,9 @@ func go_off_source() -> GoOffSource:
 			func(e: Element, n: int) -> void: state.spend_copy(idx, e, n))
 
 
-## The gate, decided once — by this contact's [method land_on] or by a
-## status rider landing ahead of it, whichever asks first — so `admit`'s
+## The gate, decided once — by the gather as this contact's beat opens, by a
+## status rider landing ahead of it or by its [method land_on], whichever asks
+## first (the gather, on a fresh resolve) — so `admit`'s
 ## "exactly once per event" holds and a spike pops once. The gate takes the
 ## world rather than the resolved target slice: it reads the slice of each
 ## blade CONTACT's node (`_event.target`) — a pop is decided against the node

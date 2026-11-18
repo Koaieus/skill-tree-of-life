@@ -511,7 +511,8 @@ func resolve_against(world: CombatWorld) -> AttackOutcome:
 	# therefore rolls 40 times against one node, as intended.
 	outcome.crit_stream = CritRoll.stream_for(resolve_seed)
 	# Ranged selects on pure geometry, so nothing above read `world`: every
-	# live read it makes — the crit draw included — is inside the landing,
+	# live read it makes — the crit draw and the arrow's gate, both asked as
+	# its beat opens (a dud arrow sets nothing off) — is inside the landing,
 	# which is what this pass runs. Un-awaited on purpose: the default clock is
 	# [method BeatClock.instant_clock], which never parks, so `apply` runs to
 	# completion synchronously and `resolve_against` stays a plain function.

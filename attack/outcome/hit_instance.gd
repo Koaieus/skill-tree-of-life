@@ -84,12 +84,12 @@ var read_node: SkillNode = null
 var attacker: Entity = null
 
 ## Whether this hit was elevated to a critical strike/heal. A HIT crits once,
-## as its own fact, before any of its payload lands: decided at LANDING by
-## [method CritRoll.decide] (stat roll + magic's condition tier), called from
-## [method OutcomeApplier.land_one] off [member AttackOutcome.crit_stream] —
-## for a lead ([member paired] null) the moment its first rider lands, or
-## it lands itself bare; a rider never draws, it [method copy_crit_from] its
-## lead. On a replay the recorded value lands as-is, and the VFX layer reads
+## as its own fact, before any of its payload lands: decided by
+## [method CritRoll.decide] (stat roll + magic's condition tier) off
+## [member AttackOutcome.crit_stream] — for a gather head as its beat opens
+## ([method HitGather.stage_one]), for any other lead ([member paired] null)
+## in [method OutcomeApplier.land_one] as it lands; a rider never draws, it
+## [method copy_crit_from] its lead. On a replay the recorded value lands as-is, and the VFX layer reads
 ## it off that rebuilt record. The multiplier it implies is applied in
 ## [method land_on], by [method CritRoll.apply]; see [CritRoll].
 var is_crit: bool = false
@@ -352,8 +352,10 @@ func is_aspect_rider() -> bool:
 	return false
 
 
-## Decide this hit's land-time veto, once — the first asker triggers it: a
-## rider that lands ahead of it ([method rider_gated]) or this hit's own
+## Decide this hit's land-time veto, once — the first asker triggers it: the
+## gather as this hit's beat opens ([method HitGather.stage_one], a head or
+## the lead a status head rides: a refused head sets nothing off), a rider
+## that lands ahead of it ([method rider_gated]) or this hit's own
 ## [method land_on]. A no-op once decided, so a gate with a side effect (a
 ## spike pop) runs exactly once per hit. Base: no veto. Read the verdict with
 ## [method landed] after. Nothing a rider does feeds into it.

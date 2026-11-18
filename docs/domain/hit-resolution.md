@@ -422,10 +422,11 @@ its gather head (owner, 2026-11-09; ADR 0083 §4):
 ```
 Resolve  SpellResolver._crit_at_head      a spell's: conditions, then decide,
                                           once per landing, at place()
-Land     CritRoll.decide(hit, rng, world) an arrow's or blade's: one draw per
-                                          lead -> is_crit, crit_multiplier,
-                                          crit_tier
-         CritRoll.apply(hit)              amount *= crit_multiplier
+Stage 1  CritRoll.decide(hit, rng, world) an arrow's or blade's: one draw per
+                                          gather head as its beat opens
+                                          (HitGather._open_head) -> is_crit,
+                                          crit_multiplier, crit_tier
+Land     CritRoll.apply(hit)              amount *= crit_multiplier
 ```
 
 - **A spell decides at its head, pre-hit.** The landing's stamper runs
@@ -446,15 +447,17 @@ Land     CritRoll.decide(hit, rng, world) an arrow's or blade's: one draw per
   `Admits.read` is handed each arrival's amount × the head's
   `crit_multiplier`. A landing with no damage decides on its bare status
   head, without the target's overlays.
-- **An arrow or a blade draws at land.** `OutcomeApplier.land_one` draws
-  right before the hit lands, in landing order, off
-  `AttackOutcome.crit_stream`, reading the landing world (the shadow during
-  resolve), so a status landed in an earlier beat of the same attack (a mark
-  rider) reaches the chance of the hits behind it. Interim: such a head is
-  undecided at stage one, so its terrain stacks and the read's amount see
-  multiplier 1.0. Closing that means handing `stage_one` the drain's
-  `crit_rng`. No production arrow or blade carries Heat, Cold or Charge yet
-  (#1809, #1810).
+- **An arrow or a blade draws as its beat opens.** `OutcomeApplier.drain`
+  hands `HitGather.stage_one` the outcome's `AttackOutcome.crit_stream`, and
+  each fresh gather head draws there in list order (`_open_head`), after its
+  raw amount is stamped and before its riders land, reading the world as the
+  beat opens (the shadow during resolve), so a status landed in an earlier
+  beat of the same attack (a mark rider) reaches the chance of the heads
+  behind it, its terrain stacks take its crit and the read's amount is
+  multiplied. A head its gate refuses still draws (the stream does not move)
+  but takes no part in stage one ([Catalyst at the land step](#catalyst-at-the-land-step)).
+  A lead that is no gather head draws in `OutcomeApplier.land_one`, right
+  before it lands; for a head that call is a no-op.
 - **A hit crits first; its payload copies it.** A lead draws as it lands, and
   its riders land after it (ADR 0092; a rider asked first would decide its lead
   first, `CritRoll.decide`), so the one draw per lead precedes the whole payload
@@ -540,9 +543,17 @@ rides as a row op on the hit (`HitInstance.row_ops`), so the authority's
 live replay and a peer's take the same Catalyst; every live world announces
 it as `SkillNode.catalyst_converted`, peers included, and a shadow stays silent. A centre landing carries no Heat, Cold
 or Charge and converts nothing. A node the landing primes converts its
-leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
-go-offs before any head's own gate runs at land, so a head its gate refuses
-(a dud arrow, a popped or refused blade contact) has still set the node off: it pays the go-off's
-full spend and every copy lands as a power-0 dud. That is not the rule: a refused arrival leaves the
-node alone, arrows included (owner, 2026-11-18, #1802); the fix is owed. The trade, both triggers and the knobs:
-[catalyst.md](catalyst.md).
+leftover at the settle (`TerrainSettle.PrimeConversion`). Only a head that
+lands sets a node off: a refused arrival leaves the node alone, arrows
+included (owner, 2026-11-18, #1802). `HitGather.stage_one` asks each fresh
+head's gate (`HitInstance.resolve_gate` of its lead: the head, or the hit a
+status head rides) once it has stamped and drawn its crit, and a head its gate
+refuses (a dud arrow, `RangedDamageFormula.passes_gate`; a blade contact that
+pops on spikes, whose vertex was already popped, or whose target was
+deallocated, `BladePopResolver.LiveGate.admit`) takes no part: no go-off, no
+spend, no copies, its vertex's copied terrain unspent, and its riders land as
+duds. The cost: the gate is decided as the beat opens, so two heads of one beat
+both read the pre-beat world, and one whose target an earlier hit of the same
+beat kills is judged at the beat's start (its damage then finds no owner and
+lands nothing, `NodeCombat.take_damage`). The trade, both triggers and the
+knobs: [catalyst.md](catalyst.md).
