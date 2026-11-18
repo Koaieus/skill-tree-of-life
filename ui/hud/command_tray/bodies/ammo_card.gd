@@ -2,7 +2,7 @@
 class_name AmmoCard
 extends PanelContainer
 ## One tall card of the ranged inventory: an [AmmoType]'s count in this
-## volley, a [SendBar] over a [SheafPile] of its stock, `stock +gain`, and its
+## volley, a [SendBar] over a [SheafPile] of its stock, `stock +gain` (`stock/cap +gain` for a bin with a bank cap), and its
 ## name; the effect line is the hover tooltip. Pure view: fed numbers, it asks
 ## for changes through its signals and never sets its own count.
 ##
