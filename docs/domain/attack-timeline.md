@@ -373,7 +373,7 @@ N's kills have happened. Four things move together:
    shatters the node and its paths walk on. The same answer mutes the node's
    own go-offs while it holds and releases them for the breaking hits only
    ([elements.md](elements.md) § Pair rules); a walk's conduct (step 4) is not
-   a go-off and is not muted. With a null `Admits` every path walks on, as
+   a go-off and is not muted (open: see that section). With a null `Admits` every path walks on, as
    before ([spell-propagation.md](spell-propagation.md) §
    "Resolver flow").
 4. **A node can carry the walk on.** A head whose walk can leave its landing

@@ -510,11 +510,13 @@ as built. One branch of code, the rest pins on what Fire, Lightning and Ice buil
   generation (no shatter: a thaw is no breaker), a Cold rider that freezes a
   Shocked node mutes it. The released arc reads its level after the breaker's
   riders, so a breaker carrying Charge feeds the arc it releases.
-- A blade vertex's shape on a muted node runs alone (`_fire_vertex_arc` /
-  `_fire_vertex_disc` with `muted`): the node's own arc stays trapped, the
-  vertex arcs with no centre copy and no node spend.
-- A spell walk's conduct is not a go-off and is not muted; a Frozen node that
-  holds ends the walk anyway (`path_ends`).
+- A Shocked blade vertex's arc on a muted node runs alone (`_fire_vertex_arc`
+  with `muted`): the node's own arc stays trapped, the vertex arcs with no
+  centre copy and no node spend. Unpinned (no blade fixture here).
+- Open, as built: a spell walk's conduct is not a go-off and is not muted, so a
+  walk conducting onto a Frozen + Shocked node that holds still pays
+  `conduct_cost` out of the trapped store while its head is marked `path_ends`.
+  The pair table is silent on it.
 - **Landing counts** (b = `FrozenAdmits.break_channels`, 2): a Frozen + Shocked
   node hit under the threshold takes 1; broken, 1 + b + 1 (the released arc's
   centre) plus the burst, each neighbour 1; two breakers in one beat: one
@@ -530,7 +532,7 @@ as built. One branch of code, the rest pins on what Fire, Lightning and Ice buil
 - **The look**: `TerrainBars.is_trapped(node, element)` — the element's band
   goes off and another band the node sits in answers `Admits` — read from the
   bands alone. A trapped bar's fill leans toward the holding band's tint
-  (`trapped_frost`, tentative), its Charge blips dim, its frame takes the
-  tint, and `label_for` ends in `TRAPPED_SUFFIX`, so the tooltip's terrain row
+  (`trapped_frost`, tentative; the editor preview draws a trapped sample), its
+  Charge blips dim by as much, its frame takes the tint, and `label_for` ends in `TRAPPED_SUFFIX`, so the tooltip's terrain row
   reads it too.
 - Guards: `test/unit/attack/test_element_pairs.gd`.

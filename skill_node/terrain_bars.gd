@@ -87,7 +87,8 @@ const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
 		max_overflow_blocks = value
 		_refresh()
 ## How far a trapped bar's fill leans toward the holding band's tint (Charge
-## under the ice), 0 to 1. Tentative.
+## under the ice), 0 to 1; its Charge blips dim by as much. Tentative; the
+## editor preview draws a trapped sample bar.
 @export_range(0.0, 1.0, 0.05) var trapped_frost: float = 0.6:
 	set(value):
 		trapped_frost = value
@@ -450,7 +451,7 @@ func _draw_bar(bar: Bar, y: float, font: Font) -> void:
 		for s in mini(bar.count, l.frame_blocks * bar.degree):
 			@warning_ignore("integer_division")
 			var at := Vector2(x0 + (s / bar.degree) * step + (s % bar.degree + 0.5) * blip, y + bar_height * 0.5)
-			draw_circle(at, maxf(blip * 0.25, 0.6), Color(1, 1, 1, 0.9 * (1.0 - 0.6 * trapped_frost if bar.trapped else 1.0)))
+			draw_circle(at, maxf(blip * 0.25, 0.6), Color(1, 1, 1, 0.9 * (1.0 - trapped_frost if bar.trapped else 1.0)))
 	for j in l.overflow_blocks:
 		var fade := 1.0 - float(j + 1) / (l.overflow_blocks + 1)
 		var flicker := 0.6 + 0.4 * pingpong(2.0 * _time / maxf(flicker_period, 0.01) + j * 0.55, 1.0)
@@ -477,4 +478,15 @@ func _preview() -> Array[Bar]:
 	b.label = "Heat 9/2"
 	b.layout = layout(b.count, 1, 3, max_overflow_blocks)
 	out.append(b)
+	var trapped := Bar.new()
+	trapped.element = TerrainSettle.element_on(Terrain.Axis.CHARGE)
+	trapped.degree = 1
+	trapped.count = 4
+	trapped.color = Color(0.95, 0.85, 0.3)
+	trapped.label_color = trapped.color
+	trapped.label = "Shocked 4/2" + TRAPPED_SUFFIX
+	trapped.trapped = true
+	trapped.frost = Color(0.55, 0.8, 1.0)
+	trapped.layout = layout(trapped.count, 1, 3, max_overflow_blocks)
+	out.append(trapped)
 	return out

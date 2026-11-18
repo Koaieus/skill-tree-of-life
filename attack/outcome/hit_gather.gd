@@ -790,7 +790,7 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 		if band == null or band.go_off == null:
 			continue
 		if band.go_off is DiscGoOff:
-			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next, muted)
+			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next)
 			continue
 		if band.go_off is EdgeGoOff:
 			_fire_vertex_arc(h, node, e, band.go_off as EdgeGoOff, generation, spends, next, muted)
@@ -825,17 +825,16 @@ func _vertex_disc(h: _Hit, node: SkillNode, e: Element) -> DiscGoOff:
 ## [param node], sized by the node: on a node whose own [param e] band goes
 ## off by a [DiscGoOff] (Burning) the two add up as ONE channel
 ## ([method DiscGoOff.fire_shaped_in]): one mark, the centre copy, the node's
-## solo spend off its store; on any other node, or a muted one (Frozen holding,
-## [method _read_node]: [param muted]), the shape runs
+## solo spend off its store; on any other node (Frozen included) the shape runs
 ## alone: a mark, no centre copy, no node spend. Either way the copy pays 1 per
 ## node the disc reaches, through the source's spend; reaching no one is no
 ## go-off and spends nothing. The node's own plain go-off is skipped in the
 ## go-off loop on the same predicate ([method _vertex_disc]).
 func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOff,
-		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival], muted := false) -> void:
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
 	var read := TerrainRead.of(_slice(node), node)
 	var own := read.band(e)
-	var burning := not muted and own != null and own.go_off is DiscGoOff
+	var burning := own != null and own.go_off is DiscGoOff
 	var disc: DiscGoOff = own.go_off as DiscGoOff if burning else copy_disc
 	var shape := float(disc.power_at(null, h.source.read))
 	var result := disc.fire_shaped_in(_world, node, read, shape)
@@ -867,8 +866,8 @@ func _vertex_arc(h: _Hit, node: SkillNode, e: Element) -> EdgeGoOff:
 ## centre copy, the node paying its solo cost and transfer off its store. On
 ## any other node the copy's arc runs alone: a mark, no centre copy, no node
 ## spend, its transfer onto each node reached; a [param muted] node (Frozen
-## holding, [method _read_node]) is any other node: its own arc stays trapped. Either way the copy pays 1 per
-## node reached, through the source's spend: depth 1 at this read, deeper ones
+## holding, [method _read_node]) is any other node: its own arc stays trapped.
+## Either way the copy pays 1 per node reached, through the source's spend: depth 1 at this read, deeper ones
 ## as [method _release] lets them on. Reaching no one is no go-off. The node's
 ## own plain arc is skipped in the go-off loop on [method _vertex_arc].
 func _fire_vertex_arc(h: _Hit, node: SkillNode, e: Element, copy_edge: EdgeGoOff,
