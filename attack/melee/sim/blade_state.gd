@@ -82,12 +82,6 @@ var speed_history: Array[PackedFloat32Array] = []
 ## leave the array zeroed, and [method BladePopResolver.LiveGate._blunting_for]
 ## falls back to the `blunting` [StatDef]'s own default.
 var vertex_blunting: PackedFloat32Array
-## Per-particle shield: 1 iff the source node's local `deflection` is true,
-## filled at swing start by [BladeVertexFill] — keyed on the stat, so
-## whatever grants `deflection` shields. Read through
-## [method BladePopResolver.LiveGate.piece_shielded]. Zero-initialised in
-## build(): a hand-built state is unshielded.
-var vertex_shielded: PackedByteArray
 ## Per-particle coefficient of restitution against a deflecting plate: the
 ## share of a disc's approach speed along the plate normal it leaves with. 0 —
 ## every plain vertex — is the position-based, inelastic contact; a Bunker
@@ -227,8 +221,6 @@ static func build(
 	s.vertex_node.resize(positions_.size())  # null-init; caller fills per-vertex
 	s.vertex_blunting = PackedFloat32Array()
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
-	s.vertex_shielded = PackedByteArray()
-	s.vertex_shielded.resize(positions_.size())
 	s.vertex_restitution = PackedFloat32Array()
 	s.vertex_restitution.resize(positions_.size())
 	s.vertex_on_hit = []

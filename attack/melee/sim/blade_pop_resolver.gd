@@ -219,12 +219,6 @@ class LiveGate extends RefCounted:
 		_mark_spent(node, w)
 		return true
 
-	## The piece's source node grants `deflection` ([member BladeState.vertex_shielded]).
-	func piece_shielded(idx: int) -> bool:
-		if _state == null or idx < 0 or idx >= _state.vertex_shielded.size():
-			return false
-		return _state.vertex_shielded[idx] != 0
-
 	## The edge branch of [method admit]. Under [b]ADR 0005[/b] an edge is not a
 	## blunting element at all — [b]spikes pop vertices, bunkers break edges[/b] —
 	## so this branch reads liveness and nothing else: it never touches the
