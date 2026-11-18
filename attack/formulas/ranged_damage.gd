@@ -196,9 +196,9 @@ class RangedHitInstance extends DamageInstance:
 	## The veto, decided once against this arrow's own target slice, by its
 	## first asker: [method HitGather.stage_one] as the arrow's beat opens (the
 	## arrow heads its own span), else a rider landing ahead of it
-	## ([method HitInstance.rider_gated]), else [method land_on]. Vetoed if the target is no longer allocated/hostile,
-	## or the firing node ([member HitInstance.origin]) is no longer allocated
-	## — an earlier beat's cascade can deallocate either: the target (this
+	## ([method HitInstance.rider_gated]), else [method land_on]. Vetoed if the
+	## target is no longer allocated/hostile, or the firing node
+	## ([member HitInstance.origin]) is no longer allocated — an earlier beat's cascade can deallocate either: the target (this
 	## volley's own overkill) or the origin (a DIFFERENT attack, or this
 	## volley's own forced-dealloc cascade, islanding the firing leaf). A veto
 	## marks [member HitInstance.gated] so VFX can render the dud beat
