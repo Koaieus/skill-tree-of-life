@@ -463,7 +463,24 @@ seams and settles the answer (hit-resolution.md § The beat).
 - **The Cold addon** (`skill_node/addons/defs/cold_addon.tscn`, look
   `skill_node/addons/visuals/cold_visual.gd`): Ice's element addon, rider only,
   one `ApplyStatusEffect` of `cold` at `power = 1`, costing 1 `ice_element`.
-- Not yet built: the blade on Frozen (the touch breaker by weight, the pop after
-  the riders) and the Frozen vertex.
+- **A blade on Frozen.** The gate (`BladePopResolver.LiveGate.admit`) decides
+  as the beat opens, before any rider lands, so it never refuses a contact for
+  ice: every contact on Frozen lands. The touch is a third breaker in `breaks`,
+  the direct contact only (never its copies): `BladeDamageInstance.touch_weight`
+  — `weight_of(source radius)` × every `BunkerAddon.blade_mass` on its source,
+  `weight_of(r) = (r / MASS_REF_RADIUS)²` — at least the node's
+  `weight_of(SkillNode.radius)` (a tie breaks). The pop sits at the read:
+  `read_in` is asked only on a node still Frozen after the riders, so every
+  blade contact it is handed pops its vertex there (`_snap_blades` →
+  `snap_on_ice` → `LiveGate.snap`, `_kill` at the contact's `t`, no drain),
+  breaker or not; a contact whose own Heat thawed the node is never read and
+  its vertex lives on. The head carries the pop from its own landing, so the
+  break's extra landings carry none. The pivot is exempt; an unallocated
+  Frozen node is refused at the gate as ever (no dud), so it snaps nothing.
+- **The Frozen vertex** (`BladeVertexFill`): a vertex whose copy reads an Ice
+  band answered by a `FrozenAdmits` is flagged `vertex_one_shot` (the gate lands
+  its first contact, then pops it, whatever the riders), and its `blade_damage`
+  read folds one MULTIPLY bin of `1 + vertex_bonus_per_excess × copied excess`.
+  The source node is only read.
 - Guards: `test/unit/attack/test_frozen_admits.gd`,
-  `test/unit/attack/test_ice_shatter.gd`.
+  `test/unit/attack/test_ice_shatter.gd`, `test/unit/attack/test_blade_frozen.gd`.

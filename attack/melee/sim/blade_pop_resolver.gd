@@ -1,10 +1,13 @@
 class_name BladePopResolver
 extends RefCounted
 
-## Defensive spike "pop" resolution. Given the raw BladeHitEvents from a swing
-## scan, decides which of the ATTACKER's own blade vertices are killed (a full
-## `blunting` drain of the defender's `spikes` pool) and which vertices are then
-## severed from the handle. The result is a RECORD, not a solver. [LiveGate] is
+## Blade vertex "pop" resolution. Given the raw BladeHitEvents from a swing
+## scan, decides which of the ATTACKER's own blade vertices are killed — each
+## pop kills the one vertex: a full `blunting` drain of the defender's `spikes`
+## pool, a one-shot vertex's first landed contact, or a landed touch on a node
+## still Frozen after its riders ([method LiveGate.snap]) — and records the
+## vertices that kill orphaned from the handle as a coasting severance, never
+## as dead. The result is a RECORD, not a solver. [LiveGate] is
 ## the single implementation of these predicates; the AI/preview estimate runs
 ## it against a shadow [CombatWorld]. See docs/domain/melee-blade-internals.md
 ## "Spike pop".
@@ -384,7 +387,8 @@ class LiveGate extends RefCounted:
 		_removed[particle_idx] = true
 		_disintegrate_unreachable(t)
 
-	## Mark every vertex no longer reachable from the pivot as dead at [param t].
+	## Record every vertex no longer reachable from the pivot as one coasting
+	## [Severance] at [param t] — orphaned, not dead: none enters `dead_at`.
 	## Shared by [method _kill] and [method _sever_edge]: losing a vertex and
 	## losing an edge orphan a fragment by exactly the same criterion, and the
 	## BFS reads both `_removed` and [member BladeState.removed_edges].

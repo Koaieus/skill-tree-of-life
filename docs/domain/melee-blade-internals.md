@@ -4,8 +4,6 @@ Per-class contracts for the melee solver and plan modules. The model and its inv
 
 ## Spike pop: `BladePopResolver`
 
-changing: a vertex on a Frozen node breaks by weight, a lighter one snaps, #1807; see docs/design/elements/frozen.md
-
 Given the raw `BladeHitEvent`s of a swing scan, `BladePopResolver` decides which
 of the attacker's own blade vertices die and which are then severed from the
 driven handle (orphaned: they keep coasting, they are not killed).
@@ -22,7 +20,16 @@ driven handle (orphaned: they keep coasting, they are not killed).
   spiked node takes none, and a popping vertex's own hit never lands
   (`BladeDamageInstance.land_on` returns as soon as `admit` refuses the
   contact, before `super.land_on`, the only place damage is applied).
-- Killing a vertex disconnects everything downstream of it from the pivot.
+- Two other pops kill a vertex whose contact **lands**, at the contact's `t`,
+  with no drain: a one-shot vertex (`BladeState.vertex_one_shot`, a Frozen
+  copy among them) dies after its first admitted contact, inside `admit`; a
+  vertex touching a node still Frozen after that contact's own terrain riders
+  dies at Ice's post-rider read (`LiveGate.snap`, asked by
+  `FrozenAdmits.read_in`, since `admit` runs as the beat opens, before any rider
+  lands). Either landed hit carries the pop (`popped_vertex`), as a refused
+  spike contact does. Whether that touch also breaks the ice is Ice's
+  (elements.md § Ice on the node).
+- Killing a vertex — the one vertex, whatever popped it — disconnects everything downstream of it from the pivot.
   Every vertex no longer reachable through surviving edges is recorded as a
   **severance**: it keeps coasting on the same trajectory, because nothing pulls
   on it any more. It is not killed. The pivot is exempt (popping the wielder's
