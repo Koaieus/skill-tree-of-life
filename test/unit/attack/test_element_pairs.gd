@@ -658,3 +658,31 @@ func test_the_charge_of_a_frozen_shocked_node_reads_trapped_from_the_bands() -> 
 	var bars := TerrainBars.bars_for(x, 3)
 	var trapped := bars.filter(func(b: TerrainBars.Bar) -> bool: return b.trapped)
 	assert_eq(trapped.size(), 1, "one trapped bar, the Charge's")
+
+
+# 6b ────────────────────────────────────────────────────────────────────────────
+## X Burning (Heat T + 1, +1 from the hit: excess 2) and Shocked; N its
+## neighbour, Burning at Heat T (+1 from the copy: excess 1), placed between
+## its own disc's reach and X's, so N's disc misses X; F alone inside N's disc,
+## outside X's and off the arc.
+func test_a_burning_neighbour_reached_twice_goes_off_once() -> void:
+	_dedupe(false)
+	var x := _w.add_node(&"X", Vector2.ZERO)
+	var n := _at("N", Vector2.ZERO)
+	var f := _at("F", Vector2.ZERO)
+	var r_x := _r(x, 2)
+	var r_n := _r(n, 1)
+	assert_eq(x.radius, n.radius, "fixture: equal node radii")
+	var dist := (r_x + r_n) * 0.5 + n.radius
+	n.global_position = Vector2(-dist, 0.0)
+	f.global_position = Vector2(-dist - (r_n * 0.5 + f.radius), 0.0)
+	_w.link(x, n)
+	await _own([x, n, f])
+	_set_t(x, _t(x) + 1)
+	_set_charge(x, _t(x) + 1)
+	_set_t(n, _t(n))
+	var all := _land([_hit(x, 1.0, {_fire.terrain: 1})])
+	assert_eq(_takes(all, n), 3, "N: two entries and its own disc's centre landing, once")
+	assert_eq(_takes(all, f), 1, "F: N's disc, once")
+	assert_eq(_tt(n), _t(n) + 1 - 1, "N: the Heat rider once, its disc's spend once, for F")
+	assert_eq(_takes(all, x), 3, "X: 1 + 1 per channel; N's disc misses X")
