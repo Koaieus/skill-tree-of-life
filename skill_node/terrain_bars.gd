@@ -14,7 +14,8 @@ extends Node2D
 ## when a world turn moved this node's terrain ([method flash], the spread cue).
 ## Subscribed to [signal SkillNode.terrain_changed] only while shown ([SubBag]:
 ## [method SubBag.now] paints first, [method SubBag.clear] on hide). Draws
-## everything itself in [method _draw]; never joins [StatusOverlay].
+## everything itself in [method _draw]; never joins [StatusOverlay], only
+## places the node's Catalyst layer under its rows ([member stack_below]).
 
 ## The pure layout of one bar, in blocks.
 class Layout:
@@ -68,6 +69,7 @@ const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
 @export_range(0.0, 200.0, 1.0) var south_offset: float = 46.0:
 	set(value):
 		south_offset = value
+		_place_below()
 		queue_redraw()
 ## The label's font size under each bar, px. Tentative.
 @export_range(6, 24, 1) var label_size: int = 9:
@@ -127,6 +129,7 @@ func _wire() -> void:
 		return
 	_node.hover_changed.connect(_on_hover_changed)
 	_listen_settled()
+	_place_below()
 
 
 func _enter_tree() -> void:

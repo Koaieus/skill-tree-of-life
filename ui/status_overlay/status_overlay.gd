@@ -28,8 +28,8 @@ class IconEntry:
 
 ## What one overlay draws. STATUS: the segment, icon row and corruption, over
 ## a bar. CATALYST: one crystal per Catalyst stack and the conversion pulse,
-## on a skill node's own overlay; it never fades with a bar, so a full-HP or
-## unallocated carrier shows its crystals.
+## on a skill node's own overlay; it never fades with a bar, so a full-HP
+## carrier shows its crystals.
 enum Layer { STATUS, CATALYST }
 
 @export var layer: Layer = Layer.STATUS:
@@ -67,8 +67,8 @@ enum Layer { STATUS, CATALYST }
 	set(v):
 		critical_pulse_period = v
 		queue_redraw()
-## Crystal edge (width), px: one violet crystal per Catalyst stack, standing
-## on the icon row. Tentative, easy to change.
+## Crystal edge (width), px: one violet crystal per Catalyst stack, in a row
+## from the CATALYST layer's top-left. Tentative, easy to change.
 @export_range(2.0, 16.0, 0.5) var crystal_size: float = 5.0:
 	set(v):
 		crystal_size = v
@@ -114,7 +114,8 @@ var _crystal_tint: Color = Color.WHITE
 var _pulse_left: float = 0.0
 ## The conversion pulse's colour: the landing element's tint ([method _on_catalyst_converted]).
 var _pulse_tint: Color = Color.WHITE
-## The crystals the running pulse flashes: the row as last drawn before the take.
+## The crystals the running pulse flashes: the row as drawn when the cue lands,
+## or the last non-empty row when the take spent it all.
 var pulse_crystals: Array[Rect2] = []
 ## `N == T − 1`: one more stack, or one lost degree, cashes the chunks in.
 var critical: bool = false
