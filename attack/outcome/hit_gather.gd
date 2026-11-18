@@ -619,7 +619,7 @@ func _convert_landing(node: SkillNode, landing: Dictionary, batch: TerrainSettle
 			continue
 		seen[def] = true
 		var take := func(spent: int, made: Dictionary) -> void:
-			_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent), made)
+			_row_change(rows, node, def, -float(spent), made)
 		var out := def.convert(slice, landing, take)
 		for id: Variant in out:
 			_add(batch, node, roster.by_id(id), int(out[id]))
@@ -635,7 +635,7 @@ func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Statu
 	if slice == null:
 		return
 	var rows: Dictionary = {}
-	_row_change(rows, slice.real(), StatusInstance.HostKind.NODE, def, -float(spent), converted)
+	_row_change(rows, slice.real(), def, -float(spent), converted)
 	_commit_rows(rows)
 
 
@@ -661,17 +661,17 @@ func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoO
 
 
 ## The gather's one seat for a status-row change: [param delta] on the row of
-## [param def] held by [param node]'s slice ([param kind] is always
-## [code]NODE[/code] today), summed into [param rows] with the generation's
-## other changes on that node and kind, as `[delta, converted]`. A Catalyst
+## [param def] held by [param node]'s slice, summed into [param rows] with
+## the generation's other changes on that node, as `[delta, converted]`, keyed
+## `[node, HostKind.NODE]` (the recorded op's holder shape). A Catalyst
 ## take passes [param converted], element id → the stacks it made (the
 ## landing element the cue tints by), summed alike. Committed and recorded by
 ## [method _commit_rows], so a replay changes the row too.
-func _row_change(rows: Dictionary, node: SkillNode, kind: StatusInstance.HostKind,
-		def: StatusDef, delta: float, converted: Dictionary = {}) -> void:
+func _row_change(rows: Dictionary, node: SkillNode, def: StatusDef, delta: float,
+		converted: Dictionary = {}) -> void:
 	if delta == 0.0 or def == null or node == null:
 		return
-	var at := [node, kind]
+	var at := [node, StatusInstance.HostKind.NODE]
 	if not rows.has(at):
 		rows[at] = {}
 	if not rows[at].has(def):
