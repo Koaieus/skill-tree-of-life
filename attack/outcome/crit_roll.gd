@@ -3,8 +3,9 @@ class_name CritRoll
 ## The one crit implementation, shared by all three attack modes. A crit is
 ## decided once per HIT before its riders land ([method decide], drawn off the
 ## outcome's [member AttackOutcome.crit_stream] in landing order: a gather head
-## as its beat opens, any other lead as it lands) and its payload copies it; [method apply] multiplies `amount` at the tail of [method
-## HitInstance.land_on]. A replay never draws. See docs/domain/hit-resolution.md
+## as its beat opens, any other lead as it lands) and its payload copies it;
+## [method apply] multiplies `amount` at the tail of
+## [method HitInstance.land_on]. A replay never draws. See docs/domain/hit-resolution.md
 ## "CritRoll".
 
 ## Salt mixed into [member AttackPlan.resolve_seed] to derive the crit stream.
