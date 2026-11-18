@@ -163,12 +163,6 @@ status: settling
   whole-hit doubling ([frozen.md](frozen.md)).
 - **Adversarial-review leftovers** (2026-11-05 review; everything else in it is
   settled by a design file or ADRs 0081-0093):
-  - **Explosive orphans, each still needing a destination** beyond the Catalyst
-    retag list above: `entity/blocker/faces/explosive_face.tres`, the barrel
-    addon's `first_level/content.tres` entry, `explosive_stacks_per_hit.tres`,
-    `ExplosiveSpread` (its `on_removed`), `docs/domain/explosive.md`, the
-    matrix's Explosive row, § Explosive and arrow-look row. Each is a spec-time
-    call for the first Fire issue.
   - **Words**: "Face" means a matrix cell in the docs and DETONATE/PLANT in
     code; the matrix Glossary still says Payload = damage plus *aspect*
     riders. Pin one meaning at the Fire spec.

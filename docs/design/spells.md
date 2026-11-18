@@ -144,7 +144,7 @@ These have an issue; the issue is the design's home, not this doc.
 
 ### Explosive's spells: Firecracker and Flamestrike
 
-Designed with the Explosive row (owner, 2026-10-13): `aspect_matrix.md` § Explosive. Detonate's charge is now the explosive status itself, planted by the arrow; Supernova was infusion's blast under a name. Both struck.
+Designed with the Explosive row (owner, 2026-10-13): `aspect_matrix.md` § Catalyst. Detonate's charge is now the explosive status itself, planted by the arrow; Supernova was infusion's blast under a name. Both struck.
 
 ---
 
