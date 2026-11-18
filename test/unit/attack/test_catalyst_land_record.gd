@@ -192,6 +192,11 @@ func test_a_land_that_splits_and_primes_records_both_takes() -> void:
 	assert_eq(_slice(n, _shadow).charge(), 2, "1 Charge landed and 1 converted")
 	assert_eq(_held(n, _shadow), 0, "the row ends at 0")
 	assert_eq(_taken(outcome), -3.0, "the land take and the settle take are both recorded")
+	var takes := _takes(outcome)
+	assert_eq(takes.size(), 2, "the land take, then the settle prime's")
+	if takes.size() == 2 and takes[1].size() == 5:
+		assert_eq(takes[0][4], {_fire.id(): 1, _lightning.id(): 1}, "the land take's split")
+		assert_eq(takes[1][4], {_fire.id(): 1}, "the primed settle take records its element")
 	await _drain(_rebuilt(outcome), CombatWorld.live())
 	assert_eq(live.terrain_t(), t + 2, "the rebuilt beat lands the same Heat")
 	assert_eq(live.charge(), 2, "and the same Charge")
