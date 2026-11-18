@@ -442,6 +442,8 @@ func test_one_generation_settles_two_direct_hits_once() -> void:
 func test_a_spell_walk_ends_at_a_frozen_node_unless_the_hop_breaks_it() -> void:
 	_light.bands = _light_bands
 	_fire.bands = _fire_bands
+	# No crit: a crit on the light hop would break the ice by itself.
+	_attacker.stat_board.get_stat(&"crit_chance").base_value = 0.0
 	var helper := SpellTestHelper.new()
 	var walk := func(power: float) -> Dictionary:
 		_set_cold(_h, _t(_h) + 1)
