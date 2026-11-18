@@ -42,7 +42,7 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Primed** | A node whose terrain stack is past T (count > T, T = 2 × degree): a hit on it sets it off | a status with stacks of its own |
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |
-| **Catalyst** | Inert terrain that converts its whole store 1:1 into the Heat / Cold / Charge stacks landing with it on its node, pro rata over them (largest remainder; a tied leftover stays Catalyst), or into the element its node primes into: the element analogue of Greed ([elements.md](elements.md) § The threshold model) | fuel, a family member, a reach, a go-off |
+| **Catalyst** | An inert aspect status that converts its whole store 1:1 into the Heat / Cold / Charge stacks landing with it on its node, pro rata over them (largest remainder; a tied leftover stays Catalyst), or into the element its node primes into: the element analogue of Greed ([elements/terrain.md](elements/terrain.md) § Catalyst) | fuel, a family member, a reach, a go-off |
 
 Further reading: Mark Rosewater's *Making Magic* columns (color pie,
 parasitic, linear vs modular); *Characteristics of Games* (Elias, Garfield,
@@ -1091,7 +1091,7 @@ proposal, 2026-10-05; the per-addon calls live in
 
 | Family (proposed) | Addons | State |
 |---|---|---|
-| Fortify | Bunker (armor, floor, deflect) | the buff in Sunder's domain, Curse its counter (owner, 2026-10-16, #1369); on a blade: blast-shielded, heavy, and a hard enough bunker × bunker hit destroys the defender's Bunker. Fortress struck (owner, 2026-10-16): `swing_drag` is an unowned concept, never force-homed |
+| Fortify | Bunker (armor, floor, deflect) | the buff in Sunder's domain, Curse its counter (owner, 2026-10-16, #1369); on a blade: heavy, and a hard enough bunker × bunker hit destroys the defender's Bunker. Fortress struck (owner, 2026-10-16): `swing_drag` is an unowned concept, never force-homed |
 | Survival | Lifeline, Lifelink, Fountain (heal / cleanse) | Lifeline may merge into Fountain; Lifelink keystone / core-class only. Anchor Node (`skill_node_specializations.md`, "a built-in Lifeline") is Lifeline's intrinsic variant or struck — unruled |
 | Topology | Gate, Winch, Clamp | Clamp shipped, aspect-less; each further temp clamp on a swing costs more (owner, 2026-10-16, #1369); Gate landing; Winch has a determinism fork. Clamp is blade-build crafting more than board topology; Winch's Serpent relief is a class concern |
 | Spell routing | Anti-Magic, Conduit, Relay, Void? | needs design. Anti-Magic (+1 hop cost through the node) is an addon, not a status, and never Silence's twin (owner, round 7). Owner shapes, 2026-10-06: a hop-nabbing "black hole, but less intense", a node that mangles its local `degree` to confuse degree-targeting spells, a projectile-eater (struck by the owner as unbalanced). Relay's damage bonus is spell power riding a routing addon |
@@ -1173,7 +1173,7 @@ A roll on the parent itself is a later procgen pass, not authored yet.
 based resistance, wouldn't make sense "1 greed stack consumed to get you 1.99
 stacks instead of 2 cuz of your 1% resistance". needs something else for
 decay. what is the opposite of greed? sharing freely? hmm"* — its counter is
-open on #1419. Scout, Catalyst and Sunder have none by the rule.
+open on #1419. Scout and Sunder have none by the rule.
 
 ## Personas
 

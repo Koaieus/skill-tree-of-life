@@ -11,8 +11,8 @@ status: settling
 
 An intake row is the one `AspectIntake` type (ADR 0060: identity, innate,
 int:int rates) plus a **use** that says what its load buys: ADR 0070's
-swappable `LoadUse`, an open set. The seam exists: Firecracker's intake row (a
-`FuelUse`) already carries a `use` (`attack/spell/load_use/`). Owner, 2026-11-08:
+swappable `LoadUse`, an open set. The seam exists: every intake row carries a `use`
+(`attack/spell/load_use/`: `PlantUse`, the default when null, and `CleanseUse`). Owner, 2026-11-08:
 *"spell infusions may also do bespoke stuff instead of simply adding riders,
 we are free to design what feels useful and fun to have"*. Two uses carry
 the elements so far:
