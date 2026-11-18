@@ -1,8 +1,8 @@
 extends GutTest
 
 ## The load a landing's head carries ([member HitInstance.hit_load]): a blade
-## contact its piece's charges; a spell landing (a Catalyst row plants, never
-## loads) and an arrow stay at 0.
+## contact, a spell landing (a Catalyst row plants, never loads) and an arrow
+## all stay at 0 — a blade piece holds no charge.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const _POISON := preload("res://effects/status/poison.tres")
@@ -64,28 +64,18 @@ func test_a_spell_without_catalyst_stamps_zero() -> void:
 	_assert_spell(0)
 
 
-func _blade_contact(charges: int) -> HitInstance:
+func test_a_blade_contact_carries_no_load() -> void:
 	var positions: Array[Vector2] = [Vector2(-400, 0), Vector2(430, 0)]
 	var radii: Array[float] = [16.0, 16.0]
 	var edges: Array[Vector2i] = [Vector2i(0, 1)]
 	var s := BladeState.build(positions, 0, edges, radii)
-	s.vertex_node[0] = _f.hub
-	s.vertex_node[1] = _f.leaves[0]
-	s.vertex_charges[1] = charges
+	var nodes: Array[SkillNode] = [_f.hub, _f.leaves[0]]
+	_f.leaves[0].get_combat().apply_status(load("res://effects/status/catalyst.tres") as StatusDef, 2.0)
+	BladeVertexFill.new().fill(s, nodes)
 	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
 	var ev := BladeHitEvent.new(0.5, 1, -1, _f.target)
 	var di := BladeDamageInstance.new(ev, gate)
-	di.amount = 10.0
-	di.type = DamageInstance.Type.PHYSICAL
-	di.target = _f.target
-	di.attacker = _f.attacker
-	gate.stamp_load(ev, di)
-	return di
-
-
-func test_a_blade_contact_carries_its_pieces_charges() -> void:
-	assert_eq(_blade_contact(2).hit_load, 2)
-	assert_eq(_blade_contact(5).hit_load, 5)
+	assert_eq(di.hit_load, 0, "a piece off a Catalyst node carries no load")
 
 
 func test_an_arrow_carries_no_load() -> void:
