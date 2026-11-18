@@ -237,9 +237,8 @@ returns it; null falls back to the concept's only status through
 ## Burning's disc (#1800)
 
 Fire's Burning band authors a `DiscGoOff` (`elements/disc_go_off.gd`) on
-`elements/defs/fire.tres`, the only blast on master (the Catalyst retag, #1801,
-deleted the aspect-hosted disc). The class has one power source and one
-radius law; `fire.tres` sets only `damage_per_power`:
+`elements/defs/fire.tres`, the only blast; no aspect hosts a disc. The class
+has one power source and one radius law; `fire.tres` sets only `damage_per_power`:
 
 - **Power.** Heat's excess over T (`Power.HEAT_EXCESS`, `Terrain.excess` on the
   node's read), read after the hit's Heat rider has landed, the overflow past

@@ -13,6 +13,8 @@ child issue and its file in the design record: [`docs/design/elements.md`](../de
 
 ## The pieces: `HitLanding` and the `HitInstance` kinds
 
+changing: a blade piece no longer stamps its charges as `hit_load`, #1802; see docs/design/elements/go-offs.md
+
 A **hit** is one `HitInstance` (`attack/outcome/hit_instance.gd`): one landing's
 effect on one target node, held in `AttackOutcome.hits`. `target` is the hit's
 identity (what a record ships and a peer resolves by `stable_id`); the state it
@@ -528,8 +530,8 @@ change the split. It calls `CatalystStatus.convert` before the terrain write;
 the stacks it makes join that write, so they count toward the hit's own
 primed-ness and power, read after the riders land (ADR 0083 §1). The take
 rides as a row op on the hit (`HitInstance.row_ops`), so the authority's
-live replay and a peer's take the same Catalyst, and the live replay alone
-announces `Events.catalyst_converted`. A centre landing carries no Heat, Cold
+live replay and a peer's take the same Catalyst; every live world announces
+it as `Events.catalyst_converted`, peers included, and a shadow stays silent. A centre landing carries no Heat, Cold
 or Charge and converts nothing. A node the landing primes converts its
 leftover at the settle (`TerrainSettle.PrimeConversion`). Stage one fires
 go-offs before any head's own gate runs at land, so a head its gate refuses

@@ -97,8 +97,8 @@ the row at 0.
 ## The goo arrow
 
 `attack/ammo/types/catalyst.tres` ("Catalyst Arrow", `order` 2) is a plain
-arrow whose one rider is an `ApplyStatusEffect` of Catalyst, sized by
-`catalyst_stacks_per_hit`; it plants as a poison arrow plants Poison. A
+arrow whose one rider is an `ApplyStatusEffect` of Catalyst, its power folded
+through `catalyst_stacks_per_hit`; it plants as a poison arrow plants Poison. A
 planting hit is a hit: on a primed node it sets it off, and its copies carry
 the Catalyst rider over the disc. It lands no Heat, Cold or Charge, so the
 node's own Catalyst is neither converted nor lost. The element arrows as ammo
@@ -118,9 +118,12 @@ enemy nodes, `max_hops` 10, `MaxDamageReducer`), and its first row names Fire
 (`innate` 6, the default `PlantUse`), so each landing plants Heat. A node the
 Heat tips into Burning goes off through Burning's disc; Firecracker has no
 blast of its own. A second row names Catalyst at `innate` 0: infused points
-plant Catalyst beside the Heat, which the Heat then converts (an intended
-combo). It crits on `NoEdgeToSourceCondition`: a hit whose blast centre (its
-payload's `predecessor`) shares no edge with the node.
+plant Catalyst beside the Heat (an intended combo). The status lands after
+the hit's terrain, so the same landing's Heat does not convert it; a later
+Heat landing or the node's priming does. It still authors
+`NoEdgeToSourceCondition` as its crit (a hit whose payload `predecessor`
+shares no edge with the node), a leftover of the old euclidean walk that the
+edge wave never meets.
 
 ## The look
 
@@ -165,6 +168,8 @@ its 5 for the gather. A 3-charge piece on clean nodes: 3 → 2 → 1 → pop.
 
 ## Knobs
 
+changing: `resonance` goes with the blade's piece pass, #1802; see docs/design/elements/go-offs.md
+
 All tentative, easy to change.
 
 | knob | default | owner | what |
@@ -176,8 +181,9 @@ All tentative, easy to change.
 | `resonance` | 1 | `CatalystSpread` | the blade piece pass's shared-chunk weight (#1802's) |
 | `crystal_size`, `crystal_cap`, `conversion_pulse_seconds` | 5.0, 6, 0.5 | `StatusOverlay` | the look |
 
-`CatalystSpread.damage_per_charge` is still authored and described, but no
-code reads it: the death burn deals no damage.
+`CatalystSpread.damage_per_charge` is still authored, and `describe()` still
+promises it, but no code reads it: the death burn writes the row off and deals
+no damage.
 
 ## Guards
 
