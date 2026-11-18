@@ -125,7 +125,9 @@ func test_special_arrows_are_flat_never_times_leaves() -> void:
 	w.applier.submit(_reload(w))
 	assert_eq(w.quiver().stock_of(&"poison"), 1, "one poison arrow, not one per leaf")
 	assert_eq(w.quiver().stock_of(&"arrow"), 4 * w.per_leaf())
-	assert_eq(w.quiver().total_stock(), 4 * w.per_leaf() + 1)
+	var catalyst := floori(w.player.stat_board.get_value(&"catalyst_aspect"))
+	assert_eq(w.quiver().stock_of(&"catalyst"), catalyst, "the starter Catalyst, flat too")
+	assert_eq(w.quiver().total_stock(), 4 * w.per_leaf() + 1 + catalyst)
 	assert_eq(roundi(w.quiver().current), 4 * w.per_leaf(), "current is the plain bin alone")
 
 

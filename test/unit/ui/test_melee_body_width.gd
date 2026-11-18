@@ -76,6 +76,10 @@ func _build_star(leaf_count: int) -> void:
 	# the fixture entity's real default is 1, far too small to draw the row this
 	# file is about.
 	_player.stat_board.blade_size.base_value = float(leaf_count)
+	# The starter element counts (1 each) would fill the bar with the element
+	# addons; this file's bar holds the aspect kinds alone.
+	for element in ElementRoster.shared().elements:
+		_player.stat_board.get_stat(element.stat.id).base_value = 0.0
 	_player.core_location = _pivot
 	_alloc.force_allocate(_player, _pivot)
 	for leaf in _leaves:

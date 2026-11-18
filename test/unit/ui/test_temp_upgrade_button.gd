@@ -71,6 +71,10 @@ func before_each() -> void:
 	_attacker = _world.add_entity("")
 	_attacker.name = "Attacker"
 	_attacker.stat_board.blade_size.base_value = 3.0
+	# The starter element counts (1 each) put the element addons on the bar;
+	# this fixture's bar holds the aspect kinds alone.
+	for element in ElementRoster.shared().elements:
+		_attacker.stat_board.get_stat(element.stat.id).base_value = 0.0
 	_attacker.stat_board.action_points.base_value = 4.0
 	_attacker.stat_board.action_points.current = 4.0
 	_tm.start_turn(_attacker)

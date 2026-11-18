@@ -119,7 +119,7 @@ func test_next_breakpoint_is_the_first_unreached_rung() -> void:
 
 
 func test_element_counts_show_after_aspects_tinted_and_unpickable() -> void:
-	var plan := _plan(_caster({&"poison": 2, &"fire": 4}), _spell())
+	var plan := _plan(_caster({&"poison": 2, &"fire": 4, &"ice": 0}), _spell())
 	var entries := InfusionChoices.entries(plan, 0)
 	var by := _by_id(entries)
 	assert_true(by.has(&"fire"), "held Fire attunement is offered")

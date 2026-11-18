@@ -783,6 +783,13 @@ func test_reload_has_room_while_a_minted_special_is_below_its_cap() -> void:
 	var poison := _AMMO_ROSTER.by_id(&"poison")
 	var mint_stat := _enemy.stat_board.get_stat(poison.per_reload_stat_id())
 	mint_stat.base_value = 0.0
+	# Every other special mints nothing either (the starter Catalyst count is 1).
+	for t in _AMMO_ROSTER.types:
+		if t == poison or t == _AMMO_ROSTER.base_type() or t.per_reload_stat_id().is_empty():
+			continue
+		var other := _enemy.stat_board.get_stat(t.per_reload_stat_id())
+		if other != null:
+			other.base_value = 0.0
 	assert_false(_ai._reload_has_room(quiver), "full plain and no special minted: nothing to gain")
 	mint_stat.base_value = 3.0
 	assert_true(_ai._reload_has_room(quiver), "full plain, but poison mints and has room")

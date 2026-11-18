@@ -101,6 +101,7 @@ func test_a_swing_with_count_zero_cannot_afford_it() -> void:
 	var plan := autofree(MeleeAttackPlan.new()) as MeleeAttackPlan
 	plan.attacker = entity
 	var fire := ElementRoster.shared().by_id(&"fire")
+	entity.stat_board.get_stat(fire.stat.id).base_value = 0.0  # under the starter 1
 	assert_eq(plan.currency_cap(fire.stat.id), 0, "fixture: no fire_element")
 	assert_eq(SkillNodeAddon.temp_costs_of(_FIXTURE).get(fire.stat.id, 0), 1, "fixture: costs 1")
 	assert_false(plan._affords(_FIXTURE), "count 0: the swing cannot afford it")
