@@ -189,12 +189,18 @@ const KEY_TERRAIN_DC := "tr_dc"
 ## [constant KEY_HIT_STATUS_HOST] records a status hit's), the def as its
 ## resource_path (as [member status_defs]) and the signed power change. All
 ## omitted when no hit carries any, so a record without one is dict-identical
-## to an older one.
+## to an older one. The holder column is always [code]NODE[/code] today.
 const KEY_ROW_COUNT := "rw_n"
 const KEY_ROW_NODE := "rw_node"
 const KEY_ROW_HOST := "rw_host"
 const KEY_ROW_DEF := "rw_def"
 const KEY_ROW_DELTA := "rw_d"
+## Each row change's converted stacks (a Catalyst take's element id → stacks
+## made, the op's fifth slot): one count per op, slicing flat element ids and
+## stacks. Omitted when no op converted anything.
+const KEY_ROW_CONV_COUNT := "rw_cn"
+const KEY_ROW_CONV_ELEMENT := "rw_ce"
+const KEY_ROW_CONV_STACKS := "rw_cs"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
@@ -307,6 +313,9 @@ var row_nodes := PackedInt32Array()
 var row_hosts := PackedInt32Array()
 var row_defs := PackedStringArray()
 var row_deltas := PackedFloat64Array()
+var row_conv_counts := PackedInt32Array()
+var row_conv_elements := PackedStringArray()
+var row_conv_stacks := PackedInt32Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -382,6 +391,9 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"row_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_HOST).omitted_at_default(),
 		WireFields.Field.new(&"row_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_DEF).omitted_at_default(),
 		WireFields.Field.new(&"row_deltas", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_ROW_DELTA).omitted_at_default(),
+		WireFields.Field.new(&"row_conv_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_CONV_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"row_conv_elements", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_CONV_ELEMENT).omitted_at_default(),
+		WireFields.Field.new(&"row_conv_stacks", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_CONV_STACKS).omitted_at_default(),
 		WireFields.Field.new(&"blasts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_BLAST).omitted_at_default(),
 		WireFields.Field.new(&"blast_centres", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_CENTRE).omitted_at_default(),
 		WireFields.Field.new(&"blast_reach", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_BLAST_REACH).omitted_at_default(),
@@ -428,10 +440,13 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			any_terrain = true
 			break
 	var any_rows := false
+	var any_converted := false
 	for hit in outcome.hits:
 		if not hit.row_ops.is_empty():
 			any_rows = true
-			break
+		for op: Array in hit.row_ops:
+			if op.size() > 4 and not (op[4] as Dictionary).is_empty():
+				any_converted = true
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
 		index_of[hit] = i
@@ -498,6 +513,12 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.row_hosts.append(int(op[1]))
 				r.row_defs.append(def.resource_path if def != null else "")
 				r.row_deltas.append(float(op[3]))
+				if any_converted:
+					var conv: Dictionary = op[4] if op.size() > 4 else {}
+					r.row_conv_counts.append(conv.size())
+					for id: Variant in conv:
+						r.row_conv_elements.append(String(id))
+						r.row_conv_stacks.append(int(conv[id]))
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -587,6 +608,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var terrain_at := 0
 	# Running offset over the flattened row changes, advanced per hit.
 	var row_at := 0
+	# Running offset over the flattened converted stacks, advanced per row op.
+	var conv_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -739,8 +762,15 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 							def = load(path) as StatusDef
 						else:
 							push_warning("AttackRecord: row def %s not found on this machine" % path)
+					var conv := {}
+					if at < r.row_conv_counts.size():
+						for c in r.row_conv_counts[at]:
+							if conv_at + c < r.row_conv_stacks.size():
+								conv[StringName(r.row_conv_elements[conv_at + c])] = \
+										r.row_conv_stacks[conv_at + c]
+						conv_at += r.row_conv_counts[at]
 					hit.row_ops.append([_node_of(r.row_nodes[at], graph),
-							r.row_hosts[at] as StatusInstance.HostKind, def, r.row_deltas[at]])
+							r.row_hosts[at] as StatusInstance.HostKind, def, r.row_deltas[at], conv])
 			row_at += r.row_counts[i]
 		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated

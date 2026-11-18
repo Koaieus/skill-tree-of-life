@@ -94,11 +94,13 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 signal blast_landed(mark: BlastMark)
 
 ## A node's Catalyst row was spent into terrain (the land step's conversion or
-## the settle seat's prime): [param spent] stacks off [param node]. Emitted by
+## the settle seat's prime) on [param node]: [param converted] is element id →
+## the stacks it made (after the trade, not the Catalyst spent); empty for a
+## settle-seat prime, whose take does not see its element yet. Emitted by
 ## [HitGather] where a recorded row change is applied to a LIVE world, so the
 ## authority's replay and every peer's announce it alike; a shadow resolve
 ## never does. VFX pulses the node.
-signal catalyst_converted(node: SkillNode, spent: int)
+signal catalyst_converted(node: SkillNode, converted: Dictionary)
 
 ## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
 ## and fires this at most once per run, carrying the populated [RunOutcome].

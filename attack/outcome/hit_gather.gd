@@ -619,9 +619,10 @@ func _convert_landing(node: SkillNode, landing: Dictionary, batch: TerrainSettle
 		if def == null or seen.has(def) or row.power <= 0.0:
 			continue
 		seen[def] = true
-		var take := func(spent: int) -> void:
-			_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent))
+		var spent := [0]
+		var take := func(n: int) -> void: spent[0] += n
 		var out := def.convert(slice, landing, take)
+		_row_change(rows, node, StatusInstance.HostKind.NODE, def, -float(spent[0]), out)
 		for id: Variant in out:
 			_add(batch, node, roster.by_id(id), int(out[id]))
 
@@ -661,19 +662,25 @@ func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoO
 
 
 ## The gather's one seat for a status-row change: [param delta] on the row of
-## [param def] held by [param node]'s slice, or by its owner's entity rows when
-## [param kind] is [code]ENTITY[/code] (the caller resolves which), summed into
-## [param rows] with the generation's other changes on that node and kind.
-## Committed and recorded by [method _commit_rows], so a replay changes the row
-## too.
+## [param def] held by [param node]'s slice ([param kind] is always
+## [code]NODE[/code] today), summed into [param rows] with the generation's
+## other changes on that node and kind, as `[delta, converted]`. A Catalyst
+## take passes [param converted], element id → the stacks it made (the
+## landing element the cue tints by), summed alike. Committed and recorded by
+## [method _commit_rows], so a replay changes the row too.
 func _row_change(rows: Dictionary, node: SkillNode, kind: StatusInstance.HostKind,
-		def: StatusDef, delta: float) -> void:
+		def: StatusDef, delta: float, converted: Dictionary = {}) -> void:
 	if delta == 0.0 or def == null or node == null:
 		return
 	var at := [node, kind]
 	if not rows.has(at):
 		rows[at] = {}
-	rows[at][def] = float(rows[at].get(def, 0.0)) + delta
+	if not rows[at].has(def):
+		rows[at][def] = [0.0, {}]
+	var entry: Array = rows[at][def]
+	entry[0] = float(entry[0]) + delta
+	for id: Variant in converted:
+		entry[1][id] = int(entry[1].get(id, 0)) + int(converted[id])
 
 
 ## Commit [param rows]: each holder's summed change on its row, a spend clamped
@@ -683,16 +690,16 @@ func _row_change(rows: Dictionary, node: SkillNode, kind: StatusInstance.HostKin
 func _commit_rows(rows: Dictionary) -> void:
 	for at: Array in rows:
 		for def: StatusDef in rows[at]:
-			var op := [at[0], at[1], def, float(rows[at][def])]
+			var entry: Array = rows[at][def]
+			var op := [at[0], at[1], def, float(entry[0]), entry[1]]
 			_row_ops.append(op)
 			_apply_row(_world, op)
 
 
 ## One recorded row change ([member HitInstance.row_ops]) on [param world]: the
-## node's slice, or its owner's entity rows; nothing when the node or the
-## owner is gone (a replay whose node lost its owner to an earlier cascade).
-## A Catalyst take on a live world also announces
-## [signal Events.catalyst_converted] (the replay's cue; a shadow stays silent).
+## node's slice; nothing when the node is gone. A Catalyst take on a live world
+## also announces [signal Events.catalyst_converted] with the op's converted
+## stacks (the replay's cue; a shadow stays silent).
 static func _apply_row(world: CombatWorld, op: Array) -> void:
 	var node: SkillNode = op[0]
 	if node == null or not is_instance_valid(node):
@@ -700,14 +707,11 @@ static func _apply_row(world: CombatWorld, op: Array) -> void:
 	var slice := world.combat_for(node) as NodeCombat
 	if slice == null:
 		return
-	var holder: Object = slice
-	if int(op[1]) == StatusInstance.HostKind.ENTITY:
-		holder = slice.owner()
-	if holder == null or op[2] == null:
+	if op[2] == null:
 		return
-	holder.adjust_status_power(op[2], float(op[3]))
+	slice.adjust_status_power(op[2], float(op[3]))
 	if float(op[3]) < 0.0 and op[2] is CatalystStatus and not world.is_shadow():
-		Events.catalyst_converted.emit(node, roundi(-float(op[3])))
+		Events.catalyst_converted.emit(node, op[4] if op.size() > 4 else {})
 
 
 ## [param total] stacks off [param node]'s store of [param e]: summed with the

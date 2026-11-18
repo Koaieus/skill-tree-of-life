@@ -94,6 +94,8 @@ var blips: Array[Rect2] = []
 var crystals: Array[Rect2] = []
 var _crystal_tint: Color = Color.WHITE
 var _pulse_left: float = 0.0
+## The conversion pulse's colour: the landing element's tint ([method _on_catalyst_converted]).
+var _pulse_tint: Color = Color.WHITE
 ## `N == T − 1`: one more stack, or one lost degree, cashes the chunks in.
 var critical: bool = false
 
@@ -165,12 +167,20 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## The cue: [param node] is this overlay's own node. The tint is the Catalyst
-## crystal violet; the landing element's colour is not carried by the cue yet.
-func _on_catalyst_converted(node: SkillNode, _spent: int) -> void:
+## The cue: [param node] is this overlay's own node. The pulse takes the tint
+## of the element [param converted] made the most stacks of (the first on a
+## tie; tentative), the crystal tint when it names none.
+func _on_catalyst_converted(node: SkillNode, converted: Dictionary) -> void:
 	var slice := _host as NodeCombat if _host != null and is_instance_valid(_host) else null
 	if slice == null or slice.real() != node:
 		return
+	_pulse_tint = _crystal_tint
+	var most := 0
+	for id: Variant in converted:
+		var e := ElementRoster.shared().by_id(id)
+		if int(converted[id]) > most and e != null and e.identity != null:
+			most = int(converted[id])
+			_pulse_tint = e.identity.tint
 	_pulse_left = conversion_pulse_seconds
 	visible = true
 	set_process(true)
@@ -318,7 +328,7 @@ func _draw() -> void:
 	for r in crystals:
 		_draw_crystal(r)
 	if _pulse_left > 0.0:
-		var glow := _crystal_tint.lerp(Color.WHITE, 0.5)
+		var glow := _pulse_tint.lerp(Color.WHITE, 0.5)
 		glow.a = _pulse_left / maxf(conversion_pulse_seconds, 0.01)
 		draw_rect(Rect2(Vector2.ZERO, size), glow)
 	var font := ThemeDB.fallback_font
