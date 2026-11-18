@@ -277,3 +277,32 @@ planted (§ Terrain's landing divert).
 colour and a filled disc.
 
 Fire's overflow band authors its go-off: `elements/defs/fire.tres`'s `band_overflow` carries the `burning_disc` `go_off`.
+
+## Fire's add-up (#1828)
+
+A Fire shape and a Burning node go off as ONE disc (ADR 0084 §3, §4), on the
+same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
+
+- **Radius.** `DiscGoOff.shape_disc_radius(shape_power, excess, node_radius)` =
+  `radius_a × (√shape_power + √excess + radius_b) ×` the origin node's radius;
+  each root's term is floored at 0. It is the one formula: `disc_radius(power, R)`
+  is `shape_disc_radius(0, power, R)`.
+- **The fire.** `DiscGoOff.fire_shaped_in(world, node, read, shape_power)`, beside
+  `fire_in` (which is unchanged). The caller computes the shape power: a blade
+  vertex passes its excess at fill (#1829), a cast passes points ×
+  `shape_power_per_point` (#1812).
+- **Burning node** (`power_at` > 0). It reaches every node inside the combined
+  radius. It pays its **solo cost**, 1 per reached node that is also inside its
+  own `disc_radius(excess)`, which is the same spend `fire_in` makes there. When
+  the combined disc reaches anyone and that spend is below
+  `solo_cost_floor`, the shortfall goes into `nodeless_cost`. `solo_cost_floor`
+  defaults to 1, `@export_range(0, 3)`, and 0 turns it off (tentative knob,
+  #1828). `power` and `own_damage` (`damage_per_power × excess`) read the
+  excess only, and `reach` is the combined radius.
+- **Node not Burning** (Heat ≤ T, or Cold). The shape runs alone over
+  `shape_disc_radius(shape_power, 0, R)`, with no spend, no power and no own
+  damage. With shape power ≤ 0 as well, it is no go-off.
+- A disc that reaches nobody spends nothing, the floor included.
+- **What stays with the callers.** The caller routes the answer through
+  `HitGather`: the one Fire channel, whether a centre copy lands (ADR 0086 §4,
+  §5), and who spends what.
