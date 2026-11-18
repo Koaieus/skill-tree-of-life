@@ -362,3 +362,44 @@ whole excess, Heat − T, never Heat − k × T. Guards:
   The radius is `DiscGoOff.disc_radius(excess, the node's own radius)`,
   called through Fire's `bands[0].go_off` and never copied. Detail and the
   refresh trigger are in `docs/domain/vision-system.md` § Burning nodes.
+
+## Ice on the node: Frozen (#1807)
+
+Ice's answers are one `FrozenAdmits` (`elements/frozen_admits.gd`), authored
+once in `elements/defs/ice.tres` and set as `admits` on **both** Ice bands
+(Frozen and Deep freeze; tentative lead reading: `band_of` hands a node past
+the cap only the overflow band, so the one resource keeps both answering
+alike). Ice owns no gather code and no terrain write: `HitGather` asks both
+seams and settles the answer (hit-resolution.md § The beat).
+
+- **A breaker, each arrival alone** (`FrozenAdmits.breaks`): the head's crit
+  (decided at the beat's open, so a blade contact's and an arrow's too), or —
+  on a node with a holder — the arrival's damage as the floater shows it
+  (`mitigated`: `HitPoints.whole`, then `Mitigation.compute` with the node's
+  `armor` / `min_damage_taken` and the head's pierce; TRUE unmitigated) at or
+  above `break_fraction_max_hp` × the holder's max HP. The holder is
+  `world.combat_for(node).owner()`; no holder, no flat breaker. A merged dual
+  reach (`dedupe_dual_reach` on) is one arrival at its summed amount.
+- **The admit** (`admit_in`, before the generation's riders): a copy that does
+  not break is absorbed (no entry; its terrain riders still land). A head and a
+  centre copy always land.
+- **The read** (`read_in`, after the riders, once per node per generation;
+  asked only while the node is still Frozen or Deep freeze, so a thaw is no
+  breaker): `breakers` = every arrival that breaks (centre copies skipped); none
+  → `paths_end`. On a break: `extra_landings = break_channels`,
+  `spend = round(excess × shatter_spend_fraction)` of the node's own excess
+  (count − T, overflow included: deep freeze), and
+  `burst = (excess + added_excess(...)) × shatter_fraction_per_stack × holder max
+  HP`, 0 with no holder. `added_excess` is 0: the seat a cast's concentrate
+  (#1813) overrides; it never reaches the spend.
+- **Knobs** (all `@export` on the resource, tentative): `break_fraction_max_hp`
+  0.10, `break_channels` 2, `shatter_fraction_per_stack` 0.01,
+  `shatter_spend_fraction` 1.0, and `vertex_bonus_per_excess` 0.10 (the Frozen
+  blade vertex's multiplier, read at fill, not by either answer).
+- **The Cold addon** (`skill_node/addons/defs/cold_addon.tscn`, look
+  `skill_node/addons/visuals/cold_visual.gd`): Ice's element addon, rider only,
+  one `ApplyStatusEffect` of `cold` at `power = 1`, costing 1 `ice_element`.
+- Not yet built: the blade on Frozen (the touch breaker by weight, the pop after
+  the riders) and the Frozen vertex.
+- Guards: `test/unit/attack/test_frozen_admits.gd`,
+  `test/unit/attack/test_ice_shatter.gd`.

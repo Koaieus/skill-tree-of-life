@@ -71,19 +71,22 @@ func breaks(world: CombatWorld, node: SkillNode, arrival: Arrival) -> bool:
 	return mitigated(world, node, arrival) >= break_fraction_max_hp * holder.get_max_hp()
 
 
-## [member Arrival.amount] as the floater will show it: [method Mitigation.compute]
-## with the node's armor and `min_damage_taken`, the head's pierce; TRUE as is.
+## [member Arrival.amount] as the floater will show it, as
+## [method NodeCombat.take_damage] lands it: made whole ([method HitPoints.whole]),
+## then [method Mitigation.compute] with the node's armor and
+## `min_damage_taken` and the head's pierce; TRUE skips the mitigation.
 static func mitigated(world: CombatWorld, node: SkillNode, arrival: Arrival) -> float:
+	var amount := HitPoints.whole(arrival.amount)
 	var head := arrival.head as DamageInstance
 	if head != null and head.type == DamageInstance.Type.TRUE:
-		return arrival.amount
+		return amount
 	var slice := world.combat_for(node) as NodeCombat if world != null else null
 	var armor := 0.0
 	var floor_min := 0.0
 	if slice != null:
 		armor = float(slice.get_local_value(&"armor"))
 		floor_min = float(slice.get_local_value(&"min_damage_taken"))
-	return Mitigation.compute(arrival.amount, armor, floor_min,
+	return Mitigation.compute(amount, armor, floor_min,
 			head.armor_pierce if head != null else null)
 
 

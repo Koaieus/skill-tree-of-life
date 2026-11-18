@@ -310,8 +310,6 @@ before its hit and lift it).
 
 ## The beat
 
-changing: a Frozen node settles once per generation, #1807; see docs/design/elements/hit-resolution.md
-
 A **beat** is the unit removals spill and piles settle in. Inside an attack it
 is one `schedule_index` group of `OutcomeApplier.apply`; elsewhere it is one
 dealloc command, one spell wave, one turn-end tick step, a gate-flip command
@@ -328,6 +326,14 @@ Spill).
   the beat's only terrain writer. A beat a spell's walk already gathered
   (its compiled apply can split one wave over several indices) feeds its
   heads' `terrain_ops` and gathers nothing twice.
+- **A Frozen node settles once per generation.** Ice's `FrozenAdmits` answers
+  both `Admits` seams: on arrival it absorbs a copy that breaks nothing
+  (its terrain riders still land), and after the generation's riders it
+  either shatters the node (each breaking arrival takes `break_channels` extra
+  landings; one spend, one burst through `DotTick.mint`; every path walks on)
+  or ends every path there. A thaw by the riders is no breaker: a node no
+  longer Frozen is not asked. Detail: [elements.md](elements.md) § Ice on the
+  node: Frozen.
 - **The recording hit.** `CombatWorld.track_hit(hit)` keeps the first fresh
   landing since the last flush; the flush writes the beat's sandpile settle
   onto its `HitInstance.settle` as `CombatWorld.SettleOp`s. `track_entries`
@@ -355,8 +361,6 @@ The spill rules and the sandpile's worklist: [status-effects.md](status-effects.
 
 ## Mitigation
 
-changing: Frozen's damage breaker reads `Mitigation.compute` on each arrival, #1807; see docs/design/elements/frozen.md
-
 `Mitigation.apply_to(raw, defender)` (`attack/formulas/mitigation.gd`) is the
 door: `NodeCombat.take_damage` calls it for live and shadow slices alike and
 turns "5 PHYSICAL" into the post-armor number that subtracts HP.
@@ -368,6 +372,10 @@ incoming amount is rounded up to a whole number once, at the top of
 - `final = max(min_damage_taken, raw - effective_armor)`, only when `raw > 0`
   (zero incoming damage stays zero; the floor triggers on a real hit). TRUE
   damage bypasses everything.
+- **Frozen's damage breaker reads this number** before the beat lands:
+  `FrozenAdmits.mitigated` runs `HitPoints.whole` then `Mitigation.compute` on
+  each arrival's amount (crit and share in) with the node's armor, floor and
+  the head's pierce, so the break check and the floater agree.
 - **Armor pierce** is the attacker's pipeline over the defender's final armor
   (`DamageInstance.armor_pierce`, stamped by `pierce_terms`): folded only when
   armor > 0, clamped at 0 (pierce never makes a hit bigger; breaking armor below
