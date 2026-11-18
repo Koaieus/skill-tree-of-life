@@ -1,29 +1,26 @@
 extends GutTest
 
-## Firecracker (#1400): every landing is a blast whose radius shrinks with the
-## fuel the cast burns per wave, and every hostile node inside it is where the
-## next wave lands. Geometry is derived from the shipped knobs, never literals.
+## Firecracker (#1801): its row names Fire, so a landing plants Heat; the wave
+## walks the graph's edges to the hostile neighbours (the reach is the config's
+## default), and what blasts is the Burning disc of a node the Heat primes.
+## Geometry is derived from the shipped knobs, never literals.
 
 const H := preload("res://test/unit/spell/spell_test_helper.gd")
 const FIRECRACKER: SpellDef = preload("res://attack/spell/defs/firecracker.tres")
-const _CATALYST_STATUS := preload("res://effects/status/catalyst.tres")
-const _POISON := &"poison"
 
 var h: SpellTestHelper
-var reach: FuelBlastReach
-var load_: Dictionary
 ## Index 0 is always the attacker's node, far away unless a test moves it.
 const FAR := Vector2(-100000, 0)
+## Spacing that keeps every Burning disc off the neighbours.
+const APART := 20000.0
 
 
 func before_each() -> void:
 	h = H.new()
-	reach = FIRECRACKER.propagation.reach as FuelBlastReach
-	load_ = Infusion.innate(FIRECRACKER).load_of(FIRECRACKER)
 
 
-func _r(hop: int, load: Dictionary = load_) -> float:
-	return reach.radius_at(load, hop)
+func _fire() -> Element:
+	return ElementRoster.shared().by_id(&"fire")
 
 
 ## A graph of [param positions] (index -> Vector2; index 0 the attacker's).
@@ -51,9 +48,7 @@ func _board(positions: Dictionary, edges: Array = [], friendly: Array = []) -> D
 	h.assign_owner(graph, def, hostile)
 	h.assign_owner(graph, atk, [0] + friendly)
 	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
-	var nodes := graph.get_skill_nodes()
-	assert_almost_eq(nodes[1].radius, _rad(), 0.01, "fixture: geometry assumes this node radius")
-	return {graph = graph, atk = atk, n = nodes}
+	return {graph = graph, atk = atk, n = graph.get_skill_nodes()}
 
 
 func _resolve(b: Dictionary, seed_idx: int, spell: SpellDef = FIRECRACKER, inf: Infusion = null) -> AttackOutcome:
@@ -81,221 +76,92 @@ func _is_main_hit(x: HitInstance, node: SkillNode) -> bool:
 	return x.target == node and not (x is CureInstance or x is StatusInstance)
 
 
-## The default node radius every fixture node keeps; [method _board] pins it.
-func _rad() -> float:
-	return 32.0
-
-
-## A distance whose disc-touching reach lies strictly between hop k+1's and
-## hop k's radii: reached at hop k, not at k+1.
-func _between(k: int, rad: float, load: Dictionary = load_) -> float:
-	return rad + 0.5 * (_r(k, load) + _r(k + 1, load))
-
-
 # 1 ---------------------------------------------------------------------------
 
-func test_a_landing_reaches_every_hostile_in_its_blast_edge_or_no_edge() -> void:
-	var b := _board({1: Vector2.ZERO, 2: Vector2(0.5 * _r(0), 0), 3: Vector2(-0.5 * _r(0), 0)})
+func test_a_landing_walks_the_edges_to_hostile_neighbours_only() -> void:
+	var b := _board({1: Vector2.ZERO, 2: Vector2(APART, 0), 3: Vector2(-APART, 0)}, [[1, 2]])
 	var n: Array = b.n
 	var outcome := _resolve(b, 1)
-	assert_eq(_beats_of(outcome, n[2]), [1], "Y lands on wave 1")
-	assert_eq(_beats_of(outcome, n[3]), [1], "Z lands on wave 1")
+	assert_eq(_beats_of(outcome, n[1]), [0], "the seed lands on wave 0")
+	assert_eq(_beats_of(outcome, n[2]), [1], "the edge neighbour lands on wave 1")
+	assert_true(_beats_of(outcome, n[3]).is_empty(), "a node with no edge to it never does")
 
 
-func test_candidates_exclude_the_landed_node_in_stable_id_order() -> void:
-	var b := _board({1: Vector2.ZERO, 2: Vector2(0.5 * _r(0), 0), 3: Vector2(-0.5 * _r(0), 0)})
-	var n: Array = b.n
-	var lctx := _lctx(b, n[1], 0)
-	var got := reach.candidates(lctx)
-	assert_false(got.has(n[1]), "never the landed node")
-	assert_true(got.has(n[2]) and got.has(n[3]), "both blast targets")
-	var ids: Array = got.map(func(x): return (b.graph as Graph).get_stable_id(x))
-	var sorted := ids.duplicate()
-	sorted.sort()
-	assert_eq(ids, sorted, "stable-id order")
-
-
-func _lctx(b: Dictionary, node: SkillNode, hop: int, damage: float = 1.0, load: Dictionary = load_) -> LandingContext:
-	var cast := PropagationContext.new()
-	cast.graph = b.graph
-	cast.caster = b.atk
-	cast.load.assign(load)
-	var payload := CastSpell.new()
-	payload.current_node = node
-	payload.hop_index = hop
-	payload.damage = damage
-	return LandingContext.for_test(payload, node, cast)
-
-
-# 2 ---------------------------------------------------------------------------
-
-func test_a_node_reached_at_fuel_f_is_out_of_reach_at_the_next_fuel() -> void:
-	var k := 1
-	var b := _board({1: Vector2.ZERO, 2: Vector2(_between(k, _rad()), 0)})
-	var n: Array = b.n
-	assert_true(reach.candidates(_lctx(b, n[1], k)).has(n[2]), "inside hop k's blast")
-	assert_false(reach.candidates(_lctx(b, n[1], k + 1)).has(n[2]), "outside hop k+1's blast")
-
-
-# 3 ---------------------------------------------------------------------------
-
-func test_the_cast_ends_when_the_fuel_runs_out() -> void:
-	@warning_ignore("integer_division")  # intended truncation: index/count/offset
-	var last := int(load_.get(reach.fuel_aspect, 0)) / reach.fuel_per_jump
-	assert_lt(last, int(FIRECRACKER.propagation.max_hops), "fixture: fuel, not hops, binds")
-	assert_eq(_r(last), 0.0, "fixture: no blast at fuel 0")
-	var step := _r(last - 1) + 0.5 * _rad()
-	var pos := {}
-	for i in range(1, 80):
-		pos[i] = Vector2((i - 1) * step, 0)
-	var b := _board(pos)
-	var outcome := _resolve(b, 1)
-	var beats: Array = _landings(outcome).map(func(ev): return ev.beat)
-	assert_eq(beats.max(), last, "the last wave lands at fuel 0 and goes nowhere")
-	assert_true(_beats_of(outcome, b.n[79]).is_empty(), "fixture: the chain outruns the fuel")
-
-
-func test_with_ample_fuel_the_cast_stops_at_max_hops() -> void:
-	var hops := int(FIRECRACKER.propagation.max_hops)
-	var inf := Infusion.for_cast(FIRECRACKER, {reach.fuel_aspect: 100})
-	var load := inf.load_of(FIRECRACKER)
-	var step := 0.75 * reach.max_radius
-	assert_gte(_r(hops, load), step - _rad(), "fixture: fuel still reaches at max_hops")
-	assert_lt(_r(0, load), 2.0 * step - _rad(), "fixture: one node per wave")
-	var pos := {}
-	for i in range(1, hops + 4):
-		pos[i] = Vector2((i - 1) * step, 0)
-	var b := _board(pos)
-	var outcome := _resolve(b, 1, FIRECRACKER, inf)
-	var beats: Array = _landings(outcome).map(func(ev): return ev.beat)
-	assert_eq(beats.max(), hops, "the cast stops at max_hops")
-
-
-# 4 ---------------------------------------------------------------------------
-
-func test_two_nodes_across_a_gap_never_trade_hits() -> void:
-	var b := _board({1: Vector2.ZERO, 2: Vector2(0.5 * _r(1), 0)})
-	var n: Array = b.n
-	var outcome := _resolve(b, 1)
-	assert_eq(_beats_of(outcome, n[1]), [0], "the seed lands once")
-	assert_eq(_beats_of(outcome, n[2]), [1], "its neighbour across the gap once")
-
-
-func test_no_node_lands_in_two_waves() -> void:
-	var pos := {}
-	for i in range(1, 30):
-		@warning_ignore("integer_division")  # intended truncation: index/count/offset
-		pos[i] = Vector2((i % 6) * 0.3 * _r(2), (i / 6) * 0.3 * _r(2))
-	var b := _board(pos)
-	var outcome := _resolve(b, 1)
-	for node in b.n:
-		assert_lte(_beats_of(outcome, node).size(), 1, "%s lands at most once" % node.name)
-
-
-# 5 ---------------------------------------------------------------------------
-
-func test_a_friendly_node_inside_the_blast_never_lands() -> void:
-	var b := _board({1: Vector2.ZERO, 2: Vector2(0.5 * _r(0), 0), 3: Vector2(0, 0.5 * _r(0))}, [], [3])
+func test_a_friendly_neighbour_never_lands() -> void:
+	var b := _board({1: Vector2.ZERO, 2: Vector2(APART, 0), 3: Vector2(0, APART)}, [[1, 2], [1, 3]], [3])
 	var n: Array = b.n
 	var outcome := _resolve(b, 1)
 	assert_eq(_beats_of(outcome, n[2]), [1], "the hostile lands")
 	assert_true(_beats_of(outcome, n[3]).is_empty(), "the friendly never does")
 
 
-# 6, 7, 10 --------------------------------------------------------------------
-
-## Seed S(1); B(2), C(3), D(4) inside S's blast; A(5) outside S's blast but
-## inside each of theirs; B and C share an edge with A, D does not. E(6) sits
-## where only a hop-2 blast from A reaches it.
-func _three_blasts(extra: Dictionary = {}) -> Dictionary:
-	var rad := _rad()
-	var hx := 0.5 * _r(0)
-	var ax := hx + _r(1)
-	var pos := {1: Vector2.ZERO, 2: Vector2(hx, -8), 3: Vector2(hx, 8), 4: Vector2(hx, 0),
-			5: Vector2(ax, 0), 6: Vector2(ax + _between(2, rad), 0)}
-	for i in extra:
-		pos[i] = Vector2(ax, 0) + (extra[i] as Vector2)
-	var b := _board(pos, [[2, 5], [3, 5]])
-	assert_gt(ax - rad, _r(0), "fixture: A outside the seed's blast")
-	return b
+func test_no_node_lands_in_two_waves() -> void:
+	var pos := {}
+	var edges: Array = []
+	for i in range(1, 30):
+		@warning_ignore("integer_division")  # intended truncation: index/count/offset
+		pos[i] = Vector2((i % 6) * APART, (i / 6) * APART)
+		if i > 1:
+			edges.append([i - 1, i])
+		if i > 6:
+			edges.append([i - 6, i])
+	var b := _board(pos, edges)
+	var outcome := _resolve(b, 1)
+	for node in b.n:
+		assert_lte(_beats_of(outcome, node).size(), 1, "%s lands at most once" % node.name)
 
 
-func test_three_blasts_hit_a_three_times_only_the_gap_jump_crits_and_a_departs_once() -> void:
-	var b := _three_blasts()
+func test_the_cast_stops_at_max_hops() -> void:
+	var hops := int(FIRECRACKER.propagation.max_hops)
+	var pos := {}
+	var edges: Array = []
+	for i in range(1, hops + 4):
+		pos[i] = Vector2((i - 1) * APART, 0)
+		if i > 1:
+			edges.append([i - 1, i])
+	var b := _board(pos, edges)
+	var outcome := _resolve(b, 1)
+	var beats: Array = _landings(outcome).map(func(ev): return ev.beat)
+	assert_eq(beats.max(), hops, "the cast stops at max_hops")
+
+
+# 2 ---------------------------------------------------------------------------
+
+func test_the_row_names_fire_and_its_landing_plants_heat_at_the_innate() -> void:
+	var row := Infusion.intake_of(FIRECRACKER, &"fire")
+	assert_not_null(row, "the row names Fire")
+	var riders := Infusion.innate(FIRECRACKER).riders(FIRECRACKER)
+	assert_eq(riders.size(), 1, "one rider")
+	assert_eq((riders[0] as ApplyStatusEffect).def, _fire().terrain, "it plants Heat")
+	assert_eq((riders[0] as ApplyStatusEffect).power, float(row.innate), "at the row's innate")
+
+
+func test_a_landing_plants_heat_on_each_node_it_reaches() -> void:
+	var b := _board({1: Vector2.ZERO, 2: Vector2(APART, 0)}, [[1, 2]])
 	var n: Array = b.n
 	var outcome := _resolve(b, 1)
-	var on_a := _hits_on(outcome, n[5])
-	assert_eq(on_a.size(), 3, "one hit per covering blast")
-	for hit in on_a:
-		if hit.origin == n[4]:
-			assert_gte(hit.crit_tier, 1, "D's blast jumped a gap: crit")
-		else:
-			assert_eq(hit.crit_tier, 0, "%s shares an edge with A: no crit" % hit.origin.name)
-	assert_eq(_beats_of(outcome, n[5]), [2], "A lands once")
-	assert_eq(_hits_on(outcome, n[6]).size(), 1, "A departs once")
+	for i in [1, 2]:
+		var heat := outcome.hits.filter(func(x): return x is StatusInstance and x.target == n[i] and x.def == _fire().terrain)
+		assert_eq(heat.size(), 1, "node %d takes one Heat rider" % i)
 
 
-func test_the_seed_never_crits() -> void:
-	var b := _three_blasts()
+# 3 ---------------------------------------------------------------------------
+
+## A node the Heat tips into Burning goes off through Burning's disc: the cast
+## itself has no blast.
+func test_a_landing_that_primes_a_node_sets_off_burnings_disc() -> void:
+	var disc := _fire().bands[0].go_off as DiscGoOff
+	var innate := float(Infusion.intake_of(FIRECRACKER, &"fire").innate)
+	var rad := 32.0
+	var reach := disc.radius_a * (sqrt(innate) + disc.radius_b) * rad
+	var b := _board({1: Vector2.ZERO, 2: Vector2(rad + 0.5 * reach, 0)}, [[1, 2]])
 	var n: Array = b.n
-	var outcome := _resolve(b, 1)
-	var on_seed := _hits_on(outcome, n[1])
-	assert_eq(on_seed.size(), 1)
-	for hit in on_seed:
-		assert_eq(hit.crit_tier, 0, "no predecessor, no crit")
-
-
-func test_merged_fronts_depart_with_their_wave_fuel_under_any_reducer() -> void:
-	for reducer in [h.max_reducer(), h.sum_reducer(), h.first_reducer()]:
-		reducer.hit_each_incident = true
-		var spell := FIRECRACKER.duplicate() as SpellDef
-		spell.propagation = FIRECRACKER.propagation.duplicate() as PropagationConfig
-		spell.propagation.reducer = reducer
-		var b := _three_blasts()
-		var n: Array = b.n
-		var outcome := _resolve(b, 1, spell)
-		assert_eq(_beats_of(outcome, n[6]), [3], "%s: A departs on hop-2 fuel" % reducer.get_script().get_global_name())
-	var b2 := _three_blasts()
-	var nn: Array = b2.n
-	assert_eq(reach.candidates(_lctx(b2, nn[5], 2, 1.0)), reach.candidates(_lctx(b2, nn[5], 2, 99.0)),
-			"fuel reads the wave, never the front's damage")
-
-
-# 8, 9 ------------------------------------------------------------------------
-
-func test_a_cast_over_uncharged_nodes_plants_nothing() -> void:
-	var b := _three_blasts()
-	var outcome := _resolve(b, 1)
-	for hit in outcome.hits:
-		if hit is StatusInstance:
-			assert_ne(hit.def.id, &"catalyst", "fuel never plants")
-	assert_false(outcome.hits.any(func(x): return x is CureInstance), "nothing to set off")
-
-
-## Three hits of one wave on A each go off off one read of the pre-beat 2
-## (it used to pop once per wave); their spends sum and clamp at 0.
-func test_a_charged_node_goes_off_per_arrival_off_one_read_and_its_blast_carries_poison() -> void:
-	pending("a Catalyst-charged node no longer goes off: go-off zero's disc is gone; "
-			+ "#1801 F re-points Firecracker to plant Heat and blast through Burning's disc")
-	return
-	@warning_ignore("unreachable_code")
-	var b := _three_blasts({7: Vector2(0, -(2.0 * _rad() + 8.0))})
-	var n: Array = b.n
-	var a: SkillNode = n[5]
-	a.get_combat().apply_status(_CATALYST_STATUS, 2.0)
-	# The pop gathers over the global mirror, which a hand-built board fills
-	# only on reconcile.
+	var seed_node: SkillNode = n[1]
+	var combat := seed_node.get_combat()
+	combat.add_terrain(_fire(), combat.terrain_threshold() - combat.terrain_t())
 	(b.graph as Graph).navigator.reconcile()
-	var inf := Infusion.for_cast(FIRECRACKER, {_POISON: 2})
-	var outcome := _resolve(b, 1, FIRECRACKER, inf)
-	assert_eq(_hits_on(outcome, a).size(), 3, "fixture: A took three hits")
+	var outcome := _resolve(b, 1)
 	await OutcomeApplier.drain(HitQueue.over(outcome.hits), CombatWorld.live(), BeatClock.instant_clock())
-	var copies := outcome.hits.filter(func(h: HitInstance) -> bool: return h.blast_mark != null)
-	var powers: Array = []
-	for h: HitInstance in copies:
-		if h.blast_mark != null and h.blast_mark.centre == a and not powers.has(h.blast_mark):
-			powers.append(h.blast_mark)
-	assert_eq(powers.map(func(m: BlastMark) -> int: return m.power), [2, 2, 2], "three hits, three go-offs off the pre-beat 2")
-	assert_almost_eq(a.get_combat().get_status_power(&"catalyst"), 0.0, 0.0001, "their spends summed, clamped at 0")
-	var blast_poison := copies.filter(func(x): return x is StatusInstance and x.def.id == _POISON and x.target != a)
-	assert_false(blast_poison.is_empty(), "the blast carries poison outward")
+	var marks := outcome.hits.filter(func(x: HitInstance) -> bool:
+			return x.blast_mark != null and x.blast_mark.centre == seed_node)
+	assert_false(marks.is_empty(), "the primed seed set Burning's disc off")
