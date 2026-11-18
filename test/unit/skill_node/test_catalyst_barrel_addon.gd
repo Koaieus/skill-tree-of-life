@@ -128,7 +128,7 @@ func test_world_turn_decay_then_turn_start_refill() -> void:
 	assert_eq(_charges(n), full, "the next turn start refills what decayed")
 
 
-# --- the temp face: inert, and nothing on the swing --------------------------
+# --- the temp face: inert, and outside the refill ----------------------------
 # A temp barrel is inert like any barrel: it never writes its carrier's row, is
 # never counted as a barrel, and never adds to the turn-start refill.
 
