@@ -156,6 +156,8 @@ func to_dict(graph: Graph) -> Dictionary:
 		for id in infusion.points:
 			pts[String(id)] = infusion.points[id]
 		d["infusion"] = pts
+	# The shape and the ride ship beside the aspects, each only when set.
+	d.merge(infusion.fields_to_dict())
 	return d
 
 
@@ -175,6 +177,7 @@ static func from_dict(d: Dictionary, graph: Graph,
 	# Read ungated (ADR 0035): the host's only check is affordability, via
 	# aspect_overrun at launch.
 	plan.infusion = Infusion.for_cast(plan.spell, d.get("infusion", {}) as Dictionary)
+	plan.infusion.read_fields(d)
 	plan.source = graph.get_by_stable_id(int(d.get("source", 0))) if graph != null else null
 	plan.target = graph.get_by_stable_id(int(d.get("target", 0))) if graph != null else null
 	plan.aim_angle = float(d.get("aim", NAN))
@@ -684,21 +687,34 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 		current.erase(aspect_id)
 	if current == infusion.points:
 		return
-	infusion = Infusion.for_cast(spell, current)
+	infusion = infusion.rebuilt(spell, current)
 	_preview_key_valid = false
 	state_changed.emit()
 
 
 ## Forge [param points] of element [param id] as this cast's shape (0 clears
 ## it). Not gated — the element's count is [method aspect_overrun]'s.
-func set_shape(_id: StringName, _points: int) -> void:
-	pass
+func set_shape(id: StringName, points: int) -> void:
+	var next := infusion.rebuilt(spell, infusion.points)
+	next.set_shape(id, points)
+	_set_fields(next)
 
 
 ## Forge [param points] of element [param id] as this cast's ride (0 clears
 ## it). Not gated — the count and the spell's rate are [method aspect_overrun]'s.
-func set_ride(_id: StringName, _points: int) -> void:
-	pass
+func set_ride(id: StringName, points: int) -> void:
+	var next := infusion.rebuilt(spell, infusion.points)
+	next.set_ride(id, points)
+	_set_fields(next)
+
+
+## Swap in [param next] when its shape or ride differs; emits once on change.
+func _set_fields(next: Infusion) -> void:
+	if next.fields_to_dict() == infusion.fields_to_dict():
+		return
+	infusion = next
+	_preview_key_valid = false
+	state_changed.emit()
 
 
 ## Put [param aspect_id] in infusion socket [param index]; an empty id clears
@@ -712,7 +728,7 @@ func set_socket(index: int, aspect_id: StringName) -> void:
 	var points := socket_points(socket_order_with(index, aspect_id))
 	if points == infusion.points and points.keys() == infusion.points.keys():
 		return
-	infusion = Infusion.for_cast(spell, points)
+	infusion = infusion.rebuilt(spell, points)
 	_preview_key_valid = false
 	state_changed.emit()
 
@@ -765,8 +781,11 @@ func socket_points(order: Array[StringName]) -> Dictionary[StringName, int]:
 
 ## How far the infusion runs past what the caster may spend on one cast (the
 ## host's launch check, ADR 0035): points above each `<concept>_aspect`, aspects
-## above `infusion_slots`, the total above `floor(SpellDef.infusion_capacity)`
-## when that is finite, and every point on a concept the spell refuses (rate 0).
+## above `infusion_slots`, the aspects' total above
+## `floor(SpellDef.infusion_capacity)` when that is finite, and every point on a
+## concept the spell refuses (rate 0). The shape and the ride sit outside the
+## cap (ADR 0094 §6): per element either names, [method Infusion.spent_on]
+## above that element's count, plus every ride point on a refused element.
 ## There is no shared points pool: an aspect's depth is what the caster holds.
 func aspect_overrun() -> int:
 	var over := 0
@@ -779,6 +798,16 @@ func aspect_overrun() -> int:
 	over += maxi(0, infusion.slots_used() - AspectCurrency.cap_of(attacker, &"infusion_slots"))
 	if spell != null and not is_inf(spell.infusion_capacity):
 		over += maxi(0, infusion.total_points() - maxi(0, floori(spell.infusion_capacity)))
+	var elements := {}
+	if infusion.shape_points > 0:
+		elements[infusion.shape_element] = true
+	if infusion.ride_points > 0:
+		elements[infusion.ride_element] = true
+		if Infusion.rate_of(spell, infusion.ride_element) <= 0.0:
+			over += infusion.ride_points
+	for element: StringName in elements:
+		over += maxi(0, infusion.spent_on(element)
+				- AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(element)))
 	return over
 
 

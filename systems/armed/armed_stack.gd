@@ -106,21 +106,30 @@ func sync_attack_plan() -> void:
 func remember_infusion(plan: MagicAttackPlan) -> void:
 	if plan.spell == null or plan.spell.id.is_empty():
 		return
-	memory_for(plan.attacker).magic.last_infusion[plan.spell.id] = plan.infusion.points.duplicate()
+	var magic := memory_for(plan.attacker).magic
+	magic.last_infusion[plan.spell.id] = plan.infusion.points.duplicate()
+	magic.last_fields[plan.spell.id] = plan.infusion.fields_to_dict()
 
 
 ## Put back the remembered infusion of [param plan]'s spell, clamped by
-## [method clamp_infusion]. Nothing remembered leaves the plan as it is.
+## [method clamp_infusion] (the aspects) and [method clamp_fields] (the shape
+## and the ride). Nothing remembered leaves the plan as it is.
 func restore_infusion(plan: MagicAttackPlan) -> void:
-	var remembered := memory_for(plan.attacker).magic.last_infusion
-	if plan.spell == null or not remembered.has(plan.spell.id):
+	var magic := memory_for(plan.attacker).magic
+	if plan.spell == null:
 		return
-	var kept := clamp_infusion(plan.spell, plan.attacker, remembered[plan.spell.id])
-	for id in plan.infusion.points.keys():
-		if not kept.has(id):
-			plan.set_infusion(id, 0)
-	for id in kept:
-		plan.set_infusion(id, kept[id])
+	var remembered := magic.last_infusion
+	if remembered.has(plan.spell.id):
+		var kept := clamp_infusion(plan.spell, plan.attacker, remembered[plan.spell.id])
+		for id in plan.infusion.points.keys():
+			if not kept.has(id):
+				plan.set_infusion(id, 0)
+		for id in kept:
+			plan.set_infusion(id, kept[id])
+	if magic.last_fields.has(plan.spell.id):
+		var fields := clamp_fields(plan.spell, plan.attacker, magic.last_fields[plan.spell.id])
+		plan.set_shape(fields.shape_element, fields.shape_points)
+		plan.set_ride(fields.ride_element, fields.ride_points)
 
 
 ## The remembered aspects of [param points] (`{concept id: points}`) socketed
@@ -152,6 +161,28 @@ static func clamp_infusion(spell: SpellDef, attacker: Entity,
 			continue
 		out[id] = pts
 		left -= pts
+	return out
+
+
+## The remembered shape and ride [param fields] (
+## [method Infusion.fields_to_dict]'s form) cut to what [param attacker] holds
+## today, as an [Infusion] carrying only the two fields. Each keeps its
+## remembered points and is only cut, never refilled: the shape to its
+## element's count, then the ride to what that count leaves (on one element
+## the ride gives way first), and to 0 on an element [param spell] refuses.
+## The capacity never cuts either. Its [method MagicAttackPlan.aspect_overrun]
+## field terms are 0.
+static func clamp_fields(spell: SpellDef, attacker: Entity, fields: Dictionary) -> Infusion:
+	var wanted := Infusion.new()
+	wanted.read_fields(fields)
+	var out := Infusion.new()
+	if wanted.shape_points > 0:
+		var shape_count := AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(wanted.shape_element))
+		out.set_shape(wanted.shape_element, mini(wanted.shape_points, shape_count))
+	if wanted.ride_points > 0 and Infusion.rate_of(spell, wanted.ride_element) > 0.0:
+		var left := AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(wanted.ride_element)) \
+				- out.spent_on(wanted.ride_element)
+		out.set_ride(wanted.ride_element, mini(wanted.ride_points, left))
 	return out
 
 

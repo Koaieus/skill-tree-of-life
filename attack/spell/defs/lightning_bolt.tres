@@ -19,6 +19,14 @@
 [ext_resource type="Script" uid="uid://yfb61eex5i67" path="res://attack/spell/propagation/progression/multiply_progression.gd" id="13_prog"]
 [ext_resource type="PackedScene" uid="uid://j8dyliqjpe74" path="res://ui/vfx/coordinator/spells/lightning_bolt_coordinator.tscn" id="14_vfx"]
 [ext_resource type="Resource" path="res://identity/defs/spell_lightning_bolt.tres" id="identity_ref"]
+[ext_resource type="Resource" path="res://identity/defs/lightning.tres" id="20_lightning"]
+[ext_resource type="Resource" path="res://effects/status/charge.tres" id="21_charge"]
+
+[sub_resource type="Resource" id="charge_ride"]
+script = ExtResource("1_68w5p")
+identity = ExtResource("20_lightning")
+innate = 1
+plants = ExtResource("21_charge")
 
 [sub_resource type="Resource" id="carve_lightning"]
 script = ExtResource("1_tcs")
@@ -70,3 +78,4 @@ propagation = SubResource("prop_lightning")
 on_hit_effects = Array[ExtResource("2_effect")]([SubResource("dmg_lightning")])
 vfx_coordinator_scene = ExtResource("14_vfx")
 targeting = SubResource("targeting_lightning")
+intakes = Array[ExtResource("1_68w5p")]([SubResource("charge_ride")])

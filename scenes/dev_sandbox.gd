@@ -12,6 +12,15 @@ extends GameRoot
 ## The sandbox player swings a wide blade so melee is worth poking at.
 const _SANDBOX_BLADE_SIZE_BONUS := 4.0
 
+## The counts the sandbox Player starts higher in, for instant testing of the
+## forge and the element arrows: the three element counts and Catalyst's.
+const _STARTER_COUNTS: Array[StringName] = [
+		&"fire_element", &"ice_element", &"lightning_element", &"catalyst_aspect"]
+
+## Added to each starter count on the sandbox Player only, on top of the count's
+## `StatDef.default_value` (1 + 2 = 3 each). Tentative, easy to change.
+@export_range(0, 20, 1) var starter_count_bonus: float = 2.0
+
 
 func _ready() -> void:
 	super()
@@ -24,8 +33,14 @@ func _setup_level() -> void:
 	await super()
 	if player == null:
 		return
+	_grant(&"blade_size", _SANDBOX_BLADE_SIZE_BONUS)
+	for id in _STARTER_COUNTS:
+		_grant(id, starter_count_bonus)
+
+
+func _grant(stat_id: StringName, value: float) -> void:
 	var m := StatModifier.new()
-	m.stat_id = &"blade_size"
+	m.stat_id = stat_id
 	m.operation = StatModifier.Operation.ADD_BASE
-	m.value = _SANDBOX_BLADE_SIZE_BONUS
+	m.value = value
 	player.grant_core_modifier(m)

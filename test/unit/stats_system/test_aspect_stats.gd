@@ -38,7 +38,8 @@ func test_every_aspect_resolves_on_the_default_board() -> void:
 	for id in _ASPECTS:
 		assert_not_null(b.get_stat(id), "%s is a typed stat on the default board" % id)
 		if b.get_stat(id) != null:
-			assert_eq(int(b.get_value(id)), 0, "%s defaults to 0" % id)
+			assert_eq(b.get_value(id), StatRegistry.get_def(id).default_value,
+					"%s reads its def's default" % id)
 
 
 func test_plus_one_aspects_raises_every_child_by_one() -> void:
