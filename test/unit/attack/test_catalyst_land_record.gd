@@ -136,6 +136,9 @@ func test_the_land_take_rides_the_record_beside_the_converted_terrain() -> void:
 		assert_eq(takes[0][0], n, "on N")
 		assert_eq(int(takes[0][1]), StatusInstance.HostKind.NODE, "N's own row")
 		assert_eq(float(takes[0][3]), -3.0, "the whole store")
+		assert_eq(takes[0].size(), 5, "the take carries what it converted into")
+		if takes[0].size() == 5:
+			assert_eq(takes[0][4], {_fire.id(): 3}, "the stacks made, by landing element")
 	assert_eq(_held(n, CombatWorld.live()), 3, "fixture: the live store is untouched")
 
 
@@ -147,7 +150,16 @@ func test_a_rebuilt_record_lands_the_same_terrain_and_row() -> void:
 	var t := _slice(n, _shadow).terrain_t()
 	var held := _held(n, _shadow)
 	assert_eq(held, 0, "fixture: the gather took the row")
-	await _drain(_rebuilt(outcome), CombatWorld.live())
+	var rebuilt := _rebuilt(outcome)
+	var takes := _takes(rebuilt)
+	assert_eq(takes.size(), 1, "the rebuilt head carries the take")
+	if takes.size() == 1:
+		assert_eq(takes[0].size(), 5, "with its converted column")
+		if takes[0].size() == 5:
+			assert_eq(takes[0][4], {_fire.id(): 3}, "element ids and stacks survive the round trip")
+			for id: Variant in takes[0][4]:
+				assert_eq(typeof(id), TYPE_STRING_NAME, "the element id comes back a StringName")
+	await _drain(rebuilt, CombatWorld.live())
 	assert_eq(_slice(n, CombatWorld.live()).terrain_t(), t, "the rebuilt beat lands the converted Heat")
 	assert_eq(_held(n, CombatWorld.live()), held, "and takes the row as the gather did")
 

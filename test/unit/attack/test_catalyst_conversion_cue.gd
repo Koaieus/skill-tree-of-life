@@ -3,7 +3,7 @@ extends GutTest
 ## The Catalyst conversion cue ([signal Events.catalyst_converted]): the
 ## authority's resolve on a shadow world has no audience, the replay of the
 ## rebuilt record on the live world (the authority's own and every peer's)
-## announces each take of a Catalyst row once.
+## announces each take of a Catalyst row once, with what it converted into.
 
 const _PATH := "res://test/_tmp/catalyst_cue_probe.tres"
 
@@ -88,4 +88,5 @@ func test_resolve_is_silent_and_the_rebuilt_replay_announces_once() -> void:
 	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
 	await _drain(rebuilt, CombatWorld.live())
 	assert_signal_emit_count(Events, "catalyst_converted", 1, "the replay announces the take")
-	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, 3])
+	# The payload is the stacks made (ratio 1 : 1 here), keyed by landing element.
+	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, {_fire.id(): 3}])
