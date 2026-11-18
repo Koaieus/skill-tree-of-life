@@ -12,3 +12,8 @@ var selected_spell: SpellDef = null
 ## magic plan leaves a spell and put back, clamped, when a plan equips it again
 ## ([method ArmedStack.remember_infusion] / [method ArmedStack.restore_infusion]).
 var last_infusion: Dictionary[StringName, Dictionary] = {}
+
+## Last shape and ride per spell, `{spell id: Infusion.fields_to_dict()}` —
+## beside [member last_infusion], which holds the aspects alone. Put back,
+## clamped to the counts, by [method ArmedStack.restore_infusion].
+var last_fields: Dictionary[StringName, Dictionary] = {}

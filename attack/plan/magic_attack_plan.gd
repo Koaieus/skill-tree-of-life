@@ -689,6 +689,18 @@ func set_infusion(aspect_id: StringName, points: int) -> void:
 	state_changed.emit()
 
 
+## Forge [param points] of element [param id] as this cast's shape (0 clears
+## it). Not gated — the element's count is [method aspect_overrun]'s.
+func set_shape(_id: StringName, _points: int) -> void:
+	pass
+
+
+## Forge [param points] of element [param id] as this cast's ride (0 clears
+## it). Not gated — the count and the spell's rate are [method aspect_overrun]'s.
+func set_ride(_id: StringName, _points: int) -> void:
+	pass
+
+
 ## Put [param aspect_id] in infusion socket [param index]; an empty id clears
 ## it. The socket order is the insertion order of `infusion.points` and holds
 ## no gap: a cleared socket's right neighbours slide left, and an index past the

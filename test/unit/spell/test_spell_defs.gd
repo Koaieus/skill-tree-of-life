@@ -207,3 +207,23 @@ func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+## Each spell carries at most one element across its element ride rows, so a
+## hit carries 0 or 1 element ([method Infusion.innate_ride_of]).
+func test_every_spell_carries_at_most_one_innate_element() -> void:
+	for spell in TestSpells.CATALOG.spells:
+		var elements := {}
+		for row in spell.intakes:
+			if Infusion.is_ride_row(row):
+				elements[row.aspect_id()] = true
+		assert_lte(elements.size(), 1, "%s rides more than one element" % spell.id)
+
+
+func test_lightning_bolt_rides_charge_innately() -> void:
+	assert_eq(Infusion.innate_ride_of(_LIGHTNING), &"lightning")
+	var charge: StatusDef = preload("res://effects/status/charge.tres")
+	var row := Infusion.intake_of(_LIGHTNING, &"lightning")
+	assert_not_null(row)
+	assert_eq(row.status(), charge, "the row plants Charge")
+	assert_gt(row.innate, 0)

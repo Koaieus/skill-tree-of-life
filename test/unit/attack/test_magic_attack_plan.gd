@@ -217,3 +217,79 @@ func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+# ── the shape and ride fields against the counts and the cap ───────────────
+
+func _count(element: StringName) -> int:
+	return AspectCurrency.cap_of(_attacker, AspectCurrency.stat_of(element))
+
+
+func _set_count(element: StringName, value: float) -> void:
+	_attacker.stat_board.facet(element, StatDef.Role.COUNT).base_value = value
+
+
+func test_shape_and_ride_on_one_element_share_its_count() -> void:
+	_set_count(&"fire", 4.0)
+	var p := _plan()
+	var count := _count(&"fire")
+	assert_gt(count, 1, "fixture: a split is possible")
+	p.set_shape(&"fire", 1)
+	p.set_ride(&"fire", count - 1)
+	assert_eq(p.aspect_overrun(), 0, "exactly at the count")
+	p.set_ride(&"fire", count + 1)
+	assert_eq(p.aspect_overrun(), 2, "1 + (count + 1) runs the count over by 2")
+
+
+func test_shape_and_ride_on_two_elements_each_meet_their_own_count() -> void:
+	_set_count(&"fire", 3.0)
+	_set_count(&"ice", 2.0)
+	var p := _plan()
+	p.set_shape(&"fire", _count(&"fire"))
+	p.set_ride(&"ice", _count(&"ice"))
+	assert_eq(p.aspect_overrun(), 0, "each at its count")
+	p.set_shape(&"fire", _count(&"fire") + 2)
+	assert_eq(p.aspect_overrun(), 2, "the shape's excess")
+	p.set_shape(&"fire", _count(&"fire"))
+	p.set_ride(&"ice", _count(&"ice") + 1)
+	assert_eq(p.aspect_overrun(), 1, "the ride's excess")
+
+
+func test_a_ride_on_a_refused_element_overruns_by_its_points() -> void:
+	_set_count(&"fire", 5.0)
+	var p := _plan()
+	_spell.ingest_gain = 0
+	p.set_ride(&"fire", 2)
+	assert_eq(p.aspect_overrun(), 2, "every ride point on a refused element")
+
+
+func test_the_capacity_holds_the_aspects_alone() -> void:
+	_attacker.stat_board.intelligence.base_value = 1000.0
+	_attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 20.0
+	_set_count(&"fire", 5.0)
+	_set_count(&"ice", 5.0)
+	_spell.infusion_capacity = 4.0
+	var p := _plan()
+	p.set_infusion(&"poison", 4)
+	assert_eq(p.aspect_overrun(), 0, "aspects at C")
+	p.set_ride(&"ice", 3)
+	p.set_shape(&"fire", 3)
+	assert_eq(p.aspect_overrun(), 0, "a shape and a ride within their counts add nothing")
+	p.set_infusion(&"poison", 5)
+	assert_eq(p.aspect_overrun(), 1, "one more aspect point")
+	assert_eq(p.infusion.ride_points, 3, "set_infusion keeps the ride")
+	assert_eq(p.infusion.shape_points, 3, "and the shape")
+
+
+func test_set_ride_and_set_shape_emit_once_and_zero_clears() -> void:
+	var p := _plan()
+	var seen := [0]
+	p.state_changed.connect(func() -> void: seen[0] += 1)
+	p.set_ride(&"ice", 2)
+	p.set_ride(&"ice", 2)
+	assert_eq(seen[0], 1, "no-op on no change")
+	p.set_shape(&"fire", 1)
+	assert_eq(seen[0], 2)
+	p.set_ride(&"ice", 0)
+	assert_eq(p.infusion.ride_of(_spell), &"", "0 clears")
+	assert_eq(p.infusion.shape_element, &"fire", "the shape stays")

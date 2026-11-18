@@ -240,3 +240,83 @@ func test_popping_the_attack_level_frees_the_plans_temp_upgrade_addons() -> void
 	ctl.armed_stack.pop(melee)
 	assert_eq(nodes[1].get_addons().size(), before, "popping the level frees the temp addon")
 	assert_true(plan.blade_nodes.is_empty(), "and resets the plan")
+
+
+# ── the remembered shape and ride, clamped to today's counts ───────────────
+
+func _caster(fire: float, ice: float) -> Entity:
+	var graph: Graph = TestWorld.create(self).graph
+	var e: Entity = autofree(Entity.new())
+	e.stat_board = _BOARD.duplicate(true) as EntityStatBoard
+	graph.entities_container.add_child(e)
+	e.stat_board.facet(&"fire", StatDef.Role.COUNT).base_value = fire
+	e.stat_board.facet(&"ice", StatDef.Role.COUNT).base_value = ice
+	e.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 5.0
+	e.stat_board.intelligence.base_value = 1000.0
+	return e
+
+
+func _magic(caster: Entity) -> MagicAttackPlan:
+	var p := MagicAttackPlan.new()
+	p.attacker = caster
+	p.set_spell(TestSpells.SPARK)
+	return p
+
+
+func _count(caster: Entity, element: StringName) -> int:
+	return AspectCurrency.cap_of(caster, AspectCurrency.stat_of(element))
+
+
+func _remembered(caster: Entity, shape: Array, ride: Array) -> MagicAttackPlan:
+	var p := _magic(caster)
+	p.set_shape(shape[0], shape[1])
+	p.set_ride(ride[0], ride[1])
+	_stack.remember_infusion(p)
+	return p
+
+
+func _fields(p: MagicAttackPlan) -> Array:
+	return [p.infusion.shape_element, p.infusion.shape_points,
+			p.infusion.ride_element, p.infusion.ride_points]
+
+
+func test_a_remembered_shape_and_ride_come_back_as_remembered() -> void:
+	var caster := _caster(5.0, 5.0)
+	_remembered(caster, [&"fire", 2], [&"ice", 3])
+	var back := _magic(caster)
+	_stack.restore_infusion(back)
+	assert_eq(_fields(back), [&"fire", 2, &"ice", 3])
+	assert_eq(back.aspect_overrun(), 0)
+
+
+func test_two_elements_each_clamp_to_their_shrunk_count() -> void:
+	var caster := _caster(5.0, 5.0)
+	_remembered(caster, [&"fire", 4], [&"ice", 4])
+	caster.stat_board.facet(&"fire", StatDef.Role.COUNT).base_value = 2.0
+	caster.stat_board.facet(&"ice", StatDef.Role.COUNT).base_value = 1.0
+	var back := _magic(caster)
+	_stack.restore_infusion(back)
+	assert_eq(_fields(back), [&"fire", _count(caster, &"fire"), &"ice", _count(caster, &"ice")])
+	assert_eq(back.aspect_overrun(), 0)
+
+
+func test_one_element_the_ride_gives_way_first() -> void:
+	var caster := _caster(6.0, 0.0)
+	_remembered(caster, [&"fire", 3], [&"fire", 3])
+	caster.stat_board.facet(&"fire", StatDef.Role.COUNT).base_value = 4.0
+	var back := _magic(caster)
+	_stack.restore_infusion(back)
+	var count := _count(caster, &"fire")
+	assert_eq(back.infusion.shape_points, 3, "the shape keeps its points")
+	assert_eq(back.infusion.ride_points, count - 3, "the ride is cut to what the shape leaves")
+	assert_eq(back.aspect_overrun(), 0)
+
+
+func test_the_aspects_give_way_last_socketed_first() -> void:
+	var caster := _caster(1.0, 1.0)
+	caster.stat_board.facet(&"curse", StatDef.Role.COUNT).base_value = 5.0
+	var spell := TestSpells.SPARK.duplicate() as SpellDef
+	spell.infusion_capacity = 7.0
+	var kept := ArmedStack.clamp_infusion(spell, caster, {&"poison": 5, &"curse": 5})
+	assert_eq(kept, {&"poison": 5, &"curse": 2} as Dictionary[StringName, int],
+			"the first socket fills, the last gives way")

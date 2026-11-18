@@ -14,6 +14,17 @@ extends RefCounted
 ## the host's [method MagicAttackPlan.aspect_overrun] caps. Empty = innate.
 var points: Dictionary[StringName, int] = {}
 
+## The cast's forged **shape** element (ADR 0085 §1) and the points it draws
+## from that element's count. Inert here: stored, count-checked, remembered and
+## wired, never read by the walk, the seed or the load. `&""` or 0 = none.
+var shape_element: StringName = &""
+var shape_points: int = 0
+## The cast's forged **ride**: one terrain element whose load replaces or adds
+## to the spell's innate ride ([method load_of]). `&""` or 0 = none. Neither
+## field takes an aspect slot nor counts in [method total_points].
+var ride_element: StringName = &""
+var ride_points: int = 0
+
 
 ## The spell's innate infusion — no points spent.
 static func innate(_spell: SpellDef) -> Infusion:
@@ -29,6 +40,68 @@ static func for_cast(_spell: SpellDef, spent: Dictionary) -> Infusion:
 		if n > 0:
 			out.points[StringName(key)] = n
 	return out
+
+
+## [method for_cast] of [param spent] carrying this infusion's shape and ride —
+## the one rebuild that never drops the two element fields.
+func rebuilt(spell: SpellDef, spent: Dictionary) -> Infusion:
+	var out := Infusion.for_cast(spell, spent)
+	out.set_shape(shape_element, shape_points)
+	out.set_ride(ride_element, ride_points)
+	return out
+
+
+## Forge [param points] of element [param id] as the shape; an empty id or
+## non-positive points clears it.
+func set_shape(_id: StringName, _points_in: int) -> void:
+	pass
+
+
+## Forge [param points] of element [param id] as the ride; an empty id or
+## non-positive points clears it.
+func set_ride(_id: StringName, _points_in: int) -> void:
+	pass
+
+
+## True iff [param intake] is an element ride row: its identity is an
+## [Element]'s. The one predicate [method innate_ride_of], [method load_of] and
+## the def lint read.
+static func is_ride_row(_intake: AspectIntake) -> bool:
+	return false
+
+
+## The element [param spell]'s ride rows carry (at most one per def), else `&""`.
+static func innate_ride_of(_spell: SpellDef) -> StringName:
+	return &""
+
+
+## Which terrain element this cast's hits plant: the forged ride, else the
+## spell's innate ride, else `&""`.
+func ride_of(_spell: SpellDef) -> StringName:
+	return &""
+
+
+## The element this cast is shaped by: the forged shape, else the spell's
+## authored shape default (none exists yet), else `&""`.
+func shape_of(_spell: SpellDef) -> StringName:
+	return &""
+
+
+## Points this cast draws from [param element]'s count: the shape's if it is
+## that element plus the ride's if it is. The one count-spend read.
+func spent_on(_element: StringName) -> int:
+	return 0
+
+
+## The two element fields as wire/memory form: `"shape"` and `"ride"`, each
+## `{id, points}`, each only when set.
+func fields_to_dict() -> Dictionary:
+	return {}
+
+
+## Read [method fields_to_dict]'s form back into this infusion, ungated.
+func read_fields(_d: Dictionary) -> void:
+	pass
 
 
 ## Aspects this cast spends points on — what `infusion_slots` caps.

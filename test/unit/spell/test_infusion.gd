@@ -243,3 +243,163 @@ func test_a_poison_row_with_plants_unset_still_resolves_by_concept() -> void:
 	spell.intakes = [row]
 	assert_eq(row.status(), StatusRoster.shared().by_concept(&"poison"))
 	assert_eq(_rider_power(Infusion.innate(spell), spell, &"poison"), 2.0)
+
+
+# ── the shape and the ride (ADR 0085 §1, ADR 0094 §6) ───────────────────
+
+const _CHARGE: StatusDef = preload("res://effects/status/charge.tres")
+const _COLD: StatusDef = preload("res://effects/status/cold.tres")
+const _LIGHTNING_BOLT: SpellDef = preload("res://attack/spell/defs/lightning_bolt.tres")
+const _ELEMENTS: Array[StringName] = [&"fire", &"ice", &"lightning"]
+
+
+## A spell whose one intake row is an innate Charge ride of [param innate].
+func _charge_ride_spell(innate: int) -> SpellDef:
+	var spell := SpellDef.new()
+	var row := AspectIntake.new()
+	row.identity = ElementRoster.shared().by_id(&"lightning").identity
+	row.plants = _CHARGE
+	row.innate = innate
+	spell.intakes = [row]
+	return spell
+
+
+func _rider(inf: Infusion, spell: SpellDef, def: StatusDef) -> float:
+	for rider in inf.bag(spell).riders:
+		var apply := rider as ApplyStatusEffect
+		if apply != null and apply.def == def:
+			return apply.power
+	return 0.0
+
+
+func test_a_ride_of_the_innate_element_adds_to_its_load() -> void:
+	var spell := _charge_ride_spell(2)
+	var inf := Infusion.innate(spell)
+	inf.set_ride(&"lightning", 3)
+	assert_eq(inf.load_of(spell).get(&"lightning", 0),
+			2 + Infusion.gained(spell, &"lightning", 3), "innate + gained(ride_points)")
+	assert_eq(_rider(inf, spell, _CHARGE), float(2 + Infusion.gained(spell, &"lightning", 3)))
+
+
+func test_a_ride_of_another_element_replaces_the_innate_one() -> void:
+	var spell := _charge_ride_spell(2)
+	var inf := Infusion.innate(spell)
+	inf.set_ride(&"fire", 3)
+	var load := inf.load_of(spell)
+	assert_eq(load.get(&"lightning", 0), 0, "the innate Charge is suppressed for this cast")
+	assert_eq(load.get(&"fire", 0), Infusion.gained(spell, &"fire", 3), "Heat at its row's ratio")
+	assert_eq(Infusion.gained(spell, &"fire", 3), 3, "unlisted trades 1:1")
+	assert_eq(_rider(inf, spell, _CHARGE), 0.0, "no Charge rider: one element per hit")
+	assert_eq(_rider(inf, spell, _HEAT), 3.0)
+
+
+func test_a_replacing_ride_leaves_the_def_untouched() -> void:
+	var spell := _charge_ride_spell(2)
+	var rows := spell.intakes.duplicate()
+	var inf := Infusion.innate(spell)
+	inf.set_ride(&"fire", 3)
+	inf.bag(spell)
+	assert_eq(spell.intakes, rows, "same rows")
+	assert_eq(spell.intakes[0].innate, 2, "same innate")
+	assert_eq(Infusion.innate(spell).load_of(spell), {&"lightning": 2}, "the next cast is innate again")
+
+
+func test_ride_of_answers_forged_then_innate_then_empty() -> void:
+	var spell := _charge_ride_spell(1)
+	var inf := Infusion.innate(spell)
+	assert_eq(inf.ride_of(spell), &"lightning", "innate")
+	inf.set_ride(&"ice", 1)
+	assert_eq(inf.ride_of(spell), &"ice", "forged")
+	inf.set_ride(&"ice", 0)
+	assert_eq(inf.ride_of(spell), &"lightning", "0 points is nothing forged")
+	assert_eq(Infusion.innate(_SPARK).ride_of(_SPARK), &"", "no ride row, nothing forged")
+
+
+func test_shape_of_answers_forged_else_empty() -> void:
+	var inf := Infusion.innate(_SPARK)
+	assert_eq(inf.shape_of(_SPARK), &"")
+	inf.set_shape(&"fire", 2)
+	assert_eq(inf.shape_of(_SPARK), &"fire")
+	inf.set_shape(&"", 2)
+	assert_eq(inf.shape_of(_SPARK), &"", "an empty id clears")
+
+
+func test_spent_on_sums_shape_and_ride_of_one_element() -> void:
+	var inf := Infusion.innate(_SPARK)
+	inf.set_shape(&"fire", 2)
+	inf.set_ride(&"fire", 3)
+	assert_eq(inf.spent_on(&"fire"), 5)
+	inf.set_ride(&"ice", 3)
+	assert_eq(inf.spent_on(&"fire"), 2)
+	assert_eq(inf.spent_on(&"ice"), 3)
+
+
+func test_neither_field_takes_a_slot_or_counts_in_the_total() -> void:
+	var inf := _infused(_VENOM, {&"poison": 4, &"curse": 2})
+	var slots := inf.slots_used()
+	var total := inf.total_points()
+	inf.set_shape(&"fire", 3)
+	inf.set_ride(&"ice", 5)
+	assert_eq(inf.shape_points, 3, "full aspect sockets still take a shape")
+	assert_eq(inf.ride_points, 5, "and a ride")
+	assert_eq(inf.slots_used(), slots)
+	assert_eq(inf.total_points(), total, "the aspects alone")
+	assert_eq(total, 6)
+
+
+func test_rebuilt_keeps_the_fields() -> void:
+	var inf := Infusion.innate(_SPARK)
+	inf.set_shape(&"fire", 2)
+	inf.set_ride(&"ice", 1)
+	var next := inf.rebuilt(_SPARK, {&"poison": 1})
+	assert_eq([next.shape_element, next.shape_points, next.ride_element, next.ride_points],
+			[&"fire", 2, &"ice", 1])
+	assert_eq(next.points, {&"poison": 1} as Dictionary[StringName, int])
+
+
+func _bolt_board() -> Dictionary:
+	var graph := h.make_graph([[0, 1], [1, 2], [2, 3]], self)
+	var atk := h.make_entity(graph, "A")
+	var def := h.make_entity(graph, "D")
+	h.give_big_hp(def)
+	h.assign_owner(graph, def, [1, 2, 3])
+	h.assign_owner(graph, atk, [0])
+	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
+	return {graph = graph, atk = atk, n = graph.get_skill_nodes()}
+
+
+func _damage_by_node(outcome: AttackOutcome) -> Dictionary:
+	var out := {}
+	for node in h.hits_by_node(outcome):
+		out[node] = h.total_damage_on(outcome, node)
+	return out
+
+
+func test_the_shape_is_inert_on_the_walk_the_seed_and_the_load() -> void:
+	var spell := _LIGHTNING_BOLT
+	var hops: float = spell.propagation.max_hops
+	var plain := Infusion.innate(spell)
+	for element in _ELEMENTS:
+		var b := _bolt_board()
+		var shaped := Infusion.innate(spell)
+		shaped.set_shape(element, 3)
+		assert_eq(shaped.load_of(spell), plain.load_of(spell), "%s: same load" % element)
+		assert_eq(shaped.bag(spell).riders.size(), plain.bag(spell).riders.size(), "%s: same bag" % element)
+		assert_eq(_rider(shaped, spell, _CHARGE), _rider(plain, spell, _CHARGE), "%s: same Charge" % element)
+		var n: Array = b.n
+		var with_shape := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, shaped)
+		var without := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, plain)
+		assert_eq(_damage_by_node(with_shape), _damage_by_node(without), "%s: same walk and payload" % element)
+		assert_eq(spell.propagation.max_hops, hops, "%s: max_hops untouched" % element)
+
+
+func test_an_ice_ride_leaves_max_hops_and_lands_cold_at_the_ice_load() -> void:
+	var spell := _LIGHTNING_BOLT
+	var hops: float = spell.propagation.max_hops
+	var inf := Infusion.innate(spell)
+	inf.set_ride(&"ice", 2)
+	assert_eq(spell.propagation.max_hops, hops)
+	var ice_load: int = inf.load_of(spell).get(&"ice", 0)
+	assert_eq(ice_load, Infusion.gained(spell, &"ice", 2))
+	assert_eq(_rider(inf, spell, _COLD), float(ice_load), "Cold riders at the Ice load")
+	assert_eq(_rider(inf, spell, _CHARGE), 0.0, "the innate Charge gives way")

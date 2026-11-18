@@ -71,3 +71,17 @@ func test_retired_mint_stats_are_gone() -> void:
 	for kind in ["poison", "scout"]:
 		var retired := StringName("%s_%s" % [kind, "arrows_per_reload"])
 		assert_null(StatRegistry.get_def(retired), "%s retired for %s_aspect" % [retired, kind])
+
+
+## The four starter counts (three elements and Catalyst) a fresh entity reads.
+const _STARTER_COUNTS: Array[StringName] = [
+	&"fire_element", &"ice_element", &"lightning_element", &"catalyst_aspect"]
+
+
+func test_a_fresh_entity_reads_each_starter_count_at_its_default() -> void:
+	var e := _entity()
+	for id in _STARTER_COUNTS:
+		var def: StatDef = StatRegistry.get_def(id)
+		assert_not_null(def, id)
+		assert_gt(def.default_value, 0.0, "%s starts above 0" % id)
+		assert_eq(e.stat_board.get_value(id), def.default_value, id)

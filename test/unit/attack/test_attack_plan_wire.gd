@@ -233,3 +233,43 @@ func test_a_rebuild_adopts_a_preview_addon_already_on_the_node() -> void:
 func test_the_codec_refuses_an_unknown_mode_rather_than_half_building() -> void:
 	assert_null(AttackPlanCodec.from_dict({}, _graph), "an empty dict is not a plan")
 	assert_null(AttackPlanCodec.from_dict({"mode": 99}, _graph))
+
+
+# ── the shape and the ride on the wire ──────────────────────────────────────
+
+func _bolt_plan() -> MagicAttackPlan:
+	var plan := MagicAttackPlan.new()
+	plan.attacker = _attacker
+	plan.spell = TestSpells.LIGHTNING_BOLT
+	plan.source = _nodes.C
+	plan.target = _nodes.D
+	return plan
+
+
+func test_a_shape_and_a_ride_round_trip() -> void:
+	var plan := _bolt_plan()
+	plan.set_shape(&"fire", 2)
+	plan.set_ride(&"ice", 3)
+	var back := MagicAttackPlan.from_dict(plan.to_dict(_graph), _graph, TestSpells.CATALOG)
+	assert_eq([back.infusion.shape_element, back.infusion.shape_points], [&"fire", 2])
+	assert_eq([back.infusion.ride_element, back.infusion.ride_points], [&"ice", 3])
+
+
+func test_a_plan_with_neither_field_writes_neither_key() -> void:
+	var d := _bolt_plan().to_dict(_graph)
+	assert_false(d.has("shape"))
+	assert_false(d.has("ride"))
+
+
+func test_a_plan_with_one_field_writes_only_that_key() -> void:
+	var plan := _bolt_plan()
+	plan.set_ride(&"ice", 1)
+	var d := plan.to_dict(_graph)
+	assert_true(d.has("ride"), "a ride-only plan ships its ride with no aspects spent")
+	assert_false(d.has("shape"))
+	assert_false(d.has("infusion"))
+	plan.set_ride(&"ice", 0)
+	plan.set_shape(&"lightning", 1)
+	d = plan.to_dict(_graph)
+	assert_true(d.has("shape"))
+	assert_false(d.has("ride"))

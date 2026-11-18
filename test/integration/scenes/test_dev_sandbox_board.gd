@@ -43,6 +43,21 @@ func test_sandbox_blade_size_bonus_sits_on_top_of_the_live_board() -> void:
 			"default base + the sandbox's +4, not a forked base_value")
 
 
+func test_sandbox_player_starts_each_count_above_the_default() -> void:
+	var enemy: Entity = _root.graph.entities_container.get_node("Enemy")
+	var knob: Variant = _root.get("starter_count_bonus")
+	assert_true(knob is float, "the sandbox exports starter_count_bonus")
+	if not knob is float:
+		return
+	var bonus: float = knob
+	assert_gt(bonus, 0.0, "fixture: the sandbox grants a bonus")
+	for id in [&"fire_element", &"ice_element", &"lightning_element", &"catalyst_aspect"]:
+		var base: float = StatRegistry.get_def(id).default_value
+		assert_eq(_root.player.stat_board.get_value(id), base + bonus,
+				"%s: the default count + the sandbox's bonus" % id)
+		assert_eq(enemy.stat_board.get_value(id), base, "%s: the enemy reads the default" % id)
+
+
 func test_entities_never_share_a_stat_object() -> void:
 	var enemy: Entity = _root.graph.entities_container.get_node("Enemy")
 	assert_ne(_root.player.stat_board, enemy.stat_board)
