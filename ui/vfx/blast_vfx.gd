@@ -12,10 +12,9 @@ const DEFAULT_DISC_FILL := 0.22
 
 ## The one-shot per blast.
 @export var visual_scene: PackedScene = preload("res://ui/vfx/blast_visual.tscn")
-## The edge go-off's layer, played in place of the disc.
+## The edge go-off's layer, played in place of the disc; its hops are the
+## mark's level ([member BlastMark.power]).
 @export var arc_scene: PackedScene = preload("res://ui/vfx/arc_layer.tscn")
-## Hops an edge go-off's bolts run; the mark carries no hop count.
-@export_range(1, 8, 1) var arc_hops: int = 1
 ## The layer a rider gets when its aspect authors none ([member Aspect.blast_layer]).
 @export var rider_layer_scene: PackedScene = preload("res://ui/vfx/rider_blast_layer.tscn")
 ## Where a rider identity finds its aspect's bespoke layer; null = the shared roster.
@@ -61,9 +60,9 @@ func delay_for(mark: BlastMark) -> float:
 	return maxf(0.0, (mark.generation if mark != null else 0) * generation_stagger)
 
 
-## Play [param mark]: one arc layer when its band holds an [EdgeGoOff], else one
-## ring with its rider layers. Null for a mark with nothing to centre it on, or
-## when an arc played (an [ArcLayer] is not a [BlastVisual]).
+## Play [param mark] with its rider layers: one arc layer when its band holds an
+## [EdgeGoOff], else one ring. Null for a mark with nothing to centre it on, or
+## when an arc played (an [ArcLayer] is not a [BlastVisual]: [method spawn_arc]).
 func spawn(mark: BlastMark) -> BlastVisual:
 	if mark == null or not is_instance_valid(mark.centre):
 		return null
@@ -87,8 +86,9 @@ func spawn(mark: BlastMark) -> BlastVisual:
 	return visual
 
 
-## Play one arc layer for [param mark] instead of the disc: the element's colour
-## and the hops [member arc_hops] names. Null when no arc scene is set.
+## Play one arc layer for [param mark] instead of the disc: the element's colour,
+## the mark's level as its hops (at least 1) and the rider layers, sized to the
+## arc's extent. Null when no arc scene is set.
 func spawn_arc(mark: BlastMark, elements: ElementRoster) -> ArcLayer:
 	if mark == null or not is_instance_valid(mark.centre) or arc_scene == null:
 		return null
@@ -98,7 +98,11 @@ func spawn_arc(mark: BlastMark, elements: ElementRoster) -> ArcLayer:
 	add_child(arc)
 	arc.global_position = mark.centre.global_position
 	var look := look_for(mark.go_off, elements)
-	arc.setup(mark.centre, arc_hops, look.tint if look != null else Emissive.NEUTRAL)
+	arc.setup(mark.centre, maxi(mark.power, 1), look.tint if look != null else Emissive.NEUTRAL,
+			mark.riders)
+	arc.companions = layers_for(mark.riders,
+			roster if roster != null else AspectRoster.shared(), rider_layer_scene)
+	arc.play()
 	return arc
 
 
