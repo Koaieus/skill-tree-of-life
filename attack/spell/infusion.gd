@@ -10,6 +10,16 @@ extends RefCounted
 ## exchanged at affinity × ingest rate and floored.
 
 
+## Which of a concept's rows a read keys on: a *plant* row is every row whose
+## [method AspectIntake.resolved_use] is no [ConcentrateUse] (a null `use`
+## included); a *concentrate* row runs one — the Ice shape row
+## ([method is_concentrate_row]). Every read defaults to [constant PLANT].
+enum RowKind { PLANT, CONCENTRATE }
+
+## The concept an Ice shape concentrates on.
+const ICE := &"ice"
+
+
 ## Points spent on this cast, `{concept id: points}` — what the plan ships and
 ## the host's [method MagicAttackPlan.aspect_overrun] caps. Empty = innate.
 var points: Dictionary[StringName, int] = {}
@@ -73,11 +83,22 @@ static func is_element(id: StringName) -> bool:
 	return not id.is_empty() and ElementRoster.shared().by_id(id) != null
 
 
-## True iff [param intake] is an element ride row: its identity is an
-## [Element]'s. The one predicate [method innate_ride_of], [method load_of] and
+## True iff [param intake] runs a [ConcentrateUse] — a concentrate row.
+static func is_concentrate_row(intake: AspectIntake) -> bool:
+	return intake != null and intake.resolved_use() is ConcentrateUse
+
+
+## True iff [param intake] is a row of [param kind] ([enum RowKind]).
+static func is_kind(intake: AspectIntake, kind: RowKind) -> bool:
+	return is_concentrate_row(intake) == (kind == RowKind.CONCENTRATE)
+
+
+## True iff [param intake] is an element ride row: a plant row whose identity
+## is an [Element]'s. The one predicate [method innate_ride_of], [method load_of] and
 ## the def lint read.
 static func is_ride_row(intake: AspectIntake) -> bool:
-	return intake != null and intake.identity != null and is_element(intake.aspect_id())
+	return intake != null and intake.identity != null and is_element(intake.aspect_id()) \
+			and not is_concentrate_row(intake)
 
 
 ## The element [param spell]'s ride rows carry (at most one per def), else `&""`.
@@ -97,9 +118,26 @@ func ride_of(spell: SpellDef) -> StringName:
 
 
 ## The element this cast is shaped by: the forged shape, else the spell's
-## authored shape default (none exists yet), else `&""`.
-func shape_of(_spell: SpellDef) -> StringName:
-	return shape_element if shape_points > 0 else &""
+## authored shape default — Ice when its concentrate row carries `innate` > 0 —
+## else `&""`.
+func shape_of(spell: SpellDef) -> StringName:
+	if shape_points > 0:
+		return shape_element
+	var row := intake_of(spell, ICE, RowKind.CONCENTRATE)
+	return ICE if row != null and row.innate > 0 else &""
+
+
+## The Ice shape's load on [param spell]: when [method shape_of] is Ice, the
+## concentrate row's `innate` plus [member shape_points] exchanged at that
+## row's affinity ([method gained], concentrate kind); else 0. Kept apart from
+## the Cold ride's load and never planted.
+func shape_load(spell: SpellDef) -> int:
+	if spell == null or shape_of(spell) != ICE:
+		return 0
+	var row := intake_of(spell, ICE, RowKind.CONCENTRATE)
+	var innate_load := row.innate if row != null else 0
+	var forged := shape_points if shape_element == ICE else 0
+	return innate_load + gained(spell, ICE, forged, RowKind.CONCENTRATE)
 
 
 ## Points this cast draws from [param element]'s count: the shape's if it is
@@ -148,23 +186,26 @@ func total_points() -> int:
 	return total
 
 
-## The listed [AspectIntake] of [param spell] for concept [param id] (its
-## first row), or null — an unlisted concept's affinity is 1:1.
-static func intake_of(spell: SpellDef, id: StringName) -> AspectIntake:
+## The listed [AspectIntake] of [param spell] for concept [param id] — its
+## first row of [param kind] ([enum RowKind]) — or null: an unlisted concept's
+## affinity is 1:1.
+static func intake_of(spell: SpellDef, id: StringName,
+		kind: RowKind = RowKind.PLANT) -> AspectIntake:
 	if spell == null:
 		return null
 	for intake in spell.intakes:
-		if intake != null and intake.aspect_id() == id:
+		if intake != null and intake.aspect_id() == id and is_kind(intake, kind):
 			return intake
 	return null
 
 
 ## [param spell]'s whole exchange rate for concept [param id] as `(gain, cost)`:
 ## its affinity (1:1 unlisted) times the spell's ingest rate. Gain 0 refuses.
-static func ratio_of(spell: SpellDef, id: StringName) -> Vector2i:
+static func ratio_of(spell: SpellDef, id: StringName,
+		kind: RowKind = RowKind.PLANT) -> Vector2i:
 	if spell == null:
 		return Vector2i(0, 1)
-	var intake := intake_of(spell, id)
+	var intake := intake_of(spell, id, kind)
 	var gain := intake.affinity_gain if intake != null else 1
 	var cost := intake.affinity_cost if intake != null else 1
 	return Vector2i(gain * spell.ingest_gain, cost * spell.ingest_cost)
@@ -172,8 +213,9 @@ static func ratio_of(spell: SpellDef, id: StringName) -> Vector2i:
 
 ## The load [param points] of concept [param id] add on [param spell]:
 ## `floor(points × gain / cost)`, exact integer arithmetic.
-static func gained(spell: SpellDef, id: StringName, points: int) -> int:
-	var ratio := ratio_of(spell, id)
+static func gained(spell: SpellDef, id: StringName, points: int,
+		kind: RowKind = RowKind.PLANT) -> int:
+	var ratio := ratio_of(spell, id, kind)
 	if points <= 0 or ratio.x <= 0:
 		return 0
 	@warning_ignore("integer_division")
@@ -182,8 +224,9 @@ static func gained(spell: SpellDef, id: StringName, points: int) -> int:
 
 ## [method ratio_of] as one float — for display and the refusal test
 ## (`<= 0`) only; never multiply points by it, use [method gained].
-static func rate_of(spell: SpellDef, id: StringName) -> float:
-	var ratio := ratio_of(spell, id)
+static func rate_of(spell: SpellDef, id: StringName,
+		kind: RowKind = RowKind.PLANT) -> float:
+	var ratio := ratio_of(spell, id, kind)
 	return float(ratio.x) / ratio.y
 
 
@@ -193,7 +236,7 @@ static func rate_of(spell: SpellDef, id: StringName) -> float:
 ## its [method gained] to its element: on the innate ride's element it adds to
 ## those rows; on another element the innate ride's rows are suppressed for
 ## this cast (the def is untouched), so a hit carries 0 or 1 element. The shape
-## never enters the load.
+## never enters the load: a concentrate row's innate is [method shape_load]'s.
 func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	if spell == null:
@@ -202,7 +245,7 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	var suppressed := innate_ride \
 			if ride_points > 0 and ride_element != innate_ride else &""
 	for intake in spell.intakes:
-		if intake == null or intake.identity == null:
+		if intake == null or intake.identity == null or is_concentrate_row(intake):
 			continue
 		var id := intake.aspect_id()
 		if not suppressed.is_empty() and id == suppressed and is_ride_row(intake):
@@ -215,13 +258,17 @@ func load_of(spell: SpellDef) -> Dictionary[StringName, int]:
 	return out
 
 
-## The [LoadUse] concept [param id] resolves to on [param spell]: its intake
-## row's [method AspectIntake.resolved_use], else — an infused concept with no
-## row — the shared default ([method AspectIntake.default_use]).
-static func use_of(spell: SpellDef, id: StringName) -> LoadUse:
-	var row := intake_of(spell, id)
+## The [LoadUse] concept [param id] resolves to on [param spell]: its
+## [param kind] row's [method AspectIntake.resolved_use], else — no such row —
+## the kind's shared default ([method AspectIntake.default_use],
+## [method ConcentrateUse.shared_default]).
+static func use_of(spell: SpellDef, id: StringName,
+		kind: RowKind = RowKind.PLANT) -> LoadUse:
+	var row := intake_of(spell, id, kind)
 	if row != null:
 		return row.resolved_use()
+	if kind == RowKind.CONCENTRATE:
+		return ConcentrateUse.shared_default()
 	return AspectIntake.default_use()
 
 
@@ -243,7 +290,9 @@ func riders(spell: SpellDef) -> Array[OnHitEffect]:
 
 ## One walk over [method load_of]: every concept whose load is above zero
 ## spends it through its [method use_of] ([method LoadUse.spend]) into a fresh
-## [LoadBag].
+## [LoadBag]; then a positive [method shape_load] spends through the Ice
+## concentrate use, writing [member LoadBag.hop_cut] and
+## [member LoadBag.bonus_per_hop] for the resolver.
 func bag(spell: SpellDef) -> LoadBag:
 	var out := LoadBag.new()
 	if spell == null:
@@ -253,4 +302,8 @@ func bag(spell: SpellDef) -> LoadBag:
 		if counts[id] <= 0:
 			continue
 		use_of(spell, id).spend(intake_of(spell, id), status_of(spell, id), counts[id], out)
+	var cut := shape_load(spell)
+	if cut > 0:
+		use_of(spell, ICE, RowKind.CONCENTRATE).spend(
+				intake_of(spell, ICE, RowKind.CONCENTRATE), null, cut, out)
 	return out
