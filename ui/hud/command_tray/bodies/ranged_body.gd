@@ -568,6 +568,7 @@ func _sync_cards(yield_by_type: Dictionary, counts: Dictionary, cap: int) -> voi
 		for k in mini(gained, _flight_layer.max_flights_per_change):
 			_flight_layer.fly(id, ArrowFlightLayer.RELOAD, source, Rect2(card.pile_anchor(), Vector2.ZERO),
 					Callable(), float(k) * _flight_layer.stagger_secs)
+		card.set_bin_cap(_bank_cap_of(card.type, int(yield_by_type.get(id, 0))))
 		card.set_stock(bin, int(yield_by_type.get(id, 0)), _flight_layer.counter_tween_secs if had else 0.0)
 		_stock_seen[id] = bin
 		card.set_count(int(counts.get(id, 0)), mini(_bin(id), _room_for(id, counts, cap)))
@@ -588,6 +589,13 @@ func restore_default_order() -> void:
 		ids.append(t.id)
 	_row.set_order(ids, true)
 	_refresh()
+
+
+## The cap a card shows beside its bin: an element bin's
+## [method AmmoType.stock_cap] of its reload [param mint] (the cap a reload
+## enforces); 0 — none shown — for a type whose cap is not mint-bound.
+static func _bank_cap_of(t: AmmoType, mint: int) -> int:
+	return t.stock_cap(mint) if t != null and t.stock_cap_reloads > 0 else 0
 
 
 func _bin(type_id: StringName) -> int:

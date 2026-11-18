@@ -114,6 +114,13 @@ func set_count(p_count: int, p_cap: int) -> void:
 		_paint()
 
 
+## The bin's bank cap, shown as `stock/cap`; 0 shows the stock alone.
+func set_bin_cap(p_cap: int) -> void:
+	bin_cap = maxi(p_cap, 0)
+	if is_node_ready():
+		_paint_stock()
+
+
 func set_fill(on: bool) -> void:
 	fill = on
 	if is_node_ready():
@@ -181,7 +188,8 @@ func _paint_status() -> void:
 
 func _paint_stock() -> void:
 	var shown := roundi(shown_stock)
-	_stock_label.text = ("%d  +%d" % [shown, gain]) if gain > 0 else "%d" % shown
+	var bank := ("%d/%d" % [shown, bin_cap]) if bin_cap > 0 else "%d" % shown
+	_stock_label.text = ("%s  +%d" % [bank, gain]) if gain > 0 else bank
 
 
 func _set_shown_stock(v: float) -> void:
