@@ -319,7 +319,7 @@ func test_terrain_round_trips_and_a_twenty_column_row_decodes_to_none() -> void:
 
 ## A Catalyst row's cap k × T reads graph degree, so a decode over a graph
 ## whose node has fewer edges than the payload must not trim the row to the
-## stale cap: the restored row is the authority's, at the payload's degree.
+## stale cap: a restore is the authority's settled row, never trimmed.
 ## The same bytes into a fresh graph (the join) agree too.
 func test_catalyst_row_survives_a_decode_over_fewer_edges() -> void:
 	var catalyst := load("res://effects/status/catalyst.tres") as StatusDef
@@ -343,7 +343,7 @@ func test_catalyst_row_survives_a_decode_over_fewer_edges() -> void:
 
 	assert_same(target.get_by_stable_id(id), tgt_node, "decoded in place, not re-minted")
 	assert_eq(int(tgt_node.get_combat().get_status_power(&"catalyst")), src_cap,
-			"the row restored at the payload's degree, not trimmed to the stale cap %d" % stale_cap)
+			"the row is never trimmed on restore, not even to the stale cap %d" % stale_cap)
 	assert_eq(WorldFingerprint.compute(target), WorldFingerprint.compute(source),
 			"a decode over fewer edges diverged: %s vs %s" %
 			[WorldFingerprint.describe(target), WorldFingerprint.describe(source)])
