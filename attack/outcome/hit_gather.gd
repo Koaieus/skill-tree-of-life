@@ -23,7 +23,9 @@ extends RefCounted
 ##   larger ceil when two channels of one hit meet); then the node's Catalyst
 ##   converts over everything that landed there, heads' and copies' alike
 ##   ([method _convert_landing], #1801), the stacks it makes joining the same
-##   write and its take committed through the row seat before it;
+##   write and its take committed through the row seat before it; the settle
+##   seat reads the node's ints from before the land step ([_LandedFrom]), so
+##   a head's riders crossing T convert the leftover as a copy's do;
 ## [br]- [b]read[/b]: first the node's second [Admits] read, once per node per
 ##   generation over every arrival there ([method Admits.read]): a breaker
 ##   shatters the node (one spend, one burst, its extra landings) and walks
@@ -235,6 +237,9 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	var batch := TerrainSettle.Batch.new()
 	var reading: Dictionary = {}  # SkillNode -> Array of the _Hits read there
 	var landed: Dictionary = {}  # SkillNode -> {element id: int} landing there (_convert_landing)
+	var pre_land := _LandedFrom.new(TerrainSettle.seat(_seat_take))
+	for node in nodes:
+		pre_land.note(_slice(node))
 	for node in nodes:
 		var landing: Array = []
 		var best: Dictionary = {}  # _Hit -> {Element: int}
@@ -245,7 +250,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 			if not landing.has(h):
 				landing.append(h)
 			if not a.is_copy:
-				_land_riders(h, landed)
+				_land_riders(h, landed, pre_land)
 				continue
 			if not best.has(h):
 				best[h] = {}
@@ -266,7 +271,10 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	for node: SkillNode in landed:
 		_convert_landing(node, landed[node], batch, land_rows)
 	_commit_rows(land_rows)
-	TerrainSettle.commit(batch, _seat_take)
+	for node: SkillNode in landed:
+		if _slice(node) != null:
+			batch.sums(_slice(node))
+	TerrainSettle.commit_with(batch, pre_land.seat())
 	# Read: the node's second Admits answer over every arrival of the
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
@@ -564,8 +572,9 @@ static func _named(e: Element, band: ElementBand) -> Identity:
 
 ## Land [param h]'s own element riders where they fall, through each row's own
 ## landing (its fold, its gate), and mark them staged for stage two; each one's
-## stacks summed into [param landed] on its node ([method _landed]).
-func _land_riders(h: _Hit, landed: Dictionary) -> void:
+## stacks summed into [param landed] on its node ([method _landed]), its node's
+## ints noted in [param pre_land] before the first lands.
+func _land_riders(h: _Hit, landed: Dictionary, pre_land: _LandedFrom) -> void:
 	var roster := ElementRoster.shared()
 	for hit in h.span:
 		var status := hit as StatusInstance
@@ -579,6 +588,7 @@ func _land_riders(h: _Hit, landed: Dictionary) -> void:
 		var slice := _slice(status.target)
 		if slice == null:
 			continue
+		pre_land.note(slice)
 		status.land_on(slice, _world)
 		status.staged = true
 		h.terrain[e] = int(h.terrain.get(e, 0)) + int(status.power)
@@ -638,6 +648,38 @@ func _seat_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Statu
 	var rows: Dictionary = {}
 	_row_change(rows, slice.real(), def, -float(spent), converted)
 	_commit_rows(rows)
+
+
+## The land commit's seat: the settle seat's readers ([param inner]), each
+## handed a noted node's ints from before the generation's land step in place
+## of the commit's own. A head's riders land through their rows before the
+## batch commits, so the commit's own "before" already holds them; this way a
+## crossing of T a head's riders make reads as a crossing, as a copy's does
+## (#1801: the priming converts what the land split left). Every node a hit
+## landed on is in the batch, so the seat is asked of it.
+class _LandedFrom:
+	extends TerrainSettle.SettleReader
+	var _inner: Array[TerrainSettle.SettleReader]
+	var _pre: Dictionary = {}  # NodeCombat -> [terrain_t, charge] before the land step
+
+	func _init(inner: Array[TerrainSettle.SettleReader]) -> void:
+		_inner = inner
+
+	## Note [param slice]'s ints now, before any rider lands this generation.
+	func note(slice: NodeCombat) -> void:
+		if slice != null and not _pre.has(slice):
+			_pre[slice] = [slice.terrain_t(), slice.charge()]
+
+	## The readers [method TerrainSettle.commit_with] runs: this one alone.
+	func seat() -> Array[TerrainSettle.SettleReader]:
+		var out: Array[TerrainSettle.SettleReader] = [self]
+		return out
+
+	func read(node: NodeCombat, pre_t: int, pre_charge: int,
+			post_t: int, post_charge: int, sums: TerrainSettle.Sums) -> void:
+		var pre: Array = _pre.get(node, [pre_t, pre_charge])
+		for r in _inner:
+			r.read(node, int(pre[0]), int(pre[1]), post_t, post_charge, sums)
 
 
 func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
