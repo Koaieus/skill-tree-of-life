@@ -90,3 +90,26 @@ func test_resolve_is_silent_and_the_rebuilt_replay_announces_once() -> void:
 	assert_signal_emit_count(Events, "catalyst_converted", 1, "the replay announces the take")
 	# The payload is the stacks made (ratio 1 : 1 here), keyed by landing element.
 	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, {_fire.id(): 3}])
+
+
+## The world turn's terrain pass is no record: [EndTurnCommand] reproduces it on
+## every peer's live world, so each announces its own conversion once.
+func test_a_world_turn_conversion_announces_once() -> void:
+	var n: SkillNode = await _alone()
+	var hot := _w.add_node(&"Hot", Vector2(-5000.0, 0.0))
+	_w.link(n, hot)
+	await get_tree().process_frame
+	_roster.statuses.append(_def)
+	var live := CombatWorld.live()
+	var slice := live.combat_for(n) as NodeCombat
+	var t := slice.terrain_threshold()
+	var deg := maxi(n.get_graph_degree(_w.graph), hot.get_graph_degree(_w.graph))
+	slice.add_terrain(_fire, t - slice.terrain_t())
+	(live.combat_for(hot) as NodeCombat).add_terrain(_fire, t + 4 * t * (1 + deg))
+	slice.apply_status(_def, 3.0)
+	watch_signals(Events)
+	live.flow_temperature(1)
+	assert_eq(int(slice.get_status_power(_def.id)), 0, "the flow primed N: the store converted")
+	assert_gt(slice.terrain_t(), t, "N is past T")
+	assert_signal_emit_count(Events, "catalyst_converted", 1, "the world turn announces its take")
+	assert_signal_emitted_with_parameters(Events, "catalyst_converted", [n, {_fire.id(): 3}])
