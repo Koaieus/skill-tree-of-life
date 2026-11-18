@@ -63,7 +63,7 @@ and has no derived state, and it lives on allocated nodes only, clearing with
 its holder as Poison does (owner, 2026-11-09: *"i think catalyst only sits on
 allocated nodes like most/all Aspect statuses (but we can always make an
 exception and make it owner-agnostic)"* — taken as settled: it is exactly the
-shape the Explosive status already has, so the retag changes no lifecycle,
+shape every aspect status has,
 and a blast's copies land on hostile allocated nodes anyway). **Catalyst
 converts the element stacks that land with it** (owner, 2026-11-11: *"On
 second thought i think catalyst should not pay attention to primary
@@ -120,12 +120,12 @@ essence this is almost like what Greed is for Aspect Statuses, but for
 Elements (i think Greed shouldn't multiply incoming Heat/Cold/Charge stacks,
 but Catalyst may?)"*). Catalyst stays put (no flow) and decays slowly, per
 world turn (owner, 2026-11-11, accepted when asked; the rate a knob);
-the map's barrels are the Catalyst addon on map nodes, as the Explosive
-barrel addon is today. **Catalyst is an
+the map's barrels are the Catalyst addon on map nodes
+(`skill_node/addons/defs/catalyst_barrel_addon.tscn`). **Catalyst is an
 aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
 option 1. w/visually like purple crystals or smth instead of black goo"*; the
 line behind it: *"Aspects do anything else"*): one status,
-count `catalyst_aspect`, school DEX (where Explosive sits), facets
+count `catalyst_aspect`, school DEX, facets
 `catalyst_stacks_per_hit` / `catalyst_resistance`. The goo arrow plants it, a
 plain arrow with a Catalyst rider (owner, 2026-11-11: *"Catalyst arrow is
 just a regularly hitting arrow with catalyst rider. It plants catalyst

@@ -23,13 +23,7 @@ status: settling
     1:1 with no slice. These
     supersede ADR 0072 §3 (*"Fire is wholly an element. Fuel is Fire's
     medium; no Explosive aspect survives"*) in part and ADR 0075 §6 (Fuel the
-    accelerant); ADR 0081 records it. Master artifacts to RETAG
-    (explosive to catalyst), none deleted: `stats_system/defs/explosive_aspect.tres`,
-    `effects/status/explosive.tres` (with its `charge` tag),
-    `aspects/defs/explosive.tres`, `attack/ammo/types/explosive.tres`, the
-    barrel addon `skill_node/addons/defs/explosive_barrel_addon.tscn`, the
-    ring slot in `entity/ring/aspect_ring.tscn`, the `explosive_aspect` roll
-    in `procgen/pools/dexterity.tres`.
+    accelerant); ADR 0081 records it; the retag is built.
   - **For Greed's spec:** Greed must not multiply element stacks (owner's
     lean, quoted in [terrain.md](terrain.md) § Catalyst).
   - Knobs: ratio 1:1, Catalyst cap k × T, Catalyst decay slow, per world
@@ -164,9 +158,6 @@ status: settling
   whole-hit doubling ([frozen.md](frozen.md)).
 - **Adversarial-review leftovers** (2026-11-05 review; everything else in it is
   settled by a design file or ADRs 0081-0093):
-  - **Words**: "Face" means a matrix cell in the docs and DETONATE/PLANT in
-    code; the matrix Glossary still says Payload = damage plus *aspect*
-    riders. Pin one meaning at the Fire spec.
   - **Stock cap and ratios** (nit): a stock cap is a stat only if something
     targets it, and `AmmoType` and addons have no int:int seam; the element
     ammo types' multiplier knob above is the one place this bites.
