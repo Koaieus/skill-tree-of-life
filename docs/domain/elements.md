@@ -276,4 +276,4 @@ planted (§ Terrain's landing divert).
 `apply_look` gives the `BlastVisual` (`ui/vfx/blast_visual.gd`) that element's
 colour and a filled disc.
 
-**Not yet.** Fire's overflow band has no `go_off` authored yet.
+Fire's overflow band authors its go-off: `elements/defs/fire.tres`'s `band_overflow` carries the `burning_disc` `go_off`.
