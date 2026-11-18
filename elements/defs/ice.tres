@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="Element" load_steps=11 format=3]
+[gd_resource type="Resource" script_class="Element" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://elements/element.gd" id="1_element"]
 [ext_resource type="Script" path="res://elements/element_band.gd" id="2_band"]
@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://identity/defs/frozen.tres" id="7_primed"]
 [ext_resource type="Resource" path="res://identity/defs/deep_freeze.tres" id="8_overflow"]
 [ext_resource type="Script" path="res://elements/frozen_admits.gd" id="9_admits"]
+[ext_resource type="Resource" path="res://attack/ammo/types/ice.tres" id="ammo_ice"]
 
 [sub_resource type="Resource" id="frozen_admits"]
 script = ExtResource("9_admits")
@@ -34,5 +35,6 @@ identity = ExtResource("3_identity")
 stat = ExtResource("4_stat")
 terrain = ExtResource("5_terrain")
 school = ExtResource("6_school")
+ammo = ExtResource("ammo_ice")
 decay_per_world_turn = 1
 bands = Array[ExtResource("2_band")]([SubResource("band_primed"), SubResource("band_overflow")])

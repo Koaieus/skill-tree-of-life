@@ -79,6 +79,7 @@ func test_every_element_has_its_arrow() -> void:
 		assert_eq(t.per_reload_stat_id(), element.stat.id, "%s mints its element count" % id)
 		assert_eq(t.on_hit_effects.size(), 1, "%s rides one terrain stack" % id)
 		assert_eq(t.first_status_def(), element.terrain)
+		assert_eq(element.ammo, t, "Element.ammo points at %s's arrow" % id)
 
 
 ## The flare: the rider is splashed. A lone node has no neighbours to reach,

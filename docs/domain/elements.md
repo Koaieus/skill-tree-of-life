@@ -39,7 +39,8 @@ One `elements/defs/<element>.tres` per element. The fields it shares with
 | `terrain` | the one terrain stack (`StatusDef`) |
 | `movers` | the sided movers; empty in v1 (Frostbite joins Ice with #1444) |
 | `school` | the attribute `Identity` whose pool rolls the count |
-| `ammo`, `addon_scene`, `spells` | empty until #1810, #1804 and the spell cells |
+| `ammo` | the element's arrow, `attack/ammo/types/<element>.tres` (minted from `stat`, rides `terrain`) |
+| `addon_scene`, `spells` | empty until #1804 and the spell cells |
 | `decay_per_world_turn` | terrain decay per world turn below the first band; 1 on all three (owner, 2026-11-11). Read by #1795 |
 | `bands` | `Array[ElementBand]`, ascending |
 
