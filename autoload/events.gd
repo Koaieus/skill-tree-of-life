@@ -93,6 +93,13 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 ## on the authority's live replay and on every peer alike. VFX draws the ring.
 signal blast_landed(mark: BlastMark)
 
+## A node's Catalyst row was spent into terrain (the land step's conversion or
+## the settle seat's prime): [param spent] stacks off [param node]. Emitted by
+## [HitGather] where a recorded row change is applied to a LIVE world, so the
+## authority's replay and every peer's announce it alike; a shadow resolve
+## never does. VFX pulses the node.
+signal catalyst_converted(node: SkillNode, spent: int)
+
 ## The run reached a terminal state (#460). [VictorySystem] is the SOLE emitter
 ## and fires this at most once per run, carrying the populated [RunOutcome].
 ## The outcome is point-of-view-free (#517): it names the winning camp and
