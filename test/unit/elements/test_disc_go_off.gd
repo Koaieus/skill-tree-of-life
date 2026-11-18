@@ -1,11 +1,12 @@
 extends GutTest
 
-## #1799 (Unit D): go-off zero's disc, [DiscGoOff], called directly through
-## [method GoOff.fire]: the spend/power table (acceptance 1: `present` is the
-## stored charges before the hit), reach by power at every power of that table
-## (a node at the radius is reached, one just past it is not, the centre
-## never), and the spend that commits whatever the disc reaches (Carried,
-## NOTES). Unit F adds acceptance 3a's end-to-end fixture below.
+## [DiscGoOff] called directly through [method GoOff.fire] on a bare instance
+## (the base law: power = Heat's excess over T, reach = [method
+## DiscGoOff.disc_radius] off the origin node's radius, 1 per other node
+## reached), reach by power (a node at the radius is reached, one just past it
+## is not, the centre never); then Burning's disc end to end through
+## [HitGather]'s stage one: the whole hit lands a centre copy and its terrain
+## rider once.
 ##
 ## A node is reached when its hitbox touches the disc ([EuclideanRangeFinder]:
 ## centre distance less the node's own radius), so a node "at the radius" sits
@@ -14,11 +15,13 @@ extends GutTest
 
 const _EPS := 0.001
 const _PAST := 0.5
-## `[load, present, spent, power]` at resonance 1 (acceptance 1's table).
-const _TABLE := [[3, 0, 0, 3], [3, 5, 3, 14], [3, 1, 1, 6], [0, 5, 1, 5], [0, 0, 0, 0], [3, 2, 2, 9]]
-## Rows sit this far apart on y, so no disc reaches another row's nodes. A
-## centre is allocated: an unowned node hosts no Catalyst charge.
+## The powers (Heat over T) the reach table fires at.
+const _POWERS := [1, 2, 3]
+## Rows sit this far apart on y, so no disc reaches another row's nodes.
 const _ROW_GAP := 5000.0
+## Each centre's anchor sits this far west of it: outside any disc.
+const _FAR := 20000.0
+const _RAW := 4.0
 
 var _w: TestWorld
 
@@ -29,17 +32,12 @@ func before_each() -> void:
 	await get_tree().process_frame
 
 
-func _catalyst() -> StatusDef:
-	return StatusRoster.shared().by_concept(&"catalyst")
+func after_each() -> void:
+	CombatWorld.reset_live()
 
 
-func _spread() -> CatalystSpread:
-	return _catalyst().spread as CatalystSpread
-
-
-func _charge(holder: Object, n: int) -> void:
-	if n > 0:
-		holder.get_combat().apply_status(_catalyst(), float(n))
+func _fire() -> Element:
+	return ElementRoster.shared().by_id(&"fire")
 
 
 func _read(node: SkillNode) -> TerrainRead:
@@ -53,6 +51,16 @@ func _reached(result: GoOffResult) -> Array[SkillNode]:
 	return out
 
 
+## A node at [param pos] linked to its own far anchor (degree 1, so T > 0).
+func _anchored(id: StringName, pos: Vector2) -> SkillNode:
+	var n := _w.add_node(id)
+	n.global_position = pos
+	var anchor := _w.add_node(StringName("%s_anchor" % id))
+	anchor.global_position = pos - Vector2(_FAR, 0.0)
+	_w.link(n, anchor)
+	return n
+
+
 ## A node whose hitbox sits [param edge] px from [param centre]'s centre, due east.
 func _east_of(centre: SkillNode, id: StringName, edge: float) -> SkillNode:
 	var n := _w.add_node(id)
@@ -60,108 +68,61 @@ func _east_of(centre: SkillNode, id: StringName, edge: float) -> SkillNode:
 	return n
 
 
-# --- spend and power: acceptance 1's table, on the disc ------------------------
-
-func test_spend_and_power_follow_the_formula() -> void:
-	for row in _TABLE:
-		assert_eq(DiscGoOff.spend_of(row[0], row[1]), row[2], "spent for %s" % [row])
-		assert_eq(DiscGoOff.power_of(row[0], row[1], 1), row[3], "power for %s" % [row])
-	assert_eq(DiscGoOff.power_of(3, 2, 0), 5, "resonance 0: load + present")
-	assert_eq(DiscGoOff.power_of(3, 2, 2), 13, "resonance weighs the shared chunk on each side")
+## [param n]'s Heat set to its T + [param excess].
+func _prime(n: SkillNode, excess: int) -> void:
+	var c := n.get_combat()
+	c.add_terrain(_fire(), c.terrain_threshold() + excess - c.terrain_t())
 
 
-# --- reach by power: every power of the table ----------------------------------
+# --- reach by power: the base law -----------------------------------------------
 
-func test_the_disc_spends_and_reaches_by_power_at_every_power_of_the_table() -> void:
+func test_the_disc_spends_one_per_node_reached_and_reaches_by_disc_radius() -> void:
 	var disc := DiscGoOff.new()
 	var red := _w.add_entity("Red")
 	var rows: Array = []
-	for i in _TABLE.size():
-		var row: Array = _TABLE[i]
-		var centre := _w.add_node(StringName("C%d" % i))
-		centre.global_position = Vector2(0.0, _ROW_GAP * i)
-		_w.allocate(red, [centre])
-		var reach := _spread().radius_for(centre.radius, maxi(row[3], 1))
+	for i in _POWERS.size():
+		var power: int = _POWERS[i]
+		var centre := _anchored(StringName("C%d" % i), Vector2(0.0, _ROW_GAP * i))
+		var reach := disc.disc_radius(power, centre.radius)
 		var at := _east_of(centre, StringName("At%d" % i), reach - _EPS)
 		var past := _east_of(centre, StringName("Past%d" % i), reach + _PAST)
-		rows.append([row, centre, at, past])
+		_w.allocate(red, [centre])
+		rows.append([power, centre, at, past])
 	await get_tree().process_frame
 	for r: Array in rows:
-		_charge(r[1], r[0][1])
+		_prime(r[1], r[0])
 	for r: Array in rows:
-		var row: Array = r[0]
+		var power: int = r[0]
 		var centre: SkillNode = r[1]
-		var result := disc.fire(centre, _read(centre), row[0])
+		var result := disc.fire(centre, _read(centre), 3)
 		var reached := _reached(result)
-		assert_eq(disc.power_at(centre, _read(centre), row[0]), row[3], "power for %s" % [row])
-		assert_eq(result.spend(), row[2], "the disc spends spend_of for %s" % [row])
-		assert_true(result.cost.is_empty(), "no per-node cost: the spend is the node's own, %s" % [row])
-		assert_false(reached.has(centre), "never the centre, %s" % [row])
+		assert_eq(disc.power_at(centre, _read(centre), 3), power, "power is Heat's excess, the load ignored (%d)" % power)
+		assert_eq(result.spend(), reached.size(), "1 per node reached at power %d" % power)
+		assert_eq(result.nodeless_cost, 0, "nothing nodeless at power %d" % power)
 		assert_almost_eq(result.share, disc.share, 0.0001, "the copies ride the disc's share")
-		assert_eq(result.own_damage, 0.0, "the disc deals no damage of its own")
-		if row[3] <= 0:
-			assert_true(reached.is_empty(), "power 0 is no go-off: %s" % [row])
-			continue
-		assert_almost_eq(disc.radius_at(centre, row[3]), _spread().radius_for(centre.radius, row[3]), 0.0001,
-				"the disc's radius is radius_for's at power %d" % row[3])
-		assert_true(reached.has(r[2]), "the node at the radius is reached at power %d" % row[3])
-		assert_false(reached.has(r[3]), "the node just past it is not, at power %d" % row[3])
+		assert_false(reached.has(centre), "never the centre, power %d" % power)
+		assert_almost_eq(disc.radius_at(centre, power), disc.disc_radius(power, centre.radius), 0.0001,
+				"the disc's radius is disc_radius's at power %d" % power)
+		assert_true(reached.has(r[2]), "the node at the radius is reached at power %d" % power)
+		assert_false(reached.has(r[3]), "the node just past it is not, at power %d" % power)
 
 
-func test_a_lone_charged_node_still_spends() -> void:
-	var centre := _w.add_node(&"C", Vector2.ZERO)
+func test_heat_at_t_is_no_go_off() -> void:
+	var centre := _anchored(&"C", Vector2.ZERO)
+	_east_of(centre, &"M", 1.0)
 	_w.allocate(_w.add_entity("Red"), [centre])
 	await get_tree().process_frame
-	_charge(centre, 2)
-	var result := DiscGoOff.new().fire(centre, _read(centre), 0)
-	assert_true(result.reached.is_empty(), "fixture: the disc reaches no other node")
-	assert_eq(result.spend(), DiscGoOff.spend_of(0, 2), "go-off zero spends whatever its disc reaches")
+	_prime(centre, 0)
+	var result := DiscGoOff.new().fire(centre, _read(centre), 3)
+	assert_eq(result.power, 0, "no excess, no power")
+	assert_true(result.reached.is_empty(), "power 0 is no go-off")
+	assert_eq(result.spend(), 0, "and no spend")
 
 
-func test_a_core_with_no_charges_reads_its_owners_entity_rows() -> void:
-	var core := _w.add_node(&"Core", Vector2.ZERO)
-	var red := _w.add_entity("Red")
-	_w.allocate(red, [core])
-	await get_tree().process_frame
-	assert_true(core.get_combat().is_core(), "fixture: the node is red's core")
-	_charge(red, 2)
-	var disc := DiscGoOff.new()
-	var held := DiscGoOff.present_on(core.get_combat())
-	assert_same(held[0], red.get_combat(), "the holder is the owner's entity rows")
-	assert_almost_eq(float(held[1]), 2.0, 0.0001, "the entity's charges are present")
-	assert_eq(disc.power_at(core, _read(core), 3), DiscGoOff.power_of(3, 2, _spread().resonance),
-			"power reads the entity's charges plus the head's load")
-	assert_eq(disc.fire(core, _read(core), 3).spend(), DiscGoOff.spend_of(3, 2), "and spends off them")
-
-
-# --- acceptance 3a: go-off zero and the whole hit, end to end (Unit F) ---------
-## Through [HitGather]'s stage one, on a disc the test authors on the Catalyst
-## [Aspect] (F-c authors it on catalyst.tres): an arrow-shaped hit (a load-0
-## damage head, 3 Poison) on a 2-charge node with one hostile inside the disc.
-## The knobs are read from the instance, never literals.
-
-const _RAW := 4.0
-
-var _aspect: Aspect = null
-var _was: GoOff = null
-
-
-func after_each() -> void:
-	if _aspect != null:
-		_aspect.go_off = _was
-	_aspect = null
-	CombatWorld.reset_live()
-
-
-func _authored(share: float, own_node: bool) -> DiscGoOff:
-	_aspect = AspectRoster.shared().by_id(&"catalyst")
-	_was = _aspect.go_off
-	var disc := DiscGoOff.new()
-	disc.share = share
-	disc.lands_on_own_node = own_node
-	_aspect.go_off = disc
-	return disc
-
+# --- end to end: Burning's whole hit through the gather -------------------------
+## An arrow-shaped hit (a load-0 damage head, 3 Poison, 1 Heat) tips a node at
+## T to T + 1, one hostile inside the disc. The knobs are read from Fire's
+## instance, never literals.
 
 func _arrow_on(at: SkillNode, by: Entity, heat := 0) -> Array[HitInstance]:
 	var d := DamageInstance.new()
@@ -175,7 +136,7 @@ func _arrow_on(at: SkillNode, by: Entity, heat := 0) -> Array[HitInstance]:
 	var span: Array[HitInstance] = [d, poison]
 	if heat > 0:
 		var h := StatusInstance.new()
-		h.def = ElementRoster.shared().by_id(&"fire").terrain
+		h.def = _fire().terrain
 		h.power = float(heat)
 		h.raw = true
 		span.append(h)
@@ -184,25 +145,6 @@ func _arrow_on(at: SkillNode, by: Entity, heat := 0) -> Array[HitInstance]:
 		hit.attacker = by
 		hit.schedule_index = 0
 	return span
-
-
-## `[struck, disc node, copies]` after stage one on the 3a fixture. The two
-## are linked so the struck node's T (one degree's worth) sits past the arrow's
-## Heat: a lone node has T = cap = 0, and its first Heat would set Burning's
-## disc off from the overflow band, which this go-off zero fixture is not about.
-func _three_a(heat := 0) -> Array:
-	var struck := _w.add_node(&"Struck", Vector2.ZERO)
-	var red := _w.add_entity("Red")
-	var blue := _w.add_entity("Blue")
-	var other := _east_of(struck, &"Other", _spread().radius_for(struck.radius, 2) * 0.5)
-	_w.link(struck, other)
-	_w.allocate(red, [struck, other])
-	await get_tree().process_frame
-	_charge(struck, 2)
-	var span := _arrow_on(struck, blue, heat)
-	var all: Array[HitInstance] = span.duplicate()
-	HitGather.stage_one(span.duplicate(), CombatWorld.live(), HitQueue.over(all))
-	return [struck, other, all.slice(span.size())]
 
 
 func _at(copies: Array, n: SkillNode) -> Array:
@@ -219,34 +161,33 @@ func _damage_of(hits: Array) -> Array:
 			.map(func(h: HitInstance) -> float: return h.amount)
 
 
-func test_go_off_zero_lands_one_copy_per_disc_node_and_none_on_the_struck_node() -> void:
-	var disc := AspectRoster.shared().by_id(&"catalyst").go_off as DiscGoOff
-	assert_not_null(disc, "Catalyst's aspect authors go-off zero's disc")
+func test_burnings_whole_hit_lands_a_centre_copy_and_the_terrain_rider_once() -> void:
+	var disc := _fire().bands[0].go_off as DiscGoOff
+	assert_not_null(disc, "Fire's Burning band holds a DiscGoOff")
 	if disc == null:
 		return
-	assert_false(disc.lands_on_own_node, "go-off zero adds no centre copy (the lead call)")
-	var got: Array = await _three_a()
-	var copies: Array = got[2]
-	assert_true(_at(copies, got[0]).is_empty(), "the struck node takes the arrow alone: no copy, no mark")
-	var other := _at(copies, got[1])
-	assert_eq(_damage_of(other), [_RAW * disc.share], "the disc node's copy deals raw × share")
-	assert_eq(_poison_of(other), [ceilf(3.0 * disc.share)], "and Poison ceil(3 × share)")
-	for c: HitInstance in other:
-		assert_not_null(c.blast_mark, "every copy carries the go-off's mark")
-
-
-func test_the_whole_hit_alternative_lands_a_centre_copy_and_the_terrain_rider_once() -> void:
-	var disc := _authored(1.0, true)
-	var got: Array = await _three_a(1)
-	var copies: Array = got[2]
-	var struck: SkillNode = got[0]
+	assert_true(disc.lands_on_own_node, "Burning lands a centre copy (ADR 0086 §1)")
+	var struck := _anchored(&"Struck", Vector2.ZERO)
+	var red := _w.add_entity("Red")
+	var blue := _w.add_entity("Blue")
+	var other := _east_of(struck, &"Other", disc.disc_radius(1, struck.radius) * 0.5)
+	_w.link(struck, other)
+	_w.allocate(red, [struck, other])
+	await get_tree().process_frame
+	_prime(struck, 0)
+	assert_lt(1, other.get_combat().terrain_threshold() + 1, "fixture: Other stays unprimed after its copy")
+	var span := _arrow_on(struck, blue, 1)
+	var all: Array[HitInstance] = span.duplicate()
+	HitGather.stage_one(span.duplicate(), CombatWorld.live(), HitQueue.over(all))
+	var copies := all.slice(span.size())
+	var each := _RAW * disc.share + disc.damage_per_power * 1
 	var own := _at(copies, struck)
-	assert_eq(_damage_of(own), [_RAW * disc.share], "the struck node's centre copy at share × raw")
-	assert_eq(_poison_of(own), [ceilf(3.0 * disc.share)], "with its Poison: two landings with the arrow's")
-	var other := _at(copies, got[1])
-	assert_eq(_damage_of(other), [_RAW * disc.share], "the disc node takes one copy")
-	assert_eq(_poison_of(other), [ceilf(3.0 * disc.share)], "with 3 Poison")
-	var fire := ElementRoster.shared().by_id(&"fire")
-	assert_eq(CombatWorld.live().combat_for(struck).terrain_count(fire), 1, "the terrain rider lands once")
-	assert_true(copies.all(func(h: HitInstance) -> bool: return not (h is StatusInstance and h.def == fire.terrain)),
+	assert_true(_damage_of(own).has(each), "the struck node takes its centre landing at raw × share + own damage")
+	assert_true(_poison_of(own).has(ceilf(3.0 * disc.share)), "with its Poison")
+	var on_other := _at(copies, other)
+	assert_eq(_damage_of(on_other), [each], "the disc node takes one copy")
+	assert_eq(_poison_of(on_other), [ceilf(3.0 * disc.share)], "with 3 Poison × share")
+	for c: HitInstance in own + on_other:
+		assert_not_null(c.blast_mark, "every copy carries the go-off's mark")
+	assert_true(copies.all(func(h: HitInstance) -> bool: return not (h is StatusInstance and h.def == _fire().terrain)),
 			"no copy carries the terrain rider")

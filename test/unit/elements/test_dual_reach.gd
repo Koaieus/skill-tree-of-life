@@ -1,10 +1,11 @@
 extends GutTest
 
-## #1800 (U4, acceptance 5): dual reach. A node C holding Catalyst charges and
-## Burning sets off both discs in one hit, both read at C's one read. Burning's
-## disc is Fire's (never mutated); the Catalyst disc is this test's own
-## [DiscGoOff] on the Catalyst [Aspect], restored in after_each. The hit
-## carries damage, Poison and a Heat rider (no Catalyst row). Entry counts
+## #1800 (U4, acceptance 5): dual reach. A node C primed in two bands sets off
+## both discs in one hit, both read at C's one read. Burning's disc is Fire's
+## (never mutated); the second is this test's own [DiscGoOff] on a one-band
+## Lightning (C's Charge past T), both bands restored in after_each. The second
+## disc reads the same Heat excess, so both reach alike. The hit carries
+## damage, Poison and a Heat rider. Entry counts
 ## only: the own damage rides every entry, so amounts are not asserted.
 
 const _RAW := 4.0
@@ -14,9 +15,9 @@ const _FAR := 20000.0
 var _w: TestWorld
 var _red: Entity
 var _blue: Entity
-var _aspect: Aspect
-var _was: GoOff
-var _catalyst: DiscGoOff
+var _light: Element
+var _was_bands: Array[ElementBand]
+var _second: DiscGoOff
 var _was_tunables: HitGatherTunables
 
 
@@ -26,15 +27,18 @@ func before_each() -> void:
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
 	await get_tree().process_frame
-	_aspect = AspectRoster.shared().by_id(&"catalyst")
-	_was = _aspect.go_off
-	_catalyst = DiscGoOff.new()
-	_aspect.go_off = _catalyst
+	_light = ElementRoster.shared().by_id(&"lightning")
+	_was_bands = _light.bands.duplicate()
+	_second = DiscGoOff.new()
+	var band := ElementBand.new()
+	band.go_off = _second
+	var bands: Array[ElementBand] = [band]
+	_light.bands = bands
 	_was_tunables = HitGather.tunables
 
 
 func after_each() -> void:
-	_aspect.go_off = _was
+	_light.bands = _was_bands
 	HitGather.tunables = _was_tunables
 	CombatWorld.reset_live()
 
@@ -92,17 +96,17 @@ func _heat_riders(hits: Array) -> int:
 
 
 ## Entries on [param n] whose mark is Burning's (a mark naming a go-off that is
-## not the Catalyst aspect's).
+## not the second disc's).
 func _burning_marked(hits: Array, n: SkillNode) -> int:
-	var xp := _aspect.identity
+	var burning := _fire().bands[0].identity
 	return _on(hits, n).filter(func(h: HitInstance) -> bool:
-		return h is DamageInstance and h.blast_mark != null and h.blast_mark.go_off != xp).size()
+		return h is DamageInstance and h.blast_mark != null and h.blast_mark.go_off == burning).size()
 
 
-## C (Heat T + 1, two Catalyst charges) and N close east inside both discs, N
+## C (Heat T + 1, Charge past T) and N close east inside both discs, N
 ## unprimed after its copies. `[C, N, all]` after one hit with Heat rider 1.
 func _fixture(own_node: bool, dedupe := false) -> Array:
-	_catalyst.lands_on_own_node = own_node
+	_second.lands_on_own_node = own_node
 	var tun := HitGatherTunables.new()
 	tun.dedupe_dual_reach = dedupe
 	HitGather.tunables = tun
@@ -112,7 +116,8 @@ func _fixture(own_node: bool, dedupe := false) -> Array:
 	await get_tree().process_frame
 	var combat := c.get_combat()
 	combat.add_terrain(_fire(), _t(c) + 1 - c.get_combat().terrain_t())
-	combat.apply_status(StatusRoster.shared().by_concept(&"catalyst"), 2.0)
+	combat.add_terrain(_light, _t(c) + 1 - combat.charge())
+	assert_not_null(TerrainRead.of(combat, c).band(_light), "fixture: C sits in the second disc's band")
 	assert_eq(c.get_combat().terrain_t(), _t(c) + 1, "fixture: C sits at T + 1 before the hit")
 	assert_lt(1, n.get_combat().terrain_threshold() + 1, "fixture: N stays unprimed after both copies")
 	return [c, n, _land(_hit(c, 1))]
@@ -132,7 +137,7 @@ func test_both_discs_reach_n_and_its_heat_lands_once() -> void:
 	assert_eq(n.get_combat().terrain_t(), 1, "Heat lands once: one copy's ceil(h × s), not the sum")
 
 
-func test_burning_adds_one_centre_entry_and_the_exempt_catalyst_disc_none() -> void:
+func test_burning_adds_one_centre_entry_and_the_exempt_second_disc_none() -> void:
 	var got: Array = await _fixture(false)
 	var on_c := _on(got[2], got[0])
 	assert_eq(_damage_entries(on_c), 2, "C takes its hit and Burning's centre entry")
@@ -140,7 +145,7 @@ func test_burning_adds_one_centre_entry_and_the_exempt_catalyst_disc_none() -> v
 	assert_eq(_heat_riders(on_c), 1, "no terrain rider on the centre entry")
 
 
-func test_with_the_catalyst_flag_true_c_takes_three_and_burnings_count_holds() -> void:
+func test_with_the_second_discs_flag_true_c_takes_three_and_burnings_count_holds() -> void:
 	var got: Array = await _fixture(true)
 	assert_eq(_damage_entries(_on(got[2], got[0])), 3, "C takes its hit and one centre entry per disc")
 	assert_eq(_burning_marked(got[2], got[0]), 1, "Burning's centre entry is still one")
