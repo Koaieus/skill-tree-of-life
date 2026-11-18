@@ -166,7 +166,7 @@ func test_the_turns_commands_reach_the_applier_in_decided_order() -> void:
 		seen.append([cmd.type_tag(), cmd.entity_id,
 				cmd.node_id if cmd is NodeCommand else 0]))
 	# The pinned order is the plain-arrow attack loop: the starter Catalyst and
-	# element counts would mint a flat special volley the first reload fires.
+	# element counts split it into reload, volley, reload, volley.
 	_enemy.stat_board.get_stat(&"catalyst_aspect").base_value = 0.0
 	for element in ElementRoster.shared().elements:
 		_enemy.stat_board.get_stat(element.stat.id).base_value = 0.0
