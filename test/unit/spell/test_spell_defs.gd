@@ -231,3 +231,26 @@ func test_lightning_bolt_rides_charge_innately() -> void:
 	assert_not_null(row)
 	assert_eq(row.status(), charge, "the row plants Charge")
 	assert_gt(row.innate, 0)
+
+
+func _walk_has_nothing_to_cut(spell: SpellDef) -> bool:
+	var hops := spell.propagation.max_hops if spell.propagation != null else 0.0
+	return hops <= 0.0 or is_inf(hops)
+
+
+## Acceptance 6: a def with nothing to cut (0 or unbounded hops) refuses an Ice
+## shape on its concentrate row; every other def accepts one.
+func test_ice_shape_refused_exactly_where_there_is_nothing_to_cut() -> void:
+	for spell in TestSpells.CATALOG.spells:
+		var rate := Infusion.rate_of(spell, &"ice", Infusion.RowKind.CONCENTRATE)
+		if _walk_has_nothing_to_cut(spell):
+			assert_lte(rate, 0.0, "%s has no hops to cut: refuses an Ice shape" % spell.id)
+		else:
+			assert_gt(rate, 0.0, "%s has hops to cut: accepts an Ice shape" % spell.id)
+
+
+## Acceptance 6b: a def that refuses the shape still takes a Cold ride.
+func test_a_def_refusing_the_ice_shape_still_takes_a_cold_ride() -> void:
+	for spell in TestSpells.CATALOG.spells:
+		if _walk_has_nothing_to_cut(spell):
+			assert_gt(Infusion.rate_of(spell, &"ice"), 0.0, "%s rides Cold" % spell.id)
