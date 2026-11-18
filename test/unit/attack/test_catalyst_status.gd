@@ -42,9 +42,9 @@ func _spread() -> CatalystSpread:
 
 
 
-# --- acceptance 6: decay ------------------------------------------------------
+# --- world-turn decay ---------------------------------------------------------
 
-func test_two_charges_keep_at_turn_end_and_lose_per_tick_at_the_world_turn() -> void:
+func test_catalyst_keeps_at_turn_end_and_decays_per_tick_at_the_world_turn() -> void:
 	var def := _def()
 	assert_not_null(def, "catalyst.tres authored")
 	var per_tick: float = (def.decay as FlatDecay).per_tick
@@ -56,18 +56,18 @@ func test_two_charges_keep_at_turn_end_and_lose_per_tick_at_the_world_turn() -> 
 	assert_almost_eq(c.get_status_power(def.id), 2.0 - per_tick, 0.0001, "decays by per_tick at the world turn")
 
 
-# --- acceptance 5: death spends every charge at once -------------------------
+# --- death burns the whole row at once ----------------------------------------
 
-func test_death_removal_spends_all_charges_in_one_transfer() -> void:
+func test_death_removal_burns_the_whole_row_in_one_transfer() -> void:
 	var def := _def()
 	var c := _nodes[0].get_combat()
 	c.apply_status(def, 3.0)
 	var field := StackField.over_world(def, def.spread.ownership_mask, CombatWorld.live(), [_nodes[0]], _graph)
 	var removed: Array[NodeCombat] = [c]
 	var out := _spread().on_removed(field, removed, StatusSpread.CAUSE_DEATH)
-	assert_eq(out.size(), 1, "one spend, not one per charge")
-	assert_null(out[0].to, "charges burn, never spill onto a neighbour")
-	assert_eq(out[0].amount, 3.0, "every charge is spent")
+	assert_eq(out.size(), 1, "one spend, not one per stack")
+	assert_null(out[0].to, "the row burns, never spills onto a neighbour")
+	assert_eq(out[0].amount, 3.0, "every stack is spent")
 
 
 func test_dealloc_spends_nothing() -> void:
@@ -79,7 +79,7 @@ func test_dealloc_spends_nothing() -> void:
 	assert_eq(_spread().on_removed(field, removed, StatusSpread.CAUSE_DEALLOC).size(), 0, "only a kill booms")
 
 
-# --- detonation (1594b): acceptance 1-6, 9 of the 10-13 spec ------------------
+# --- Burning's disc on a primed node; Catalyst never goes off -----------------
 # Board: VolleyBoardFixture — target (450,0) hostile; cluster[0] (600,0) and
 # cluster[1] (700,100) hostile; the attacker's leaves west of the target.
 
@@ -117,11 +117,11 @@ func _heat(node: SkillNode) -> int:
 	return node.get_combat().terrain_t()
 
 
-func _charge(node: SkillNode, n: float) -> void:
+func _plant(node: SkillNode, n: float) -> void:
 	node.get_combat().apply_status(_def(), n)
 
 
-func _charges(node: SkillNode) -> float:
+func _stacks(node: SkillNode) -> float:
 	return node.get_combat().get_status_power(&"catalyst")
 
 
@@ -188,15 +188,15 @@ func test_a_poison_arrow_on_a_burning_node_spends_heat_and_blasts_poison_outward
 	assert_lt(_heat(_f.target), before, "the disc spends Heat, 1 per node reached")
 
 
-func test_catalyst_only_landings_arm_and_never_fire() -> void:
+func test_catalyst_only_landings_plant_and_never_go_off() -> void:
 	await _board()
 	var ammo := _catalyst_arrow()
 	await _fire(_shoot(ammo))
-	var per_landing := _charges(_f.target)
+	var per_landing := _stacks(_f.target)
 	assert_gt(per_landing, 0.0, "an catalyst arrow plants")
 	for i in 2:
 		assert_true((await _fire(_shoot(ammo))).is_empty(), "an catalyst-only hit never goes off")
-	assert_almost_eq(_charges(_f.target), 3.0 * per_landing, 0.0001, "N landings leave N x one landing's charges")
+	assert_almost_eq(_stacks(_f.target), 3.0 * per_landing, 0.0001, "N landings leave N x one landing's stacks")
 
 
 func test_a_plain_arrow_on_a_burning_node_blasts_shrapnel_only() -> void:
@@ -210,7 +210,7 @@ func test_a_plain_arrow_on_a_burning_node_blasts_shrapnel_only() -> void:
 
 func test_no_hit_on_an_unprimed_node_blasts() -> void:
 	await _board()
-	_charge(_f.target, 2.0)
+	_plant(_f.target, 2.0)
 	assert_true((await _fire(_shoot(_POISON_ARROW))).is_empty(), "Catalyst alone, no Burning: no boom")
 	var plain := _shoot(null)
 	assert_eq(plain.size(), 1, "a plain arrow emits nothing")
@@ -223,15 +223,6 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 ## node off. Whether a refused arrival goes off is undecided; held pending.
 func test_a_dud_arrow_sets_off_nothing() -> void:
 	pending("a refused arrival still goes off at stage one: undecided (#1799 F-c2 report)")
-	return
-	@warning_ignore("unreachable_code")
-	await _board()
-	_prime(_f.target, 1)
-	var before := _heat(_f.target)
-	var hits := _shoot(null)
-	hits[0].gated = true
-	assert_true((await _fire(hits)).is_empty(), "a dud sets nothing off")
-	assert_eq(_heat(_f.target), before, "and spends nothing")
 
 
 # --- the shipped catalyst arrow (#1398) ---------------------------------------
@@ -251,11 +242,11 @@ func test_three_shipped_catalyst_arrows_plant_three_landings_and_never_fire() ->
 	if ammo == null:
 		return
 	assert_true((await _fire(_shoot(ammo))).is_empty(), "the first plants")
-	var per_landing := _charges(_f.target)
+	var per_landing := _stacks(_f.target)
 	assert_gt(per_landing, 0.0, "the shipped arrow plants")
 	for i in 2:
 		assert_true((await _fire(_shoot(ammo))).is_empty(), "an catalyst arrow never goes off")
-	assert_almost_eq(_charges(_f.target), 3.0 * per_landing, 0.0001, "three arrows, three landings' charges")
+	assert_almost_eq(_stacks(_f.target), 3.0 * per_landing, 0.0001, "three arrows, three landings' stacks")
 
 
 func test_the_catalyst_aspect_mints_the_shipped_arrow() -> void:
