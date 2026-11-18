@@ -104,8 +104,6 @@ above).
 
 ## Quiver, volleys, infusion, ammo aspects
 
-changing: element arrow bins beside the plain pool, #1810; see docs/design/elements/counts.md, docs/design/elements/forge.md
-
 | id | surface |
 |---|---|
 | `arrows` | `ui/hud/command_tray/bodies/ranged_body.gd` (base arrows are the remainder `N − Σ specials`) and `volley_bar.gd` |
@@ -114,7 +112,7 @@ changing: element arrow bins beside the plain pool, #1810; see docs/design/eleme
 | `volleys_per_turn` | no row; derived from `max_shots_per_leaf` (innate intrinsic) |
 | `infusion_slots` | `ui/hud/command_tray/bodies/infusion_sockets.gd` (one socket per slot, plus a ghost socket labelled with the next INT threshold) |
 | `*_aspect` (`bleeding`, `blindness`, `catalyst`, `corruption`, `curse`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | caster load in `ui/hud/command_tray/bodies/readout_lines.gd` (the crucible readout's lines) and `infusion_choices.gd` (the aspect wheel entries); also the per-reload stat of a special ammo type |
-| `*_element` (`fire_element`, `ice_element`, `lightning_element`; shown "Fire attunement" etc.) | always shown (reads the count; `default_value` on a default entity) in `infusion_choices.gd`, after the aspect wedges (`_element_entries`, `ElementRoster` order): tinted and badged by the `Element.identity`, hub reads "Fire attunement: N"; disabled ("is not infusable"), since a count is no infusion currency. No readout line: `readout_lines.gd` lists only what a cast lands. `docs/domain/elements.md` |
+| `*_element` (`fire_element`, `ice_element`, `lightning_element`; shown "Fire attunement" etc.) | always shown (reads the count; `default_value` on a default entity) in `infusion_choices.gd`, after the aspect wedges (`_element_entries`, `ElementRoster` order): tinted and badged by the `Element.identity`, hub reads "Fire attunement: N"; disabled ("is not infusable"), since a count is no infusion currency. No readout line: `readout_lines.gd` lists only what a cast lands. Also the per-reload stat of the element's arrow (`fire` / `ice` / `lightning` ammo types): each reload mints the count into that type's bin beside the plain pool, capped at `AmmoType.stock_cap_reloads` × the count, and the ranged tray shows the bin as one ammo card like any special. `docs/domain/elements.md` |
 | `*_stacks_per_hit` (`bleeding`, `blindness`, `catalyst`, `corruption`, `curse`, `greed`, `hex`, `mark`, `poison`, `scout`, `sunder`, `weakness`, `wither`) | `readout_lines.gd`, shown by `crucible_readout.gd` (through `StatusDef.stacks_per_hit`) |
 | `*_resistance` (`bleeding`, `blindness`, `catalyst`, `charge`, `cold`, `corruption`, `curse`, `heat`, `poison`) | `ui/tooltip_fan/panels/node_stats_panel.gd` (dynamic, when a node or its owner carries one); also `addons/status_sandbox/` |
 | `healing_received` | no row; read at the heal doors (`NodeCombat.heal_damage`, `EntityCombat.heal`) |

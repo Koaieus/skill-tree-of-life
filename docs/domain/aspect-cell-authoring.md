@@ -33,8 +33,6 @@ Guard: `test/unit/aspects/test_aspect_roster.gd`.
 
 ## Arrow (ranged column)
 
-changing: one ammo type per element with a stock cap, #1810; see docs/design/elements/counts.md, docs/design/elements/forge.md
-
 One `AmmoType` resource, `attack/ammo/types/<concept>.tres`, plus one line
 on `attack/ammo/ammo_type_roster.tres` (hard `ExtResource` edges; a folder
 scan does not survive export), plus one look scene. No code:
@@ -48,12 +46,25 @@ markers, the flare, every arrow's look — is `docs/design/aspect_matrix.md`
 | stats | `order` | volley position: lower fires and lands first, the base arrow sits at 100, scout last (120). A **marker** flies early (curse 40, mark 30, greed 5) |
 | | `damage_scale` | raw-damage multiplier before mitigation; markers 0.3, plain stacks 0.5 unless the row says otherwise (sunder 0.75), blindness and scout 0 |
 | | `max_stock` | the type's own bank cap, outside the shared quiver capacity (ADR 0041); 999 unless tuned (curse and corruption 6) |
+| | `stock_cap_reloads` | `0` keeps the flat `max_stock`; positive, the bin banks that many reloads' mint (`AmmoType.stock_cap(mint)`, which every `Quiver.add` / `room_for` caller passes: `Entity.reload`, `AIController._reload_has_room`, the arrow gallery). `2` on the element arrows, `0` elsewhere (tentative) |
 | | `per_reload_stat_id()` | derived: the concept's COUNT facet (base arrow authors `base_per_reload_stat_id`) |
 | effect | `on_hit_effects` | `OnHitEffect` riders run in order on every landing arrow ([On-hit shelf](#on-hit-shelf)) — usually one `ApplyStatusEffect` of the concept's `effects/status/<concept>.tres`, its `power` the stacks per landing arrow before potency × (1 − resistance). A scout type is one `ApplyStatusEffect(scouted.tres)` rider with `damage_scale` 0 (`AmmoType.is_scout()`) |
 | looks | `visual_scene` | the type's own inherited scene of `ui/vfx/projectile/visual/status_arrow.tscn` under `ui/vfx/projectile/visual/arrows/<concept>_arrow.tscn`, picked per shot by `ArrowVolleyCoordinator` (#1351, #1352). A look is parts, not code ([Look shelf](#look-shelf)). `test_ammo_type_roster.gd` requires a statused type to fly its own scene |
 
+**An element's arrow** is the same recipe with the element's id
+(`fire` / `ice` / `lightning`): it mints the element's COUNT facet
+(`fire_element`, …) 1:1 per reload into its own bin beside the plain pool, its
+one rider is an `ApplyStatusEffect` of the element's `terrain` status (Heat /
+Cold / Charge, `power` 1.0), which `HitGather._land_riders` lands as terrain,
+and `stock_cap_reloads = 2`. Orders 3 / 4 / 6 (Fire / Lightning / Ice;
+tentative). An arrow is an aspect subtype *or* an element, never both: the
+Catalyst goo is an aspect arrow. `Element.ammo` points at it. A volley may mix
+any number of elements; Heat × Cold netting on the node is the only price.
+
 Guards: `test/unit/attack/test_ammo_type_roster.gd` (roster vs disk, ids,
-distinct mint stats, order invariants, own scene per statused type),
+distinct mint stats, order invariants, own (or, for an element, its terrain)
+status, own scene per statused type), `test/unit/test_element_arrow_reload.gd`
+(the element bin and its cap),
 `test/unit/command/test_reload_command.gd`, `test/unit/vfx/test_arrow_parts.gd` (the parts),
 `test_status_arrow_visual.gd` (the lifecycle).
 
