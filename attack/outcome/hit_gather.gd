@@ -86,6 +86,8 @@ class _Hit:
 	var terrain: Dictionary = {}
 	## `SkillNode -> true`: the nodes this hit landed and read.
 	var visited: Dictionary = {}
+	## Its head's second store ([method HitInstance.go_off_source]), or null.
+	var source: GoOffSource = null
 
 
 ## One go-off the gather fired that reached a node: its mark, and what its
@@ -101,6 +103,9 @@ class _Fired:
 	var mark: BlastMark = null
 	## `SkillNode -> true`: the reached nodes whose entries it dropped.
 	var dropped: Dictionary = {}
+	## `(Element, int) -> void` when a [GoOffSource] pays instead of the
+	## node's store ([method _fire_source]); else invalid.
+	var spend: Callable = Callable()
 
 
 const DEFAULT_TUNABLES := preload("res://attack/outcome/hit_gather_tunables.tres")
@@ -180,6 +185,8 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		return
 	var arrivals: Array[Arrival] = []
 	for h in order:
+		h.head.stamp_at_gather(world)
+		h.source = h.head.go_off_source()
 		gather._open_head(h)
 		var a := Arrival.new()
 		a.node = h.head.target
@@ -295,6 +302,8 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 					continue
 				_spend(spends, node, e, result)
 				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
+			if h.source != null and node == h.head.target:
+				_fire_source(h, node, generation, spends, next)
 	_release(generation, spends, next)
 	TerrainSettle.commit(spends, _seat_take)
 	_entries.append_array(bursts)
@@ -438,7 +447,8 @@ func _open_head(h: _Hit) -> void:
 ## generation through [method _join], the dedupe switch; a cast's shape adds
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
-		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null) -> void:
+		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null,
+		spend: Callable = Callable()) -> void:
 	var fired: _Fired = null
 	var mask := h.head.target_mask
 	for reach in result.reached:
@@ -454,6 +464,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 			fired.node = node
 			fired.element = e
 			fired.result = result
+			fired.spend = spend
 			if go_off != null:
 				fired.mark = BlastMark.new()
 				fired.mark.centre = node
@@ -494,7 +505,12 @@ func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]
 			fired.dropped[reach.node] = true
 			continue
 		if fired.element != null:
-			_spend_stacks(spends, fired.node, fired.element, int(fired.result.cost.get(reach.node, 0)))
+			var cost := int(fired.result.cost.get(reach.node, 0))
+			if fired.spend.is_valid():
+				if cost > 0:
+					fired.spend.call(fired.element, cost)
+			else:
+				_spend_stacks(spends, fired.node, fired.element, cost)
 			_add(spends, reach.node, fired.element, int(fired.result.transfer.get(reach.node, 0)))
 		_join(next, _arrive(fired, reach.node, generation + 1))
 
@@ -688,6 +704,37 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 		if band != null and band.admits != null and not band.admits.admit_in(_world, node, before, a):
 			return false
 	return true
+
+
+## [param h]'s head's second store ([member _Hit.source]) going off at the
+## head's own [param node], beside the node's bands: each band the source's
+## read sits in fires its [GoOff] from [param node] with that read, and the
+## spend comes off the source through its callable, never the node's ints; a
+## transfer still lands on the reached nodes. Once per hit, as the node's own
+## go-offs are. An inert source sits in no band, fires nothing, spends nothing.
+func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSettle.Batch,
+		next: Array[Arrival]) -> void:
+	var read := h.source.read
+	if read == null:
+		return
+	for e: Element in ElementRoster.shared().elements:
+		var band := read.band(e)
+		if band == null or band.go_off == null:
+			continue
+		var result := band.go_off.fire_in(_world, node, read)
+		if result == null:
+			continue
+		var spent := result.spend_at_read()
+		if spent > 0 and h.source.spend.is_valid():
+			h.source.spend.call(e, spent)
+		var seen: Dictionary = {}
+		for reach in result.reached:
+			if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
+				continue
+			seen[reach.node] = true
+			_add(spends, reach.node, e, int(result.transfer.get(reach.node, 0)))
+		_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
+				h.source.spend)
 
 
 ## The spend [param result] returns at its own read, on [param node]'s store

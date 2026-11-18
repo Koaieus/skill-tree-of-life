@@ -379,6 +379,21 @@ func draws_own_crit() -> bool:
 
 
 
+## A second store this hit sets off beside its target node's, asked once by
+## [method HitGather.stage_one] of a fresh head, never of a copy. Base: none.
+## A blade contact answers its vertex's copied terrain.
+func go_off_source() -> GoOffSource:
+	return null
+
+
+## Stamp this head's raw [member amount] off [param world] as its beat's gather
+## opens, before generation 0 lands any rider: [method HitGather.stage_one]
+## calls it once per fresh head, so it never runs twice nor on a replay (a
+## rebuilt hit is a plain one). Base: the amount stands as authored.
+func stamp_at_gather(_world: CombatWorld) -> void:
+	pass
+
+
 ## The fresh instance a go-off copy of this hit starts from ([HitGather]): this
 ## script's own, whose `_init` takes no argument. A subclass whose `_init` takes
 ## some overrides it with the plain class its copy lands as.

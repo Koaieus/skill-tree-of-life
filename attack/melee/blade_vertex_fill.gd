@@ -37,6 +37,7 @@ func fill(state: BladeState, nodes: Array[SkillNode]) -> void:
 			column[i] = _read(nodes[i], VERTEX_STATS[k])
 		state.set(STATE_ARRAYS[k], column)
 	state.vertex_node.assign(nodes)
+	_copy_terrain(state, nodes)
 	for i in nodes.size():
 		for addon in nodes[i].get_addons():
 			addon.apply_to_blade(state, i)
@@ -50,3 +51,14 @@ func _read(node: SkillNode, stat_id: StringName) -> float:
 			if v != null:
 				return float(v)
 	return float(node.get_local_value(stat_id))
+
+
+## Each source node's terrain onto its vertex's copy, read off the node's live
+## slice as its stats are: a read, so the source keeps its stacks.
+func _copy_terrain(state: BladeState, nodes: Array[SkillNode]) -> void:
+	for i in mini(nodes.size(), state.vertex_t.size()):
+		var read := TerrainRead.of(nodes[i].get_combat() if nodes[i] != null else null, nodes[i])
+		state.vertex_t[i] = read.t
+		state.vertex_charge[i] = read.charge
+		state.vertex_threshold[i] = read.threshold
+		state.vertex_cap[i] = read.cap

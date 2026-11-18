@@ -97,6 +97,20 @@ var vertex_restitution: PackedFloat32Array
 ## which runs a vertex's riders on a [HitLanding] paired to each contact's
 ## damage hit.
 var vertex_on_hit: Array = []
+## Per-particle copy of the source node's terrain at fill: signed `t` (Heat
+## over Cold), Charge, T and the terrain cap — the four numbers a
+## [TerrainRead] holds. [BladeVertexFill] writes them; zeroed in build(). A
+## vertex's band is the source node's band function on the copy
+## ([method copy_read]); no band is stored. Only [method spend_copy] lowers a
+## copy, and nothing here writes the source node back.
+var vertex_t: PackedInt32Array
+var vertex_charge: PackedInt32Array
+var vertex_threshold: PackedInt32Array
+var vertex_cap: PackedInt32Array
+## Per-particle one-shot flag: nonzero, the vertex's first admitted contact
+## lands and then pops it ([method BladePopResolver.LiveGate.admit]). Zeroed in
+## build(); set by whoever builds a brittle vertex.
+var vertex_one_shot: PackedByteArray
 ## [b]There is no per-edge damage array, and there is no `edge_damage` stat.[/b]
 ## ADR 0005: [b]nodes deal damage, edges give rigidity[/b]. An edge carries no
 ## stats at all — not derived from its endpoints by MIN, MAX or mean, because a
@@ -223,6 +237,16 @@ static func build(
 	s.vertex_blunting.resize(positions_.size())  # zero-init == unfilled; see the member
 	s.vertex_restitution = PackedFloat32Array()
 	s.vertex_restitution.resize(positions_.size())
+	s.vertex_t = PackedInt32Array()
+	s.vertex_t.resize(positions_.size())
+	s.vertex_charge = PackedInt32Array()
+	s.vertex_charge.resize(positions_.size())
+	s.vertex_threshold = PackedInt32Array()
+	s.vertex_threshold.resize(positions_.size())
+	s.vertex_cap = PackedInt32Array()
+	s.vertex_cap.resize(positions_.size())
+	s.vertex_one_shot = PackedByteArray()
+	s.vertex_one_shot.resize(positions_.size())
 	s.vertex_on_hit = []
 	for i in positions_.size():
 		var riders: Array = []
@@ -445,6 +469,45 @@ static func speed_damage_multiplier(speed: float, m: float, v_half: float) -> fl
 		return 1.0
 	var f := 1.0 + (m - 1.0) * speed / denom
 	return maxf(1.0, f)
+
+
+## The sweep factor on a contact's speed (#1804): `clamp(1 + c·t/T, 1−c, 1+c)`
+## for a node at signed [param t] (Heat over Cold) with threshold
+## [param threshold], [param c] the wielder's `blade_temperature_speed`. Heat
+## speeds a contact up, Cold slows it; `t = 0`, `T ≤ 0` or `c = 0` give exactly
+## 1. Both speed-curve sites (the authority's gather stamp and
+## [method SkillBlade._speed_multiplier]) multiply `ev.speed` by it before
+## [method speed_damage_multiplier], so they cannot drift.
+static func temperature_speed_factor(t: int, threshold: int, c: float) -> float:
+	if t == 0 or threshold <= 0 or c <= 0.0:
+		return 1.0
+	return clampf(1.0 + c * float(t) / float(threshold), 1.0 - c, 1.0 + c)
+
+
+## Vertex [param idx]'s copied terrain as a [TerrainRead] (no node): its bands
+## are the source node's band function on the copy.
+func copy_read(idx: int) -> TerrainRead:
+	var read := TerrainRead.new()
+	if idx < 0 or idx >= vertex_t.size():
+		return read
+	read.t = vertex_t[idx]
+	read.charge = vertex_charge[idx]
+	read.threshold = vertex_threshold[idx]
+	read.cap = vertex_cap[idx]
+	return read
+
+
+## Take [param stacks] of [param element] off vertex [param idx]'s copy,
+## clamped at 0: Heat / Cold toward `t = 0`, Charge down. The copy only.
+func spend_copy(idx: int, element: Element, stacks: int) -> void:
+	if stacks <= 0 or idx < 0 or idx >= vertex_t.size():
+		return
+	match Terrain.axis_of(element):
+		Terrain.Axis.HEAT, Terrain.Axis.COLD:
+			var t := vertex_t[idx]
+			vertex_t[idx] = t - mini(stacks, t) if t > 0 else t + mini(stacks, -t)
+		Terrain.Axis.CHARGE:
+			vertex_charge[idx] = maxi(0, vertex_charge[idx] - stacks)
 
 
 ## Read a scalar stat off [param board] by [param id], falling back to
