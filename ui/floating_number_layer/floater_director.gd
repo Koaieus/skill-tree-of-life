@@ -43,6 +43,12 @@ extends Node2D
 ## redundant. So [method _on_stat_modifier_changed] always targets the core,
 ## player or not — see [method _emit_at_entity]'s `route_to_player_anchor` arg.
 @export var player: Entity = null
+
+## The blade sweep cue: the suffix a damage floater carries when its contact
+## was sped up by Heat ([member HitInstance.sweep_factor] above 1) or slowed by
+## Cold (below 1), in the matching [method FloaterStyles.sweep] tint. Tentative.
+@export var sweep_fast_text: String = "FAST"
+@export var sweep_slow_text: String = "SLOW"
 @export var player_anchor: Node2D = null
 
 const FloaterStyles := preload("res://ui/floating_number_layer/floater_styles.gd")

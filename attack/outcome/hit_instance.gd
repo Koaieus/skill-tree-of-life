@@ -227,6 +227,12 @@ var popped_vertex: SkillNode = null
 ## live landing, never from the sim.
 var blast_mark: BlastMark = null
 
+## The sweep factor this landing's contact was stamped at: `> 1` sped up by a
+## Heat node, `< 1` slowed by a Cold one, `1.0` for every hit that is no blade
+## contact or swept a node at `t = 0`. Like [member popped_vertex] a recorded
+## cue, read by the damage floater on the live landing; it never scales anything.
+var sweep_factor: float = 1.0
+
 ## The sandpile settle this landing's beat ran ([method CombatWorld.settle_topples]),
 ## in order: [CombatWorld.SettleOp]s, re-pointed at the real nodes' live slices.
 ## Written by the authority's shadow flush onto the beat's first fresh landing;

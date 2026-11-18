@@ -52,6 +52,10 @@ const KEY_HIT_HP_MAX := "h_hpm"
 ## flattened side list, because a landing pops at most one vertex.
 ## See [member HitInstance.popped_vertex] for why a cue is on the wire at all.
 const KEY_HIT_POP := "h_pop"
+## [member HitInstance.sweep_factor] per hit, a cue like [constant KEY_HIT_POP]:
+## float64 so the floater reads the authority's number. Omitted when no hit
+## swept a Heat or Cold node, so a column of 1.0s never rides the wire.
+const KEY_HIT_SWEEP := "h_swp"
 ## [member HitInstance.blast_mark] per hit, as a 1-based index into the blast
 ## table below — 0 for every hit no blast stamped. An index rather than inline
 ## fields so the hits of one blast rebuild sharing ONE mark: the applier

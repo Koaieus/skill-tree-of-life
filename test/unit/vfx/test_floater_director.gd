@@ -169,3 +169,66 @@ func test_non_attack_heal_still_floats_immediately() -> void:
 	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
 	var toast := vbox.get_child(0) as FloaterToast
 	assert_eq(toast.label.text, "+7", "same +N display")
+
+
+## The blade sweep cue: a contact sped up by Heat or slowed by Cold says so on
+## its damage floater, as a suffix beside the number.
+func _damage_toast(sweep_factor: float) -> FloaterToast:
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	add_child_autofree(node)
+	await get_tree().process_frame
+	var hit := DamageInstance.new()
+	hit.target = node
+	hit.sweep_factor = sweep_factor
+	Events.skill_node_damaged.emit(node, 7.0, hit)
+	var toasters := _toaster_children()
+	assert_eq(toasters.size(), 1, "one damage toaster")
+	if toasters.is_empty():
+		return null
+	var vbox := toasters[0].get_node("VBoxContainer") as VBoxContainer
+	return vbox.get_child(0) as FloaterToast
+
+
+func test_a_contact_sped_up_by_heat_floats_the_fast_cue() -> void:
+	var toast: FloaterToast = await _damage_toast(1.3)
+	assert_eq(toast.label.text, "7", "the number is unchanged")
+	assert_true(toast.suffix.visible, "the sweep cue shows")
+	assert_eq(toast.suffix.text, _director.sweep_fast_text, "sped up reads fast")
+
+
+func test_a_contact_slowed_by_cold_floats_the_slow_cue() -> void:
+	var toast: FloaterToast = await _damage_toast(0.7)
+	assert_true(toast.suffix.visible, "the sweep cue shows")
+	assert_eq(toast.suffix.text, _director.sweep_slow_text, "slowed reads slow")
+
+
+func test_an_unswept_hit_floats_no_cue() -> void:
+	var toast: FloaterToast = await _damage_toast(1.0)
+	assert_false(toast.suffix.visible, "a factor of 1 carries no cue")
+
+
+## The floater's source on the live replay is the record's rebuilt plain
+## [DamageInstance]: the cue survives capture and rebuild.
+func test_the_sweep_cue_survives_the_record() -> void:
+	var graph := TestWorld.create(self).graph
+	var node := _SKILL_NODE_SCENE.instantiate() as SkillNode
+	graph.add_skill_node(node)
+	await get_tree().process_frame
+	var outcome := AttackOutcome.new()
+	for f: float in [0.75, 1.0]:
+		var hit := DamageInstance.new()
+		hit.target = node
+		hit.amount = 7.0
+		hit.effective_amount = 7.0
+		hit.sweep_factor = f
+		outcome.hits.append(hit)
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, graph), graph)
+	assert_eq(rebuilt.hits.size(), 2, "both hits rebuild")
+	assert_eq(rebuilt.hits[0].sweep_factor, 0.75, "a slowed contact's factor is recorded")
+	assert_eq(rebuilt.hits[1].sweep_factor, 1.0, "an unswept hit rebuilds at 1")
+	var plain := AttackOutcome.new()
+	var unswept := DamageInstance.new()
+	unswept.target = node
+	plain.hits.append(unswept)
+	assert_false(AttackRecord.capture(plain, graph).has(AttackRecord.KEY_HIT_SWEEP),
+			"a record with no swept contact writes no sweep key")
