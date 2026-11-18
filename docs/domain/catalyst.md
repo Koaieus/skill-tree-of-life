@@ -129,9 +129,11 @@ edge wave never meets.
 
 Catalyst on a node reads as violet crystals: `StatusOverlay` draws one
 crystal per stack (`crystal_size`, at most `crystal_cap`). A conversion
-announces `Events.catalyst_converted(node, spent)` once, from the live replay
-of the take (`HitGather`'s row-op apply; a shadow world stays silent), and the
-overlay flashes a pulse on that node that fades over
+announces `Events.catalyst_converted(node, converted)` — `{element id: stacks
+made}`, carried in the take's row op (`AttackRecord` columns `rw_cn/rw_ce/rw_cs`)
+for both the landing and the settle prime — once, from the live replay of the
+take (`HitGather`'s row-op apply; a shadow world stays silent), and the overlay
+flashes a pulse on that node in the dominant element's tint that fades over
 `conversion_pulse_seconds`. The barrel (`catalyst_barrel_visual.gd`) is a pile
 of faceted violet crystals on the carrier's rim, lit while the carrier holds
 the matching stack; the goo arrow (`catalyst_arrow.tscn`) is a slender
