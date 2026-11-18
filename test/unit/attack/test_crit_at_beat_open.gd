@@ -87,6 +87,9 @@ func _arrow(heat := 0) -> Array[HitInstance]:
 ## one, no gate (its amount is stamped all the same).
 func _contact() -> Array[HitInstance]:
 	var di := BladeDamageInstance.new(BladeHitEvent.new(0.5, 1, -1, _target), null)
+	# Gateless, so nothing admits it: a refused contact takes no part in stage
+	# one, and this one is read there.
+	di.admitted = true
 	di.amount = _D
 	di.type = DamageInstance.Type.TRUE
 	return _place(di, 0)
