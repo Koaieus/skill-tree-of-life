@@ -629,7 +629,7 @@ the one before left. At each node of a generation:
    every path through the node walks on. Otherwise an answer may end the paths
    there, and that verdict rides each head arriving there as `path_ends`, which
    step 4 reads. Then, once per node per hit, each band the node sits in fires
-   its `GoOff` with the post-rider read and the head's load (0 on a copy). The
+   its `GoOff` with the post-rider read (a go-off takes no load). The
    generation's spends and transfers (the breaks' included) commit together
    before the next generation's admit.
 

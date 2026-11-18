@@ -24,8 +24,8 @@ roles. Elements are not parents of aspects, and no aspect's status is a member
 - The pool roll copies an aspect's supply entry: `passes [budget, supply]`,
   regular and blight subtypes. `test_pool_scoping.gd` (`_SUPPLY_HOME`) and
   `test_roll_pass.gd` (supply = the COUNT-role stats) pin it.
-- No surface reads a count yet (`docs/domain/stat-surfaces.md` § Quiver,
-  volleys, infusion, ammo aspects).
+- The infusion wheel reads every `ElementRoster` count as a shown, never
+  pickable wedge (`InfusionChoices._element_entries`).
 
 ## `Element` (`elements/element.gd`)
 
@@ -54,7 +54,7 @@ stores a band here: #1794's band function reads `bands` against
 | `threshold_multiple` | the threshold as a multiple of T (≥ 1) |
 | `at_cap` | true: the threshold is the node's cap k × T and `threshold_multiple` is ignored; only the last band |
 | `identity` | the band's display atom; null falls back to the band below |
-| `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning band holds a `DiscGoOff` (#1800), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
+| `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning and overflow bands hold a `DiscGoOff` (#1800, #1803), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
 | `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); null on every band. #1807 owns the answer |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
@@ -162,7 +162,8 @@ fingerprint) and `test_terrain_bands.gd` (the band sweep, the signal).
   - `SaveFile` is v15; anything older is refused (`network/save_file.gd`).
   - `WorldFingerprint._terrain_rows` folds `[stable_id, t, charge]`. All-zero
     nodes are skipped, so a world without terrain folds as before.
-- **Not yet.** No display (#1796).
+- **Display.** `TerrainBars` (`skill_node/terrain_bars.tscn`) on every
+  `SkillNode`'s `Visuals`.
 
 ## Flow: the world-turn settle (#1795)
 
@@ -203,15 +204,15 @@ Terrain changes between beats on the world turn only. Guards:
     through 0), `toward_zero_t` (≥ 0, never crosses 0) and `charge` (signed,
     the result clamped at 0).
   - `commit(batch)` applies the net, then toward zero. It runs the settle
-    seat (`seat()`, an `Array[TerrainSettle.SettleReader]`, empty today;
-    #1801's prime conversion is the first reader): each reader once per node,
+    seat (`seat()`, an `Array[TerrainSettle.SettleReader]`: one
+    `PrimeConversion` per `CatalystStatus` the status roster authors): each reader once per node,
     with the pre- and post-batch ints and the node's sums to add to. Then it
     writes once per int through `add_terrain` (Fire for t, Lightning for
     Charge), so a band crossing is announced once per node per commit, and
     returns the nodes whose ints moved. `commit_with(batch, readers)` takes
     explicit readers.
-  - Callers: the world turn, once per step and once for decay. #1798's beat
-    will commit a land batch and a spend batch per generation.
+  - Callers: the world turn, once per step and once for decay. `HitGather`'s
+    beat commits a land batch and a spend batch per generation.
 - **Determinism.** Integer only, roll-free, no transcendental. The index's
   order never reaches the ints, and a world decoded from a `GraphSnapshot`
   ends its next world turn on the same ints as its source.
