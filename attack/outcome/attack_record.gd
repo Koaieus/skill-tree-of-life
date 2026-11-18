@@ -250,6 +250,7 @@ var hp_before := PackedFloat64Array()
 var hp_after := PackedFloat64Array()
 var hp_max := PackedFloat64Array()
 var pops := PackedInt32Array()
+var sweeps := PackedFloat64Array()
 var blasts := PackedInt32Array()
 var blast_centres := PackedInt32Array()
 var blast_reach := PackedFloat64Array()
@@ -342,6 +343,7 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"hp_after", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_AFTER),
 		WireFields.Field.new(&"hp_max", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_HP_MAX),
 		WireFields.Field.new(&"pops", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_POP),
+		WireFields.Field.new(&"sweeps", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_HIT_SWEEP).omitted_at_default(),
 		WireFields.Field.new(&"status_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_STATUS_DEF),
 		WireFields.Field.new(&"ammo_types", TYPE_PACKED_STRING_ARRAY).as_key(KEY_HIT_AMMO_TYPE),
 		WireFields.Field.new(&"status_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_STATUS_HOST),
@@ -435,6 +437,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		if not hit.settle.is_empty():
 			any_settle = true
 			break
+	var any_swept := false
+	for hit in outcome.hits:
+		if hit.sweep_factor != 1.0:
+			any_swept = true
+			break
 	var any_terrain := false
 	for hit in outcome.hits:
 		if not hit.terrain_ops.is_empty():
@@ -473,6 +480,8 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		r.hp_after.append(hit.hp_after)
 		r.hp_max.append(hit.hp_max)
 		r.pops.append(_id_of(hit.popped_vertex, graph))
+		if any_swept:
+			r.sweeps.append(hit.sweep_factor)
 		r.blasts.append(_capture_blast(r, hit.blast_mark, blast_index, graph))
 		var status_hit := hit as StatusInstance
 		r.status_defs.append(status_hit.def.resource_path if status_hit != null and status_hit.def != null else "")
@@ -715,6 +724,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 		if i < r.pops.size():
 			# 0 means "popped nothing", which `_node_of` already answers as null.
 			hit.popped_vertex = _node_of(r.pops[i], graph)
+		if i < r.sweeps.size():
+			hit.sweep_factor = r.sweeps[i]
 		if i < r.blasts.size() and r.blasts[i] > 0 and r.blasts[i] <= marks.size():
 			hit.blast_mark = marks[r.blasts[i] - 1]
 		# The cascade this landing caused, RECORDED. A peer applies exactly this

@@ -29,6 +29,10 @@ const COLOR_CRIT := Color(1.0, 0.22, 0.22, 1.0)
 ## little for text legibility. Red-family like damage/wound — a refusal is bad
 ## news — but quiet: the [method denied] style stays default-size and unglowed.
 const COLOR_DENIED := Color(1.0, 0.4, 0.4, 1.0)
+## The blade sweep cue's suffix ([method sweep]): a warm amber for a contact
+## Heat sped up, an icy blue for one Cold slowed. Under 1.0, unglowed: a label.
+const COLOR_SWEEP_HEAT := Color(1.0, 0.62, 0.2, 1.0)
+const COLOR_SWEEP_COLD := Color(0.55, 0.82, 1.0, 1.0)
 
 const _CRIT_PUNCH_SCENE: PackedScene = preload(
 		"res://ui/floating_number_layer/crit_punch_toast/crit_punch_toast.tscn")
@@ -52,6 +56,12 @@ static func damage(crit_tier: int = 0) -> FloaterStyle:
 	if crit_tier > 0:
 		return crit(crit_tier)
 	return basic(COLOR_DAMAGE)
+
+
+## The suffix on a swept blade contact's damage number: [param fast] for a
+## contact Heat sped up, else one Cold slowed.
+static func sweep(fast: bool) -> FloaterStyle:
+	return basic(COLOR_SWEEP_HEAT if fast else COLOR_SWEEP_COLD)
 
 
 static func node_heal() -> FloaterStyle:

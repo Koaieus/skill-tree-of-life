@@ -118,7 +118,14 @@ func _on_skill_node_damaged(node: SkillNode, amount: float, source: HitInstance)
 	if node == null or amount <= 0.0 or not _node_visible(node):
 		return
 	var tier := _crit_tier(source)
-	_emit(node, _damage_text(amount, tier), FloaterStyles.damage(tier))
+	var sweep := source.sweep_factor if source != null else 1.0
+	var cue := ""
+	if sweep > 1.0:
+		cue = sweep_fast_text
+	elif sweep < 1.0:
+		cue = sweep_slow_text
+	_emit(node, _damage_text(amount, tier), FloaterStyles.damage(tier),
+			cue, FloaterStyles.sweep(sweep > 1.0) if not cue.is_empty() else null)
 
 
 ## Crit rank of the hit behind a damage announcement, or 0 for a normal hit.

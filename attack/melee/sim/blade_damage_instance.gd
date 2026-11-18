@@ -54,6 +54,7 @@ func stamp_at_gather(world: CombatWorld) -> void:
 	if slice != null:
 		t = slice.terrain_t()
 		threshold = slice.terrain_threshold()
+	sweep_factor = sweep_factor_of(attacker, t, threshold)
 	amount *= contact_multiplier(attacker, _event.speed, t, threshold)
 
 
@@ -65,9 +66,17 @@ static func contact_multiplier(wielder: Entity, speed: float, t: int, threshold:
 	var board: StatBoard = wielder.stat_board if wielder != null else null
 	var m := BladeState.stat_value(board, &"blade_speed_multiplier_max", 1.0)
 	var v_half := BladeState.stat_value(board, &"blade_speed_half", 0.0)
+	return BladeState.speed_damage_multiplier(
+			speed * sweep_factor_of(wielder, t, threshold), m, v_half)
+
+
+## The sweep factor alone ([method BladeState.temperature_speed_factor] at
+## [param wielder]'s `c`): what [method contact_multiplier] scales the speed
+## by, and what the stamp records as the floater's cue.
+static func sweep_factor_of(wielder: Entity, t: int, threshold: int) -> float:
+	var board: StatBoard = wielder.stat_board if wielder != null else null
 	var c := clampf(BladeState.stat_value(board, &"blade_temperature_speed", 0.0), 0.0, 0.95)
-	var factor := BladeState.temperature_speed_factor(t, threshold, c)
-	return BladeState.speed_damage_multiplier(speed * factor, m, v_half)
+	return BladeState.temperature_speed_factor(t, threshold, c)
 
 
 ## The contacting vertex's copied terrain, a second store the gather sets off
