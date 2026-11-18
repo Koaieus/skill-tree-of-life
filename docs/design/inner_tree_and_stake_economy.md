@@ -69,9 +69,9 @@ round) and procgen-placed aspect spirits (skill dust with a fixed +1 count
 offer, plus a gray mystery variant). Both are their own Ready issues filed from
 #199's pass.
 
-Facts it leans on: 12 `<aspect>_aspect` counts under the `aspects` family
-parent, 10 `<aspect>_stacks_per_hit` potencies (scout, sunder, explosive
-have none yet), six schools × two aspects (`aspect_matrix.md:395-402`; #1249
+Facts it leans on: 13 `<aspect>_aspect` counts under the `aspects` family
+parent, one `<aspect>_stacks_per_hit` potency each, six schools with DEX
+holding three aspects (`aspect_matrix.md`'s school table; #1249
 still open on the map), `Entity.MILESTONE_LEVEL_INTERVAL := 5` already exists,
 and mid-run choice modals already exist (loot and spell-loot pickers). Count is capped per action
 for melee and magic (#1467) — a count tier is secretly a ranged buff unless the
@@ -114,11 +114,11 @@ are their own Intake issue.
   reach T3.
 - *(Stale: Hex now holds INT beside Curse and Mark moved to DEX; see the
   `aspect_matrix.md` INT row, "Curse, Hex". The pairing below predates it.)*
-- Ring order: Bleeding, Weakness | Poison, Explosive | Curse, Hex | Wither,
+- Ring order: Bleeding, Weakness | Poison, Catalyst | Curse, Hex | Wither,
   Sunder | Scout, Blindness | Corruption, Greed | back to Bleeding.
 - **Opposition** (six axes through the centre; no hard lock, which hurts AI
   and experimenters — instead *one T3 per axis* and taking it doubles the
-  opposite's T2 cost): Poison ↔ Explosive (slow DoT vs burst) · Bleeding ↔
+  opposite's T2 cost): Poison ↔ Catalyst (slow DoT vs converter) · Bleeding ↔
   Sunder (soft wounds vs hard armour) · Wither ↔ Greed (starve vs
   amplify) · Scout ↔ Blindness (reveal vs blind) · Curse ↔ Weakness (fragility
   vs damage cut) · Hex ↔ Corruption (crit-taken vs % build-up).
@@ -127,8 +127,7 @@ are their own Intake issue.
 
 Bleeding: stacks are not lost while the bleeder moves · Weakness: a weakened
 node halves a neighbour's damage too · Poison: a stack that would decay holds
-one extra turn · Explosive: +50% blast radius, the blast leaves one Poison or
-Sunder stack · Curse: death/dealloc spill reaches two hops · Hex: first
+one extra turn · Catalyst: open · Curse: death/dealloc spill reaches two hops · Hex: first
 Hex landing per turn on a node counts double · Wither: the first stack already
 zeroes healing, further stacks hurt · Sunder: each landing shaves 1 armor
 from the two nearest neighbours · Scout: a camp's vision disc lingers 2 turns

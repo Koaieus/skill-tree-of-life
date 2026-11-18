@@ -130,7 +130,7 @@ literally, the Apex's state on its own level is its ring state:
   swap #1651 leaves room for. A keystone is a rule change, so a boss's unique
   ability is authored where the player's class keystones will be.
 - **Its subtype** is which aspect sectors it holds (owner: *"expressed by what
-  Aspects the sections they hold"*) — a Rot Apex holds Poison/Explosive deep,
+  Aspects the sections they hold"*) — a Rot Apex holds Poison/Catalyst deep,
   a Hexer holds Curse/Hex (*stale pairing: see the `aspect_matrix.md` INT row, "Curse, Hex"*); correlated with its CoreClass or not.
 
 **How its ring is filled (candidates).**
