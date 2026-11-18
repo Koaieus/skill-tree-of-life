@@ -185,14 +185,13 @@ const KEY_TERRAIN_DT := "tr_dt"
 const KEY_TERRAIN_DC := "tr_dc"
 ## Stage one's recorded status-row changes ([member HitInstance.row_ops],
 ## #1799): one count per hit slicing flat per-op columns, the node's stable id,
-## the holder the gather resolved ([enum StatusInstance.HostKind], as
-## [constant KEY_HIT_STATUS_HOST] records a status hit's), the def as its
-## resource_path (as [member status_defs]) and the signed power change. All
-## omitted when no hit carries any, so a record without one is dict-identical
-## to an older one. The holder column is always [code]NODE[/code] today.
+## the def as its resource_path (as [member status_defs]) and the signed power
+## change. All omitted when no hit carries any, so a record without one is
+## dict-identical to an older one. The holder is not recorded: the gather only
+## ever changes a node's row, so a rebuilt op's holder is
+## [code]StatusInstance.HostKind.NODE[/code].
 const KEY_ROW_COUNT := "rw_n"
 const KEY_ROW_NODE := "rw_node"
-const KEY_ROW_HOST := "rw_host"
 const KEY_ROW_DEF := "rw_def"
 const KEY_ROW_DELTA := "rw_d"
 ## Each row change's converted stacks (a Catalyst take's element id → stacks
@@ -310,7 +309,6 @@ var terrain_dt := PackedInt32Array()
 var terrain_dc := PackedInt32Array()
 var row_counts := PackedInt32Array()
 var row_nodes := PackedInt32Array()
-var row_hosts := PackedInt32Array()
 var row_defs := PackedStringArray()
 var row_deltas := PackedFloat64Array()
 var row_conv_counts := PackedInt32Array()
@@ -388,7 +386,6 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"terrain_dc", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DC).omitted_at_default(),
 		WireFields.Field.new(&"row_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"row_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_NODE).omitted_at_default(),
-		WireFields.Field.new(&"row_hosts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_HOST).omitted_at_default(),
 		WireFields.Field.new(&"row_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_DEF).omitted_at_default(),
 		WireFields.Field.new(&"row_deltas", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_ROW_DELTA).omitted_at_default(),
 		WireFields.Field.new(&"row_conv_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_CONV_COUNT).omitted_at_default(),
@@ -510,7 +507,6 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 			for op: Array in hit.row_ops:
 				var def: StatusDef = op[2]
 				r.row_nodes.append(_id_of(op[0], graph))
-				r.row_hosts.append(int(op[1]))
 				r.row_defs.append(def.resource_path if def != null else "")
 				r.row_deltas.append(float(op[3]))
 				if any_converted:
@@ -770,7 +766,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 										r.row_conv_stacks[conv_at + c]
 						conv_at += r.row_conv_counts[at]
 					hit.row_ops.append([_node_of(r.row_nodes[at], graph),
-							r.row_hosts[at] as StatusInstance.HostKind, def, r.row_deltas[at], conv])
+							StatusInstance.HostKind.NODE, def, r.row_deltas[at], conv])
 			row_at += r.row_counts[i]
 		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated
