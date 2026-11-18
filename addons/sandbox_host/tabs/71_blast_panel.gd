@@ -46,10 +46,10 @@ func _ready() -> void:
 	_play()
 
 
-## One box per roster aspect but catalyst (a blast strips its own charges).
+## One box per roster aspect.
 func _build_picker() -> void:
 	for aspect in _roster.aspects:
-		if aspect == null or aspect.identity == null or aspect.id() == &"catalyst":
+		if aspect == null or aspect.identity == null:
 			continue
 		var box := CheckBox.new()
 		box.text = aspect.identity.noun if not aspect.identity.noun.is_empty() else String(aspect.id())
