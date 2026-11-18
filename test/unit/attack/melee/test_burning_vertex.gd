@@ -130,15 +130,16 @@ func _unprimed(read: TerrainRead) -> TerrainRead:
 
 func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> void:
 	await _board()
-	_prime(_f.leaves[0], 2)
+	_prime(_f.leaves[0], 8)
 	var s := _blade()
 	var shape := _disc().power_at(null, s.copy_read(1))
-	assert_eq(shape, 2, "fixture: the vertex's power is copy − T")
+	assert_eq(shape, 8, "fixture: the vertex's power is copy − T")
 	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), float(shape))
 	assert_gt(want.reached.size(), 0, "fixture: the disc reaches someone")
 	var source_t := _heat(_f.leaves[0])
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
+	assert_gt(copy_t, want.reached.size(), "fixture: the copy affords its reach")
 	var hits: Array[HitInstance] = []
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
 	var copies := await _land(hits)
@@ -152,7 +153,7 @@ func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> v
 	assert_almost_eq(marks[0].reach, _disc().disc_radius(shape, r), 0.001, "= disc_radius(copy − T, R)")
 	assert_eq(_heat(_f.leaves[0]), source_t, "the source's Heat is unchanged")
 	assert_eq(_heat(_f.target), target_t, "an unprimed contact node pays nothing")
-	assert_eq(s.vertex_t[1], maxi(copy_t - want.reached.size(), 0), "the copy pays 1 per node reached")
+	assert_eq(s.vertex_t[1], copy_t - want.reached.size(), "the copy pays 1 per node reached")
 
 
 func test_a_disc_reaching_no_other_node_spends_nothing_and_lands_nothing() -> void:
@@ -220,7 +221,7 @@ func test_an_unprimed_contact_lands_once_and_each_reached_node_once_a_generation
 
 func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 	await _board()
-	_prime(_f.leaves[0], 2)
+	_prime(_f.leaves[0], 8)
 	_prime(_f.target, 1)
 	var s := _blade()
 	var shape := float(_disc().power_at(null, s.copy_read(1)))
@@ -231,6 +232,7 @@ func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 	assert_gte(solo, _disc().solo_cost_floor, "fixture: the solo spend, floored")
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
+	assert_gt(copy_t, want.reached.size(), "fixture: the copy affords the combined reach")
 	var hits: Array[HitInstance] = []
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
 	var copies := await _land(hits)
@@ -241,7 +243,7 @@ func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 				"radius shape_disc_radius(copy − T, e, R_contact)")
 	assert_eq(_on(copies, _f.target).size(), 1, "one centre landing: the contact node takes 2")
 	assert_eq(_heat(_f.target), target_t - solo, "the node pays exactly its solo spend")
-	assert_eq(s.vertex_t[1], maxi(copy_t - want.reached.size(), 0),
+	assert_eq(s.vertex_t[1], copy_t - want.reached.size(),
 			"the copy pays 1 per node the combined disc reaches")
 
 

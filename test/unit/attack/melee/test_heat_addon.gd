@@ -120,13 +120,16 @@ func test_a_refused_contact_lands_nothing() -> void:
 	spiked.add_child(spike)
 	var s: BladeState = await _blade()
 	var a_t := _heat(_f.target)
+	var spiked_t := _heat(spiked)
 	var gate := BladePopResolver.LiveGate.new(s, _f.attacker)
 	var hits: Array[HitInstance] = []
-	_contact(gate, s, hits, 1, spiked, 0.3)
+	var popped := _contact(gate, s, hits, 1, spiked, 0.3)
 	var later := _contact(gate, s, hits, 1, _f.target, 0.6)
 	await _land(hits)
 	assert_eq(gate.result.pops.size(), 1, "fixture: the spiked defender popped the vertex")
 	assert_false(later.admitted, "fixture: the popped vertex's later contact is refused")
+	assert_false(popped.admitted, "fixture: the spiked pop refuses its own contact")
+	assert_eq(_heat(spiked), spiked_t, "the popping contact lands no Heat")
 	assert_eq(_heat(_f.target), a_t, "a refused contact lands no Heat")
 
 
