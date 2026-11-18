@@ -70,9 +70,9 @@ func _blade() -> BladeState:
 ## Vertex 1's contact on [param on] at [param t], its riders run on its
 ## landing as [SwingResolve] runs them; appended to [param hits].
 func _contact(gate: BladePopResolver.LiveGate, s: BladeState, hits: Array[HitInstance],
-		on: SkillNode, t := 0.5) -> BladeDamageInstance:
+		on: SkillNode, t := 0.5, amount := 10.0) -> BladeDamageInstance:
 	var di := BladeDamageInstance.new(BladeHitEvent.new(t, 1, -1, on), gate)
-	di.amount = 10.0
+	di.amount = amount
 	di.type = DamageInstance.Type.PHYSICAL
 	di.target = on
 	di.attacker = _f.attacker
@@ -259,7 +259,8 @@ func test_a_frozen_contact_runs_the_disc_alone() -> void:
 	assert_gt(want.size(), 0, "fixture: the alone disc reaches a hostile node")
 	var target_t := _heat(_f.target)
 	var hits: Array[HitInstance] = []
-	var di := _contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
+	# A light contact (under the Frozen band's flat breaker), so the ice holds.
+	var di := _contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target, 0.5, 1.0)
 	var copies := await _land(hits)
 	assert_true(di.admitted, "a contact on a Frozen node is never refused")
 	var marks := _marks(copies, _f.target)

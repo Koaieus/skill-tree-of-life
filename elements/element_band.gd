@@ -24,7 +24,8 @@ const EXCESS_AT_CAP := 0
 @export var identity: Identity = null
 ## What a node in this band does when it goes off; null until #1799/#1800/#1806.
 @export var go_off: GoOff = null
-## What a node in this band admits; null until #1807.
+## What a node in this band admits; null admits every arrival (Ice's bands
+## hold one [FrozenAdmits]).
 @export var admits: Admits = null
 @export var travel: Travel = Travel.NONE
 ## Terrain decay per world turn while in this band (a knob; read by #1795).

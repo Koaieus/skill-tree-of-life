@@ -20,10 +20,10 @@ var spend: int = 0
 ## through [method DotTick.mint]. None on an unallocated node. Read only on a
 ## break.
 var burst: float = 0.0
-## The HP amount #1807 computes for the break. Declared for #1807; the gather
-## does not read it.
+## The HP amount of the break. The gather does not read it.
 var hp: float = 0.0
 ## The extra landings each breaker takes on the node, on top of its own: copies
 ## of its own landing, damage and aspect riders only. A break counts as 2
-## channels (owner, 2026-11-11; ADR 0090 §1): #1807 owns the knob, tentative.
+## channels (owner, 2026-11-11; ADR 0090 §1); Ice's knob is the Frozen band's
+## break_channels, tentative.
 var extra_landings: int = 2

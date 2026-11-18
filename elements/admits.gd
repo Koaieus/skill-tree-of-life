@@ -2,8 +2,9 @@
 class_name Admits
 extends Resource
 
-## Abstract: which landing copies a node in a band lets through. #1807 owns the
-## answer; #1798 gives it its seams. A null [Admits] admits every arrival.
+## Abstract: which landing copies a node in a band lets through, and what the
+## node answers after its generation's terrain riders. [HitGather] asks both
+## seams; [FrozenAdmits] is Ice's. A null [Admits] admits every arrival.
 
 
 ## The admit read (ADR 0083 §2, ADR 0087 §1): asked about each copy arriving at

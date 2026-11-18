@@ -98,11 +98,17 @@ func test_bands_ascend_and_only_the_last_is_at_cap() -> void:
 
 ## Fire's Burning band holds Burning's disc (#1800), a [DiscGoOff], and its
 ## overflow band holds the same instance (acceptance 5c, a lead call).
-## Every other element's go_off lands with #1806; no admits is authored yet.
-func test_only_fires_bands_hold_a_go_off_and_no_admits_is_authored_yet() -> void:
+## Every other element's go_off lands with #1806. Ice alone authors an
+## admits: one [FrozenAdmits] on both its bands.
+func test_only_fires_bands_hold_a_go_off_and_only_ice_authors_admits() -> void:
 	for element in _elements():
+		if element.id() == &"ice":
+			assert_true(element.bands[0].admits is FrozenAdmits, "ice: Frozen's band holds a FrozenAdmits")
+			assert_true(is_same(element.bands[-1].admits, element.bands[0].admits),
+					"ice: Deep freeze holds Frozen's instance")
 		for band in element.bands:
-			assert_null(band.admits, "%s: admits lands with #1807" % element.id())
+			if element.id() != &"ice":
+				assert_null(band.admits, "%s: no admits" % element.id())
 			if element.id() != &"fire":
 				assert_null(band.go_off, "%s: go_off lands with #1806" % element.id())
 		if element.id() == &"fire":
