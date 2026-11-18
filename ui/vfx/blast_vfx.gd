@@ -18,7 +18,7 @@ const DEFAULT_DISC_FILL := 0.22
 ## Where a go-off's band finds its element; null = the shared [ElementRoster].
 @export var element_roster: ElementRoster = null
 ## How opaque the filled disc under an element's blast ring is (Burning's disc
-## reads as a disc, go-off zero's as a bare ring). Tentative, easy to change.
+## reads as a disc). Tentative, easy to change.
 @export_range(0.0, 1.0, 0.01) var element_disc_fill: float = DEFAULT_DISC_FILL
 ## Silences the ring (a headless harness, a cinematic).
 @export var muted: bool = false
@@ -89,7 +89,7 @@ static func layers_for(riders: Array[Identity], roster: AspectRoster, generic: P
 
 
 ## The element identity whose band holds [param go_off] (Fire for Burning), so
-## a disc plays in its element's colour; null for go-off zero's Catalyst, a
+## a disc plays in its element's colour; null for a
 ## null go-off or a band no element holds: the visual keeps its scene default.
 static func look_for(go_off: Identity, elements: ElementRoster) -> Identity:
 	if go_off == null or elements == null:

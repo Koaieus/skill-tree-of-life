@@ -14,7 +14,7 @@ extends Resource
 ## [method _reach] returns, the centre copy uncounted, so reaching no other node
 ## spends 0 and does not go off; a spend may dig under T. Every reach at depth
 ## 1, at [member share], own damage 0. A subclass overrides [method _reach] for
-## its shape, or [method fire] for another law (#1799's go-off zero).
+## its shape, or [method fire] for another law.
 
 ## The share of this go-off's copies, its centre copy included: damage × s,
 ## riders ceil(r × s). Tentative knob (#1798); 1 = the whole hit (ADR 0086 §1).

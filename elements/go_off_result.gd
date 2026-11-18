@@ -27,7 +27,7 @@ var reached: Array[Reach] = []
 ## `SkillNode -> int`: the spend per reached node. Only a reached node's cost
 ## commits (spend follows landings, ADR 0093 §5).
 var cost: Dictionary = {}
-## A spend that names no node, committed all the same (#1799's go-off zero).
+## A spend that names no node, committed all the same.
 var nodeless_cost: int = 0
 ## `SkillNode -> int`: spent stacks that land on a reached node instead of
 ## being voided (#1806's Charge transfer). Part of the spend, never capped by
@@ -36,7 +36,7 @@ var transfer: Dictionary = {}
 var share: float = 1.0
 var own_damage: float = 0.0
 ## What the go-off's [BlastMark] draws: its reach in px and its power, filled
-## by a go-off that has them (#1799's disc: its radius and power at the read);
+## by a go-off that has them (the disc's radius and power at the read);
 ## 0 when it does not.
 var reach: float = 0.0
 var power: int = 0

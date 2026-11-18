@@ -12,16 +12,14 @@ var centre: SkillNode = null
 ## The blast's reach in px: the go-off's own ([member GoOffResult.reach]),
 ## never a visual guess.
 var reach: float = 0.0
-## The go-off's power ([member GoOffResult.power]; go-off zero's is
-## [method DiscGoOff.power_of]).
+## The go-off's power ([member GoOffResult.power]).
 var power: int = 0
 ## The identities of the status rows the blast's copies carry.
 var riders: Array[Identity] = []
 ## Whose blast it is.
 var attacker: Entity = null
 ## The go-off this blast is ([HitGather]), named by the [Identity] of the band
-## holding its [GoOff], or of the nearest band below with one (#1798; for
-## go-off zero, the Catalyst [Aspect]'s). Null on a blast no go-off fired.
+## holding its [GoOff], or of the nearest band below with one (#1798). Null on a blast no go-off fired.
 var go_off: Identity = null
 ## The generation of the read at which the go-off fired (ADR 0091 §1): 0 for
 ## one set off by the beat's own arrival, g + 1 for one set off by a copy a
