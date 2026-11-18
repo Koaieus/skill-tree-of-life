@@ -50,6 +50,8 @@ var count: int = 0
 ## The most "all" gives: min(bin, what the volley still holds).
 var cap: int = 0
 var fill: bool = true
+## The bin's bank cap shown beside its stock (`stock/cap`), 0 for none.
+var bin_cap: int = 0
 ## The stock the label shows — [member stock], or on its way there.
 var shown_stock: float = 0.0
 var _stock_tween: Tween
