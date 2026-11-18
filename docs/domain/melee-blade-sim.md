@@ -741,7 +741,7 @@ A contact by a piece with `n` charges on a node with `m` spends
 gather's to read and spend, as for any hit, and its go-off zero blasts the
 board under the contact's mask. Each charged contact records one `Contact`
 row in `Result.contacts` for the replay. The formula, reach and knobs:
-[explosive.md](explosive.md).
+[catalyst.md](catalyst.md).
 
 ## Open questions
 
