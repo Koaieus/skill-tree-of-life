@@ -135,6 +135,16 @@ func test_a_version_11_file_is_refused() -> void:
 	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
 
 
+## A v14 file interns the pre-Catalyst `res://` paths (the explosive status,
+## the explosive barrel addon) and stat ids its rows name; loading it would
+## `load()` paths that no longer exist and drop those rows silently, so it is
+## refused.
+func test_a_version_14_file_is_refused() -> void:
+	var bytes := _sample().to_bytes()
+	bytes.encode_u32(SaveFile.VERSION_OFFSET, 14)
+	assert_eq(SaveFile.from_bytes(bytes).load_result, SaveFile.LoadResult.VERSION_MISMATCH)
+
+
 ## A v13 file's node rows end before the terrain columns (#1794); they decode
 ## as no terrain, so it still loads.
 func test_a_version_13_file_still_loads() -> void:
