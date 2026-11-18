@@ -424,11 +424,32 @@ func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
 	assert_eq(_heat(c), cap + 1 - 1, "1 Heat per node reached")
 
 
-# --- 7: go-off zero's values are the class defaults ------------------------------
+# --- 7: a bare disc spends the base law ------------------------------------------
 
-func test_a_new_disc_keeps_go_off_zeros_values() -> void:
+## With go-off zero gone, nothing authors another spend: a fresh [DiscGoOff]
+## reads Heat's excess over T, reaches by [method DiscGoOff.disc_radius] and
+## spends 1 per other node reached, nothing nodeless.
+func test_a_new_disc_spends_one_heat_per_node_reached_and_nothing_nodeless() -> void:
 	var fresh := DiscGoOff.new()
 	assert_eq(fresh.damage_per_power, 0.0, "no own damage by default")
-	assert_eq(fresh.spend_source, DiscGoOff.Spend.SPEND_OF, "spend_of by default")
-	assert_eq(fresh.power_source, DiscGoOff.Power.CATALYST_CHARGES, "go-off zero's power")
-	assert_eq(fresh.radius_source, DiscGoOff.Radius.CATALYST_SPREAD, "go-off zero's radius")
+	var c := _at(&"C", Vector2.ZERO)
+	var a := _east(c, &"A", 0.5 * _r(fresh, 1, c.radius))
+	await _own([c, a])
+	_set_heat(c, _t(c) + 1)
+	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c), 3)
+	assert_eq(result.power, 1, "power is Heat's excess, the head's load ignored")
+	assert_almost_eq(result.reach, _r(fresh, 1, c.radius), 0.001, "the reach is disc_radius")
+	assert_eq(_reached(result), [a], "it reaches A")
+	assert_eq(result.cost.get(a, 0), 1, "1 per node reached")
+	assert_eq(result.nodeless_cost, 0, "nothing nodeless")
+	assert_eq(result.spend(), 1, "spend = nodes reached")
+
+
+func test_a_new_disc_reaching_no_other_node_spends_nothing() -> void:
+	var fresh := DiscGoOff.new()
+	var c := _at(&"C", Vector2.ZERO)
+	await _own([c])
+	_set_heat(c, _t(c) + 1)
+	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c), 3)
+	assert_true(result.reached.is_empty(), "no node reached")
+	assert_eq(result.spend(), 0, "spend 0")
