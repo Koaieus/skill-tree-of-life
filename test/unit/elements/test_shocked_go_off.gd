@@ -20,6 +20,10 @@ var _red: Entity
 var _blue: Entity
 var _saved: Array = []
 var _ice_bands: Array[ElementBand] = []
+## Held for the test: an unreferenced roster reloads its defs fresh, dropping
+## a swapped band list.
+var _ice_el: Element = null
+var _light_el: Element = null
 
 
 ## Admits every copy unless [member refuse] names its node; logs each admit's
@@ -46,7 +50,9 @@ func before_each() -> void:
 	_blue = _w.add_entity("Blue")
 	var arc := _edge()
 	_saved = [arc.share, arc.ladder_exponent, arc.max_level, arc.spent_charge_goes_to] if arc != null else []
-	_ice_bands = _ice().bands.duplicate()
+	_ice_el = ElementRoster.shared().by_id(&"ice")
+	_light_el = ElementRoster.shared().by_id(&"lightning")
+	_ice_bands = _ice_el.bands.duplicate()
 	await get_tree().process_frame
 
 
@@ -57,18 +63,18 @@ func after_each() -> void:
 		arc.ladder_exponent = _saved[1]
 		arc.max_level = _saved[2]
 		arc.spent_charge_goes_to = _saved[3]
-	_ice().bands = _ice_bands
+	_ice_el.bands = _ice_bands
 	CombatWorld.reset_live()
 
 
 # --- fixture -------------------------------------------------------------------
 
 func _light() -> Element:
-	return ElementRoster.shared().by_id(&"lightning")
+	return _light_el
 
 
 func _ice() -> Element:
-	return ElementRoster.shared().by_id(&"ice")
+	return _ice_el
 
 
 func _edge() -> EdgeGoOff:
@@ -120,7 +126,7 @@ func _freeze(nodes: Array, admits: Admits) -> void:
 	var band := ElementBand.new()
 	band.admits = admits
 	var bands: Array[ElementBand] = [band]
-	_ice().bands = bands
+	_ice_el.bands = bands
 	for n: SkillNode in nodes:
 		_combat(n).add_terrain(_ice(), _t(n) + 1)
 
@@ -216,7 +222,7 @@ func test_the_arc_answers_cost_transfer_depth_ring_share_and_no_damage() -> void
 	assert_eq(got[g[1]].depth, 1, "P at depth 1")
 	assert_eq(got[g[3]].depth, 2, "R at depth 2")
 	var ring: Array = got[g[3]].ring.duplicate()
-	ring.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return a.name < b.name)
+	ring.sort_custom(func(a: SkillNode, b: SkillNode) -> bool: return String(a.name) < String(b.name))
 	assert_eq(ring, [g[1], g[2]], "R hangs behind both P and Q")
 	assert_true(got[g[1]].ring.is_empty(), "a depth-1 node hangs behind nothing")
 	for n in [g[1], g[2], g[3]]:
@@ -388,9 +394,10 @@ func test_a_charge_rider_relays_ceil_r_times_share_on_every_node_reached() -> vo
 	for s in [1.0, 0.5]:
 		arc.share = s
 		CombatWorld.reset_live()
-		var g := _line(3)
+		var g := _graph([[0, 1], [1, 2], [0, 3], [0, 4], [0, 5]])
 		await _own(g)
 		var r := 3
+		assert_lt(int(ceil(r * s)) + 1, _t(g[0]) + 1, "fixture: N0 stays ≤ T after its copy")
 		_set_charge(g[1], _t(g[1]) + 1 - r)
 		_land(_hit(g[1], r))
 		assert_eq(_charge(g[0]), int(ceil(r * s)) + 1, "share %s: ceil(r × s) plus the transfer" % s)

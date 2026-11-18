@@ -25,19 +25,63 @@ enum SpentChargeGoesTo { REACHED_NODE, VOID }
 
 
 ## The arc's level off [param read]: the highest L ≤ [member max_level] with
-## Charge > L^[member ladder_exponent] × T; 0 when Charge ≤ T (inert).
-func level_of(_read: TerrainRead) -> int:
-	return 0
+## Charge > L^[member ladder_exponent] × T; 0 when Charge ≤ T (inert). A
+## T of 0 reads every stack as past it, capped by [member max_level].
+func level_of(read: TerrainRead) -> int:
+	if read == null or read.charge <= read.threshold:
+		return 0
+	var level := 1
+	while level < max_level and read.charge > _power(level + 1) * read.threshold:
+		level += 1
+	return level
+
+
+## [param base] ^ [member ladder_exponent], in integers.
+func _power(base: int) -> int:
+	var out := 1
+	for _i in ladder_exponent:
+		out *= base
+	return out
 
 
 func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 	return fire_level_in(null, node, read, 0)
 
 
-## The arc at the read's own level plus [param added] (ADR 0084 §3, §4): one
-## go-off reaching every node within M + added hops, paying the node's solo
-## cost (1 per node within its own level M, each also its transfer).
-func fire_level_in(_world: CombatWorld, _node: SkillNode, _read: TerrainRead, _added: int) -> GoOffResult:
+## The arc at the read's own level M plus [param added] (ADR 0084 §3, §4): one
+## go-off reaching every node within M + added hops of [param node] (never
+## [code]read.node[/code]: a blade source's read names none), paying the
+## node's solo cost: 1 per node within M hops, each its transfer on the
+## default. M = 0 with an added level is a shape alone: it reaches, pays
+## nothing. The reach is the global mirror's one BFS ([method GraphMirror.nodes_within]).
+func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, added: int) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
+	var own := level_of(read)
+	var level := own + maxi(added, 0)
+	if node == null or level <= 0:
+		return out
+	var graph := node.get_graph()
+	if graph == null or graph.navigator == null:
+		return out
+	var mirror: GraphMirror = graph.navigator
+	var depth := mirror.nodes_within(node, level)
+	var by_depth: Array = []
+	for n: SkillNode in depth:
+		if n != null and n != node:
+			by_depth.append(n)
+	by_depth.sort_custom(func(a: SkillNode, b: SkillNode) -> bool:
+		return depth[a] < depth[b] if depth[a] != depth[b] else a.get_instance_id() < b.get_instance_id())
+	for n: SkillNode in by_depth:
+		var d: int = depth[n]
+		var reach := GoOffResult.Reach.new(n, d)
+		if d >= 2:
+			for nb in mirror.neighbours_of(n):
+				if depth.get(nb, -1) == d - 1:
+					reach.ring.append(nb)
+		out.reached.append(reach)
+		if d <= own:
+			out.cost[n] = 1
+			if spent_charge_goes_to == SpentChargeGoesTo.REACHED_NODE:
+				out.transfer[n] = 1
 	return out
