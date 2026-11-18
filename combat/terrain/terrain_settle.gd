@@ -144,7 +144,7 @@ static func seat(take := Callable()) -> Array[SettleReader]:
 ## Commit [param batch] with the seat's readers. Returns the nodes whose ints
 ## moved. A [param take] routes the seat's Catalyst takes to the caller
 ## ([member PrimeConversion.take]); #1798's gather passes one so its commits'
-## takes are recorded, the world turn's pass none.
+## takes are recorded, the world turn's pass one that announces them.
 static func commit(batch: Batch, take := Callable()) -> Array[NodeCombat]:
 	return commit_with(batch, seat(take))
 

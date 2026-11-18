@@ -366,7 +366,7 @@ func diffuse_temperature() -> Array[NodeCombat]:
 	for k in n:
 		if delta[k] != 0:
 			batch.add_net_t(slices[k], delta[k])
-	return TerrainSettle.commit(batch)
+	return TerrainSettle.commit(batch, _world_take)
 
 
 ## The decay sweep: every indexed node's t one rate toward zero and its Charge
@@ -390,7 +390,19 @@ func decay_terrain() -> Array[NodeCombat]:
 			batch.add_toward_zero_t(node, TerrainSettle.decay_rate(node, heat if t > 0 else cold))
 		if node.charge() > 0:
 			batch.add_charge(node, -TerrainSettle.decay_rate(node, charge))
-	return TerrainSettle.commit(batch)
+	return TerrainSettle.commit(batch, _world_take)
+
+
+## The world turn's Catalyst take ([member TerrainSettle.PrimeConversion.take]):
+## [param spent] off [param slice]'s row of [param def], then the conversion
+## cue ([signal Events.catalyst_converted]) with the stacks it made. No record:
+## [EndTurnCommand] reproduces the pass on every peer, each announcing its own.
+func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: StatusDef) -> void:
+	if slice == null:
+		return
+	slice.adjust_status_power(def, -float(spent))
+	if not _shadow and slice.host != null:
+		Events.catalyst_converted.emit(slice.host, converted)
 
 
 ## One world-turn tick of every node row whose def sets
