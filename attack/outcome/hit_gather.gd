@@ -159,8 +159,12 @@ static func is_burst(hit: HitInstance) -> bool:
 ## and for its second store ([method HitInstance.go_off_source]); feeds every other hit's
 ## recorded [member HitInstance.terrain_ops] and [member HitInstance.row_ops];
 ## pushes the entries onto
-## [param queue].
-static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQueue) -> void:
+## [param queue]. [param crit_rng] is the resolve's crit stream, handed on as
+## [method OutcomeApplier.land_one] is handed it: each fresh head still
+## undecided draws its crit here, in list order, against [param world] as the
+## beat opens ([method _open_head]). Null on a replay: nothing draws.
+static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQueue,
+		crit_rng: RandomNumberGenerator = null) -> void:
 	if world == null:
 		return
 	var gather := HitGather.new()
@@ -189,7 +193,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 	for h in order:
 		h.head.stamp_at_gather(world)
 		h.source = h.head.go_off_source()
-		gather._open_head(h)
+		gather._open_head(h, crit_rng)
 		var a := Arrival.new()
 		a.node = h.head.target
 		a.head = h.head
@@ -410,17 +414,23 @@ func _extra(a: Arrival) -> Arrival:
 	return x
 
 
-## Runs once per head, before its admit / land / read: the arrival's one crit
-## (ADR 0083 §4). A head whose crit is already decided (a spell's, by its
-## landing's stamper against the pre-hit node: [method SpellResolver._crit_at_head])
-## hands it to every hit of its span that would otherwise draw or copy at land,
-## its unpaired siblings and its own riders, so the arrival draws once and a
-## sibling lands on the head's crit without being gated by it; every copy is
-## paired to the head and copies it at land. Before the riders land, so the
-## head's terrain stacks take its crit. An undecided head (an arrow's, a
-## blade's) is left to draw at land.
-func _open_head(h: _Hit) -> void:
+## Runs once per head, after its raw amount is stamped and before its admit /
+## land / read: the arrival's one crit (ADR 0083 §4, ADR 0092 §2 "crit and load
+## already in"). A spell's head arrives decided (its landing's stamper, against
+## the pre-hit node: [method SpellResolver._crit_at_head]); an arrow's or a
+## blade contact's arrives undecided and draws here off [param crit_rng]
+## ([method CritRoll.decide]), against the gather's world as the beat opens, so
+## its landing finds it decided and draws nothing. Null [param crit_rng] (a
+## replay, a standalone gather) draws nothing and leaves an undecided head to
+## its landing. A decided head hands its crit to every hit of its span that
+## would otherwise draw or copy at land, its unpaired siblings and its own
+## riders, so the arrival draws once and a sibling lands on the head's crit
+## without being gated by it; every copy is paired to the head and copies it at
+## land. Before the riders land, so the head's terrain stacks take its crit.
+func _open_head(h: _Hit, crit_rng: RandomNumberGenerator = null) -> void:
 	var head := h.head
+	if crit_rng != null:
+		CritRoll.decide(head, crit_rng, _world)
 	if not head.crit_decided:
 		return
 	for hit in h.span:

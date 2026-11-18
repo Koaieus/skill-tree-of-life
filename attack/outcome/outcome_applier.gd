@@ -91,7 +91,7 @@ static func drain(queue: HitQueue, world: CombatWorld, beat: BeatClock,
 			# twice.
 			if not gathered.has(group):
 				gathered[group] = true
-				HitGather.stage_one(queue.group(group), world, queue)
+				HitGather.stage_one(queue.group(group), world, queue, crit_rng)
 		# `advance_to` is declared `-> void`, so the analyzer calls this await
 		# redundant — it is a runtime coroutine (it parks on a timer) and
 		# dropping the await would land the whole volley on frame one.
