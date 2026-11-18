@@ -98,7 +98,7 @@ class _ReadAdmits extends Admits:
 
 	func admit(node: SkillNode, before: TerrainRead, arrival: Arrival) -> bool:
 		seq.append("admit:%s:%d" % [node.name, arrival.generation])
-		admits.append({node = node, count = before.count(element)})
+		admits.append({node = node, count = before.count(element), amount = arrival.amount})
 		return true
 
 	func read(node: SkillNode, after: TerrainRead, arrivals: Array[Arrival]) -> AdmitsAnswer:
@@ -114,6 +114,22 @@ class _ReadAdmits extends Admits:
 		answer.burst = burst
 		answer.extra_landings = extra
 		return answer
+
+
+## A [_ReadAdmits] that also logs the world each read is handed: the slice
+## [code]world.combat_for(node)[/code] gives it, per admit and per read.
+class _WorldAdmits extends _ReadAdmits:
+	var admit_slices: Array = []
+	var read_slices: Array = []
+
+	func admit_in(world: CombatWorld, node: SkillNode, before: TerrainRead, arrival: Arrival) -> bool:
+		admit_slices.append(world.combat_for(node))
+		return admit(node, before, arrival)
+
+	func read_in(world: CombatWorld, node: SkillNode, after: TerrainRead,
+			arrivals: Array[Arrival]) -> AdmitsAnswer:
+		read_slices.append(world.combat_for(node))
+		return read(node, after, arrivals)
 
 
 ## A crit condition (#1798 item 9): logs its landing node's Fire store when
@@ -956,6 +972,44 @@ func test_the_second_read_is_handed_each_arrivals_own_amount() -> void:
 	assert_eq(adm.reads.map(func(r: Dictionary) -> Array: return r.amounts),
 			[[_D * 3.0], [(_D * 0.5 + 1.0) * 1.5]],
 			"a head at its stamped damage; a copy at (D × s + d) × m, its own landing's number")
+
+
+func test_the_admit_is_handed_the_same_amount_as_the_second_read() -> void:
+	var adm := _read_admits(_light.bands[0])
+	_goff.lands_on_own_node = false
+	_goff.reach_of = {_h: [_n1]}
+	_goff.share = 0.5
+	_goff.own_damage = 1.0
+	_set_light(_n1, _t(_n1) + 1)
+	_set_fire(_h, _t(_h))
+	var x := _span(_h, 1, 2, _D)
+	_crit(x[0], 1.5)
+	_gather([x, _span(_n1, 1, 2, _D * 3.0)])
+	var copy := (_D * 0.5 + 1.0) * 1.5
+	assert_eq(adm.admits.map(func(r: Dictionary) -> float: return r.amount), [copy],
+			"the copy's admit is handed (D × s + d) × m")
+	assert_has(adm.reads.map(func(r: Dictionary) -> Array: return r.amounts), [copy],
+			"the same number its second read is handed")
+
+
+func test_the_admits_is_handed_the_gathers_world() -> void:
+	var adm := _WorldAdmits.new()
+	adm.element = _fire
+	adm.seq = _seq
+	_light.bands[0].admits = adm
+	_goff.lands_on_own_node = false
+	_goff.reach_of = {_h: [_n1]}
+	_set_light(_n1, _t(_n1) + 1)
+	_set_fire(_h, _t(_h))
+	var outcome := _outcome([_span(_h, 1, 2)])
+	var shadow := CombatWorld.shadow()
+	HitGather.stage_one(outcome.hits.duplicate(), shadow, HitQueue.over(outcome.hits))
+	var seen := [adm.admit_slices, adm.read_slices]
+	var want := [[shadow.combat_for(_n1)], [shadow.combat_for(_n1)]]
+	var live_n1 := _c(_n1)
+	shadow.free_shadow()
+	assert_eq(seen, want, "admit and read each see the shadow's slice of the node")
+	assert_false(seen[0].has(live_n1) or seen[1].has(live_n1), "never the live slice")
 
 
 # ── Unit B2: the hop seat, the go-off's mark, the burst's replay ────────────────
