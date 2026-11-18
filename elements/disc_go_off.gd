@@ -34,6 +34,8 @@ enum Power { HEAT_EXCESS }
 ## damage ∝ power"). 0 by default; Burning's 2 on Fire's instance.
 ## Tentative knob (#1800).
 @export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
+## STUB
+@export_range(0, 3) var solo_cost_floor := 1
 
 ## Answers geometry only, at whatever reach it is asked ([method _within]).
 var _finder: EuclideanRangeFinder = null
@@ -66,6 +68,11 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffRes
 	return out
 
 
+## STUB
+func fire_shaped_in(_world: CombatWorld, _node: SkillNode, _read: TerrainRead, _shape_power: float) -> GoOffResult:
+	return GoOffResult.new()
+
+
 ## The disc's power at [param node]: its one power read, through
 ## [member power_source], off [param read] (the gather's, after the
 ## generation's riders landed).
@@ -93,6 +100,11 @@ func radius_at(node: SkillNode, power: int) -> float:
 ## itself).
 func disc_radius(power: float, node_radius: float) -> float:
 	return radius_a * (sqrt(maxf(power, 0.0)) + radius_b) * node_radius
+
+
+## STUB
+func shape_disc_radius(_shape_power: float, _excess: float, _node_radius: float) -> float:
+	return 0.0
 
 
 ## Every node whose hitbox touches the disc of [param reach] around
