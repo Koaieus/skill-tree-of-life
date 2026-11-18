@@ -4,7 +4,7 @@
 [ext_resource type="Script" path="res://skill_node/addons/skill_node_addon.gd" id="2_addon"]
 [ext_resource type="Script" path="res://attack/spell/on_hit/apply_status_effect.gd" id="3_status"]
 [ext_resource type="Resource" path="res://effects/status/charge.tres" id="4_charge"]
-[ext_resource type="Resource" path="res://identity/defs/lightning.tres" id="5_identity"]
+[ext_resource type="Resource" path="res://identity/defs/charge.tres" id="5_identity"]
 [ext_resource type="Script" path="res://skill_node/addons/visuals/charge_visual.gd" id="6_visual"]
 
 [sub_resource type="Resource" id="Resource_charge_rider"]
