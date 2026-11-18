@@ -5,6 +5,7 @@
 [ext_resource type="PackedScene" uid="uid://dqstbewbfivft" path="res://skill_node/visuals/rim_ring.tscn" id="4_wall"]
 [ext_resource type="Script" uid="uid://6ard2i6vb4br" path="res://skill_node/visuals/sensed_outline.gd" id="8_sensed"]
 [ext_resource type="PackedScene" path="res://skill_node/visuals/core_presence.tscn" id="9_presence"]
+[ext_resource type="PackedScene" path="res://skill_node/visuals/frost_crust.tscn" id="10_frost"]
 
 [node name="NodeVisualsComposite" type="Node2D" unique_id=1855738635]
 script = ExtResource("1_comp")
@@ -22,6 +23,9 @@ well_depth = 1.0
 unique_name_in_owner = true
 height_preset = 5
 archetype_tint = Color(0.31764707, 0.7764706, 0.44705883, 1)
+
+[node name="FrostCrust" parent="ShaderStack" instance=ExtResource("10_frost")]
+unique_name_in_owner = true
 
 [node name="CorePresence" parent="ShaderStack" unique_id=-573062784 instance=ExtResource("9_presence")]
 unique_name_in_owner = true

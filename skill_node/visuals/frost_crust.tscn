@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://skill_node/visuals/frost_crust.gd" id="1_crust"]
+
+[node name="FrostCrust" type="Node2D"]
+visible = false
+script = ExtResource("1_crust")

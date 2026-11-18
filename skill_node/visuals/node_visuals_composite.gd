@@ -318,6 +318,21 @@ func set_terrain_glow(charge: bool, tint: Color, band: ElementBand) -> void:
 	_terrain_tint[i] = tint
 	_terrain_band[i] = band
 	_apply_modulate()
+	if not charge:
+		_apply_frost(band)
+
+
+## The Frozen crust ([FrostCrust]): shown while the heat/cold slot's band is
+## answered by Ice's [FrozenAdmits], grown at Deep freeze (`at_cap`).
+func _apply_frost(band: ElementBand) -> void:
+	var crust := get_node_or_null(^"%FrostCrust") as FrostCrust
+	if crust == null:
+		return
+	crust.radius = geom_outer_r
+	if band == null or not band.admits is FrozenAdmits:
+		crust.level = 0
+	else:
+		crust.level = 2 if band.at_cap else 1
 
 
 ## Blends [param tint] toward WHITE by [param normalised_power] (#880,
