@@ -33,6 +33,8 @@ extends AddonVisual
 		outline_width = value
 		queue_redraw()
 
+## The hue with no parent addon to read [member SkillNodeAddon.tint] off.
+const _CATALYST := preload("res://identity/defs/catalyst.tres")
 const _STAND_RADIUS := 1.0
 const _SHOULDER := 0.28  # where the facets break, as a fraction of the body height
 const _SHADOW_COLOR := Color(0.0, 0.0, 0.0, 0.35)
@@ -45,7 +47,7 @@ func _draw() -> void:
 	var addon := get_parent() as CatalystBarrelAddon
 	var index := 0
 	var lit := true
-	var hue := Color(0.67, 0.5, 1.0)
+	var hue := _CATALYST.tint
 	if addon != null:
 		hue = addon.tint
 		if addon.carrier != null:

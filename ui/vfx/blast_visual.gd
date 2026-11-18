@@ -41,8 +41,8 @@ signal finished
 	set(value):
 		emissive_tier = value
 		queue_redraw()
-## Whose colour the ring carries — the catalyst identity by default, an
-## element's when [BlastVFX] restyles a disc by its go-off.
+## Whose colour the ring carries; null = a neutral white ring (a mark naming
+## no go-off), an element's when [BlastVFX] restyles a disc by its go-off.
 @export var identity: Identity = null:
 	set(value):
 		identity = value
@@ -60,7 +60,8 @@ signal finished
 ## one per rider).
 @export var companions: Array[PackedScene] = []
 
-## The blast's rider identities, catalyst stripped ([member BlastMark.riders]).
+## The blast's rider identities: every non-staged status in the hit's span
+## ([member BlastMark.riders]).
 var riders: Array[Identity] = []
 
 ## 0 → 1 across [member duration]; 1 at rest so the editor shows the full ring.
