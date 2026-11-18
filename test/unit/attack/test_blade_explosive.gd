@@ -3,8 +3,8 @@ extends GutTest
 ## Catalyst charges on blade contacts: the piece's side alone. A charged
 ## piece spends max(1, min(N, M)) of its own charges on a contact and pops when
 ## it ends at 0; it arms no board blast, and no node's side reaches the blade
-## pieces. The gate never reads-and-spends the struck node: its charges are
-## the gather's to spend. Gate-level: each test hands a hand-built blade's
+## pieces. The gate never reads-and-spends the struck node's row: a contact
+## spends none of it. Gate-level: each test hands a hand-built blade's
 ## contact to [BladePopResolver.LiveGate], stamping the head's load first
 ## exactly as [SwingResolve] does.
 ##

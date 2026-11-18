@@ -218,6 +218,22 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 
 
 
+## Open: the gather's stage one fires go-offs before any head's own gate runs
+## (`OutcomeApplier.drain`), so an arrow its gate refuses still sets a primed
+## node off. Whether a refused arrival goes off is undecided; held pending.
+func test_a_dud_arrow_sets_off_nothing() -> void:
+	pending("a refused arrival still goes off at stage one: undecided (#1799 F-c2 report)")
+	return
+	@warning_ignore("unreachable_code")
+	await _board()
+	_prime(_f.target, 1)
+	var before := _heat(_f.target)
+	var hits := _shoot(null)
+	hits[0].gated = true
+	assert_true((await _fire(hits)).is_empty(), "a dud sets nothing off")
+	assert_eq(_heat(_f.target), before, "and spends nothing")
+
+
 # --- the shipped catalyst arrow (#1398) ---------------------------------------
 
 const _CATALYST_ARROW_PATH := "res://attack/ammo/types/catalyst.tres"
