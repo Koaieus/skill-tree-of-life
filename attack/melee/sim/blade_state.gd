@@ -471,7 +471,7 @@ static func speed_damage_multiplier(speed: float, m: float, v_half: float) -> fl
 	return maxf(1.0, f)
 
 
-## The sweep factor on a contact's speed (#1804): `clamp(1 + c·t/T, 1−c, 1+c)`
+## The sweep factor on a contact's speed: `clamp(1 + c·t/T, 1−c, 1+c)`
 ## for a node at signed [param t] (Heat over Cold) with threshold
 ## [param threshold], [param c] the wielder's `blade_temperature_speed`. Heat
 ## speeds a contact up, Cold slows it; `t = 0`, `T ≤ 0` or `c = 0` give exactly
