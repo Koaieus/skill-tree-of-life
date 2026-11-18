@@ -1,16 +1,21 @@
 class_name BlastVFX
 extends Node2D
 
-## The board blast ring, level-wide: on [signal Events.blast_landed] it plays
-## one [member visual_scene] at the mark's centre node, sized to the mark, and
-## frees it when done. Bus-driven like the pop burst — the cue arrives on the
-## mutation clock from [OutcomeApplier], on the authority and peers alike.
+## The board blast look, level-wide: on [signal Events.blast_landed] it plays
+## one [member visual_scene] sized to the mark — or, when the mark's band holds
+## an [EdgeGoOff], one [member arc_scene] — at the mark's centre node, and frees
+## it when done. Bus-driven like the pop burst — the cue arrives on the mutation
+## clock from [OutcomeApplier], on the authority and peers alike.
 
 ## The disc fill default, shared with the sandbox blast tab.
 const DEFAULT_DISC_FILL := 0.22
 
 ## The one-shot per blast.
 @export var visual_scene: PackedScene = preload("res://ui/vfx/blast_visual.tscn")
+## The edge go-off's layer, played in place of the disc.
+@export var arc_scene: PackedScene = preload("res://ui/vfx/arc_layer.tscn")
+## Hops an edge go-off's bolts run; the mark carries no hop count.
+@export_range(1, 8, 1) var arc_hops: int = 1
 ## The layer a rider gets when its aspect authors none ([member Aspect.blast_layer]).
 @export var rider_layer_scene: PackedScene = preload("res://ui/vfx/rider_blast_layer.tscn")
 ## Where a rider identity finds its aspect's bespoke layer; null = the shared roster.
@@ -56,10 +61,17 @@ func delay_for(mark: BlastMark) -> float:
 	return maxf(0.0, (mark.generation if mark != null else 0) * generation_stagger)
 
 
-## Play one ring for [param mark] with its rider layers; null when there is
-## nothing to centre it on.
+## Play [param mark]: one arc layer when its band holds an [EdgeGoOff], else one
+## ring with its rider layers. Null for a mark with nothing to centre it on, or
+## when an arc played (an [ArcLayer] is not a [BlastVisual]).
 func spawn(mark: BlastMark) -> BlastVisual:
-	if mark == null or not is_instance_valid(mark.centre) or visual_scene == null:
+	if mark == null or not is_instance_valid(mark.centre):
+		return null
+	var elements := element_roster if element_roster != null else ElementRoster.shared()
+	if is_edge(mark.go_off, elements):
+		spawn_arc(mark, elements)
+		return null
+	if visual_scene == null:
 		return null
 	var visual := visual_scene.instantiate() as BlastVisual
 	if visual == null:
@@ -67,13 +79,27 @@ func spawn(mark: BlastMark) -> BlastVisual:
 	add_child(visual)
 	visual.global_position = mark.centre.global_position
 	visual.setup(mark)
-	apply_look(visual, mark.go_off,
-			element_roster if element_roster != null else ElementRoster.shared(), element_disc_fill)
+	apply_look(visual, mark.go_off, elements, element_disc_fill)
 	visual.companions = layers_for(mark.riders,
 			roster if roster != null else AspectRoster.shared(), rider_layer_scene)
 	visual.finished.connect(visual.queue_free)
 	visual.play()
 	return visual
+
+
+## Play one arc layer for [param mark] instead of the disc: the element's colour
+## and the hops [member arc_hops] names. Null when no arc scene is set.
+func spawn_arc(mark: BlastMark, elements: ElementRoster) -> ArcLayer:
+	if mark == null or not is_instance_valid(mark.centre) or arc_scene == null:
+		return null
+	var arc := arc_scene.instantiate() as ArcLayer
+	if arc == null:
+		return null
+	add_child(arc)
+	arc.global_position = mark.centre.global_position
+	var look := look_for(mark.go_off, elements)
+	arc.setup(mark.centre, arc_hops, look.tint if look != null else Emissive.NEUTRAL)
+	return arc
 
 
 ## One layer scene per rider, in order: its aspect's authored
@@ -101,6 +127,22 @@ static func look_for(go_off: Identity, elements: ElementRoster) -> Identity:
 			if band != null and band.identity != null and band.identity.id == go_off.id:
 				return element.identity
 	return null
+
+
+## True iff the band [param go_off] names holds an [EdgeGoOff] (Lightning's
+## Shocked), so the blast plays an arc layer instead of the disc. The bands are
+## walked as [method look_for] walks them; false for a null go-off or a band no
+## element holds.
+static func is_edge(go_off: Identity, elements: ElementRoster) -> bool:
+	if go_off == null or elements == null:
+		return false
+	for element in elements.elements:
+		if element == null:
+			continue
+		for band in element.bands:
+			if band != null and band.identity != null and band.identity.id == go_off.id:
+				return band.go_off is EdgeGoOff
+	return false
 
 
 ## Restyle [param visual] by the [GoOff] identity its mark names: the element's

@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/vfx/arc_layer.gd" id="1_arc_layer"]
+
+[node name="ArcLayer" type="Node2D"]
+script = ExtResource("1_arc_layer")
