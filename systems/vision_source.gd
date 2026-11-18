@@ -9,6 +9,7 @@ extends RefCounted
 enum Kind {
 	OWNED,  ## A node a viewer owns; radius = its local `vision_range`.
 	SCOUT,  ## The node holds a scout row of a viewer's camp; radius = [method ScoutStatus.radius_for].
+	BURNING,  ## The node's Fire band has [member ElementBand.light], for every viewer; radius = [method DiscGoOff.disc_radius] of its excess.
 }
 
 var node: SkillNode

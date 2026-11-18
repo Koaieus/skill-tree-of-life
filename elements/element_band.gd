@@ -29,8 +29,13 @@ const EXCESS_AT_CAP := 0
 @export var travel: Travel = Travel.NONE
 ## Terrain decay per world turn while in this band (a knob; read by #1795).
 @export_range(0, 100, 1, "or_greater") var decay_per_world_turn: int = 1
-## The band is a light source (Burning).
+## The band is a light source (Burning): every viewer sees a disc of
+## [method DiscGoOff.disc_radius] over the node's excess ([VisionSystem]).
 @export var light: bool = false
+## The band burns its holder each world turn: TRUE damage of this × the excess
+## (count − T) on an allocated node ([method CombatWorld.burn_terrain]). 0 burns
+## nothing. A knob, tentative (pass reading of the owner's "1 per stack").
+@export_range(0.0, 10.0) var burn_per_excess: float = 0.0
 ## Display names on the excess (#1796): threshold → name, the threshold read as
 ## a band's is — a multiple of T, or the node's cap when the key is
 ## [constant EXCESS_AT_CAP]. A node shown in this band reads the name of the

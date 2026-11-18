@@ -405,6 +405,10 @@ func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Stat
 		slice.host.announce_catalyst_converted(converted)
 
 
+func burn_terrain() -> void:
+	pass
+
+
 ## One world-turn tick of every node row whose def sets
 ## [member StatusDef.decay_per_world_turn] — run by
 ## [method TurnManager._end_world_turn] right after [method tick_lingering].
