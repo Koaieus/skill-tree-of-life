@@ -34,7 +34,8 @@ const ZLayers = preload("res://ui/z_layers.gd")
 ## Seconds from spawn to gone.
 @export_range(0.05, 2.0, 0.01) var duration: float = 0.35
 ## Seconds between one hop's bolts lighting and the next's, so the arc reads as
-## travelling outward. Tentative, easy to change.
+## travelling outward. [BlastVFX] sets its [member BlastVFX.generation_stagger]
+## (the gather seats each deeper hop one generation later).
 @export_range(0.0, 0.5, 0.005, "suffix:s") var hop_stagger: float = 0.05:
 	set(value):
 		hop_stagger = maxf(value, 0.0)
@@ -149,7 +150,7 @@ func _hops() -> Array:
 	if graph == null or graph.navigator == null:
 		return _bolts
 	for i in reach:
-		_bolts.append([] as Array[PackedVector2Array])
+		_bolts.append([])
 	var depth := graph.navigator.nodes_within(centre, reach)
 	for node: SkillNode in depth:
 		if node == null or not is_instance_valid(node) or node == centre:

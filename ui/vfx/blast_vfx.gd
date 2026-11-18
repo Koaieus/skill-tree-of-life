@@ -87,8 +87,8 @@ func spawn(mark: BlastMark) -> BlastVisual:
 
 
 ## Play one arc layer for [param mark] instead of the disc: the element's colour,
-## the mark's level as its hops (at least 1) and the rider layers, sized to the
-## arc's extent. Null when no arc scene is set.
+## the mark's level as its hops (at least 1), one [member generation_stagger]
+## per hop, and the rider layers, sized to the arc's extent. Null when no arc scene is set.
 func spawn_arc(mark: BlastMark, elements: ElementRoster) -> ArcLayer:
 	if mark == null or not is_instance_valid(mark.centre) or arc_scene == null:
 		return null
@@ -100,6 +100,7 @@ func spawn_arc(mark: BlastMark, elements: ElementRoster) -> ArcLayer:
 	var look := look_for(mark.go_off, elements)
 	arc.setup(mark.centre, maxi(mark.power, 1), look.tint if look != null else Emissive.NEUTRAL,
 			mark.riders)
+	arc.hop_stagger = generation_stagger
 	arc.companions = layers_for(mark.riders,
 			roster if roster != null else AspectRoster.shared(), rider_layer_scene)
 	arc.play()
