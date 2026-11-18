@@ -646,7 +646,9 @@ the one before left. At each node of a generation:
    (TRUE, through `DotTick.mint` in stage two), and its extra landings, and
    every path through the node walks on. Otherwise an answer may end the paths
    there, and that verdict rides each head arriving there as `path_ends`, which
-   step 4 reads. Then, once per node per hit, each band the node sits in fires
+   step 4 reads. In the same loop, a head with `walk_spreads` on its own node in a
+   CONDUCTS band (Shocked) spends the band's `conduct_cost` into the
+   generation's batch and is marked `conducted`, which step 4 also reads. Then, once per node per hit, each band the node sits in fires
    its `GoOff` with the post-rider read (a go-off takes no load). The
    generation's spends and transfers (the breaks' included) commit together
    before the next generation's admit.

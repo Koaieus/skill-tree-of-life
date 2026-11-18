@@ -351,7 +351,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
 - **The ladder** (`level_of`). L is the highest level ≤ `max_level` with
   Charge > L^`ladder_exponent` × T, and 0 (inert) at Charge ≤ T. It reads the
   whole count, never count − k × T, so a node past the cap arcs on the same
-  ladder. With a T of 0, every stack reads as past T.
+  ladder. With a T of 0, any Charge ≥ 1 reads straight to `max_level` (0 at
+  Charge 0).
 - **Cost and transfer**, within the node's own level M only. Each node reached
   within M hops costs 1, itemised in `GoOffResult.cost`. On the default
   `spent_charge_goes_to` (Reached node), that node also takes the spent stack
@@ -360,7 +361,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
 - **`fire_level_in(world, node, read, added)`** is the entry point for an extra
   level. It is one go-off at M + `added` hops from `node` (never `read.node`),
   paying M's solo cost. `added` = 0 is the plain `fire`. M = 0 with an added
-  level is a shape alone: it reaches but pays nothing.
+  level is a shape alone: it reaches but pays nothing. `max_level` caps only
+  M; `added` goes on top uncapped, so a combined arc can exceed it.
 - **Conduction.** Shocked and overflow are `travel` CONDUCTS with
   `conduct_cost` 1. `HitGather._conduct` runs in the go-off loop at the node's
   read, for the head's own node only, and only if the head `walk_spreads`. It
@@ -374,10 +376,12 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   - **Contact node Shocked**: one Lightning channel. The node's own plain arc
     is skipped for that hit (`_vertex_arc`). One arc goes out at the node's
     level plus the copy's (`fire_level_in`), with one mark and the centre copy,
-    and the node pays its solo cost and transfer off its store. Stacks the copy
-    spends beyond M are voided, not transferred (not pinned by a test).
+    and the node pays its solo cost (within M) off its store, each such stack
+    transferring to its reached node. The copy's own stacks never transfer, so
+    a node within M costs two stacks, of which only the node's moves.
   - **Contact node not Shocked**: the copy's arc runs alone, with a mark but no
-    centre copy, no node spend, and its transfer onto each node reached.
+    centre copy, and no node spend. On the Reached-node default each node
+    reached takes the copy's transferred stack; on Void nothing moves.
   - Either way the copy pays 1 per node reached, through the source's spend:
     depth 1 at this read, deeper nodes as `_release` lets them on
     (`_Fired.copy_spend`). An arc reaching nobody is no go-off. A later contact
