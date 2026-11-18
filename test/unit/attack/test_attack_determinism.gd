@@ -568,3 +568,45 @@ static func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 		if not hit is ExertInstance:
 			out.append(hit)
 	return out
+
+
+# ── A Shocked walk: shadow and live agree on reach and spend ─────────────────
+
+## The branching world's charges after one fan-all cast on N1, resolved
+## against [param world]: N1 and N2 Shocked first, so the walk conducts and
+## both arc. Returns [fingerprint, charges by node index].
+func _shocked_cast(w: Dictionary, world: CombatWorld) -> Array:
+	var helper: H = w.helper
+	var graph: Graph = w.graph
+	var nodes: Array = graph.get_skill_nodes()
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.max_reducer(),
+			{max_hops = 0})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var outcome := SpellResolver.resolve_against(spell, nodes[1], nodes[0], w.attacker, graph,
+			world, _seeded(7))
+	var charges: Array[int] = []
+	for n: SkillNode in nodes:
+		charges.append((world.combat_for(n) as NodeCombat).charge())
+	return [fingerprint(outcome), charges]
+
+
+func test_a_shocked_cast_reaches_and_spends_the_same_on_shadow_and_live() -> void:
+	CombatWorld.reset_live()
+	var w := _make_branching_world()
+	var lightning := ElementRoster.shared().by_id(&"lightning")
+	var nodes: Array = (w.graph as Graph).get_skill_nodes()
+	for i in [1, 2]:
+		var c := CombatWorld.live().combat_for(nodes[i]) as NodeCombat
+		c.add_terrain(lightning, c.terrain_threshold() + 2 - c.charge())
+	var before: Array[int] = []
+	for n: SkillNode in nodes:
+		before.append((CombatWorld.live().combat_for(n) as NodeCombat).charge())
+	var shadow := CombatWorld.shadow()
+	var on_shadow := _shocked_cast(w, shadow)
+	shadow.free_shadow()
+	var on_live := _shocked_cast(w, CombatWorld.live())
+	assert_ne(on_live[1], before, "fixture: the cast moved Charge")
+	assert_gt((on_live[0] as Array).size(), 2, "fixture: the walk conducted past its seed")
+	assert_eq(on_shadow[0], on_live[0], "the same landings, in the same order")
+	assert_eq(on_shadow[1], on_live[1], "the same Charge spent and moved, node by node")
+	CombatWorld.reset_live()
