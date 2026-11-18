@@ -68,9 +68,10 @@ func per_reload_stat_id() -> StringName:
 
 
 ## This type's bin cap given its per-reload [param mint]: `stock_cap_reloads ×
-## mint` when that is positive, else the flat [member max_stock] (a zero count
-## still banks what a gallery or loot hands it). Every [method Quiver.add] /
-## [method Quiver.room_for] caller passes this, never [member max_stock].
+## mint` when that product is positive, else the flat [member max_stock] — a
+## zero `stock_cap_reloads` (or a zero [param mint]) still banks up to the flat
+## cap. Every [method Quiver.add] / [method Quiver.room_for] caller passes
+## this, never [member max_stock].
 func stock_cap(mint: int) -> int:
 	var scaled := stock_cap_reloads * mint
 	return scaled if scaled > 0 else max_stock

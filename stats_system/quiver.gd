@@ -5,9 +5,10 @@ extends PoolStat
 ## The entity's ammo — the `arrows` stat on [EntityStatBoard]. One [PoolStat]
 ## (current = PLAIN stock, max = quiver capacity, from the modifier pipeline
 ## like any pool) plus per-[AmmoType] bins: the plain bin IS `current`, and
-## each special bin sits beside it, capped by its own type's `max_stock`
-## rather than by capacity (ADR 0041, superseding ADR 0019 on that point). The
-## identity `current == bins[BASE_ID]` holds after every transfer below.
+## each special bin sits beside it, capped by its own type's per-bin cap —
+## flat `max_stock`, or `stock_cap_reloads × mint` when that product is
+## positive — rather than by capacity (ADR 0041). The identity
+## `current == bins[BASE_ID]` holds after every transfer below.
 ##
 ## The class IS the stat: there is no separate Quiver resource on [Entity].
 ## The ranged command-tray body is a view of this stat exactly as the magic
@@ -30,8 +31,9 @@ signal bin_changed(type_id: StringName)
 ## `AmmoTypeRoster.BASE_ID` (pinned by test_quiver); this class sits below
 ## `attack/` and may not name the roster.
 const BASE_ID: StringName = &"arrow"
-## A special's cap when the caller passes none; the default of
-## `AmmoType.max_stock` (owner, 2026-10-01: "capped at 999 per type").
+## A special's cap when the caller passes none — the default of
+## `AmmoType.max_stock`, and so the flat cap of a type that sets no
+## `stock_cap_reloads`.
 const DEFAULT_MAX_STOCK := 999
 
 ## `{AmmoType.id: count}`, positive counts only. Exported so a shadow world's

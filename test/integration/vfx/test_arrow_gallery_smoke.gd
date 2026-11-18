@@ -6,7 +6,7 @@ extends GutTest
 ## every verdict preset, each preset producing the verdict it exists to show.
 ##
 ## Instant mutation: the beat clock is the game's, not what this asserts, and
-## 12 types x 5 presets on the reveal clock would blow the 15 s budget.
+## 16 types x 5 presets on the reveal clock would blow the 10 s budget.
 
 const _PANEL_PATH := "res://addons/arrow_gallery/arrow_gallery_panel.tscn"
 const _ROSTER_PATH := "res://attack/ammo/ammo_type_roster.tres"
@@ -49,7 +49,7 @@ func test_every_type_fires_under_every_preset() -> void:
 			if outcome != null:
 				_assert_preset_beat(outcome, preset, ammo, label)
 	assert_lt((Time.get_ticks_msec() - started) / 1000.0, _BUDGET_SECONDS,
-			"60 instant volleys inside the budget")
+			"80 instant volleys inside the budget")
 
 
 ## A 0-damage type (blindness) never reaches mitigation or the crit
