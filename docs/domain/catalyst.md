@@ -115,8 +115,7 @@ writes nothing and adds nothing to the swing.
 ## The blade
 
 A blade holds no Catalyst. `BladeVertexFill` reads no Catalyst off a piece's
-source node, a contact carries no load (`hit_load` 0) and spends nothing on the piece or the
-struck node, and no blast reaches blade pieces. A contact is one hit: a primed
+source node, a contact spends nothing on the piece or the struck node, and no blast reaches blade pieces. A contact is one hit: a primed
 struck node goes off through the gather as any hit sets it off, and a node
 holding only Catalyst blasts nothing and keeps its stacks (no production blade rider
 lands Heat, Cold or Charge to convert).
@@ -130,10 +129,7 @@ Heat tips into Burning goes off through Burning's disc; Firecracker has no
 blast of its own. A second row names Catalyst at `innate` 0: infused points
 plant Catalyst beside the Heat (an intended combo). The status lands after
 the hit's terrain, so the same landing's Heat does not convert it; a later
-Heat landing or the node's priming does. It still authors
-`NoEdgeToSourceCondition` as its crit (a hit whose payload `predecessor`
-shares no edge with the node), a leftover of the old euclidean walk that the
-edge wave never meets.
+Heat landing or the node's priming does. It authors no crit.
 
 ## The look
 
@@ -161,10 +157,8 @@ All tentative, easy to change.
 | `triggers` | death | `CatalystSpread` | which removal causes burn the row |
 | `crystal_size`, `crystal_cap`, `conversion_pulse_seconds` | 5.0, 6, 0.5 | `StatusOverlay` | the look |
 
-`CatalystSpread.damage_per_charge` is still authored, and `describe()` still
-promises it, but no code reads it: the death burn writes the row off and deals
-no damage. `CatalystSpread.resonance` is authored and read by nothing too: the
-blade piece pass that weighed a shared chunk by it is gone.
+`CatalystSpread` authors no damage: the death burn writes the row off and
+deals none, and `describe()` says so.
 
 ## Guards
 
@@ -174,6 +168,5 @@ cap, allocation, the world-turn decay, the goo arrow),
 `test/unit/skill_node/test_catalyst_barrel_addon.gd`,
 `test/unit/elements/test_burning_go_off.gd` and
 `test/unit/elements/test_disc_go_off.gd` (the blast it feeds),
-`test/unit/attack/test_blade_contact_on_primed_node.gd` and
-`test/unit/attack/test_head_hit_load.gd` (a blade contact holds and spends
-no Catalyst).
+`test/unit/attack/test_blade_contact_on_primed_node.gd` (a blade contact
+holds and spends no Catalyst).

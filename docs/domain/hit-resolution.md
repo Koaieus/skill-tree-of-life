@@ -64,8 +64,6 @@ gathers ([The walk](#the-walk-outcomeapplier)). A spell landing whose span
 opens on a bare status (an infusion's, say) has that status as its head. The
 head carries the gather's state:
 
-- `hit_load`: what its own `GoOff.fire` is handed. No landing site sets one
-  (a blade contact carries no load), so it is 0 on every head and copy.
 - `gathered`: set once stage one ran the head, so a second drain of the same
   objects feeds its ops instead of gathering again.
 - `terrain_ops`: the beat's net terrain change, `[node, dt, dcharge]` per
