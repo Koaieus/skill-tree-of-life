@@ -54,6 +54,7 @@ func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 ## node's solo cost: 1 per node within M hops, each its transfer on the
 ## default. M = 0 with an added level is a shape alone: it reaches, pays
 ## nothing. The reach is the global mirror's one BFS ([method GraphMirror.nodes_within]).
+## [member GoOffResult.power] names M + added, the hops its [BlastMark] draws.
 func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, added: int) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
@@ -64,6 +65,7 @@ func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, adde
 	var graph := node.get_graph()
 	if graph == null or graph.navigator == null:
 		return out
+	out.power = level
 	var mirror: GraphMirror = graph.navigator
 	var depth := mirror.nodes_within(node, level)
 	var by_depth: Array = []
