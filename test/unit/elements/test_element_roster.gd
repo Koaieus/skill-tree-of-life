@@ -98,9 +98,9 @@ func test_bands_ascend_and_only_the_last_is_at_cap() -> void:
 
 ## Fire's Burning band holds Burning's disc (#1800), a [DiscGoOff], and its
 ## overflow band holds the same instance (acceptance 5c, a lead call).
-## Every other element's go_off lands with #1806. Ice alone authors an
-## admits: one [FrozenAdmits] on both its bands.
-func test_only_fires_bands_hold_a_go_off_and_only_ice_authors_admits() -> void:
+## Lightning's Shocked band holds its arc (#1806), an [EdgeGoOff], shared the
+## same way. Ice alone authors an admits: one [FrozenAdmits] on both its bands.
+func test_fire_and_lightning_hold_their_go_offs_and_only_ice_authors_admits() -> void:
 	for element in _elements():
 		if element.id() == &"ice":
 			assert_true(element.bands[0].admits is FrozenAdmits, "ice: Frozen's band holds a FrozenAdmits")
@@ -109,8 +109,12 @@ func test_only_fires_bands_hold_a_go_off_and_only_ice_authors_admits() -> void:
 		for band in element.bands:
 			if element.id() != &"ice":
 				assert_null(band.admits, "%s: no admits" % element.id())
-			if element.id() != &"fire":
-				assert_null(band.go_off, "%s: go_off lands with #1806" % element.id())
+			if element.id() == &"ice":
+				assert_null(band.go_off, "ice: no go_off")
+		if element.id() == &"lightning":
+			assert_true(element.bands[0].go_off is EdgeGoOff, "lightning: Shocked's band holds an EdgeGoOff")
+			assert_true(is_same(element.bands[-1].go_off, element.bands[0].go_off),
+					"lightning: the overflow band shares Shocked's instance")
 		if element.id() == &"fire":
 			assert_true(element.bands[0].go_off is DiscGoOff, "fire: Burning's band holds a DiscGoOff")
 			assert_true(is_same(element.bands[-1].go_off, element.bands[0].go_off),
