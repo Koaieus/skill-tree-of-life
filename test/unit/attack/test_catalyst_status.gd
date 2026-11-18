@@ -210,7 +210,7 @@ func test_no_hit_on_an_unprimed_node_blasts() -> void:
 	_plant(_f.target, 2.0)
 	assert_true((await _fire(_shoot(_POISON_ARROW))).is_empty(), "Catalyst alone, no Burning: no boom")
 	var plain := _shoot(null)
-	assert_eq(plain[0].hit_key, 0, "and stays keyless")
+	assert_eq(plain[0].hit_key, 0, "a plain arrow stays keyless")
 	assert_true((await _fire(plain)).is_empty(), "a plain arrow on Catalyst alone: no boom either")
 
 
