@@ -11,7 +11,7 @@ extends GutTest
 ## Knobs are read off the def's instance (share, ladder_exponent), never as
 ## literals. T is t_per_degree × degree, read per node. Ice's bands are swapped
 ## for one test band holding a logging [Admits] where a test needs a node to
-## answer an admit or a read (Ice ships none yet), restored in after_each.
+## answer an admit or a read on the test's own terms, restored in after_each.
 
 const _RAW := 4.0
 
@@ -50,10 +50,10 @@ func before_each() -> void:
 	_w = TestWorld.create(self)
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
-	var arc := _edge()
-	_saved = [arc.share, arc.ladder_exponent, arc.max_level, arc.spent_charge_goes_to] if arc != null else []
 	_ice_el = ElementRoster.shared().by_id(&"ice")
 	_light_el = ElementRoster.shared().by_id(&"lightning")
+	var arc := _edge()
+	_saved = [arc.share, arc.ladder_exponent, arc.max_level, arc.spent_charge_goes_to] if arc != null else []
 	_fire_el = ElementRoster.shared().by_id(&"fire")
 	_was_tunables = HitGather.tunables
 	_ice_bands = _ice_el.bands.duplicate()
