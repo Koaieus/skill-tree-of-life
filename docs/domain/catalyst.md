@@ -93,7 +93,10 @@ already-primed node does not convert again. It is never hooked on
 `terrain_band_changed`, which stays display-only. A landing that splits and
 also primes converts at land first; the settle then converts the leftover:
 Heat T − 1 with 3 Catalyst, hit by 1 Heat + 1 Charge, ends at Heat T + 2 and
-the row at 0.
+the row at 0. The land commit's settle reads each landed node's counts from
+before the land step, so a head's own riders count as the crossing even when
+the split converts nothing: Heat T with 3 Catalyst, hit by 1 Heat + 1 Charge,
+ends with the row at 0.
 
 ## The goo arrow
 
