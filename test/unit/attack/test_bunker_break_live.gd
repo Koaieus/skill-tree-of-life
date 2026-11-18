@@ -171,8 +171,9 @@ func test_a_rigid_blade_breaks_the_edge_never_the_vertex_and_still_damages_the_b
 	# through the plan's own trajectory-producing run; build_blade_state()
 	# above builds a FRESH state, so removed_edges lives on the state the loop
 	# mutated, not this one. Assert through last_pops (the resolve loop's own
-	# record) — its severed_at IS the resolved state's removed_edges by
-	# construction (LiveGate._sever_edge writes both in the same call).
+	# record) — its severed_at holds every edge LiveGate._sever_edge cut, which
+	# writes both in the same call (removed_edges may also hold a popped
+	# vertex's edges, never asserted here).
 	assert_true(state != null, "fixture: a state must still build post-resolve")
 
 	# c. the hit still lands, mitigated: the bunker takes damage.
