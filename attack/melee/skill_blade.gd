@@ -61,6 +61,13 @@ const BLADE_SHARD_FIELD := preload("res://attack/melee/blade_shard_field.tscn")
 @export var charged_vertex_hue := Color(0.55, 0.75, 1.0)
 ## The glow tier of a Shocked vertex (`.claude/rules/hdr-color.md`).
 @export var charged_vertex_tier: Emissive.Tier = Emissive.Tier.LABEL
+## The hue a Frozen vertex ([method is_frozen_vertex]) reads in on the blade:
+## pale and brittle, its one contact the heavier hit before it pops. A vertex
+## both Frozen and Shocked reads Frozen (tentative). Tentative knob; editor
+## feedback: the sandbox host's melee tab.
+@export var frozen_vertex_hue := Color(0.78, 0.97, 1.0)
+## The glow tier of a Frozen vertex (`.claude/rules/hdr-color.md`).
+@export var frozen_vertex_tier: Emissive.Tier = Emissive.Tier.LABEL
 
 ## Look profile pushed onto every [BladeNode] / [BladeEdge] this blade spawns.
 ## One resource per blade, so a sandbox can retune the whole swing live.
@@ -759,6 +766,8 @@ func _spawn_visuals() -> void:
 		bn.tint = tint
 		if is_burning_vertex(state, i):
 			bn.modulate = Emissive.at(burning_vertex_hue, Emissive.stops(burning_vertex_tier))
+		elif is_frozen_vertex(state, i):
+			bn.modulate = Emissive.at(frozen_vertex_hue, Emissive.stops(frozen_vertex_tier))
 		elif is_charged_vertex(state, i):
 			bn.modulate = Emissive.at(charged_vertex_hue, Emissive.stops(charged_vertex_tier))
 		_nodes_container.add_child(bn)
@@ -787,6 +796,16 @@ static func is_burning_vertex(blade_state: BladeState, i: int) -> bool:
 		if band != null and band.go_off is DiscGoOff:
 			return true
 	return false
+
+
+## Is vertex [param i] Frozen? True iff its copied terrain reads Ice's Frozen
+## answer ([method BladeVertexFill.frozen_of]): the one-shot vertex whose
+## contact lands heavier and then pops. Read at build, as
+## [method is_burning_vertex].
+static func is_frozen_vertex(blade_state: BladeState, i: int) -> bool:
+	if blade_state == null or i < 0 or i >= blade_state.vertex_t.size():
+		return false
+	return not BladeVertexFill.frozen_of(blade_state.copy_read(i)).is_empty()
 
 
 ## Is vertex [param i] Shocked? True iff its copied terrain sits in a band
