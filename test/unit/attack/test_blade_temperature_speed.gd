@@ -212,3 +212,18 @@ func test_the_authority_amount_and_the_cosmetic_floater_agree() -> void:
 	blade.owned_by = _f.attacker
 	assert_almost_eq(_K * blade._speed_multiplier(di._event), rec.amounts[0], 0.0001,
 			"the floater's curve is the stamp's")
+
+
+func test_the_stamp_writes_the_sweep_factor_the_floater_cues_on() -> void:
+	await _board()
+	_record()
+	for t in [1, 0, -1]:
+		_set_t(t)
+		var hits: Array[HitInstance] = []
+		var di := _contact(hits)
+		assert_eq(di.sweep_factor, 1.0, "t = %d: unswept until the gather stamps it" % t)
+		await _land(hits)
+		var factor := clampf(1.0 + _C * float(t) / float(_threshold()), 1.0 - _C, 1.0 + _C)
+		assert_almost_eq(di.sweep_factor, factor, 0.0001, "t = %d: the stamp records factor(t)" % t)
+		# The floater's cue reads the side of 1: FAST above, SLOW below, none at 1.
+		assert_eq(signf(di.sweep_factor - 1.0), signf(float(t)), "t = %d: the cue's side" % t)
