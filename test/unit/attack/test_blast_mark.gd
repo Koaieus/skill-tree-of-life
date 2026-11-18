@@ -2,11 +2,10 @@ extends GutTest
 
 ## A board blast stamps itself on its hits ([BlastMark]) and [OutcomeApplier]
 ## announces it once per live apply ([signal Events.blast_landed]) — never on
-## a shadow world. Reach is the sim's own radius_for, never a literal. A mark
+## a shadow world. Reach is Burning's own disc_radius, never a literal. A mark
 ## the gather mints carries the generation of the read its go-off fired at,
 ## through the record too (#1799, ADR 0091 §1).
 
-const _CATALYST := preload("res://effects/status/catalyst.tres")
 const _POISON := preload("res://effects/status/poison.tres")
 const _BLIND := preload("res://effects/status/blindness.tres")
 const _BOARD := preload("res://entity/default_entity_board.tres")
@@ -31,9 +30,10 @@ var _fire_bands: Array[ElementBand] = []
 func before_each() -> void:
 	_f = await VolleyBoardFixture.build(self, true)
 	_f.target.base_radius = 40.0
-	_f.target.get_combat().apply_status(_CATALYST, 2.0)
 	_fire = ElementRoster.shared().by_id(&"fire")
 	_fire_bands = _fire.bands.duplicate()
+	var c := _f.target.get_combat()
+	c.add_terrain(_fire, c.terrain_threshold() + 1 - c.terrain_t())
 
 
 func after_each() -> void:
@@ -46,8 +46,8 @@ func _rider(def: StatusDef) -> ApplyStatusEffect:
 	return e
 
 
-## A DETONATE spell head (load 3) on the charged target carrying two status
-## riders, placed as a landing places it: the span the gather sets off.
+## A spell head on the Burning target (Heat T + 1) carrying two status riders,
+## placed as a landing places it: the span the gather sets off.
 func _detonate() -> Array[HitInstance]:
 	var head := DamageInstance.new()
 	head.target = _f.target
@@ -55,7 +55,6 @@ func _detonate() -> Array[HitInstance]:
 	head.amount = 10.0
 	head.type = DamageInstance.Type.TRUE
 	head.is_head = true
-	head.hit_load = 3
 	var hits: Array[HitInstance] = [head]
 	var landing := HitLanding.riding(head, hits)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
@@ -100,16 +99,15 @@ func test_one_mark_rides_every_inner_hit_at_the_sims_reach() -> void:
 		return
 	for h in inner:
 		assert_true(is_same(h.blast_mark, mark), "one mark on every inner hit")
-	var spread := _CATALYST.spread as CatalystSpread
-	var power := DiscGoOff.power_of(3, 2, spread.resonance)
-	assert_almost_eq(mark.reach, spread.radius_for(_f.target.radius, power), 0.001, "the sim's reach")
-	assert_eq(mark.power, power, "the detonation's power reaches the mark")
+	var disc := _fire.bands[0].go_off as DiscGoOff
+	assert_almost_eq(mark.reach, disc.disc_radius(1, _f.target.radius), 0.001, "the sim's reach")
+	assert_eq(mark.power, 1, "the Heat excess reaches the mark")
 	assert_true(is_same(mark.centre, _f.target), "centred on the struck node")
 	assert_true(is_same(mark.attacker, _f.attacker), "the attacker's blast")
 	assert_eq(mark.riders, [_POISON.identity, _BLIND.identity] as Array[Identity],
 			"riders are the identities of the status rows its copies carry")
-	for h in hits.slice(0, authored):
-		assert_null(h.blast_mark, "the centre's own hits carry no mark")
+	assert_true(inner.any(func(h: HitInstance) -> bool: return h.target == _f.target and h is DamageInstance),
+			"the centre takes its centre landing, carrying the mark")
 
 
 func test_a_live_apply_announces_the_blast_once() -> void:
