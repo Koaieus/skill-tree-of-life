@@ -135,6 +135,14 @@ func cap_on(host) -> int:
 	return int(host.terrain_cap())
 
 
+## A restore (a snapshot, a save) is the authority's settled row: never
+## trimmed, though a gate flip or a stake extract may have dropped the cap
+## under it since it landed. [method StatusHost.restore_row] calls this in
+## place of [method _on_applied].
+func _on_restored(_host, _power: float) -> void:
+	pass
+
+
 ## Trims the raw row back to [method cap_on] when a landing or a move took it
 ## past. The status host clamps at [member StatusDef.power_max] only; a per-host
 ## cap there would replace this hook. Re-enters once: the trim lands at the cap.

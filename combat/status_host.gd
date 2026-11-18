@@ -96,12 +96,15 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 ## applier fields and ramp position ([member NodeStatus.decay_step]) — the
 ## snapshot restore's writer. Never recomputes the key
 ## through the def (a decoded row keeps the key it was saved under); keeps
-## [method apply_status]'s `CLEAR` gate and [method _settle]'s clamp.
+## [method apply_status]'s `CLEAR` gate and [method _settle]'s clamp. A restore
+## never re-derives: a def's optional `_on_restored(host, power)` replaces
+## [method StatusDef._on_applied] here, so a hook that trims to a live cap
+## (Catalyst's k × T) leaves the authority's settled row as it was sent.
 func restore_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
 		applier_id: int = 0, decay_step: int = 0) -> void:
 	if def == null or power <= 0.0 or key == null or not _may_host(def):
 		return
-	_settle(def, power, key, true, [camp_id, applier_id])
+	_settle(def, power, key, true, [camp_id, applier_id], true)
 	var row := _row(def.id, key)
 	if row != null:
 		row.decay_step = decay_step
@@ -130,10 +133,12 @@ func adjust_power(def: StatusDef, delta: float, key: Variant = true) -> void:
 ## handed to [method StatusDef._on_applied] at its resisted count (ADR 0031).
 ## [param notify] off lets a batch caller refresh once at its end (#880).
 ## [param applier] `[camp_id, applier_id]`, when given, is recorded on the row.
+## [param restoring] (only [method restore_row]) hands the row to the def's
+## `_on_restored` instead of `_on_applied` when the def defines one.
 ## [method tick_statuses] is NOT a caller: tick keeps its own tail, because
 ## its survivor path is [method StatusDef._on_tick]'s, not `_on_applied`'s.
 func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = true,
-		applier: Array = []) -> void:
+		applier: Array = [], restoring: bool = false) -> void:
 	# ADR 0032: the row is whole. A fraction here is a minting site's bug
 	# (the fold, a decay, a spill) — never rounded silently at the store.
 	assert(is_equal_approx(target, roundf(target)),
@@ -153,7 +158,10 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 	if applier.size() == 2:
 		row.camp_id = applier[0]
 		row.applier_id = applier[1]
-	def._on_applied(owner, effective_power(def, row.power))
+	if restoring and def.has_method(&"_on_restored"):
+		def.call(&"_on_restored", owner, effective_power(def, row.power))
+	else:
+		def._on_applied(owner, effective_power(def, row.power))
 	if not had_status:
 		owner._on_first_status()
 	if next > before and def.spread != null and def.spread.settles():
