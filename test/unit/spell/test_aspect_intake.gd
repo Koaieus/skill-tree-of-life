@@ -176,46 +176,7 @@ func test_apply_status_description_is_the_status_applies_line() -> void:
 	assert_eq(eff.get_description(null, board), expected)
 
 
-# ── A shaping-only intake (use = FuelUse) ──────────────────────────────────
-
 const _CATALYST_ID := preload("res://identity/defs/catalyst.tres")
-
-
-func _shaping(identity: Identity, innate: int) -> AspectIntake:
-	var a := AspectIntake.new()
-	a.identity = identity
-	a.innate = innate
-	a.use = FuelUse.new()
-	return a
-
-
-func test_a_shaping_intake_lands_no_rider_but_keeps_its_load() -> void:
-	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_CATALYST_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
-	var inf := Infusion.innate(spell)
-	var riders := inf.riders(spell)
-	assert_eq(riders.size(), 1, "only the poison rides")
-	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
-	assert_eq(inf.load_of(spell), {&"catalyst": 6, &"poison": 2} as Dictionary[StringName, int])
-
-
-func test_a_shaping_intake_with_a_status_still_lands_no_rider() -> void:
-	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_CURSE.identity, 4), _intake(_POISON, 2)] as Array[AspectIntake]
-	var riders := Infusion.innate(spell).riders(spell)
-	assert_eq(riders.size(), 1, "curse shapes only; poison rides")
-	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
-	assert_eq(Infusion.innate(spell).load_of(spell).get(_CURSE.identity.id, 0), 4)
-
-
-func test_infusing_a_shaping_concept_raises_its_load_and_adds_no_rider() -> void:
-	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_CURSE.identity, 6), _intake(_POISON, 2)] as Array[AspectIntake]
-	var inf := Infusion.for_cast(spell, {_CURSE.identity.id: 3})
-	assert_eq(inf.load_of(spell).get(_CURSE.identity.id, 0), 9, "6 innate + 3 at 1:1")
-	var riders := inf.riders(spell)
-	assert_eq(riders.size(), 1, "still only poison rides")
-	assert_eq((riders[0] as ApplyStatusEffect).def, _POISON)
 
 
 # ── The use a row resolves ─────────────────────────────────────────────
@@ -263,12 +224,6 @@ func test_an_catalyst_row_authored_plant_lands_the_catalyst_rider_at_its_load() 
 	assert_eq((riders[0] as ApplyStatusEffect).power, 5.0, "power = load (3 innate + 2 infused)")
 
 
-func test_a_fuel_row_plants_no_rider() -> void:
-	var spell := SpellDef.new()
-	spell.intakes = [_shaping(_CATALYST_ID, 6)] as Array[AspectIntake]
-	assert_true(Infusion.innate(spell).riders(spell).is_empty(), "fuel shapes the spell, never plants")
-
-
 ## Records the cast's load the first time it selects.
 class LoadSpy extends FanAllSpread:
 	var seen: Dictionary = {}
@@ -292,32 +247,26 @@ func test_a_resolve_exposes_the_load_to_the_spread() -> void:
 	var spy := LoadSpy.new()
 	var config := helper.make_config(spy, helper.owner_enemy(), helper.max_reducer(), {max_hops = 1})
 	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
-	spell.intakes = [_shaping(_CATALYST_ID, 6), _intake(_POISON, 2)] as Array[AspectIntake]
-	var inf := Infusion.for_cast(spell, {&"catalyst": 3})
+	spell.intakes = [_intake(_POISON, 2)] as Array[AspectIntake]
+	var inf := Infusion.for_cast(spell, {&"poison": 3})
 	var n := graph.get_skill_nodes()
 	SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, inf)
 	assert_true(spy.called, "the spread ran")
 	assert_eq(spy.seen, inf.load_of(spell) as Dictionary, "ctx.load is load_of")
-	assert_eq(spy.seen.get(&"catalyst", 0), 9)
+	assert_eq(spy.seen.get(&"poison", 0), 5)
 
 
-func test_the_shipped_firecracker_row_is_fuel() -> void:
+func test_the_shipped_firecracker_row_names_fire_and_plants_heat() -> void:
 	var spell := load("res://attack/spell/defs/firecracker.tres") as SpellDef
-	var row := Infusion.intake_of(spell, &"catalyst")
-	assert_not_null(row, "firecracker lists catalyst")
-	assert_true(row.resolved_use() is FuelUse, "its use deserialises as a FuelUse")
-	assert_true(Infusion.innate(spell).riders(spell).is_empty(), "its innate 6 is fuel, never a rider")
+	var row := Infusion.intake_of(spell, &"fire")
+	assert_not_null(row, "firecracker lists fire")
+	assert_true(row.resolved_use() is PlantUse, "its use is the default plant")
+	var riders := Infusion.innate(spell).riders(spell)
+	assert_eq(riders.size(), 1, "its innate is one Heat rider")
+	assert_eq((riders[0] as ApplyStatusEffect).def, ElementRoster.shared().by_id(&"fire").terrain)
 
 
 # ── The row's LoadUse ───────────────────────────────────────────────────
-
-func test_a_fuel_use_row_describes_itself_without_applies() -> void:
-	var row := _row(_CATALYST_ID, 6)
-	row.use = FuelUse.new()
-	var line := row.get_description()
-	assert_false(line.contains("Applies"), "fuel lands nothing: %s" % line)
-	assert_true(line.contains("Catalyst"), "it names its concept: %s" % line)
-
 
 func test_a_row_with_no_use_on_a_plant_default_status_plants_at_its_load() -> void:
 	var row := _row(_POISON.identity, 4)
