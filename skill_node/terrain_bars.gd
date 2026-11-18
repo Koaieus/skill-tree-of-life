@@ -41,6 +41,11 @@ class Bar:
 	var icon: Texture2D = null
 	var label: String = ""
 	var layout: Layout = null
+	## Its go-off is held under another band's [Admits] ([method is_trapped]):
+	## drawn frosted, in [member trapped_tint].
+	var trapped: bool = false
+	## The holding band's tint, read only when [member trapped].
+	var frost: Color = Color.WHITE
 
 
 const _FADE_IN_S := 0.15
@@ -81,6 +86,12 @@ const _EMPTY_PRIMED := Color(0.12, 0.12, 0.14, 0.7)
 	set(value):
 		max_overflow_blocks = value
 		_refresh()
+## How far a trapped bar's fill leans toward the holding band's tint (Charge
+## under the ice), 0 to 1. Tentative.
+@export_range(0.0, 1.0, 0.05) var trapped_frost: float = 0.6:
+	set(value):
+		trapped_frost = value
+		queue_redraw()
 ## One flicker of the overflow tail, seconds. Tentative; tune in the sandbox tab.
 @export_range(0.05, 4.0, 0.01) var flicker_period: float = 0.4
 ## How long the spread cue holds the bars up after fading in, seconds. Tentative.
@@ -203,8 +214,54 @@ static func shown_band(element: Element, band: ElementBand) -> ElementBand:
 ## THE name read (#1796): what [param element] is called on [param node] —
 ## `<name> <count>/<T>`. The name is the shown band's highest excess name the
 ## count passes ([member ElementBand.excess_names]: blaze, inferno), else the
-## shown band's noun, else (inert) the terrain [StatusDef]'s name.
+## shown band's noun, else (inert) the terrain [StatusDef]'s name; a trapped
+## element ([method is_trapped]) ends in [constant TRAPPED_SUFFIX].
 static func label_for(node: SkillNode, element: Element) -> String:
+	var text := _name_read(node, element)
+	return text + TRAPPED_SUFFIX if is_trapped(node, element) else text
+
+
+## What a trapped element's name read adds ([method label_for]).
+const TRAPPED_SUFFIX := " · trapped"
+
+
+## Whether [param element]'s go-off on [param node] is held: its band goes off,
+## and another band the node sits in answers [Admits] (a Frozen node mutes its
+## own go-offs until a break releases them: the Charge of a Frozen + Shocked
+## node is trapped under the ice). Read from the bands alone, never a stored
+## flag; the gather's mute reads the same answer at the hit
+## ([method HitGather._read_node]).
+static func is_trapped(node: SkillNode, element: Element) -> bool:
+	if node == null or element == null:
+		return false
+	var c := node.get_combat()
+	var band := c.terrain_band(element)
+	if band == null or band.go_off == null:
+		return false
+	for e: Element in ElementRoster.shared().elements:
+		if e == element:
+			continue
+		var held := c.terrain_band(e)
+		if held != null and held.admits != null:
+			return true
+	return false
+
+
+## The holding band's tint over a trapped [param element] on [param node]:
+## the first other band the node sits in that answers [Admits]; white if none.
+static func trapped_tint(node: SkillNode, element: Element) -> Color:
+	var c := node.get_combat()
+	for e: Element in ElementRoster.shared().elements:
+		if e == element:
+			continue
+		var held := c.terrain_band(e)
+		if held != null and held.admits != null:
+			var id := held.identity if held.identity != null else e.identity
+			return id.tint if id != null else Color.WHITE
+	return Color.WHITE
+
+
+static func _name_read(node: SkillNode, element: Element) -> String:
 	var c := node.get_combat()
 	var count := c.terrain_count(element)
 	var t := c.terrain_threshold()
@@ -261,6 +318,9 @@ static func bars_for(node: SkillNode, max_overflow: int) -> Array[Bar]:
 		b.label_color = id.tint if id != null else b.color
 		b.icon = id.icon if id != null else null
 		b.label = label_for(node, e)
+		b.trapped = is_trapped(node, e)
+		if b.trapped:
+			b.frost = trapped_tint(node, e)
 		b.layout = layout(b.count, degree, k, max_overflow)
 		out.append(b)
 	return out
@@ -380,15 +440,17 @@ func _draw_bar(bar: Bar, y: float, font: Font) -> void:
 		var f := clampf(l.fill_blocks - i, 0.0, 1.0)
 		if f > 0.0:
 			var fill := bar.color.darkened(0.35) if inert else bar.color
+			if bar.trapped:
+				fill = fill.lerp(bar.frost, trapped_frost)
 			draw_rect(Rect2(r.position, Vector2(block_size * f, bar_height)), fill)
-		draw_rect(r, _FRAME, false, 1.0)
+		draw_rect(r, Color(bar.frost, 0.9) if bar.trapped else _FRAME, false, 1.0)
 	if charge and bar.degree > 0:
 		# One blip per stack inside the frame: Charge is counted, not just filled.
 		var blip := block_size / bar.degree
 		for s in mini(bar.count, l.frame_blocks * bar.degree):
 			@warning_ignore("integer_division")
 			var at := Vector2(x0 + (s / bar.degree) * step + (s % bar.degree + 0.5) * blip, y + bar_height * 0.5)
-			draw_circle(at, maxf(blip * 0.25, 0.6), Color(1, 1, 1, 0.9))
+			draw_circle(at, maxf(blip * 0.25, 0.6), Color(1, 1, 1, 0.9 * (1.0 - 0.6 * trapped_frost if bar.trapped else 1.0)))
 	for j in l.overflow_blocks:
 		var fade := 1.0 - float(j + 1) / (l.overflow_blocks + 1)
 		var flicker := 0.6 + 0.4 * pingpong(2.0 * _time / maxf(flicker_period, 0.01) + j * 0.55, 1.0)

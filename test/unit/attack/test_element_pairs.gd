@@ -641,3 +641,20 @@ func test_catalyst_under_frozen_converts_with_an_absorbed_copys_cold() -> void:
 	assert_eq(_poisons(all, n), 0, "no Poison")
 	assert_eq(_cold(n), cold + c + 3, "the copy's Cold lands and converts the store")
 	assert_eq(int(_c(n).get_status_power(&"catalyst")), 0, "Catalyst 0")
+
+
+# 8 ─────────────────────────────────────────────────────────────────────────────
+func test_the_charge_of_a_frozen_shocked_node_reads_trapped_from_the_bands() -> void:
+	var g := _star("", 2)
+	await _own(g)
+	var x := g[0]
+	_set_charge(x, _t(x) + 1)
+	assert_false(TerrainBars.is_trapped(x, _light), "Shocked alone: free")
+	assert_false(TerrainBars.label_for(x, _light).ends_with(TerrainBars.TRAPPED_SUFFIX), "no suffix")
+	_freeze(x)
+	assert_true(TerrainBars.is_trapped(x, _light), "Frozen + Shocked: trapped")
+	assert_true(TerrainBars.label_for(x, _light).ends_with(TerrainBars.TRAPPED_SUFFIX), "the label says so")
+	assert_false(TerrainBars.is_trapped(x, _ice), "the ice itself is not trapped")
+	var bars := TerrainBars.bars_for(x, 3)
+	var trapped := bars.filter(func(b: TerrainBars.Bar) -> bool: return b.trapped)
+	assert_eq(trapped.size(), 1, "one trapped bar, the Charge's")
