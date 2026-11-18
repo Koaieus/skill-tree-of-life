@@ -58,12 +58,12 @@ func test_every_spread_leaf_describes_itself_distinctly_with_its_number() -> voi
 	var sandpile := SandpileSpread.new()
 	sandpile.burn = 3
 	var catalyst := CatalystSpread.new()
-	catalyst.damage_per_charge = 7.0
+	catalyst.triggers = StatusSpread.CAUSE_DEALLOC
 	var flat := FlatDiffusion.new()
 	flat.min_diff = 5
 	var fraction := FractionDiffusion.new()
 	fraction.fraction = 0.3
-	var expect := {spill: "40%", sandpile: "3", catalyst: "7", flat: "5", fraction: "30%"}
+	var expect := {spill: "40%", sandpile: "3", catalyst: "released", flat: "5", fraction: "30%"}
 	var seen := {}
 	for leaf: StatusSpread in expect:
 		var text := leaf.describe()
