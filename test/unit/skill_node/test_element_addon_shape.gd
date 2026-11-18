@@ -47,17 +47,11 @@ func _assert_shape(addon: SkillNodeAddon, label: String) -> void:
 
 ## An element addon as #1805 / #1806 / #1807 author one: Fire's terrain rider
 ## at power 1, costing 1 fire_element.
+const _FIXTURE := preload("res://test/fixtures/element_addon/heat_rider_addon.tscn")
+
+
 func _fixture() -> SkillNodeAddon:
-	var fire := ElementRoster.shared().by_id(&"fire")
-	var rider := ApplyStatusEffect.new()
-	rider.def = fire.terrain
-	rider.power = 1.0
-	var addon := SkillNodeAddon.new()
-	addon.on_hit_effects.append(rider)
-	addon.temp_placeable = true
-	var costs: Dictionary[StringName, int] = {fire.stat.id: 1}
-	addon.temp_cost_aspects = costs
-	return addon
+	return _FIXTURE.instantiate() as SkillNodeAddon
 
 
 func test_every_element_addon_scene_is_rider_only_and_costs_one_count() -> void:
@@ -108,8 +102,5 @@ func test_a_swing_with_count_zero_cannot_afford_it() -> void:
 	plan.attacker = entity
 	var fire := ElementRoster.shared().by_id(&"fire")
 	assert_eq(plan.currency_cap(fire.stat.id), 0, "fixture: no fire_element")
-	var addon := _fixture()
-	var scene := PackedScene.new()
-	assert_eq(scene.pack(addon), OK, "fixture: the addon packs")
-	assert_false(plan._affords(scene), "count 0: the swing cannot afford it")
-	addon.free()
+	assert_eq(SkillNodeAddon.temp_costs_of(_FIXTURE).get(fire.stat.id, 0), 1, "fixture: costs 1")
+	assert_false(plan._affords(_FIXTURE), "count 0: the swing cannot afford it")
