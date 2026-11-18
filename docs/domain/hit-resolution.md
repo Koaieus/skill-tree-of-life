@@ -525,8 +525,8 @@ there is no aspect-hosted disc, and the only blast is a band's
 Heat, Cold and Charge that the generation's arrivals land there (riders and
 copies' riders), summed so their order cannot change the split. A go-off's
 transfer (`GoOffResult.transfer`) joins the spends instead and converts
-nothing; no go-off fills it yet (Shocked's Charge transfer, #1806). It calls `CatalystStatus.convert` before the terrain write;
-the stacks it makes join that write, so they count toward the hit's own
+nothing; no go-off fills it yet (Shocked's Charge transfer, #1806). It calls
+`CatalystStatus.convert` before the terrain write; the stacks it makes join that write, so they count toward the hit's own
 primed-ness and power, read after the riders land (ADR 0083 §1). The take
 rides as a row op on the hit (`HitInstance.row_ops`), so the authority's
 live replay and a peer's take the same Catalyst; every live world announces
