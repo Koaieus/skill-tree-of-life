@@ -566,7 +566,7 @@ func _rebuild_preview() -> void:
 			null, infusion)
 	preview_resolves += 1
 	_record_preview(outcome, graph)
-	_record_shape([preview_target], graph)
+	_record_shape([preview_target], graph, caster)
 
 
 func _clear_preview() -> void:
@@ -609,7 +609,7 @@ func _rebuild_aimed_preview() -> void:
 	world.free_shadow()
 	preview_resolves += 1
 	_record_preview(outcome, graph)
-	_record_shape(seeds, graph)
+	_record_shape(seeds, graph, source)
 
 
 ## Reads [param outcome]'s timeline into the preview's hit set and edge list.
@@ -634,10 +634,11 @@ func _record_preview(outcome: AttackOutcome, graph: Graph) -> void:
 ## shape landing: a Fire shape's disc ([method DiscGoOff.shape_disc_radius] of
 ## the shape alone, the seed's radius) as a ring, a Lightning shape's
 ## [method EdgeGoOff.level_for_points] hops ([method GraphMirror.nodes_within]
-## on the global mirror, the seed excluded) as PROPAGATION nodes. Never the
+## on the global mirror, the seed and [param caster] excluded, so a hovered
+## preview's would-be caster keeps its role) as PROPAGATION nodes. Never the
 ## add-up with a primed seed (the riders that tip it land with the hit) nor a
 ## node's own go-off; an element whose band takes no shape draws nothing.
-func _record_shape(seeds: Array[SkillNode], graph: Graph) -> void:
+func _record_shape(seeds: Array[SkillNode], graph: Graph, caster: SkillNode) -> void:
 	var e := ElementRoster.shared().by_id(infusion.shape_of(spell))
 	var band := HitGather._shape_band(e)
 	var points := infusion.shape_points
@@ -651,7 +652,7 @@ func _record_shape(seeds: Array[SkillNode], graph: Graph) -> void:
 			_preview_shape_rings.append(RangeVisual.Ring.new(s.global_position, reach))
 		elif band.go_off is EdgeGoOff and graph.navigator != null:
 			for n: SkillNode in graph.navigator.nodes_within(s, EdgeGoOff.level_for_points(points)):
-				if n != null and n != s:
+				if n != null and n != s and n != caster:
 					_preview_shape_nodes[n] = true
 
 

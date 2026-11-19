@@ -102,6 +102,7 @@ func test_a_fire_shape_adds_one_ring_at_the_seed() -> void:
 	assert_eq((rings[0] as RangeVisual.Ring).position, tn.global_position, "centred on T")
 	assert_almost_eq((rings[0] as RangeVisual.Ring).radius, want, 0.001,
 			"radius shape_disc_radius(3 × per-point, 0, R)")
+	assert_eq(_rings(plan).size(), 1, "a repaint still draws exactly one ring")
 
 
 func test_a_burning_seed_draws_the_shape_alone() -> void:
@@ -160,9 +161,23 @@ func test_a_shocked_seed_draws_the_shape_alone() -> void:
 	var c := (nodes[2] as SkillNode).get_combat()
 	c.add_terrain(_light, c.terrain_threshold() * 20)
 	assert_not_null(c.terrain_band(_light), "fixture: T is Shocked")
-	plan.set_shape(&"lightning", 1)
-	assert_eq(plan.get_node_role(nodes[3]), _PROPAGATION, "level 1 reaches 1 hop")
-	assert_ne(plan.get_node_role(nodes[4]), _PROPAGATION, "no add-up with T's own level")
+	assert_ne(plan.get_node_role(nodes[4]), _PROPAGATION, "control: unshaped, 2 hops is unpainted")
+	plan.set_shape(&"lightning", 3)
+	assert_eq(plan.get_node_role(nodes[4]), _PROPAGATION, "level 2 reaches 2 hops")
+	assert_ne(plan.get_node_role(nodes[5]), _PROPAGATION, "no add-up with T's own level")
+
+
+func test_a_hovered_target_previews_the_shape_and_keeps_the_caster() -> void:
+	var f := _fixture()
+	var plan: MagicAttackPlan = f[1]
+	var nodes: Array = f[2]
+	plan.reset()
+	plan.set_shape(&"lightning", 3)
+	plan.set_hover_target(nodes[2])
+	assert_null(plan.target, "fixture: nothing committed")
+	assert_eq(plan.get_node_role(nodes[4]), _PROPAGATION, "the hover previews the shape")
+	assert_eq(plan.get_node_role(nodes[0]), HighlightProvider.HighlightRole.CASTER,
+			"the would-be caster keeps its role")
 
 
 # ── purity ──────────────────────────────────────────────────────────────
