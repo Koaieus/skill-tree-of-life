@@ -24,6 +24,123 @@ first**.
   message, so **assume nothing in A–H is settled unless an issue comment from
   that session says so** — read its transcript or the issue comments first.
 
+## Progress and how to continue (working doc; update it every session)
+
+One group per session, in this order. Done groups are cut from A–I below and
+listed under their "Settled" heading.
+
+| # | Group | Items | State |
+|---|---|---|---|
+| 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below |
+| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | open |
+| 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), the core-on-a-Frozen-node issue filed 2026-11-19 | open |
+| 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
+| 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
+| 6 | Housekeeping (mostly no owner call) | C, the rest of D, F, I; E is the owner's own eyeball list | open |
+
+**How a session runs** (the owner's ask, 2026-11-19): pick the next group;
+write its context and game situations in plain words with real numbers
+(*"the latter here also determines if code/issues aligns with my vision"*);
+then one `AskUserQuestion` per situation, scored; file through one subagent;
+update this doc. Practicalities learned in session 1:
+
+- **Context.** The skill, rules and one closed issue body put session 1 at
+  160k before the first question. Do not read a closed issue's body in full;
+  ask the Haiku Explore for the owner's sentences. Start asking by ~180k.
+- **GitHub from a cloud session.** `gh issue view` and `mise gh-project` fail
+  (GraphQL 403); `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` (REST)
+  and the GitHub MCP tools work. Lanes cannot be moved from there: each filed
+  issue's body opens with `Intended lane:` and the owner moves it.
+- **The lead ledgers and the Fable review files this doc cites are not in the
+  repo** (untracked on the owner's machine). The checks below replace them.
+- **Numbers for situations.** T = 2 × a node's graph degree; cap = k × T;
+  k = 2 + stake level (bare ground 3). Heat, Cold and Charge past the cap
+  stay (the overflow band); nothing trims them.
+
+**What the "⚡ Settle swarm-train forks" session found** (it checked A–H
+against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
+
+- G: the landed code matches every tentative pick listed. Its one
+  recommendation against the code: a `terminal` child that lands on a Shocked
+  node keeps walking (`spell_resolver.gd:415`, `hops_remaining <= 0 and not
+  conducted`), against `propagation_pick.gd:49-50` "never propagates on".
+- C: D1, D2 and D3 are still dead on master. It held D2 and D3 back because
+  #1812 and #1806 "might want the hook"; both are closed now, so that ground
+  is gone.
+- D: the `forge.md` passage is half stale (the barrel, fixed 2026-11-19) and
+  half a tension ADR 0095's revisit-when anticipates ("each vertex carrying
+  an authored innate load"); no ADR is contradicted.
+- E: #1805's sandbox check cannot be done as written: no sandbox-host tab
+  shows Burning, and the Terrain tab's StepTurn runs only the temperature
+  flow, never a burn tick. A real level is the alternative.
+- F: fire-like SVGs sit in the game-icons cache only (`lorc/small-fire`,
+  `carl-olsen/flame`, `sbed/fire`, …); each needs a `mapping.txt` line and a
+  bake.
+- H: the blade `remove_vertex` item is a deliberate fix (`e54e963b`, pinned by
+  `test_fuse_on_a_dead_vertex.gd`) and is cut from H below.
+
+## Settled 2026-11-19 — Catalyst (owner calls, session 1)
+
+Each is the owner's, 2026-11-19, in an `AskUserQuestion` pass; quotes are
+verbatim, "picked" names the option chosen. Issue numbers: see the table at
+the end of this section.
+
+1. **Catalyst has no side.** *"100% sideless. Virtually all Aspect statuses
+   are. The sole exception i think is Scouted, which has a "for which
+   team/player/entity" field (effectively its grouping key for stacks
+   thereof …)"*. A defender spending an attacker's crystals is intended.
+2. **A goo arrow into a Burning node paints the disc** (picked *Keep*): its
+   copies carry the Catalyst rider, as copies are hits.
+3. **No aspect owns "punishes a blade"** (picked *The elements cover it*): a
+   struck node's primed state is the answer.
+4. **The cap limits gains only** (picked): a cap that drops takes nothing
+   away, and a landing on an over-cap node adds nothing and removes nothing.
+   Was A.
+5. **Any priming converts** (picked *Yes, any priming converts*): a threshold
+   that drops under a node's count (a gate closing) converts its crystals
+   like any other priming. Found in session 1 by code read
+   (`terrain_settle.gd`, the crossing reads one T for before and after).
+6. **Catalyst resistance goes**: *"I think catalyst resistance may best be
+   removed"*. Was B-S3.
+7. **A faced Dormant Core's resistance to its own status is** *"25 50 100%"*
+   by size (it was 5.0 / 10.0 on a fraction stat: 500% / 1000%, every face).
+8. **A cracked core carries its Catalyst**: *"If a node is hit, any checks on
+   catalyst count should simply use the combined node+entity stack counts for
+   it. The core will take it with it like a movable catalyst holder that will
+   generally create bad shit around them (fires, shocks, frozen states)."*
+   The entity's crystals count on the node the core sits on, only (picked).
+   Was B-S5. Spend order, the entity row's decay clock and its look are open.
+9. **The barrel, a blade vertex and the T3 signature are one design
+   question**: *"Option 1 would be converting it to some kind of "catalyst
+   producing" thing (not much of a 'barrel') but option 3 for reshaping "what
+   does catalyst do when copied onto a blade node?" (Does it mint stacks on
+   hit or does it amplify elemental stacks done iff blade node carried an
+   element (which they normally dont? Or should set something up for..?) or
+   does it only trigger on primed nodes minting that many new stacks?)"*; the
+   signature *"Needs to be rethought along with what blade node crystals
+   do/don't."*
+10. **The opposition axes are re-paired**: *"Re-pair. Catalyst isn't doing
+    damage nor strictly multi-target as explosive was, it amplifies any
+    element (0D ice .. 2D fire)."*
+11. **Asked, not answered** (group 3): *"can entity cores move through frozen
+    nodes? Or nah? Or what if they sit on a node that gets frozen? Completely
+    locking in the entity if its core node is frozen might be brutal, but
+    making the frozen nodes impassable sounds kinda funny"*. No doc answers
+    it.
+
+Filed (lanes are intended; the board was not reachable):
+
+| Call | Issue | Intended lane |
+|---|---|---|
+| 4 | _filled by the filing pass_ | Ready |
+| 5 | | Ready |
+| 6 | | Ready |
+| 7 | | Ready |
+| 8 | | Needs design |
+| 9 | | Needs design |
+| 10 | | Needs design |
+| 11 | | Needs design |
+
 ## Already settled tonight (for reference, not to re-argue)
 
 | Call | Where |
