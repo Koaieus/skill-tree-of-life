@@ -303,6 +303,16 @@ var terrain_ops: Array = []
 ## onto the beat's first gathered head beside [member terrain_ops] and fed after
 ## them ([method HitGather.feed]), so a replay changes the same rows once.
 var row_ops: Array = []
+## Stage one's Ice cues for this hit's beat, as `[SkillNode, excess]` pairs:
+## a node whose ice broke, with its terrain excess (Cold − T, ≥ 0), or a node
+## whose ice held a copy or ended a walk, with [constant ICE_HELD]. One per node
+## per beat; a node that broke cues only the break. Written onto the beat's
+## first gathered head beside [member row_ops]; shipped, and announced by
+## [method OutcomeApplier.land_one] on a live world only, like
+## [member popped_vertex]: presentation, never read by gameplay.
+var ice_cues: Array = []
+## The excess slot of an [member ice_cues] pair whose ice held.
+const ICE_HELD := -1
 ## Paths through the head's node end here: its node's second [Admits] read
 ## ([method Admits.read]), in generation 0 (the generation the head arrived
 ## in), said so and no arrival broke the node. Written by [HitGather]; read by

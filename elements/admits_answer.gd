@@ -20,6 +20,10 @@ var spend: int = 0
 ## through [method DotTick.mint]. None on an unallocated node. Read only on a
 ## break.
 var burst: float = 0.0
+## The answering band's terrain excess over T at the break (Cold − T for Ice),
+## the size of the break's look ([member HitInstance.ice_cues]). Read only on
+## a break; the burst's added excess is not in it.
+var excess: int = 0
 ## The HP amount of the break. The gather does not read it.
 var hp: float = 0.0
 ## The extra landings each breaker takes on the node, on top of its own: copies

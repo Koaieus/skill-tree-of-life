@@ -88,6 +88,16 @@ signal entity_died(entity: Entity)
 ## system (#189) can count charges off this without touching the detection.
 signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vector2)
 
+## A Frozen node's ice broke ([member HitInstance.ice_cues]): [param excess] is
+## its terrain excess over T at the break, so a deep freeze reads bigger.
+## [OutcomeApplier] is the sole emitter, on a live world only (the authority's
+## replay and every peer alike). [param attacker] is the breaking hit's.
+signal ice_shattered(node: SkillNode, excess: int, attacker: Entity)
+
+## A Frozen node's ice held: it absorbed a copy or ended a spell walk there
+## ([member HitInstance.ice_cues]). Emitted as [signal ice_shattered] is.
+signal ice_held(node: SkillNode, attacker: Entity)
+
 ## A board blast went off: the first hit carrying [param mark] landed on the
 ## live world. [OutcomeApplier] is the sole emitter, once per mark per apply —
 ## on the authority's live replay and on every peer alike. VFX draws the ring.
