@@ -109,6 +109,10 @@ var _preview_dirty: bool = true
 var _preview_hit_nodes: Dictionary[SkillNode, bool] = {}
 var _preview_outcome: AttackOutcome = null
 var _preview_edges: Array[Edge] = []
+## The cast shape's own reach at each previewed seed ([method _record_shape]):
+## a Fire shape's disc as rings, a Lightning shape's hop ball as nodes.
+var _preview_shape_rings: Array[RangeVisual.Ring] = []
+var _preview_shape_nodes: Dictionary[SkillNode, bool] = {}
 ## How many times the preview has re-resolved — an aimed drag re-resolves
 ## only when the crossed set changes. Read-only outside the plan.
 var preview_resolves: int = 0
@@ -274,7 +278,7 @@ func get_node_role(node: SkillNode) -> HighlightRole:
 		return HighlightRole.HOSTILE_TARGET
 	# Fog-gated like IN_RANGE below: a predicted hit on a node the viewer
 	# cannot see would leak what is there.
-	if _preview_hit_set().has(node) and _is_seen(node):
+	if (_preview_hit_set().has(node) or _preview_shape_nodes.has(node)) and _is_seen(node):
 		return HighlightRole.PROPAGATION
 	if spell != null and spell.targeting != null and _is_seen(node):
 		# Before a source is stamped this paints the UNION — every node any
@@ -407,6 +411,10 @@ func get_range_visual() -> RangeVisual:
 			visual = RangeVisual.new()
 		for e in preview_edges:
 			visual.edges.append(RangeVisual.EdgeEntry.new(e, 0, 0, HighlightRole.PROPAGATION))
+	if not _preview_shape_rings.is_empty():
+		if visual == null:
+			visual = RangeVisual.new()
+		visual.rings.append_array(_preview_shape_rings)
 	return visual
 
 
@@ -558,12 +566,15 @@ func _rebuild_preview() -> void:
 			null, infusion)
 	preview_resolves += 1
 	_record_preview(outcome, graph)
+	_record_shape([preview_target], graph)
 
 
 func _clear_preview() -> void:
 	_preview_hit_nodes.clear()
 	_preview_edges.clear()
 	_preview_outcome = null
+	_preview_shape_rings.clear()
+	_preview_shape_nodes.clear()
 
 
 ## The aimed preview: every node the shape crosses from [member source] at
@@ -598,6 +609,7 @@ func _rebuild_aimed_preview() -> void:
 	world.free_shadow()
 	preview_resolves += 1
 	_record_preview(outcome, graph)
+	_record_shape(seeds, graph)
 
 
 ## Reads [param outcome]'s timeline into the preview's hit set and edge list.
@@ -615,6 +627,32 @@ func _record_preview(outcome: AttackOutcome, graph: Graph) -> void:
 		var edge: Edge = from_map.get(event.target)
 		if edge != null:
 			_preview_edges.append(edge)
+
+
+## The cast shape's own reach at each of [param seeds] (ADR 0084 §1), off the
+## pure functions the gather reads, since the shadow walk's timeline carries no
+## shape landing: a Fire shape's disc ([method DiscGoOff.shape_disc_radius] of
+## the shape alone, the seed's radius) as a ring, a Lightning shape's
+## [method EdgeGoOff.level_for_points] hops ([method GraphMirror.nodes_within]
+## on the global mirror, the seed excluded) as PROPAGATION nodes. Never the
+## add-up with a primed seed (the riders that tip it land with the hit) nor a
+## node's own go-off; an element whose band takes no shape draws nothing.
+func _record_shape(seeds: Array[SkillNode], graph: Graph) -> void:
+	var e := ElementRoster.shared().by_id(infusion.shape_of(spell))
+	var band := HitGather._shape_band(e)
+	var points := infusion.shape_points
+	if band == null or points <= 0:
+		return
+	for s in seeds:
+		if s == null:
+			continue
+		if band.go_off is DiscGoOff:
+			var reach := (band.go_off as DiscGoOff).shape_disc_radius(e.shape_power(points), 0.0, s.radius)
+			_preview_shape_rings.append(RangeVisual.Ring.new(s.global_position, reach))
+		elif band.go_off is EdgeGoOff and graph.navigator != null:
+			for n: SkillNode in graph.navigator.nodes_within(s, EdgeGoOff.level_for_points(points)):
+				if n != null and n != s:
+					_preview_shape_nodes[n] = true
 
 
 ## One O(edges) pass building predecessor->target->Edge lookup, so
