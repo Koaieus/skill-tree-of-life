@@ -4,7 +4,9 @@ extends PanelContainer
 ## Live tab panel for the board blast ring ([BlastVisual]): reach and power
 ## sliders, a rider picker (one layer per ticked aspect, as [BlastVFX] lays
 ## them), a zoom to judge it at three camera scales, and a replay. A fixed
-## disc stands in for the blast's node so the reach reads against it.
+## disc stands in for the blast's node so the reach reads against it. The Ice
+## section plays [AllocationVFX]'s break (at the excess slider) and hold cues on
+## that disc.
 
 const _VISUAL_SCENE := preload("res://ui/vfx/blast_visual.tscn")
 const _LAYER_SCENE := preload("res://ui/vfx/rider_blast_layer.tscn")
@@ -19,6 +21,9 @@ const _LAYER_SCENE := preload("res://ui/vfx/rider_blast_layer.tscn")
 @onready var _riders: VBoxContainer = %Riders
 @onready var _stage: Node2D = %Stage
 @onready var _world: SubViewport = %World
+@onready var _excess: HSlider = %Excess
+@onready var _ice_break: Button = %IceBreak
+@onready var _ice_hold: Button = %IceHold
 
 var _visual: BlastVisual = null
 var _roster: AspectRoster = AspectRoster.shared()
@@ -37,6 +42,9 @@ func _ready() -> void:
 	for slider in [_reach, _power, _zoom]:
 		slider.value_changed.connect(_on_knob.unbind(1))
 	_replay.pressed.connect(_play)
+	_ice_break.pressed.connect(_play_ice_break)
+	_ice_hold.pressed.connect(_play_ice_hold)
+	_excess.value_changed.connect(_on_knob.unbind(1))
 	_build_picker()
 	_build_go_offs()
 	_go_off.item_selected.connect(_play.unbind(1))
@@ -86,7 +94,8 @@ func _centre() -> void:
 
 func _on_knob() -> void:
 	_stage.scale = Vector2.ONE * _zoom.value
-	_readout.text = "reach %d px · power %d · zoom %.2f" % [_reach.value, _power.value, _zoom.value]
+	_readout.text = "reach %d px · power %d · zoom %.2f · ice excess %d" % [
+			_reach.value, _power.value, _zoom.value, _excess.value]
 	if _visual != null:
 		_visual.radius = _reach.value
 		_visual.power = int(_power.value)
@@ -109,3 +118,15 @@ func _play() -> void:
 func _on_finished() -> void:
 	if _loop.button_pressed:
 		_play.call_deferred()
+
+
+## The stand-in node disc's radius (the `NodeDisc` polygon's).
+const _DISC_RADIUS := 24.0
+
+
+func _play_ice_break() -> void:
+	AllocationVFX.spawn_ice_break(_stage, _stage.global_position, _DISC_RADIUS, int(_excess.value))
+
+
+func _play_ice_hold() -> void:
+	AllocationVFX.spawn_ice_hold(_stage, _stage.global_position, _DISC_RADIUS)

@@ -11,6 +11,10 @@ const NodeVisualsCompositeScript := preload("res://skill_node/visuals/node_visua
 ## (cascade_started) and spawns transient world-space effects:
 ##   - alloc spike   : "skill point from the heavens" on every allocation
 ##   - dealloc lift  : floating colored disk on voluntary deallocation
+##   - ice break     : shards off a Frozen node whose ice broke, sized by the
+##                     break's excess ([signal Events.ice_shattered])
+##   - ice hold      : a frost ring on a Frozen node that absorbed a copy or
+##                     ended a walk ([signal Events.ice_held])
 ##   - shatter       : InnerDisk fragmentation on forced deallocation —
 ##                     an intact-disc crescendo (cracks glow, disc shatters)
 ##                     THEN the disc comes apart into flying shards, staggered
@@ -28,6 +32,8 @@ const NodeVisualsCompositeScript := preload("res://skill_node/visuals/node_visua
 const _ALLOC_SPIKE: PackedScene = preload("res://ui/vfx/allocation/alloc_spike.tscn")
 const _DEALLOC_LIFT: PackedScene = preload("res://ui/vfx/allocation/dealloc_lift.tscn")
 const _POP_BURST: PackedScene = preload("res://ui/vfx/allocation/pop_burst.tscn")
+const _ICE_BREAK: PackedScene = preload("res://ui/vfx/allocation/ice_break.tscn")
+const _ICE_HOLD: PackedScene = preload("res://ui/vfx/allocation/ice_hold.tscn")
 
 # --- Modifier pulses ---------------------------------------------------
 # On voluntary allocation, one pulse per granted modifier flows from the
@@ -265,6 +271,11 @@ func bind(_allocation_system: AllocationSystem, _battle_system: BattleSystem) ->
 	# allocation. Connect once (idempotent guard for repeat bind() calls).
 	if not Events.blade_vertex_popped.is_connected(_on_blade_vertex_popped):
 		Events.blade_vertex_popped.connect(_on_blade_vertex_popped)
+	# The Ice cues: bus-driven too, announced by OutcomeApplier on the live world.
+	if not Events.ice_shattered.is_connected(_on_ice_shattered):
+		Events.ice_shattered.connect(_on_ice_shattered)
+	if not Events.ice_held.is_connected(_on_ice_held):
+		Events.ice_held.connect(_on_ice_held)
 
 
 ## The channel cue is state, not a transient: idempotent across repeat binds.
@@ -357,6 +368,37 @@ func _on_blade_vertex_popped(defender: SkillNode, _attacker: Entity, at_pos: Vec
 	var color: Color = defender.owned_by.color if defender.owned_by != null \
 			else Color(0.95, 0.55, 0.4, 0.95)
 	_spawn_pop_burst(at_pos, defender.get_spike_power(), color)
+
+
+func _on_ice_shattered(node: SkillNode, excess: int, _attacker: Entity) -> void:
+	if muted or node == null or not is_instance_valid(node):
+		return
+	spawn_ice_break(self, node.global_position, node.radius, excess)
+
+
+func _on_ice_held(node: SkillNode, _attacker: Entity) -> void:
+	if muted or node == null or not is_instance_valid(node):
+		return
+	spawn_ice_hold(self, node.global_position, node.radius)
+
+
+## An Ice break's shards under [param host] at [param world_pos], for a node of
+## [param node_radius] broken at [param excess] (bigger for a deeper freeze).
+## Static so the sandbox blast tab plays the same look.
+static func spawn_ice_break(host: Node, world_pos: Vector2, node_radius: float, excess: int) -> Node2D:
+	var fx := _ICE_BREAK.instantiate() as Node2D
+	host.add_child(fx)  # before `play` positions it — see [method spawn_alloc_spike].
+	fx.play(world_pos, node_radius, excess)
+	return fx
+
+
+## An Ice hold's frost ring under [param host] at [param world_pos], on a node
+## of [param node_radius]. Static for the sandbox blast tab, as above.
+static func spawn_ice_hold(host: Node, world_pos: Vector2, node_radius: float) -> Node2D:
+	var fx := _ICE_HOLD.instantiate() as Node2D
+	host.add_child(fx)
+	fx.play(world_pos, node_radius)
+	return fx
 
 
 ## A forced-dealloc cascade is about to run in the model. Two jobs, both of

@@ -83,6 +83,26 @@ layout_mode = 2
 button_pressed = true
 text = "Loop"
 
+[node name="IceLabel" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+layout_mode = 2
+text = "Ice excess (Cold − T)"
+
+[node name="Excess" type="HSlider" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+max_value = 20.0
+value = 3.0
+
+[node name="IceBreak" type="Button" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ice break"
+
+[node name="IceHold" type="Button" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ice hold"
+
 [node name="Readout" type="Label" parent="Layout/Split/PanelHost/BlastPanel/Split/Knobs"]
 unique_name_in_owner = true
 layout_mode = 2
