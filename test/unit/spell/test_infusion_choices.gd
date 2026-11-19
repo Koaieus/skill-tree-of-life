@@ -177,3 +177,45 @@ func test_default_entity_shows_all_three_element_counts() -> void:
 		assert_true(by.has(id), "%s shown on a default entity" % id)
 	# default_value is 0 today; #1809 raises it to 1.
 	assert_eq(by[&"fire"].value, AspectCurrency.cap_of(caster, &"fire_element"))
+
+
+## A 6-hop test spell; [param refusing]: its Ice concentrate row has gain 0.
+func _walk_spell(refusing: bool) -> SpellDef:
+	var spell := _spell()
+	var prop := PropagationConfig.new()
+	prop.max_hops = 6
+	spell.propagation = prop
+	if refusing:
+		var row := AspectIntake.new()
+		row.identity = ElementRoster.shared().by_id(&"ice").identity
+		row.affinity_gain = 0
+		row.use = ConcentrateUse.new()
+		spell.intakes = [row] as Array[AspectIntake]
+	return spell
+
+
+func test_the_shape_socket_greys_a_refused_ice_and_the_ride_socket_offers_it() -> void:
+	var held := {&"fire": 2, &"lightning": 2, &"ice": 2}
+	var spell := _walk_spell(true)
+	var plan := _plan(_caster(held), spell)
+	var shape := _by_id(InfusionChoices.entries(plan, InfusionChoices.SHAPE_SOCKET))
+	assert_true(shape.has(&"ice"), "the shape socket offers Ice")
+	if shape.has(&"ice"):
+		assert_string_contains((shape[&"ice"] as AspectWheelEntry).disabled_reason, spell.name,
+				"greyed with a reason naming the spell")
+	for id in [&"fire", &"lightning"]:
+		assert_eq((shape[id] as AspectWheelEntry).disabled_reason, "", "%s is never greyed for a refusal" % id)
+	var before := plan.infusion.shape_of(spell)
+	assert_false(InfusionChoices.pick_element(plan, InfusionChoices.SHAPE_SOCKET, &"ice"), "the pick is a no-op")
+	assert_eq(plan.infusion.shape_of(spell), before, "shape_of unchanged")
+	var ride := _by_id(InfusionChoices.entries(plan, InfusionChoices.RIDE_SOCKET))
+	assert_eq((ride[&"ice"] as AspectWheelEntry).disabled_reason, "", "the ride socket offers Ice")
+	assert_true(InfusionChoices.pick_element(plan, InfusionChoices.RIDE_SOCKET, &"ice"))
+	assert_eq(plan.infusion.ride_of(spell), &"ice", "the ride takes Ice")
+
+
+func test_with_no_ice_row_the_shape_socket_offers_ice() -> void:
+	var plan := _plan(_caster({&"fire": 2, &"lightning": 2, &"ice": 2}), _walk_spell(false))
+	var shape := _by_id(InfusionChoices.entries(plan, InfusionChoices.SHAPE_SOCKET))
+	for id in [&"fire", &"lightning", &"ice"]:
+		assert_eq((shape[id] as AspectWheelEntry).disabled_reason, "", "%s not greyed" % id)
