@@ -58,7 +58,10 @@ func read_in(world: CombatWorld, node: SkillNode, after: TerrainRead,
 	answer.spend = roundi(excess * shatter_spend_fraction)
 	var holder := _holder(world, node)
 	if holder != null:
-		answer.burst = (float(excess) + added_excess(world, node, arrivals)) \
+		var broke: Array[Arrival] = []
+		for i in answer.breakers:
+			broke.append(arrivals[i])
+		answer.burst = (float(excess) + added_excess(world, node, broke)) \
 				* shatter_fraction_per_stack * holder.get_max_hp()
 	answer.hp = answer.burst
 	return answer
@@ -101,10 +104,15 @@ static func mitigated(world: CombatWorld, node: SkillNode, arrival: Arrival) -> 
 			head.armor_pierce if head != null else null)
 
 
-## Excess added to the burst's input, never to the spend: the seat a cast's
-## concentrate fills (hops removed × its knob). Base: none.
-func added_excess(_world: CombatWorld, _node: SkillNode, _arrivals: Array[Arrival]) -> float:
-	return 0.0
+## Excess added to the burst's input, never to the spend, over the breaking
+## [param arrivals]: the hops their casts' Ice shapes cut, summed, ×
+## [member shatter_excess_per_hop_cut]. Only a seed head's own arrival carries
+## a cut, so a copy or a later hop's head adds nothing.
+func added_excess(_world: CombatWorld, _node: SkillNode, arrivals: Array[Arrival]) -> float:
+	var cut := 0
+	for a in arrivals:
+		cut += a.hops_removed
+	return cut * shatter_excess_per_hop_cut
 
 
 static func _holder(world: CombatWorld, node: SkillNode) -> EntityCombat:
