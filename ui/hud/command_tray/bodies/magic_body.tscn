@@ -85,6 +85,25 @@ theme_type_variation = &"TierLabel"
 tooltip_text = "Aspect points under the spell's capacity (the shape and the ride sit outside it)"
 mouse_filter = 1
 
+[node name="TrimNotice" type="Label" parent="BodyContent/Content/Controls"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_horizontal = 8
+theme_type_variation = &"TierLabel"
+autowrap_mode = 3
+tooltip_text = "The picked target's best caster carries fewer aspect points than the loadout held"
+mouse_filter = 1
+
+[node name="BaseCapReset" type="Button" parent="BodyContent/Content/Controls"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 8
+tooltip_text = "Trim the aspects back to the spell's base cap (no overqualified caster needed)"
+text = "⤓ Base cap"
+
 [node name="ResetButton" type="Button" parent="BodyContent/Content/Controls" unique_id=1850223647]
 unique_name_in_owner = true
 layout_mode = 2

@@ -54,7 +54,7 @@ func _arm() -> void:
 	h.assign_owner(graph, def, [3, 4, 5])
 	_n.assign(graph.get_skill_nodes())
 	var board := atk.stat_board
-	board.intelligence.base_value = 1000.0
+	board.intelligence.base_value = 100.0  # one slot; more INT widens the cast reach
 	for aspect in AspectRoster.shared().aspects:
 		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
 			board.get_stat(aspect.stat.id).base_value = 0.0

@@ -118,7 +118,7 @@ static func entries(plan: MagicAttackPlan, socket: int) -> Array[AspectWheelEntr
 			entry.disabled_reason = "refused by %s" % spell.name
 		elif pts <= 0:
 			entry.disabled_reason = "At %s's infusion capacity (%d points)" \
-					% [spell.name, maxi(0, floori(spell.infusion_capacity))]
+					% [spell.name, maxi(0, plan.capacity())]
 		out.append(entry)
 	out.append_array(_element_entries(plan))
 	return out

@@ -86,6 +86,15 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _traces: Control = %Traces
 @onready var _trace_room: Control = %TraceRoom
 @onready var _tally: Label = %Tally
+@onready var _base_cap_reset: Button = %BaseCapReset
+@onready var _trim_notice: Label = %TrimNotice
+
+# The plan whose [signal MagicAttackPlan.loadout_trimmed] the notice listens to.
+var _trim_plan: MagicAttackPlan = null
+# What the plan read when it last trimmed — `[target, source, total]`. The
+# notice shows while the plan still reads it; any pick, aim or loadout change
+# retires it. Empty = no notice.
+var _trim_snapshot: Array = []
 
 ## Sockets whose hover is already forwarded to the readout, by instance id —
 ## [InfusionSockets] rebuilds its sockets when the slot count moves.
@@ -207,6 +216,7 @@ func _on_bound() -> void:
 	_spell_bar.bind_spellbook(_player.spellbook)
 	_spell_bar.spell_selected.connect(_on_spell_selected)
 	_reset_button.pressed.connect(_reset_plan)
+	_base_cap_reset.pressed.connect(_on_base_cap_reset_pressed)
 	_launch_button.pressed.connect(_on_launch_pressed)
 	_spell_button.pressed.connect(_on_spell_button_pressed)
 	if _armed_stack != null:
@@ -226,6 +236,9 @@ func _on_bound() -> void:
 
 
 func teardown() -> void:
+	_watch_trims(null)
+	if _base_cap_reset.pressed.is_connected(_on_base_cap_reset_pressed):
+		_base_cap_reset.pressed.disconnect(_on_base_cap_reset_pressed)
 	_infusion_sockets.bind(null)
 	_readout.bind(null)
 	if _armed_stack != null and _armed_stack.changed.is_connected(_clear_stale_preview):
@@ -284,7 +297,14 @@ func _refresh() -> void:
 		_spell_bar.update_gating_context(plan.attacker)
 	if plan != null and plan.spell != null and _spell_button.spell != plan.spell:
 		_spell_button.spell = plan.spell
-	_tally.text = tally_text(plan.spell, plan.infusion) if plan != null else ""
+	_tally.text = tally_text(plan.infusion.total_points(), plan.capacity()) \
+			if plan != null and plan.spell != null else ""
+	_watch_trims(plan)
+	_base_cap_reset.visible = shows_base_cap_reset(plan)
+	_base_cap_reset.disabled = _input_ctl != null and not _input_ctl.can_player_act()
+	if not _trim_snapshot.is_empty() and _trim_snapshot != _trim_reading(plan):
+		_trim_snapshot = []
+	_trim_notice.visible = not _trim_snapshot.is_empty()
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
@@ -325,18 +345,59 @@ func _clear_stale_preview() -> void:
 		_readout.clear_preview()
 
 
-## The points tally: the aspects' points under the spell's base cap, `used / cap`
-## — [method Infusion.total_points] (the shape and the ride sit outside it) over
-## [method SpellDef.capacity_at] at its [member SpellDef.min_degree]; the used
-## count alone when uncapped, "" with no spell. Refuses nothing at the cap.
-static func tally_text(spell: SpellDef, infusion: Infusion) -> String:
-	if spell == null:
-		return ""
-	var used := infusion.total_points() if infusion != null else 0
-	var cap := spell.capacity_at(spell.min_degree)
-	if cap == SpellDef.UNCAPPED:
+## The points tally, `used / cap`: [param used] is
+## [method Infusion.total_points] (the aspects alone — the shape and the ride
+## sit outside the cap), [param cap] the plan's cap in force
+## ([method MagicAttackPlan.capacity]), so it shows the real cap once a target
+## is picked. The used count alone when uncapped. Refuses nothing at the cap.
+static func tally_text(used: int, cap: int) -> String:
+	if cap >= SpellDef.UNCAPPED:
 		return "%d" % used
 	return "%d / %d" % [used, cap]
+
+
+## The "back to base" control shows while [param plan]'s aspects sit above the
+## spell's base cap ([method MagicAttackPlan.base_capacity]) — the player's own
+## way back from an overclocked loadout (ADR 0089).
+static func shows_base_cap_reset(plan: MagicAttackPlan) -> bool:
+	return plan != null and plan.spell != null \
+			and plan.infusion.total_points() > plan.base_capacity()
+
+
+func _on_base_cap_reset_pressed() -> void:
+	var plan := _armed_plan() as MagicAttackPlan
+	if plan != null:
+		plan.reset_to_base_capacity()
+
+
+## Follow [param plan]'s trims; a plan swap drops the notice with the old plan.
+func _watch_trims(plan: MagicAttackPlan) -> void:
+	if plan == _trim_plan:
+		return
+	if _trim_plan != null and _trim_plan.loadout_trimmed.is_connected(_on_loadout_trimmed):
+		_trim_plan.loadout_trimmed.disconnect(_on_loadout_trimmed)
+	_trim_plan = plan
+	_trim_snapshot = []
+	if plan != null:
+		plan.loadout_trimmed.connect(_on_loadout_trimmed)
+
+
+func _on_loadout_trimmed(before: int, after: int) -> void:
+	_trim_snapshot = _trim_reading(_trim_plan)
+	_trim_notice.text = trim_notice_text(before, after)
+	_trim_notice.visible = true
+
+
+static func _trim_reading(plan: MagicAttackPlan) -> Array:
+	if plan == null:
+		return []
+	return [plan.target, plan.source, plan.infusion.total_points()]
+
+
+## The notice line a forced trim shows: the pick (or the aim's lock) cut the
+## aspects from [param before] to [param after] points.
+static func trim_notice_text(before: int, after: int) -> String:
+	return "Trimmed %d → %d: no caster reaching it carries more" % [before, after]
 
 
 ## The shown tally.
