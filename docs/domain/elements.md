@@ -583,7 +583,7 @@ concentrate (#1813), not this section's.
   `fire_level_in(…, added)`: reach M + N hops, spend for M alone (0 when not
   Shocked). No knob.
 - **Fire**: `Element.shape_power(points)` = points × `shape_power_per_point`
-  (5.0 on `fire.tres`; tentative, a ballpark) into
+  (`Element`'s default 5.0, unset on `fire.tres`; tentative, a ballpark) into
   `DiscGoOff.fire_shaped_in`, which reaches by `shape_disc_radius(shape,
   excess, R)` = A × (√shape + √excess + B) × R, R the seed node's radius;
   `disc_radius(e, R)` is the same function at shape 0. On a Burning node it

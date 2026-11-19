@@ -179,8 +179,9 @@ static func shape_reach(line: ReadoutLine) -> void:
 			line.shape_next_points = 1
 			while EdgeGoOff.level_for_points(line.points + line.shape_next_points) == line.shape_level:
 				line.shape_next_points += 1
-			line.shape_effect = "level %d, every node within %d hops (%d more for level %d)" % [
-					line.shape_level, line.shape_level, line.shape_next_points, line.shape_level + 1]
+			line.shape_effect = "level %d, every node within %d %s (%d more for level %d)" % [
+					line.shape_level, line.shape_level, "hop" if line.shape_level == 1 else "hops",
+					line.shape_next_points, line.shape_level + 1]
 		&"fire":
 			var disc := _disc_of(element)
 			if disc == null:

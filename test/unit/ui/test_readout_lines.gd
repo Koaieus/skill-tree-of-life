@@ -262,6 +262,9 @@ func test_a_lightning_shape_line_reads_its_level_and_the_points_to_the_next() ->
 	var plain := BadgeText.strip(line.text())
 	assert_string_contains(plain, "level %d" % level)
 	assert_string_contains(plain, "within %d hops" % level)
+	var one := _shape_line(&"lightning", 1)
+	if one != null:
+		assert_string_contains(BadgeText.strip(one.text()), "within 1 hop (")
 
 
 func test_a_fire_shape_line_reads_its_disc_radius_in_node_radii() -> void:
