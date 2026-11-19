@@ -195,6 +195,7 @@ func _chain() -> Dictionary:
 	var atk := helper.make_entity(graph, "A")
 	var def := helper.make_entity(graph, "D")
 	helper.give_big_hp(def)
+	_no_crit(atk)
 	helper.assign_owner(graph, atk, [0])
 	helper.assign_owner(graph, def, [1, 2, 3, 4, 5, 6, 7, 8])
 	var n: Array[SkillNode] = []
@@ -204,6 +205,12 @@ func _chain() -> Dictionary:
 
 ## A plain-damage 6-hop walk (no hop progression: the multiplier is on the cast,
 ## so every landing is exactly ×m) with [param rows].
+## crit_chance 0: a crit multiplies the head's payload and its terrain
+## stacks, so a random one makes two casts incomparable.
+func _no_crit(caster: Entity) -> void:
+	caster.stat_board.get_stat(&"crit_chance").base_value = 0.0
+
+
 func _walk_spell(rows: Array[AspectIntake] = []) -> SpellDef:
 	var helper := H.new()
 	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.sum_reducer(),
@@ -369,6 +376,7 @@ func test_the_seed_heads_cut_reaches_the_second_read_and_no_copy_or_later_head_c
 	var blue := w.add_entity("Blue")
 	await get_tree().process_frame
 	H.new().give_big_hp(blue)
+	_no_crit(red)
 	var fire := ElementRoster.shared().by_id(&"fire")
 	var radius := 0.0
 	# src — a (Frozen) — b (Frozen) — c ; src — s (Burning) ; f (Frozen) 3 radii off s.
@@ -450,6 +458,7 @@ func _combo_cast(shocked: bool, points: int) -> Dictionary:
 	var blue := w.add_entity("Blue")
 	await get_tree().process_frame
 	H.new().give_big_hp(blue)
+	_no_crit(red)
 	var src := w.add_node(&"src", Vector2(0, 100000))
 	var s := w.add_node(&"s", Vector2.ZERO)
 	var r := s.radius
