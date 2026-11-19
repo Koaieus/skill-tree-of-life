@@ -85,6 +85,7 @@ const MAX_VISIBLE_ROWS: int = 2
 @onready var _circle: ArcaneCircle = %Circle
 @onready var _traces: Control = %Traces
 @onready var _trace_room: Control = %TraceRoom
+@onready var _tally: Label = %Tally
 
 ## Sockets whose hover is already forwarded to the readout, by instance id —
 ## [InfusionSockets] rebuilds its sockets when the slot count moves.
@@ -283,6 +284,7 @@ func _refresh() -> void:
 		_spell_bar.update_gating_context(plan.attacker)
 	if plan != null and plan.spell != null and _spell_button.spell != plan.spell:
 		_spell_button.spell = plan.spell
+	_tally.text = tally_text(plan.spell, plan.infusion) if plan != null else ""
 	var spell_name := plan.spell.name if plan != null and plan.spell != null else "Spell"
 	_launch_button.text = "Cast %s" % spell_name
 	var can_act := _input_ctl == null or (_input_ctl.can_player_act() and _input_ctl.can_afford(plan))
@@ -318,6 +320,25 @@ func _on_wedge_hovered(id: StringName) -> void:
 func _clear_stale_preview() -> void:
 	if _armed_stack == null or _armed_stack.find(InfusionPickMode) == null:
 		_readout.clear_preview()
+
+
+## The points tally: the aspects' points under the spell's base cap, `used / cap`
+## — [method Infusion.total_points] (the shape and the ride sit outside it) over
+## [method SpellDef.capacity_at] at its [member SpellDef.min_degree]; the used
+## count alone when uncapped, "" with no spell. Refuses nothing at the cap.
+static func tally_text(spell: SpellDef, infusion: Infusion) -> String:
+	if spell == null:
+		return ""
+	var used := infusion.total_points() if infusion != null else 0
+	var cap := spell.capacity_at(spell.min_degree)
+	if cap == SpellDef.UNCAPPED:
+		return "%d" % used
+	return "%d / %d" % [used, cap]
+
+
+## The shown tally.
+func tally() -> String:
+	return _tally.text
 
 
 func _on_launch_pressed() -> void:

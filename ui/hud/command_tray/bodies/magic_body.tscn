@@ -77,6 +77,14 @@ layout_mode = 2
 theme_override_constants/separation = 8
 alignment = 2
 
+[node name="Tally" type="Label" parent="BodyContent/Content/Controls"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 8
+theme_type_variation = &"TierLabel"
+tooltip_text = "Aspect points under the spell's capacity (the shape and the ride sit outside it)"
+mouse_filter = 1
+
 [node name="ResetButton" type="Button" parent="BodyContent/Content/Controls" unique_id=1850223647]
 unique_name_in_owner = true
 layout_mode = 2
