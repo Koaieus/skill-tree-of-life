@@ -34,11 +34,12 @@ func spend(_row: AspectIntake, _status: StatusDef, amount: int, bag: LoadBag) ->
 	bag.bonus_per_hop = bonus_per_hop
 
 
-## The shape row's tooltip line: its price per hop and Ice per hop, or that the
-## spell refuses an Ice shape (affinity 0).
+## The shape row's tooltip line: its price per hop and Ice per hop. A refusing
+## row (affinity 0) gives `""` — no tooltip line; the refusal is the forge's
+## shape line and socket to show.
 func describe(row: AspectIntake, _board: StatBoard = null, _read_node: SkillNode = null) -> String:
 	if row.refuses():
-		return "Refuses an Ice shape."
+		return ""
 	var per_hop := "1 Ice" if row.affinity_gain == row.affinity_cost \
 			else "%s Ice" % NumFmt.num(float(row.affinity_cost) / row.affinity_gain)
 	return "Ice shape: %s cuts 1 hop, +%d%% payload per hop cut." \
