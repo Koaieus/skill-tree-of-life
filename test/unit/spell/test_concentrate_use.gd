@@ -342,6 +342,9 @@ func after_each() -> void:
 	for i in _was_admits.size():
 		ice.bands[i].admits = _was_admits[i]
 	_was_admits = []
+	if _was_tunables != null:
+		_restore_combo_knobs()
+		_was_tunables = null
 	CombatWorld.reset_live()
 
 
@@ -506,7 +509,6 @@ func test_4b_a_one_channel_combo_lands_the_concentrated_payload_twice_on_the_see
 	var m := 1.0 + ConcentrateUse.shared_default().bonus_per_hop * 6
 	var got: Dictionary = await _combo_cast(false, 6)
 	var plain: Dictionary = await _combo_cast(false, 0)
-	_restore_combo_knobs()
 	var out: AttackOutcome = got.out
 	var d: float = got.d
 	var s: SkillNode = got.nodes[0]
@@ -537,7 +539,6 @@ func test_4b_a_two_channel_combo_lands_three_on_the_seed() -> void:
 	var m := 1.0 + ConcentrateUse.shared_default().bonus_per_hop * 6
 	var got: Dictionary = await _combo_cast(true, 6)
 	var plain: Dictionary = await _combo_cast(true, 0)
-	_restore_combo_knobs()
 	var out: AttackOutcome = got.out
 	var md: float = m * got.d
 	var n: Array = got.nodes
