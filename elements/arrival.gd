@@ -22,3 +22,7 @@ var own_damage: float = 0.0
 ## (stamped damage × [member share] + [member own_damage]) × the head's crit
 ## multiplier. Set before the admit.
 var amount: float = 0.0
+## The hops the cast's Ice shape cut ([member HitInstance.hops_removed]), on
+## the seed head's own arrival only; 0 on a copy, an extra landing and every
+## later hop's head. What a Frozen [Admits] adds to its burst.
+var hops_removed: int = 0

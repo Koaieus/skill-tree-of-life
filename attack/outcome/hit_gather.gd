@@ -1186,6 +1186,7 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	c.popped_vertex = null
 	c.cast_shape = null
 	c.cast_shape_points = 0
+	c.hops_removed = 0
 	return c
 
 

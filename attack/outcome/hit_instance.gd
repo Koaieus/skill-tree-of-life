@@ -326,6 +326,11 @@ var conducted: bool = false
 ## authority, and a replay lands its recorded terrain.
 var cast_shape: Element = null
 var cast_shape_points: int = 0
+## The hops a cast's Ice shape cut off its walk ([method LoadBag.hops_removed]),
+## stamped by [SpellResolver] on each wave-0 seed head beside [member cast_shape]
+## and handed to that head's [Arrival] ([member Arrival.hops_removed]); 0 on
+## every other hit. Never shipped, as [member cast_shape].
+var hops_removed: int = 0
 
 ## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
 ## land the receiving node's [method NodeCombat.ownership_bit] to

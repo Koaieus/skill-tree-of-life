@@ -178,3 +178,232 @@ func test_a_spell_refusing_the_shape_still_takes_a_cold_ride() -> void:
 	cold = _cold_riders(bag)
 	assert_eq(cold.size(), 1)
 	assert_eq((cold[0] as ApplyStatusEffect).power, 2.0, "the Cold rider is still 2")
+
+
+# --- the resolver: acceptance 1, 3, 4 --------------------------------------
+# A chain n0 (the caster's) — n1 … n8 (the target's); the cast seeds n1 and a
+# 6-hop walk lands n1 … n7, one landing per node (an Ice shape is no channel).
+
+const H := preload("res://test/unit/spell/spell_test_helper.gd")
+const _POISON: StatusDef = preload("res://effects/status/poison.tres")
+const _POISON_ID: Identity = preload("res://identity/defs/poison.tres")
+
+
+func _chain() -> Dictionary:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, atk, [0])
+	helper.assign_owner(graph, def, [1, 2, 3, 4, 5, 6, 7, 8])
+	var n: Array[SkillNode] = []
+	n.assign(graph.get_skill_nodes())
+	return {graph = graph, atk = atk, n = n}
+
+
+## A plain-damage 6-hop walk (no hop progression: the multiplier is on the cast,
+## so every landing is exactly ×m) with [param rows].
+func _walk_spell(rows: Array[AspectIntake] = []) -> SpellDef:
+	var helper := H.new()
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.sum_reducer(),
+			{max_hops = 6})
+	var spell := helper.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 10.0)
+	spell.intakes = rows
+	return spell
+
+
+func _cast(b: Dictionary, spell: SpellDef, inf: Infusion) -> AttackOutcome:
+	return SpellResolver.resolve(spell, b.n[1], b.n[0], b.atk, b.graph, null, inf)
+
+
+func _dmg_on(out: AttackOutcome, node: SkillNode) -> float:
+	var sum := 0.0
+	for h in out.hits:
+		if h is DamageInstance and h.target == node:
+			sum += h.amount
+	return sum
+
+
+func _statuses_on(out: AttackOutcome, node: SkillNode, def: StatusDef) -> Array:
+	return out.hits.filter(func(h: HitInstance) -> bool:
+		return h is StatusInstance and h.target == node and (h as StatusInstance).def == def)
+
+
+func _walk(out: AttackOutcome) -> Array:
+	return out.timeline.map(func(ev: PropagationEvent) -> Array: return [ev.beat, ev.target])
+
+
+func _assert_concentrated(b: Dictionary, spell: SpellDef, points: int, hops_left: int, m: float) -> void:
+	var plain := _cast(b, spell, Infusion.innate(spell))
+	var out := _cast(b, spell, _shaped(spell, points))
+	for i in range(1, 8):
+		var node: SkillNode = b.n[i]
+		var hop := i - 1
+		assert_gt(_dmg_on(plain, node), 0.0, "fixture: the plain walk lands hop %d" % hop)
+		if hop <= hops_left:
+			assert_almost_eq(_dmg_on(out, node), _dmg_on(plain, node) * m, 1e-4,
+					"%d points: hop %d lands ×%.2f" % [points, hop, m])
+		else:
+			assert_eq(_dmg_on(out, node), 0.0, "%d points: nothing past hop %d" % [points, hops_left])
+	assert_eq(_walk(out).size(), hops_left + 1, "%d points: walks %d hops" % [points, hops_left])
+
+
+func test_1_a_cut_walks_shorter_and_every_landing_left_pays_up() -> void:
+	var b := _chain()
+	var spell := _walk_spell()
+	var bonus := ConcentrateUse.shared_default().bonus_per_hop
+	_assert_concentrated(b, spell, 3, 3, 1.0 + bonus * 3)
+	_assert_concentrated(b, spell, 6, 0, 1.0 + bonus * 6)
+	_assert_concentrated(b, spell, 9, 0, 1.0 + bonus * 6)
+	assert_eq(spell.propagation.max_hops, 6.0, "the def's max_hops is never written")
+
+
+func test_1_an_authored_bonus_of_one_lands_x4_at_three() -> void:
+	var b := _chain()
+	var spell := _walk_spell([_concentrate_row(1, 1, 0, 1.0)] as Array[AspectIntake])
+	_assert_concentrated(b, spell, 3, 3, 4.0)
+
+
+func _poison_row() -> AspectIntake:
+	var row := AspectIntake.new()
+	row.identity = _POISON_ID
+	row.plants = _POISON
+	return row
+
+
+func test_3_aspect_riders_scale_ceil_and_terrain_riders_land_at_cast_value() -> void:
+	var b := _chain()
+	var spell := _walk_spell([_poison_row()] as Array[AspectIntake])
+	var bonus := ConcentrateUse.shared_default().bonus_per_hop
+	var m := 1.0 + bonus * 3
+	var inf := _shaped(spell, 3, 2)
+	inf.points[&"poison"] = 3
+	var out := _cast(b, spell, inf)
+	var seed: SkillNode = b.n[1]
+	var poison := _statuses_on(out, seed, _POISON)
+	assert_eq(poison.size(), 1, "one landing on an unprimed seed")
+	if poison.size() == 1:
+		assert_eq(poison[0].power, ceilf(3.0 * m), "Poison 3 at ×2.5 lands 8 (ceil)")
+	var cold := _statuses_on(out, seed, _COLD)
+	assert_eq(cold.size(), 1, "the Cold ride lands once; the concentrate plants none")
+	if cold.size() == 1:
+		assert_eq(cold[0].power, 2.0, "the Cold ride lands at its cast value")
+	var shape_only := _cast(b, spell, _shaped(spell, 3))
+	assert_eq(_statuses_on(shape_only, seed, _COLD).size(), 0, "the concentrate itself plants no Cold")
+
+
+func test_4_no_shape_or_a_fire_or_lightning_shape_leaves_hops_and_seed_plain() -> void:
+	var b := _chain()
+	var spell := _walk_spell()
+	var plain := _cast(b, spell, Infusion.innate(spell))
+	var seed: SkillNode = b.n[1]
+	for shape: StringName in [&"", &"fire", &"lightning"]:
+		var inf := Infusion.innate(spell)
+		if shape != &"":
+			inf.set_shape(shape, 3)
+		var out := _cast(b, spell, inf)
+		assert_eq(_walk(out), _walk(plain), "%s: same walk" % shape)
+		var head := _seed_head(out, seed)
+		assert_not_null(head, "%s: a seed head" % shape)
+		if head != null:
+			assert_eq(head.amount, _seed_head(plain, seed).amount, "%s: the seed is the plain one" % shape)
+			assert_eq(head.hops_removed, 0, "%s: no cut on the head" % shape)
+
+
+func _seed_head(out: AttackOutcome, seed: SkillNode) -> HitInstance:
+	for ev: PropagationEvent in out.timeline:
+		if ev.beat != 0:
+			continue
+		for h: HitInstance in ev.hits:
+			if h.is_head and h.target == seed:
+				return h
+	return null
+
+
+# --- the carry: the seed head's cut reaches Admits' second read -------------
+
+## Records every arrival a node's second read is handed; breaks nothing.
+class _Spy extends Admits:
+	var seen: Array = []  # [node, is_copy, hops_removed]
+
+	func read_in(_world: CombatWorld, node: SkillNode, _after: TerrainRead,
+			arrivals: Array[Arrival]) -> AdmitsAnswer:
+		for a in arrivals:
+			seen.append([node, a.is_copy, a.hops_removed])
+		return null
+
+
+var _was_admits: Array = []
+
+
+func after_each() -> void:
+	var ice := ElementRoster.shared().by_id(&"ice")
+	for i in _was_admits.size():
+		ice.bands[i].admits = _was_admits[i]
+	_was_admits = []
+	CombatWorld.reset_live()
+
+
+func _spy() -> _Spy:
+	var spy := _Spy.new()
+	var ice := ElementRoster.shared().by_id(&"ice")
+	for band in ice.bands:
+		_was_admits.append(band.admits)
+		if band.admits != null:
+			band.admits = spy
+	return spy
+
+
+func _seen_at(spy: _Spy, node: SkillNode) -> Array:
+	return spy.seen.filter(func(r: Array) -> bool: return r[0] == node)
+
+
+func test_the_seed_heads_cut_reaches_the_second_read_and_no_copy_or_later_head_carries_it() -> void:
+	CombatWorld.reset_live()
+	var w := TestWorld.create(self)
+	var red := w.add_entity("Red")
+	var blue := w.add_entity("Blue")
+	await get_tree().process_frame
+	H.new().give_big_hp(blue)
+	var fire := ElementRoster.shared().by_id(&"fire")
+	var radius := 0.0
+	# src — a (Frozen) — b (Frozen) — c ; src — s (Burning) ; f (Frozen) 3 radii off s.
+	var src := w.add_node(&"src", Vector2(-20000, 0))
+	var a := w.add_node(&"a", Vector2(0, 0))
+	var nb := w.add_node(&"b", Vector2(20000, 0))
+	var c := w.add_node(&"c", Vector2(40000, 0))
+	var s := w.add_node(&"s", Vector2(0, 40000))
+	radius = s.radius
+	var f := w.add_node(&"f", Vector2(3.0 * radius, 40000))
+	w.link(src, a)
+	w.link(a, nb)
+	w.link(nb, c)
+	w.link(src, s)
+	w.allocate(red, [src])
+	w.allocate(blue, [a, nb, c, s, f])
+	await get_tree().process_frame
+	var live := CombatWorld.live()
+	for n: SkillNode in [a, nb, f]:
+		var slice := live.combat_for(n) as NodeCombat
+		slice.add_terrain(fire, -(slice.terrain_threshold() + 1) - slice.terrain_t())
+	var sc := live.combat_for(s) as NodeCombat
+	sc.add_terrain(fire, sc.terrain_threshold() + 1 - sc.terrain_t())
+	var spy := _spy()
+	var spell := _walk_spell()
+
+	SpellResolver.resolve_against(spell, a, src, red, w.graph, live, null, _shaped(spell, 3))
+	assert_eq(_seen_at(spy, a), [[a, false, 3]], "the seed head of a 3-cut cast reads 3")
+	assert_eq(_seen_at(spy, nb), [[nb, false, 0]], "a later hop's head reads 0")
+
+	spy.seen.clear()
+	SpellResolver.resolve_against(spell, s, src, red, w.graph, live, null, _shaped(spell, 6))
+	var at_f := _seen_at(spy, f)
+	assert_false(at_f.is_empty(), "fixture: the Burning seed's disc copies onto the Frozen node")
+	for r: Array in at_f:
+		assert_eq(r, [f, true, 0], "a copy carries the ×m payload, never the cut")
+
+	spy.seen.clear()
+	(live.combat_for(s) as NodeCombat).add_terrain(fire, -sc.terrain_t() - sc.terrain_threshold() - 1)
+	SpellResolver.resolve_against(spell, s, src, red, w.graph, live, null, _shaped(spell, 6))
+	assert_eq(_seen_at(spy, s), [[s, false, 6]], "the seed head of a 6-cut cast reads 6")
