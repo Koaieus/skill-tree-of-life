@@ -245,3 +245,27 @@ func test_a_ride_socket_click_opens_its_chooser_and_picks_step_it() -> void:
 	assert_eq(plan.infusion.ride_points, 2, "two picks, two points")
 	assert_not_null(ctl.armed_stack.find(InfusionPickMode), "an element pick keeps the chooser open")
 	assert_eq(plan.infusion.points, points, "the aspects untouched")
+
+
+# ── The readout follows an element socket's hover ───────────────────────────
+
+func test_hovering_the_ride_socket_expands_only_the_ride_line() -> void:
+	var plan := _plan(_caster({&"fire": 3, &"ice": 2}), _SPARK)
+	plan.set_ride(&"fire", 2)
+	plan.set_shape(&"ice", 1)
+	var readout: CrucibleReadout = preload("res://ui/hud/command_tray/bodies/crucible_readout.tscn").instantiate()
+	add_child_autofree(readout)
+	readout.bind(plan)
+	readout.set_hovered_socket(RIDE)
+	var expanded := readout.line_nodes().filter(func(n: CrucibleReadoutLine) -> bool: return n.is_expanded())
+	assert_eq(expanded.size(), 1, "one line expands")
+	if expanded.size() == 1:
+		assert_eq(expanded[0].line().kind, ReadoutLines.Kind.RIDE, "the ride line")
+	readout.set_hovered_socket(SHAPE)
+	var lit := readout.line_nodes().filter(func(n: CrucibleReadoutLine) -> bool: return n.is_highlighted())
+	assert_eq(lit.size(), 1, "one line lights (a shape line has no detail to expand yet)")
+	if lit.size() == 1:
+		assert_eq(lit[0].line().kind, ReadoutLines.Kind.SHAPE, "the shape line")
+	readout.set_hovered_socket(-1)
+	assert_false(readout.line_nodes().any(func(n: CrucibleReadoutLine) -> bool: return n.is_expanded()),
+			"unhover collapses")

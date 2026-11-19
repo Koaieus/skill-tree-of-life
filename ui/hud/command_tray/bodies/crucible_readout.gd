@@ -77,7 +77,23 @@ func bind(plan: MagicAttackPlan) -> void:
 	_refresh()
 
 
-## Light and expand socket [param socket]'s line; −1 clears.
+## The socket index whose hover focuses [param line]: an aspect line's socket
+## (−1 innate-only, never focused), the ride line's
+## [constant InfusionChoices.RIDE_SOCKET], the shape line's
+## [constant InfusionChoices.SHAPE_SOCKET].
+static func focus_of(line: ReadoutLines.ReadoutLine) -> int:
+	if line == null:
+		return -1
+	match line.kind:
+		ReadoutLines.Kind.RIDE:
+			return InfusionChoices.RIDE_SOCKET
+		ReadoutLines.Kind.SHAPE:
+			return InfusionChoices.SHAPE_SOCKET
+	return line.socket
+
+
+## Light and expand socket [param socket]'s line — an element socket's index
+## focuses its ride or shape line; −1 clears.
 func set_hovered_socket(socket: int) -> void:
 	if socket == _hovered_socket:
 		return
@@ -193,7 +209,7 @@ func _apply_focus() -> void:
 	var focus := _preview_socket if _preview_socket >= 0 and not _preview_id.is_empty() \
 			else _hovered_socket
 	for node in line_nodes():
-		var on := focus >= 0 and node.socket() == focus
+		var on := focus != -1 and focus_of(node.line()) == focus
 		node.set_highlighted(on)
 		node.set_expanded(on)
 

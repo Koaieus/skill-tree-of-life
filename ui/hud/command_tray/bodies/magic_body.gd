@@ -291,9 +291,12 @@ func _refresh() -> void:
 	_launch_button.set_enabled(plan != null and plan.is_valid() and can_act)
 
 
-## Forward each socket's hover to the readout, once per socket node.
+## Forward each socket's hover to the readout, once per socket node — the
+## aspect sockets and the two element sockets (their ride / shape line).
 func _wire_socket_hover() -> void:
-	for i in _infusion_sockets.socket_count():
+	var indices: Array = range(_infusion_sockets.socket_count())
+	indices.append_array([InfusionChoices.SHAPE_SOCKET, InfusionChoices.RIDE_SOCKET])
+	for i in indices:
 		var s := _infusion_sockets.socket(i)
 		if s == null or _hover_wired.has(s.get_instance_id()):
 			continue

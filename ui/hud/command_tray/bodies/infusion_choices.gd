@@ -6,10 +6,11 @@ extends RefCounted
 ## ([method MagicAttackPlan.socket_order_with] / [method MagicAttackPlan.socket_points]).
 ## The one write here is [method pick_element], an element socket's pick.
 
-## The shape socket's index: not one of the aspect sockets.
-const SHAPE_SOCKET := -1
+## The shape socket's index: not one of the aspect sockets. Below −1, which
+## stays "no socket" everywhere a socket index is read (a hover, a line).
+const SHAPE_SOCKET := -2
 ## The ride socket's index: not one of the aspect sockets.
-const RIDE_SOCKET := -2
+const RIDE_SOCKET := -3
 
 
 
