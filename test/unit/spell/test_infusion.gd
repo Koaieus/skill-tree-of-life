@@ -375,7 +375,7 @@ func _damage_by_node(outcome: AttackOutcome) -> Dictionary:
 	return out
 
 
-func test_the_shape_is_inert_on_the_walk_the_seed_and_the_load() -> void:
+func test_a_shape_leaves_the_load_and_max_hops_and_an_ice_shape_the_walk() -> void:
 	var spell := _LIGHTNING_BOLT
 	var hops: float = spell.propagation.max_hops
 	var plain := Infusion.innate(spell)
@@ -389,7 +389,10 @@ func test_the_shape_is_inert_on_the_walk_the_seed_and_the_load() -> void:
 		var n: Array = b.n
 		var with_shape := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, shaped)
 		var without := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, plain)
-		assert_eq(_damage_by_node(with_shape), _damage_by_node(without), "%s: same walk and payload" % element)
+		# A Fire or Lightning shape reaches past the walk (test_cast_shape_reach.gd);
+		# only Ice's shape is still inert on the walk.
+		if element == &"ice":
+			assert_eq(_damage_by_node(with_shape), _damage_by_node(without), "%s: same walk and payload" % element)
 		assert_eq(spell.propagation.max_hops, hops, "%s: max_hops untouched" % element)
 
 
