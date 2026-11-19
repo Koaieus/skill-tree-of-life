@@ -418,7 +418,7 @@ func _damage_by_node(outcome: AttackOutcome) -> Dictionary:
 	return out
 
 
-func test_a_shape_leaves_the_load_and_max_hops_and_an_ice_shape_the_walk() -> void:
+func test_a_shape_leaves_the_load_and_max_hops_and_an_ice_shape_cuts_the_walk() -> void:
 	var spell := _LIGHTNING_BOLT
 	var hops: float = spell.propagation.max_hops
 	var plain := Infusion.innate(spell)
@@ -433,9 +433,14 @@ func test_a_shape_leaves_the_load_and_max_hops_and_an_ice_shape_the_walk() -> vo
 		var with_shape := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, shaped)
 		var without := SpellResolver.resolve(spell, n[1], n[0], b.atk, b.graph, null, plain)
 		# A Fire or Lightning shape reaches past the walk (test_cast_shape_reach.gd);
-		# only Ice's shape is still inert on the walk.
+		# Ice's concentrates it (test_concentrate_use.gd): 3 points cut the
+		# 3-hop walk to its seed, which pays up.
 		if element == &"ice":
-			assert_eq(_damage_by_node(with_shape), _damage_by_node(without), "%s: same walk and payload" % element)
+			var cut := _damage_by_node(with_shape)
+			var whole := _damage_by_node(without)
+			assert_eq(shaped.bag(spell).hops_removed(hops), 3, "ice: 3 points cut 3 hops")
+			assert_eq(cut.keys(), [n[1]], "ice: the cut walk lands its seed alone")
+			assert_gt(float(cut.get(n[1], 0.0)), float(whole[n[1]]), "ice: the seed pays up")
 		assert_eq(spell.propagation.max_hops, hops, "%s: max_hops untouched" % element)
 
 
