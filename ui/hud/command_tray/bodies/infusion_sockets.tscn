@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://ui/hud/command_tray/bodies/infusion_sockets.gd" id="1_script"]
 [ext_resource type="PackedScene" path="res://ui/aspect_wheel/aspect_wheel.tscn" id="2_wheel"]
+[ext_resource type="PackedScene" path="res://ui/hud/command_tray/bodies/infusion_socket.tscn" id="3_socket"]
 
 [node name="InfusionSockets" type="Control"]
 layout_mode = 3
@@ -14,3 +15,14 @@ unique_name_in_owner = true
 visible = false
 top_level = true
 layout_mode = 0
+
+[node name="ShapeSocket" parent="." instance=ExtResource("3_socket")]
+unique_name_in_owner = true
+layout_mode = 0
+crystal = true
+empty_tooltip = "Click to forge the shape's element"
+
+[node name="RideSocket" parent="." instance=ExtResource("3_socket")]
+unique_name_in_owner = true
+layout_mode = 0
+empty_tooltip = "Click to forge the ride's element"

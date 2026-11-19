@@ -10,7 +10,8 @@ extends ArmedMode
 ## chooser already being gone.
 
 var magic: MagicMode
-## The socket index the chooser fills.
+## The socket index the chooser fills; [constant InfusionChoices.SHAPE_SOCKET]
+## and [constant InfusionChoices.RIDE_SOCKET] name the two element sockets.
 var socket: int = 0
 
 
@@ -36,9 +37,15 @@ func on_popped() -> void:
 		bs.attack_launched.disconnect(_on_attack_launched)
 
 
-## Socket [param id] here ([method MagicAttackPlan.set_socket]) and close.
+## Socket [param id] here ([method MagicAttackPlan.set_socket]) and close. On
+## an element socket (a negative [member socket]) the pick is
+## [method InfusionChoices.pick_element] and the chooser stays open, so a
+## re-pick steps the points; it closes as any chooser does.
 func pick(id: StringName) -> void:
 	var plan := magic.plan() as MagicAttackPlan
+	if socket < 0:
+		InfusionChoices.pick_element(plan, socket, id)
+		return
 	if plan != null:
 		plan.set_socket(socket, id)
 	pop_self()

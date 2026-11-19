@@ -237,6 +237,8 @@ func _draw() -> void:
 			draw_line(center + _dir(span.x) * inner_radius_px, center + _dir(span.y) * radius_px, Color(grey, 0.8), 1.5, true)
 		elif entry.checked:
 			_draw_check(center + _dir(mid) * (radius_px - 6.0), tint)
+		if entry.mark != AspectWheelEntry.MARK_NONE:
+			_draw_mark(center + _dir(mid) * (inner_radius_px + 7.0), entry.mark, tint)
 	if n >= 3:
 		tips.append(tips[0])
 		draw_polyline(tips, Color(Emissive.neutral(Emissive.stops(emissive_tier)), 0.25), 1.0, true)
@@ -279,3 +281,14 @@ func _draw_centered(font: Font, at: Vector2, text: String, font_size: int, color
 
 func _draw_check(at: Vector2, color: Color) -> void:
 	draw_polyline(PackedVector2Array([at + Vector2(-4, 0), at + Vector2(-1, 3), at + Vector2(4, -3)]), color, 1.5, true)
+
+
+## A pick's effect on its field's default: a plus for adds, two opposed
+## arrows (a swap) for replaces.
+func _draw_mark(at: Vector2, mark: StringName, color: Color) -> void:
+	if mark == AspectWheelEntry.MARK_ADDS:
+		draw_line(at + Vector2(-3, 0), at + Vector2(3, 0), color, 1.5, true)
+		draw_line(at + Vector2(0, -3), at + Vector2(0, 3), color, 1.5, true)
+	elif mark == AspectWheelEntry.MARK_REPLACES:
+		draw_polyline(PackedVector2Array([at + Vector2(-4, -2), at + Vector2(4, -2), at + Vector2(2, -4)]), color, 1.2, true)
+		draw_polyline(PackedVector2Array([at + Vector2(4, 2), at + Vector2(-4, 2), at + Vector2(-2, 4)]), color, 1.2, true)

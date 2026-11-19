@@ -17,6 +17,15 @@ extends Control
 ## hides it for free. Its `picked` is [method InfusionPickMode.pick]; its
 ## `dismissed` pops the mode.
 ##
+## Beside the arc, past its right end, stand the forge's two element sockets
+## (%ShapeSocket, the crystal, and %RideSocket): neither is an aspect socket —
+## not in [method socket_count], reached as [method socket] of
+## [constant InfusionChoices.SHAPE_SOCKET] / [constant InfusionChoices.RIDE_SOCKET]
+## — so both take a pick at 0 `infusion_slots` and with every aspect socket full.
+## Each shows its field ([method Infusion.shape_of] / [method Infusion.ride_of]):
+## the forged points over the element's count, or "innate" for the spell's
+## authored default.
+##
 ## Positioned children report no minimum size, so [method _get_minimum_size]
 ## is the arc's bounding box.
 
@@ -52,11 +61,30 @@ signal locked_tapped(threshold_line: String)
 		right_to_left = v
 		_layout()
 
+## Edge of the shape and the ride sockets' rings (one size for both). Tentative.
+@export_range(16, 96, 1, "suffix:px") var element_socket_px: int = 44:
+	set(v):
+		element_socket_px = v
+		_layout()
+## Width each element socket's slot reserves — its line is short ("2/3",
+## "innate"), so narrower than [member slot_width_px]. Tentative.
+@export_range(16, 160, 1, "suffix:px") var element_slot_px: int = 48:
+	set(v):
+		element_slot_px = v
+		_layout()
+## Gap between the arc's end and the element sockets. Tentative.
+@export_range(0, 64, 1, "suffix:px") var element_gap_px: int = 8:
+	set(v):
+		element_gap_px = v
+		_layout()
+
 const _SOCKET_SCENE := preload("res://ui/hud/command_tray/bodies/infusion_socket.tscn")
 const _NO_ASPECTS_HINT := "no aspects held"
 const _SLOTS_STAT := &"infusion_slots"
 
 @onready var _wheel: AspectWheel = %Wheel
+@onready var _shape_socket: InfusionSocket = %ShapeSocket
+@onready var _ride_socket: InfusionSocket = %RideSocket
 
 var _plan: MagicAttackPlan = null
 var _stack: ArmedStack = null
@@ -69,6 +97,11 @@ func _ready() -> void:
 	_wheel.visible = false
 	_wheel.picked.connect(_on_wheel_picked)
 	_wheel.dismissed.connect(_on_wheel_dismissed)
+	_shape_socket.index = InfusionChoices.SHAPE_SOCKET
+	_ride_socket.index = InfusionChoices.RIDE_SOCKET
+	for s in [_shape_socket, _ride_socket]:
+		s.toggled.connect(_on_socket_toggled)
+		s.cleared.connect(_on_socket_cleared)
 	_refresh()
 
 
@@ -104,8 +137,15 @@ func ghost_text() -> String:
 	return _ghost
 
 
-## Socket [param i]; the ghost, when shown, is index [method socket_count].
+## Socket [param i]; the ghost, when shown, is index [method socket_count];
+## [constant InfusionChoices.SHAPE_SOCKET] / [constant InfusionChoices.RIDE_SOCKET]
+## are the element sockets.
 func socket(i: int) -> InfusionSocket:
+	match i:
+		InfusionChoices.SHAPE_SOCKET:
+			return _shape_socket
+		InfusionChoices.RIDE_SOCKET:
+			return _ride_socket
 	return _sockets[i] if i >= 0 and i < _sockets.size() else null
 
 
@@ -133,6 +173,10 @@ func _refresh() -> void:
 		_rebuild(count)
 	if not visible:
 		return
+	_show_field(_shape_socket, _plan.infusion.shape_of(_plan.spell), _plan.infusion.shape_element,
+			_plan.infusion.shape_points)
+	_show_field(_ride_socket, _plan.infusion.ride_of(_plan.spell), _plan.infusion.ride_element,
+			_plan.infusion.ride_points)
 	var order := _plan.infusion.points.keys()
 	for i in _owned:
 		var s := _sockets[i]
@@ -148,6 +192,23 @@ func _refresh() -> void:
 	if not _ghost.is_empty():
 		_sockets[_owned].show_locked(_ghost)
 	_mark_open()
+	if _wheel.visible:
+		var open := _open()
+		if open != null:
+			_wheel.bind(InfusionChoices.entries(_plan, open.socket))
+
+
+## Paint element socket [param s] showing [param shown] — forged as
+## [param forged_id] × [param points] when those name it, else the default.
+func _show_field(s: InfusionSocket, shown: StringName, forged_id: StringName, points: int) -> void:
+	var element := ElementRoster.shared().by_id(shown)
+	if element == null:
+		s.show_empty()
+		return
+	var held := AspectCurrency.cap_of(_caster(), element.stat.id)
+	var forged := points > 0 and forged_id == shown
+	s.show_filled(element.identity, points if forged else 0, held,
+			"%d/%d" % [points, held] if forged else "innate")
 
 
 func _rebuild(count: int) -> void:
@@ -186,19 +247,37 @@ func _layout() -> void:
 		var y := arc_radius_px * (cos(theta) - cos(half))
 		s.size = slot
 		s.position = Vector2(x, y)
+	var at := _arc_width() + (element_gap_px if n > 0 else 0)
+	for s in [_shape_socket, _ride_socket]:
+		s.socket_px = element_socket_px
+		s.size = Vector2(maxi(element_slot_px, element_socket_px), s.get_combined_minimum_size().y)
+		s.position = Vector2(at, 0.0)
+		at += s.size.x
 	update_minimum_size()
 	if _wheel.visible:
 		_place_wheel()
 
 
-func _get_minimum_size() -> Vector2:
+## The aspect arc's width alone; 0 with no aspect socket.
+func _arc_width() -> float:
 	if _sockets.is_empty():
-		return Vector2.ZERO
+		return 0.0
 	var half := deg_to_rad(socket_arc_deg) * 0.5
 	var span := 2.0 * arc_radius_px * sin(half) if _sockets.size() > 1 else 0.0
+	return span + maxi(slot_width_px, socket_px)
+
+
+func _get_minimum_size() -> Vector2:
+	if not is_node_ready():
+		return Vector2.ZERO
+	var element_w := 2 * maxi(element_slot_px, element_socket_px)
+	var element_h := _ride_socket.get_combined_minimum_size().y
+	if _sockets.is_empty():
+		return Vector2(element_w, element_h)
+	var half := deg_to_rad(socket_arc_deg) * 0.5
 	var slot_h := _sockets[0].get_combined_minimum_size().y
-	return Vector2(span + maxi(slot_width_px, socket_px),
-			arc_radius_px * (1.0 - cos(half)) + slot_h)
+	return Vector2(_arc_width() + element_gap_px + element_w,
+			maxf(arc_radius_px * (1.0 - cos(half)) + slot_h, element_h))
 
 
 func _open() -> InfusionPickMode:
@@ -227,7 +306,7 @@ func _place_wheel() -> void:
 	var s := socket(open.socket) if open != null else null
 	if s == null:
 		return
-	var centre := s.global_position + Vector2(s.size.x * 0.5, socket_px * 0.5)
+	var centre := s.global_position + Vector2(s.size.x * 0.5, s.socket_px * 0.5)
 	var at := centre - _wheel.size * 0.5
 	var limit := get_viewport().get_visible_rect()
 	at.x = clampf(at.x, limit.position.x, limit.end.x - _wheel.size.x)
@@ -237,13 +316,13 @@ func _place_wheel() -> void:
 
 func _mark_open() -> void:
 	var open := _open()
-	for s in _sockets:
+	for s in _sockets + [_shape_socket, _ride_socket]:
 		s.is_open = open != null and open.socket == s.index
 
 
 ## A socket with nothing to offer opens no chooser: it says so instead.
 func _on_socket_toggled(index: int) -> void:
-	if _plan != null and not InfusionChoices.entries(_plan, index).any(
+	if index >= 0 and _plan != null and not InfusionChoices.entries(_plan, index).any(
 			func(e: AspectWheelEntry) -> bool: return ElementRoster.shared().by_id(e.id) == null):
 		_sockets[index].flash_hint(_NO_ASPECTS_HINT)
 		return
@@ -257,8 +336,15 @@ func _on_socket_locked_tapped(index: int) -> void:
 
 
 func _on_socket_cleared(index: int) -> void:
-	if _plan != null:
-		_plan.set_socket(index, &"")
+	if _plan == null:
+		return
+	match index:
+		InfusionChoices.SHAPE_SOCKET:
+			_plan.set_shape(&"", 0)
+		InfusionChoices.RIDE_SOCKET:
+			_plan.set_ride(&"", 0)
+		_:
+			_plan.set_socket(index, &"")
 
 
 func _on_wheel_picked(id: StringName) -> void:

@@ -62,6 +62,19 @@ enum State { EMPTY, FILLED, LOCKED }
 		queue_redraw()
 ## Seconds a tapped ghost's label takes to fade from full back to its resting alpha.
 @export_range(0.1, 3.0, 0.1, "suffix:s") var flash_seconds: float = 0.8
+## Draw the wand's crystal — a diamond around the frame — so the forge's shape
+## socket reads apart from the ride socket at a glance, without a label.
+@export var crystal: bool = false:
+	set(v):
+		crystal = v
+		queue_redraw()
+## How far the crystal's points stand off the frame. Tentative.
+@export_range(0.0, 16.0, 0.5, "suffix:px") var crystal_reach_px: float = 5.0:
+	set(v):
+		crystal_reach_px = v
+		queue_redraw()
+## What an empty socket's tooltip invites.
+@export var empty_tooltip: String = "Click to socket an aspect"
 ## How lit a filled socket's tint reads.
 @export var emissive_tier: Emissive.Tier = Emissive.Tier.LABEL:
 	set(v):
@@ -121,6 +134,7 @@ func line_text() -> String:
 func _paint(p_state: State, identity: Identity, fill: float, line: String) -> void:
 	state = p_state
 	_identity = identity
+	shown_id = identity.id if identity != null else &""
 	_fill = fill
 	_line = line
 	tooltip_text = _tooltip()
@@ -134,7 +148,7 @@ func _tooltip() -> String:
 			return "Another infusion socket at %s" % _line
 		State.FILLED:
 			return "%s — click to change, right-click to empty" % _line
-	return "Click to socket an aspect"
+	return empty_tooltip
 
 
 ## Say [param text] under the ring for [member flash_seconds], fading out.
@@ -194,6 +208,11 @@ func _draw() -> void:
 	if state == State.FILLED:
 		draw_colored_polygon(frame, Color(tint, fill_alpha_filled))
 	draw_polyline(loop, Color(grey, track_alpha), _RING_WIDTH, true)
+	if crystal:
+		var d := r + crystal_reach_px
+		var gem := PackedVector2Array([center + Vector2(0, -d), center + Vector2(d, 0),
+				center + Vector2(0, d), center + Vector2(-d, 0), center + Vector2(0, -d)])
+		draw_polyline(gem, Color(tint if state == State.FILLED else grey, track_alpha), 1.0, true)
 	if state == State.FILLED:
 		if _fill > 0.0:
 			draw_polyline(perimeter_run(frame, _fill), tint, _RING_WIDTH, true)
