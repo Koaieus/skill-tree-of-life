@@ -175,8 +175,9 @@ func slots_used() -> int:
 	return points.size()
 
 
-## Total points this cast spends on its aspects — what
-## [member SpellDef.infusion_capacity] caps (there is no caster-side total; each
+## Total points this cast spends on its aspects — what the cap in force caps
+## ([method MagicAttackPlan.capacity], from [method SpellDef.capacity_at] per
+## caster node; there is no caster-side total; each
 ## aspect is capped by its own stat). The shape and the ride sit outside the cap
 ## (ADR 0094 §6): their points are never in it.
 func total_points() -> int:

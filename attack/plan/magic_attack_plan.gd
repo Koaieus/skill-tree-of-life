@@ -945,6 +945,11 @@ func is_target_muted() -> bool:
 	return _target_muted
 
 
+## The committed target wears the muted look while its pick trimmed the loadout.
+func is_node_muted(node: SkillNode) -> bool:
+	return _target_muted and node == target
+
+
 ## The "+N" overclock pip on [param node]: its best caster's capacity above
 ## the base cap, 0 for none (a non-target, or only base-degree casters reach it).
 func get_node_pip(node: SkillNode) -> int:
