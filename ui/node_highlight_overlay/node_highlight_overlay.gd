@@ -139,6 +139,9 @@ func _sync_indicators() -> void:
 		ind.facing = provider.get_node_facing(sn)
 		ind.order = provider.get_node_order(sn)
 		ind.charge = provider.get_node_range_fill(sn)
+		ind.pip = provider.get_node_pip(sn)
+		ind.pip_red = provider.is_node_pip_red(sn)
+		ind.muted = provider.is_node_muted(sn)
 
 
 func _draw() -> void:

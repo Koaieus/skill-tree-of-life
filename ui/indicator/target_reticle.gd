@@ -37,6 +37,40 @@ extends Indicator
 ## 0 = static.
 @export var spin_degrees_per_second: float = 45.0
 
+@export_group("Overclock pip")
+## Gap from the wrapped boundary to the pip's centre, up and to the right.
+@export var pip_offset: float = 14.0:
+	set(value):
+		pip_offset = value
+		_apply_geometry()
+@export_range(6, 48, 1) var pip_font_size: int = 14:
+	set(value):
+		pip_font_size = value
+		_apply_geometry()
+## Multiplied by the role's tint (the inherited modulate).
+@export var pip_color: Color = Color.WHITE:
+	set(value):
+		pip_color = value
+		_apply_geometry()
+## The loadout is above the node's cap: a pick here trims it.
+@export var pip_red_color: Color = Color(1.0, 0.18, 0.15):
+	set(value):
+		pip_red_color = value
+		_apply_geometry()
+
+@export_group("Muted look")
+## 0 = the role's tint as-is, 1 = its luminance grey.
+@export_range(0.0, 1.0, 0.01) var muted_desaturation: float = 0.7:
+	set(value):
+		muted_desaturation = value
+		_update_modulate()
+## Alpha factor on the muted reticle.
+@export_range(0.0, 1.0, 0.01) var muted_alpha: float = 0.55:
+	set(value):
+		muted_alpha = value
+		_update_modulate()
+@export_group("")
+
 
 func _process(delta: float) -> void:
 	super(delta)
@@ -47,7 +81,25 @@ func _process(delta: float) -> void:
 		spinner.rotation = wrapf(spinner.rotation + deg_to_rad(spin_degrees_per_second) * delta, -PI, PI)
 
 
+## A committed pick that trimmed the loadout: greyed and faded, drawn at the
+## INERT tier — "not using your full spec" (ADR 0089 §4).
+func _update_modulate() -> void:
+	if not muted:
+		super()
+		return
+	var grey := tint.get_luminance()
+	var dull := tint.lerp(Color(grey, grey, grey, tint.a), muted_desaturation)
+	dull.a *= muted_alpha
+	modulate = Emissive.at(dull, Emissive.stops(Emissive.Tier.INERT))
+
+
 func _apply_geometry() -> void:
+	var pip_label := get_node_or_null(^"%Pip") as IndicatorPipLabel
+	if pip_label != null:
+		pip_label.text = "+%d" % pip if pip > 0 else ""
+		pip_label.color = pip_red_color if pip_red else pip_color
+		pip_label.font_size = pip_font_size
+		pip_label.position = Vector2.from_angle(-PI / 4.0) * (radius + pip_offset)
 	var ring := get_node_or_null(^"%Ring") as IndicatorRingBand
 	if ring != null:
 		var w := stroke(ring_width)

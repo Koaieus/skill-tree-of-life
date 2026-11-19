@@ -47,6 +47,26 @@ extends Node2D
 		charge = clampf(value, 0.0, 1.0)
 		_apply_geometry()
 
+## Overclock pip: "+N" points the best caster reaching the wrapped node
+## carries above the base cap; 0 = none. Members that draw it read it.
+@export_range(0, 999) var pip: int = 0:
+	set(value):
+		pip = maxi(0, value)
+		_apply_geometry()
+
+## The pip reads red: the loadout is above the wrapped node's cap.
+@export var pip_red: bool = false:
+	set(value):
+		pip_red = value
+		_apply_geometry()
+
+## The muted look: a committed pick that trimmed the loadout. Members that
+## show it fold it into [method _update_modulate].
+@export var muted: bool = false:
+	set(value):
+		muted = value
+		_update_modulate()
+
 ## Smallest on-screen stroke width any member draws at: [method stroke] widens
 ## a world-space width to [code]min_screen_px / zoom[/code] when the camera
 ## zooms out past it. Radii stay world-space. Zoom is the scale of the canvas

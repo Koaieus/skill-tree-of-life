@@ -77,6 +77,24 @@ func get_node_order(_node: SkillNode) -> int:
 	return -1
 
 
+## The "+N" overclock pip on [param node]: points its best caster carries above
+## the spell's base cap (ADR 0089 §2). 0 = no pip.
+func get_node_pip(_node: SkillNode) -> int:
+	return 0
+
+
+## The pip on [param node] reads red: the loadout is above what any caster
+## reaching it carries, so picking it would trim. Meaningless without a pip.
+func is_node_pip_red(_node: SkillNode) -> bool:
+	return false
+
+
+## [param node] is a committed pick that is "not using your full spec" — its
+## pick trimmed the loadout (ADR 0089 §4). The indicator mounts its muted look.
+func is_node_muted(_node: SkillNode) -> bool:
+	return false
+
+
 ## Optional richer reach description — rings + edges. Returned [code]null[/code]
 ## (or empty) = nothing to paint. Magic plans hand back the active spell's
 ## range_finder visual; core-move hands back its reachable/route edges.

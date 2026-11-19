@@ -4,6 +4,7 @@
 [ext_resource type="Script" path="res://ui/indicator/target_reticle.gd" id="2_reticle"]
 [ext_resource type="Script" path="res://ui/indicator/ring_band.gd" id="3_ring"]
 [ext_resource type="Script" path="res://ui/indicator/crosshair_arms.gd" id="4_arms"]
+[ext_resource type="Script" path="res://ui/indicator/pip_label.gd" id="5_pip"]
 
 [node name="TargetReticle" instance=ExtResource("1_base")]
 script = ExtResource("2_reticle")
@@ -15,3 +16,7 @@ script = ExtResource("3_ring")
 [node name="Spinner" type="Node2D" parent="." index="1"]
 unique_name_in_owner = true
 script = ExtResource("4_arms")
+
+[node name="Pip" type="Node2D" parent="." index="2"]
+unique_name_in_owner = true
+script = ExtResource("5_pip")
