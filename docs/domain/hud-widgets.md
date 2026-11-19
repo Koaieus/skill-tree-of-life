@@ -60,7 +60,32 @@ The readout owns its hover, wheel-preview and Shift state; the body only forward
 socket hovers and wheel-wedge hovers to it. It scrolls inside `%ReadoutScroll`, so
 its Shift expansion never grows the tray.
 
-**The shape and ride sockets** in `InfusionSockets` are the element-socket work, which is still in flight under #1811. This section does not describe them yet.
+**The shape and ride sockets** flank the aspect arc in `InfusionSockets`:
+`%ShapeSocket` sits on the left and `%RideSocket` on the right, so the arc keeps
+its centre under the vessel. The shape socket draws a diamond, the wand's
+crystal (`InfusionSocket.crystal`). Their indices are
+`InfusionChoices.SHAPE_SOCKET` (−2) and `RIDE_SOCKET` (−3). They are not in
+`socket_count()` and take no aspect slot, so they work at 0 `infusion_slots`
+and with every aspect socket full. Each one shows its own field,
+`Infusion.shape_of` or `ride_of`. A forged element reads `points/count`. The
+spell's authored default reads `innate`.
+
+A click opens the same `AspectWheel` through `InfusionPickMode` (`MagicMode.toggle_socket`
+passes the negative index through). The wheel's wedges come from
+`InfusionChoices.field_entries`:
+- **The offer:** every roster element. Each wedge offers its count minus what
+  the *other* socket spends on that element (`Infusion.spent_on`).
+- **The mark:** adds (+) or replaces (⇄), judged against the field's authored
+  default (`InfusionChoices.default_of`). There is no mark against an empty
+  default.
+- **Refusal:** in the ride socket only, an element the spell trades at rate 0
+  is greyed with "refused by <spell>". The shape socket's refusal is #1813's.
+
+A pick (`InfusionChoices.pick_element`) forges one point. Picking the same
+element again adds one more, up to the offer, and the chooser stays open across
+picks. A right-click clears the field. Hovering an element socket focuses its
+ride or shape line in the readout (`CrucibleReadout.focus_of`). The element
+wedges in the aspect chooser stay, shown but never pickable.
 
 **The readout reads three kinds of line** (`ReadoutLines.Kind`). It lists the
 aspects first, socketed in socket order and then innate-only, then the shape
