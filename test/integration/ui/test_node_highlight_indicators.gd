@@ -394,3 +394,19 @@ func test_the_base_provider_answers_no_pip_and_no_mute() -> void:
 	assert_eq(base.call("get_node_pip", _nodes[0]), 0)
 	assert_eq(base.call("is_node_pip_red", _nodes[0]), false)
 	assert_eq(base.call("is_node_muted", _nodes[0]), false)
+
+
+func test_the_reticle_writes_the_pip_and_marks_red_in_text() -> void:
+	var ret := _SCENE_A.instantiate() as Node2D
+	add_child_autofree(ret)
+	var label := ret.get_node_or_null("%Pip")
+	assert_not_null(label)
+	if label == null:
+		return
+	assert_eq(label.get("text"), "", "no pip, nothing drawn")
+	ret.set("pip", 5)
+	assert_eq(label.get("text"), "+5")
+	ret.set("pip_red", true)
+	var red_text: String = label.get("text")
+	assert_true(red_text.begins_with("+5") and red_text != "+5",
+			"over the cap reads in the text, not only the colour a role tint can swallow")

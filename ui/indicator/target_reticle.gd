@@ -57,6 +57,12 @@ extends Indicator
 	set(value):
 		pip_red_color = value
 		_apply_geometry()
+## Appended to the red pip's text, so "over the cap" survives a role tint that
+## swallows the colour (a committed HOSTILE_TARGET is red itself).
+@export var pip_red_suffix: String = "!":
+	set(value):
+		pip_red_suffix = value
+		_apply_geometry()
 
 @export_group("Muted look")
 ## 0 = the role's tint as-is, 1 = its luminance grey.
@@ -96,7 +102,7 @@ func _update_modulate() -> void:
 func _apply_geometry() -> void:
 	var pip_label := get_node_or_null(^"%Pip") as IndicatorPipLabel
 	if pip_label != null:
-		pip_label.text = "+%d" % pip if pip > 0 else ""
+		pip_label.text = ("+%d%s" % [pip, pip_red_suffix if pip_red else ""]) if pip > 0 else ""
 		pip_label.color = pip_red_color if pip_red else pip_color
 		pip_label.font_size = pip_font_size
 		pip_label.position = Vector2.from_angle(-PI / 4.0) * (radius + pip_offset)

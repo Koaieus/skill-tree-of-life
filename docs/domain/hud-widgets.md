@@ -125,9 +125,12 @@ or the plan is swapped. The body follows the armed plan's signal itself:
 `HighlightProvider.get_node_pip` / `is_node_pip_red` / `is_node_muted` (no pip,
 not muted by default), pushed by `NodeHighlightOverlay._sync_indicators` onto
 `Indicator.pip` / `pip_red` / `muted`. `TargetReticle` (and `TargetGhost`, an
-in-range target) draws "+N" in `%Pip` (`IndicatorPipLabel`), red over the
-node's cap, and greys a muted pick; its sizes and colours are exports. The
-role's tint multiplies the pip's colour.
+in-range target) draws "+N" in `%Pip` (`IndicatorPipLabel`), red and suffixed
+"!" over the node's cap (the suffix survives a role tint that swallows the red),
+and `TargetReticle` greys a muted pick; its sizes, colours and suffix are
+exports. The role's tint multiplies the pip's colour. `MagicAttackPlan`
+answers the pip; its `is_node_muted` override is not on master yet, so the
+muted look is wired but never fires in game.
 
 **The picker floats.** Pressing the vessel toggles `SpellPickMode` on the seat's
 `ArmedStack` (`MagicMode.toggle_picker`). The spell bar lives in `%PickerPanel`, a

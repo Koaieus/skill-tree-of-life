@@ -17,6 +17,7 @@ var _host: SubViewport
 var _body: MagicBody
 var _ctl: PlayerInputController
 var _n: Array[SkillNode] = []
+var _unarmed_tally := "unset"
 
 
 func after_each() -> void:
@@ -74,6 +75,7 @@ func _arm() -> void:
 	_ctl.player = atk
 	add_child_autofree(_ctl)
 	_body.bind(atk, bs, _ctl)
+	_unarmed_tally = _body.tally()
 	_ctl.armed_stack.select_spell(atk, _spell())
 	_ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
 	await wait_frames(2)
@@ -130,3 +132,23 @@ func test_the_tally_cap_reads_the_cap_in_force() -> void:
 	assert_eq(tally.text, "%d / %d" % [plan.infusion.total_points(), plan.capacity()])
 	plan.set_target(_n[5])
 	assert_eq(tally.text, "%d / %d" % [plan.infusion.total_points(), plan.base_capacity()])
+
+
+func test_no_armed_spell_shows_no_tally() -> void:
+	await _arm()
+	assert_eq(_unarmed_tally, "", "bound before magic is armed: no tally")
+
+
+func test_the_notice_and_the_reset_never_grow_the_tray() -> void:
+	await _arm()
+	var plan := _plan()
+	var hidden := _body.get_combined_minimum_size().y
+	var over := plan.spell.capacity_at(plan.spell.min_degree + 1)
+	plan.set_infusion(&"poison", over)
+	assert_true(_control("%BaseCapReset").visible, "guard: the reset shows")
+	await wait_frames(2)
+	assert_eq(_body.get_combined_minimum_size().y, hidden, "the reset fits the body's height")
+	plan.set_target(_n[5])
+	assert_true(_control("%TrimNotice").visible, "guard: the notice shows")
+	await wait_frames(2)
+	assert_eq(_body.get_combined_minimum_size().y, hidden, "the notice fits the body's height")
