@@ -56,7 +56,9 @@ static func default_of(spell: SpellDef, field: int) -> StringName:
 ## socket spends on it ([method Infusion.spent_on] less this socket's own),
 ## `checked` = forged here, `mark` = adds / replaces against [method default_of]
 ## (none against an empty default), `disabled_reason` = the ride refused by the
-## spell (rate 0; the ride socket only), else nothing left of the count.
+## spell (rate 0; the ride socket only), or an Ice shape its concentrate row
+## refuses (concentrate-kind rate 0; the shape socket only), else nothing left
+## of the count.
 static func field_entries(plan: MagicAttackPlan, field: int) -> Array[AspectWheelEntry]:
 	var out: Array[AspectWheelEntry] = []
 	if plan == null or plan.spell == null:
@@ -82,6 +84,9 @@ static func field_entries(plan: MagicAttackPlan, field: int) -> Array[AspectWhee
 					default_element.identity.noun]
 		entry.hub_text = "%s: %d%s" % [element.identity.noun, entry.value, mark_text]
 		if field == RIDE_SOCKET and Infusion.rate_of(spell, id) <= 0.0:
+			entry.disabled_reason = "refused by %s" % spell.name
+		elif field == SHAPE_SOCKET and id == Infusion.ICE \
+				and Infusion.rate_of(spell, id, Infusion.RowKind.CONCENTRATE) <= 0.0:
 			entry.disabled_reason = "refused by %s" % spell.name
 		elif entry.value <= 0:
 			entry.disabled_reason = "no %s left" % element.identity.noun
