@@ -36,6 +36,16 @@ func level_of(read: TerrainRead) -> int:
 	return level
 
 
+## The level a cast's Lightning shape of [param points] buys (ADR 0084 §1):
+## level N costs 1 + 2 + … + N, so the largest N with N(N + 1)/2 ≤ points
+## (1 / 3 / 6 / 10 points → 1 / 2 / 3 / 4). Pure; no knob (the owner's rule).
+static func level_for_points(points: int) -> int:
+	var level := 0
+	while (level + 1) * (level + 2) <= 2 * points:
+		level += 1
+	return level
+
+
 ## [param base] ^ [member ladder_exponent], in integers.
 func _power(base: int) -> int:
 	var out := 1

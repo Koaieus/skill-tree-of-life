@@ -141,6 +141,11 @@ static func _resolve(
 	# spell's own effects at every landing.
 	var cast_infusion := infusion if infusion != null else Infusion.innate(spell)
 	var load_bag := cast_infusion.bag(spell)
+	var shape: Element = null
+	var shape_points := 0
+	if cast_infusion.shape_of(spell) != &"":
+		shape = ElementRoster.shared().by_id(cast_infusion.shape_of(spell))
+		shape_points = cast_infusion.shape_points if shape != null else 0
 	var riders := load_bag.riders
 	# Riders are fresh per cast, so gating them in place is safe.
 	for rider in riders:
@@ -382,6 +387,8 @@ static func _resolve(
 		# A walk that can leave its landing conducts through a Shocked node
 		# there (the gather pays the cost at the node's read): one head per
 		# landing carries it, so a merged landing pays once.
+		# Wave 0's heads also carry the cast's shape (ADR 0084 §1): every seed of
+		# a multi-seed cast is shaped at its own gather head; later waves none.
 		for state in merged:
 			var at: PropagationEvent = event_of.get(state, null)
 			if at == null:
@@ -389,6 +396,9 @@ static func _resolve(
 			for hit in at.hits:
 				if hit.is_head:
 					hit.walk_spreads = config.spread != null
+					if state.hop_index == 0:
+						hit.cast_shape = shape
+						hit.cast_shape_points = shape_points
 					break
 		OutcomeApplier.drain(HitQueue.over(outcome.hits, wave_first), world,
 				BeatClock.instant_clock(), null, crit_rng)

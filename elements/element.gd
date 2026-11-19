@@ -30,6 +30,17 @@ extends Resource
 ## The bands the terrain stack primes into, ascending. Nothing stores a band:
 ## #1794's band function reads this list against (count, T, k).
 @export var bands: Array[ElementBand] = []
+## Blast power per point of a cast's shape in this element, when its shape is
+## a disc (Fire's; ADR 0084 §2): the shape's power is points × this, fed to
+## [method DiscGoOff.shape_disc_radius]. Read by no other element. Tentative
+## knob: 5 is a ballpark, not a fit. Editor feedback: the sandbox host's blast tab.
+@export_range(0.5, 20.0, 0.25) var shape_power_per_point := 5.0
+
+
+## A cast shape of [param points] in this element as disc power
+## ([member shape_power_per_point] × points; 0 for no points).
+func shape_power(points: int) -> float:
+	return shape_power_per_point * maxi(points, 0)
 
 
 func id() -> StringName:

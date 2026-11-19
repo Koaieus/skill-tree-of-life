@@ -319,6 +319,13 @@ var walk_spreads: bool = false
 ## other spends, so the expansion step leaves the node without spending a hop,
 ## on 0 hops left too. Written by [HitGather]; never shipped.
 var conducted: bool = false
+## A spell cast's shape (ADR 0084 §1): the element and points [SpellResolver]
+## hands each wave-0 seed head, read once by [HitGather] at that head's own
+## node ([method HitGather.stage_one]). Null / 0 on every other hit (later
+## waves, arrows, blades, copies). Never shipped: the gather runs on the
+## authority, and a replay lands its recorded terrain.
+var cast_shape: Element = null
+var cast_shape_points: int = 0
 
 ## Land-time ownership recheck, a mask over [enum SkillNode.Ownership]: at
 ## land the receiving node's [method NodeCombat.ownership_bit] to
