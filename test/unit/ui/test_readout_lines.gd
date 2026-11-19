@@ -152,6 +152,7 @@ func test_a_forged_ride_yields_one_ride_line_reading_the_casts_load() -> void:
 	assert_string_contains(BadgeText.strip(ride.text()), _HEAT.identity.noun,
 			"the line names the terrain it plants")
 	assert_string_contains(ride.text(), "(%d forged)" % ride.infused, "the forged load, once")
+	assert_null(AspectRoster.shared().by_id(&"fire"), "guard: an element is no aspect, so no badge")
 
 
 func test_each_element_ride_row_names_its_terrain() -> void:
@@ -162,6 +163,8 @@ func test_each_element_ride_row_names_its_terrain() -> void:
 		assert_eq(rides.size(), 1, "%s: one ride line, none dropped" % element)
 		if rides.size() == 1:
 			assert_eq(rides[0].status, _terrain_of(element), "%s: its terrain" % element)
+			assert_string_contains(BadgeText.strip(rides[0].text()),
+					_terrain_of(element).identity.noun, "%s: the line names its terrain" % element)
 			assert_eq(rides[0].points, 0, "%s: innate only" % element)
 
 
@@ -204,3 +207,29 @@ func test_a_shape_alone_yields_a_shape_line_and_no_ride_line() -> void:
 	assert_eq(lines.size(), 1, "the shape line alone")
 	assert_eq(_of_kind(lines, ReadoutLines.Kind.SHAPE).size(), 1)
 	assert_eq(_of_kind(lines, ReadoutLines.Kind.RIDE).size(), 0)
+	var plain := BadgeText.strip(lines[0].text())
+	assert_string_contains(plain, ElementRoster.shared().by_id(&"fire").identity.noun)
+	assert_false(plain.contains("{"), "the element token resolves")
+
+
+func test_a_forged_ride_over_a_planting_row_of_its_element_carries_that_rows_status() -> void:
+	var spell := _ride_row_spell(&"fire", 2)
+	spell.intakes[0].plants = _HEAT
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_ride(&"fire", 2)
+	var rides := _of_kind(ReadoutLines.for_infusion(spell, _caster(0.0).stat_board, infusion),
+			ReadoutLines.Kind.RIDE)
+	assert_eq(rides.size(), 1, "one ride line: innate and forged on one element")
+	if rides.size() != 1:
+		return
+	assert_eq(rides[0].status, _HEAT)
+	assert_eq(rides[0].points, 2)
+	assert_eq(rides[0].total(), infusion.load_of(spell)[&"fire"])
+
+
+func test_previewing_a_socket_keeps_the_forged_ride() -> void:
+	var plan := _plan(_caster(40.0))
+	plan.set_ride(&"fire", 2)
+	assert_eq(plan.infusion.ride_points, 2, "guard: the ride is forged")
+	var preview := ReadoutLines.preview(plan, 0, &"poison")
+	assert_eq(_of_kind(preview, ReadoutLines.Kind.RIDE).size(), 1, "the preview keeps the ride line")

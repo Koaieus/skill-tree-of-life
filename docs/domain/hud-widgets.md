@@ -60,10 +60,7 @@ The readout owns its hover, wheel-preview and Shift state; the body only forward
 socket hovers and wheel-wedge hovers to it. It scrolls inside `%ReadoutScroll`, so
 its Shift expansion never grows the tray.
 
-**The shape and ride sockets** sit beside the aspect sockets in `InfusionSockets`.
-Neither is one of `infusion_slots`, and each reads its own field
-(`Infusion.shape_of` / `ride_of`). Their contract is the element-socket unit's
-(#1811 slice A); see `infusion_sockets.gd`'s header.
+**The shape and ride sockets** in `InfusionSockets` are the element-socket work, which is still in flight under #1811. This section does not describe them yet.
 
 **The readout reads three kinds of line** (`ReadoutLines.Kind`). It lists the
 aspects first, socketed in socket order and then innate-only, then the shape
