@@ -17,12 +17,7 @@ first**.
   `docs/handoffs/archive/swarm-2026-11-18-{lead-a,2031-lead-a,relief-a-1,relief-a-2,relief-a-3,relief-a-4,relief-a-5,relief-a-6}.md`.
 - Fable review files: `docs/handoffs/swarm-2026-11-18-relief-a-2.inbox/done/`
   (review-sim, review-dead, review-adr, review-blade, …).
-- A parallel session, "⚡ Settle swarm-train forks"
-  (`session_01Jiczcx3oXtUEXBU9snkRQt`), was started at 00:14 on sections A–H
-  below. It reported having checked all eight and was waiting on answers for G
-  and E. It wrote no `settled:` note to the whip ledger and sent the top no
-  message, so **assume nothing in A–H is settled unless an issue comment from
-  that session says so** — read its transcript or the issue comments first.
+- Where things stand and what to do next: "Progress and how to continue" below.
 
 ## Progress and how to continue (working doc; update it every session)
 
@@ -33,7 +28,7 @@ listed under their "Settled" heading.
 |---|---|---|---|
 | 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below |
 | 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | open |
-| 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), the core-on-a-Frozen-node issue filed 2026-11-19 | open |
+| 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
 | 6 | Housekeeping (mostly no owner call) | C, the rest of D, F, I; E is the owner's own eyeball list | open |
@@ -132,14 +127,16 @@ Filed (lanes are intended; the board was not reachable):
 
 | Call | Issue | Intended lane |
 |---|---|---|
-| 4 | _filled by the filing pass_ | Ready |
-| 5 | | Ready |
-| 6 | | Ready |
-| 7 | | Ready |
-| 8 | | Needs design |
-| 9 | | Needs design |
-| 10 | | Needs design |
-| 11 | | Needs design |
+| 4 | #1830 | Ready |
+| 5 | #1831 | Ready |
+| 6 | #1832 | Ready |
+| 7 | #1833 | Ready |
+| 8 | #1834 | Needs design |
+| 9 | #1835 | Needs design |
+| 10 | #1836 | Needs design |
+| 11 | #1837 | Needs design |
+
+Calls 1–3 are recorded on #1801; #1596 and #1211 are retitled Catalyst.
 
 ## Already settled tonight (for reference, not to re-argue)
 
@@ -151,20 +148,9 @@ Filed (lanes are intended; the board was not reachable):
 | Blade copies carried raw coefficient (B1) | fixed as a side effect of #1804; pinned by `test/unit/attack/test_blade_go_off_copy_speed.gd` |
 | `SaveFile` v15, minimum v15 (pre-retag saves refused) | `2f43068c` |
 
-## A. Catalyst over its cap
-
-When a gate flip or a stake extract lowers the cap, nothing re-trims the row,
-so the authority can hold an over-cap row. Re-trim on the drop, or keep? Note
-fixer rv-S4 (`320381ce`) made snapshot restore keep the row as sent, with no
-cap trim, so a re-trim rule has to agree with that. The "re-trim order" was
-also parked by relief-a-5.
-
 ## B. Sim findings from the Fable review (intended, or a defect?)
 
 - **S2:** Burning's disc pays Heat for nodes the hit's mask skips.
-- **S3:** `catalyst_resistance` below 100% has no effect.
-- **S5:** Catalyst on a cracked core's entity host ticks per holder turn and
-  never converts.
 
 Source: `review-sim` in the review folder.
 
@@ -180,8 +166,9 @@ Source: `review-sim` in the review folder.
 
 ## D. Docs against ADRs
 
-- **review-adr L8:** a `docs/design` forge.md passage sits against ADR 0095 §4
-  — which one gives.
+- **review-adr L8:** `forge.md`'s "each vertex carrying an authored innate
+  load" sits against ADR 0095 §4 (a vertex copies only a primed state) —
+  which one gives.
 - Stale ADR text the #1816 drone found: 0067 §2, 0075 §2, the 0060 index row
   (posted on #1816). ADRs are immutable; decide supersede vs leave.
 - ADR 0094 says the batch-4 options "were not recovered"; the #1816 drone did
@@ -275,17 +262,10 @@ parked. Two #1809 fixtures zero the element counts, which hides the gap.
   `cheap_estimate` ignores the fill (matters once the scorer values the fill).
 - **F4 build caveat** (an estimate, unverified): deciding the gate before the
   beat's gather means two contacts of one beat both read the pre-beat state.
-- **Blade:** `BladeState.remove_vertex` now marks every edge on a popped vertex
-  removed, so `SwingResolve._fire_fuse` no longer pops / `severed_at`s an edge
-  whose vertex died earlier — pinned by a test, intent unconfirmed.
-  `vertex_shielded` was removed against the #1802 body because it had no
-  caller.
+- **Blade:** `vertex_shielded` was removed against the #1802 body because it
+  had no caller.
 - **G-b** retired one go-off pin with no Burning replacement: "a copy sets the
   same node off again a generation later".
-- **Design leftovers:** the anti-blade face has no home (aspect_matrix is
-  annotated); Catalyst's inner-tree T3 signature is "open"; whether the
-  Poison/Catalyst opposition axis still holds; #1596 and #1211 still carry
-  Explosive titles.
 
 ## I. Small code follow-ups left unfixed (wind-down, no new drones)
 

@@ -160,8 +160,8 @@ the elements so far:
   per-hit load this doc rejects. There is no int:int rate seam on an ammo type
   or an addon today; whether one is wanted is a spec-time call.
 - **A blade's element is an addon per element** (owner, 2026-11-09: *"an
-  addon per element"*): Heat, Cold and Charge addons beside Clamp and the
-  Catalyst barrel, each vertex carrying an authored innate load, how many a
+  addon per element"*): Heat, Cold and Charge addons beside Clamp, each
+  vertex carrying an authored innate load, how many a
   build affords budgeted by the element count. The addon grants the rider and
   nothing else — the owner asked *"what stats? e.g. +1 fire_element sounds
   *too strong*"*, and the answer from [counts.md](counts.md) § The count is supply is none: the count

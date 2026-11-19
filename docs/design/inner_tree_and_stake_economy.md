@@ -122,12 +122,13 @@ are their own Intake issue.
   Sunder (soft wounds vs hard armour) · Wither ↔ Greed (starve vs
   amplify) · Scout ↔ Blindness (reveal vs blind) · Curse ↔ Weakness (fragility
   vs damage cut) · Hex ↔ Corruption (crit-taken vs % build-up).
+- The pairing is being redrawn: Catalyst is an element amplifier, not Explosive (#1836; owner, 2026-11-19).
 
 ### Signatures (T3), one per aspect, all rule tweaks on existing rows
 
 Bleeding: stacks are not lost while the bleeder moves · Weakness: a weakened
 node halves a neighbour's damage too · Poison: a stack that would decay holds
-one extra turn · Catalyst: open · Curse: death/dealloc spill reaches two hops · Hex: first
+one extra turn · Catalyst: open (#1835) · Curse: death/dealloc spill reaches two hops · Hex: first
 Hex landing per turn on a node counts double · Wither: the first stack already
 zeroes healing, further stacks hurt · Sunder: each landing shaves 1 armor
 from the two nearest neighbours · Scout: a camp's vision disc lingers 2 turns
