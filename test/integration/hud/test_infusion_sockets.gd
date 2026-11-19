@@ -84,7 +84,7 @@ func test_a_filled_socket_reads_its_exchange_line_and_right_click_clears_it() ->
 	plan.set_socket(0, &"poison")
 	var socket := sockets.socket(0)
 	assert_eq(socket.state, InfusionSocket.State.FILLED)
-	assert_eq(socket.line_text(), InfusionExchange.line(_VENOM, &"poison", 40))
+	assert_eq(socket.line_text(), InfusionExchange.line(_VENOM, &"poison", plan.infusion.points[&"poison"]))
 	_click(socket, MOUSE_BUTTON_RIGHT)
 	assert_true(plan.infusion.points.is_empty(), "right-click empties the socket")
 	assert_eq(sockets.socket(0).state, InfusionSocket.State.EMPTY)

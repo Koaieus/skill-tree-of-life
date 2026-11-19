@@ -110,6 +110,7 @@ func test_a_socket_whose_only_aspects_are_at_capacity_still_opens_its_chooser() 
 	await _arm(10.0, 3.0)
 	var capped := _VENOM.duplicate() as SpellDef
 	capped.infusion_capacity = 0.0
+	capped.infusion_capacity_per_degree = 0
 	_ctl.armed_stack.select_spell(_ctl.player, capped)
 	await wait_frames(3)
 	var entries := InfusionChoices.entries(_ctl.armed_stack.attack_plan(), 0)
