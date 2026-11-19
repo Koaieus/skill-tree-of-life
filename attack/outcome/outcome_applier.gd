@@ -161,10 +161,12 @@ static func _announce_blast(hit: HitInstance, world: CombatWorld, announced: Dic
 static func land_one(hit: HitInstance, world: CombatWorld,
 		alloc: AllocationSystem = null, crit_rng: RandomNumberGenerator = null,
 		_queue: HitQueue = null) -> void:
-	if hit == null or hit.target == null:
+	if hit == null:
 		return
 	if not hit.ice_cues.is_empty() and not world.is_shadow():
 		_announce_ice(hit)
+	if hit.target == null:
+		return
 	# A rebuilt record arrives with its deallocations pre-populated (the
 	# record's contract, see DeallocEntry); a fresh resolve never does. So
 	# this is the replay signal: a record feeds the beat its recorded spill, a
@@ -216,7 +218,7 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	hit.land_on(slice, world)
 	if not recorded:
 		world.track_entries(hit.deallocations)
-	# The one recorded PRESENTATION cue (#536), announced on the mutation clock
+	# A recorded PRESENTATION cue (#536; the Ice cues are the other), announced on the mutation clock
 	# because this is the mutation clock. Guarded exactly like [NodeCombat]'s
 	# `host != null` branch: a shadow world has no audience, so the authority's
 	# compute pass stays silent and the cue fires on the live replay — see

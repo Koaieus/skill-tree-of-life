@@ -222,3 +222,33 @@ func test_a_freed_cue_node_is_skipped() -> void:
 	OutcomeApplier.land_one(hit, CombatWorld.live())
 	assert_signal_emit_count(Events, "ice_shattered", 1)
 	assert_signal_emit_count(Events, "ice_held", 0)
+
+
+func _drain(outcome: AttackOutcome, world: CombatWorld) -> void:
+	await OutcomeApplier.drain(HitQueue.over(outcome.hits), world, BeatClock.instant_clock())
+
+
+func test_a_drained_break_announces_once_on_the_live_world() -> void:
+	_set_cold(_f, _t(_f) + 4)
+	var outcome := AttackOutcome.new()
+	outcome.hits.append_array(_span(_f, 1.0, true))
+	watch_signals(Events)
+	await _drain(outcome, CombatWorld.live())
+	assert_signal_emit_count(Events, "ice_shattered", 1)
+	assert_signal_emitted_with_parameters(Events, "ice_shattered", [_f, 4, _attacker])
+
+
+func test_a_shadow_resolve_then_its_live_replay_announces_once() -> void:
+	_set_cold(_f, _t(_f) + 4)
+	var outcome := AttackOutcome.new()
+	outcome.hits.append_array(_span(_f, 1.0, true))
+	_shadow = CombatWorld.shadow()
+	watch_signals(Events)
+	await _drain(outcome, _shadow)
+	assert_signal_emit_count(Events, "ice_shattered", 0, "the shadow is silent")
+	var replay := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
+	await _drain(replay, CombatWorld.live())
+	assert_signal_emit_count(Events, "ice_shattered", 1, "the live replay announces it once")
+	# The fixture's attacker is not on the graph's entity index, so it
+	# rebuilds null: only the node and the excess are the record's to carry.
+	assert_eq(get_signal_parameters(Events, "ice_shattered").slice(0, 2), [_f, 4])

@@ -91,7 +91,8 @@ signal blade_vertex_popped(defender: SkillNode, attacker: Entity, position: Vect
 ## A Frozen node's ice broke ([member HitInstance.ice_cues]): [param excess] is
 ## its terrain excess over T at the break, so a deep freeze reads bigger.
 ## [OutcomeApplier] is the sole emitter, on a live world only (the authority's
-## replay and every peer alike). [param attacker] is the breaking hit's.
+## replay and every peer alike). [param attacker] is the beat's first head's
+## (the cue's carrier), not necessarily the breaking hit's.
 signal ice_shattered(node: SkillNode, excess: int, attacker: Entity)
 
 ## A Frozen node's ice held: it absorbed a copy or ended a spell walk there
