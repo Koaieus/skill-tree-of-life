@@ -26,8 +26,8 @@ listed under their "Settled" heading.
 
 | # | Group | Items | State |
 |---|---|---|---|
-| 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below |
-| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | open |
+| 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below; ADR gate run (one record, 0096) |
+| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **half settled 2026-11-19**; two questions wait on the owner, see "Group 2" below |
 | 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
@@ -137,6 +137,63 @@ Filed (lanes are intended; the board was not reachable):
 | 11 | #1837 | Needs design |
 
 Calls 1–3 are recorded on #1801; #1596 and #1211 are retitled Catalyst.
+
+**ADR gate on calls 1-11** (session 2, 2026-11-19): call 4 is
+`docs/adr/0096-…` (§1 the owner's pick, §2 the tentative clamp at intake).
+Call 5 needs none: ADR 0082 §5 already says *"the node primes by any route"*
+(owner, 2026-11-09), so #1831 is a fix. Call 8's record is owed by the pass
+that settles #1834's forks (it refines 0024 and 0066). Calls 6 and 7 are a
+stat-roster call and a knob; the rest are game design or open. Noted on
+#1830, #1831 and #1834.
+
+## Group 2 — Lightning / conduct (session 2, 2026-11-19; not finished)
+
+Checked at `5b5d6cb9c`: every claim the group makes holds. One correction:
+`ElementBand.conduct_cost` defaults to 0; Lightning's two bands author 1
+(`elements/defs/lightning.tres:21`, `:29`).
+
+**Settled**
+
+1. **The four knobs stand as pass defaults**, all editor exports:
+   `ladder_exponent` 2 (the owner's L²), `max_level` 3,
+   `spent_charge_goes_to` Reached node (the owner's *"knob, transfer by
+   default"*, 2026-11-10), `conduct_cost` 1. Not asked.
+2. **A held Frozen + Shocked node conducts nothing and pays nothing.**
+   Settled from the owner's 2026-11-08 words, *"ice wins — frozen solid"* and
+   *"trapped until broken"*; put to the owner as settled on 2026-11-19, no
+   objection. Was H #1808. Filed #1838 (intended Ready).
+3. **A dead-end child on a wire** (owner, 2026-11-19): *"2 wins in simplicity
+   (one rule), 1 is also good but maybe we should instead reconsider those
+   "dead end" mechanics and basically most if not all of the unique spell
+   movements put onto aspect spells before the element concept was introduced
+   given elements add s major inflection to hit topology/AoE"*. Option 2 was
+   "the wire carries anything, as built"; option 1 was "a dead end ends the
+   walk even on a Shocked node". Pass reading, tentative: as built stands
+   until the review, which is #1839 (intended Needs design). Was H #1806.
+
+**Asked, not answered: put these first next session**
+
+4. **Does a conduct that leads nowhere cost Charge?** The owner asked what
+   "walk" means: *"By the walk of a spell do you mean a hit by a spell
+   projectile in a wave, or the arcs emitted by such a hit if it were on a
+   shocked node OR an arc walking out during such a hit due to a lightning
+   reach load ? Be precise"*. It is the first: the spell's own projectile
+   landing on its own target node, for a spell that has a spread. A node's
+   arc and a Lightning shape's arc never conduct and never pay
+   `conduct_cost` (`hit_gather.gd:376`, the head's own target only). Today
+   the node pays on that landing even when the spread then picks nobody.
+   Options: pays on entry (as built) / pays only when a child is minted (a
+   terrain write after the spread has picked, which the two-stage order does
+   not have).
+5. **A blade vertex's copy spend.** The owner's idea: *"Maybe vertex just
+   doesn't spend? It's a temporary blade node right? Exists only during the
+   few second swing"*. Finding to lead with: the copy's spend is the only
+   thing that stops a vertex going off again in the same swing (*"a later
+   contact arcs only while the copy stays > T"*, `docs/domain/elements.md`
+   § Lightning; the same line for a Burning vertex in § Fire). With no spend,
+   every contact of the swing goes off at full reach. This is the same pick
+   as group 4's G #1805 (Fire's vertex-copy spend): one answer covers both.
+   If the vertex does not spend, the "voided Charge" question is gone.
 
 ## Already settled tonight (for reference, not to re-argue)
 
