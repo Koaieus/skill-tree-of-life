@@ -722,6 +722,8 @@ func _overqualified_fixture() -> SpellDef:
 	_enemy.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
 	assert_eq(_enemy.navigator.get_degree(_nodes[1]), 2, "fixture: N1 is one degree up")
 	assert_eq(_enemy.navigator.get_degree(_nodes[0]), 1, "fixture: N0 sits at min_degree")
+	assert_eq(_nodes[1].get_local_value(&"spell_damage"), _nodes[0].get_local_value(&"spell_damage"),
+			"fixture: the casters are equal but for capacity")
 	return spell
 
 
