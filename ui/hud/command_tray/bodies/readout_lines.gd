@@ -43,6 +43,14 @@ class ReadoutLine extends RefCounted:
 	## A Fire shape's disc radius in node radii ([method
 	## DiscGoOff.shape_disc_radius] of the shape alone at node radius 1); 0 else.
 	var shape_radius: float = 0.0
+	## An Ice shape's walk: the spell's `max_hops` and what the cut leaves of
+	## it ([method LoadBag.hops_removed]); 0 else.
+	var shape_hops_from: float = 0.0
+	var shape_hops_to: int = 0
+	## An Ice shape's payload multiplier ([method LoadBag.multiplier]); 1 else.
+	var shape_multiplier: float = 1.0
+	## Why the spell refuses its Ice shape; "" when it takes it.
+	var shape_refused: String = ""
 	## The shape's reach as prose, appended to the line; "" for no reach.
 	var shape_effect: String = ""
 
@@ -54,6 +62,8 @@ class ReadoutLine extends RefCounted:
 	## concept token).
 	func text() -> String:
 		if kind == Kind.SHAPE:
+			if not shape_refused.is_empty():
+				return "+ {%s} shape refused (%d points): %s" % [aspect_id, points, shape_refused]
 			var head := "+ shapes the cast with {%s} (%d points)" % [aspect_id, points]
 			return head if shape_effect.is_empty() else "%s: %s" % [head, shape_effect]
 		var parts: PackedStringArray = []
@@ -80,8 +90,11 @@ class ReadoutLine extends RefCounted:
 			return ""
 		return InfusionExchange.line(spell, aspect_id, points)
 
-	## The listed [AspectIntake] of [param spell] for this concept, or null.
+	## The listed [AspectIntake] of [param spell] for this concept, or null;
+	## an Ice shape line's is the concentrate row.
 	func intake_of(spell: SpellDef) -> AspectIntake:
+		if kind == Kind.SHAPE and aspect_id == Infusion.ICE:
+			return Infusion.intake_of(spell, aspect_id, Infusion.RowKind.CONCENTRATE)
 		return Infusion.intake_of(spell, aspect_id)
 
 	## A ride names the terrain it plants: the status's identity token.
@@ -156,7 +169,7 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 		line.kind = Kind.SHAPE
 		line.aspect_id = shape
 		line.points = infusion.shape_points
-		shape_reach(line)
+		shape_reach(line, spell, infusion)
 		out.append(line)
 	if ride != null:
 		out.append(ride)
@@ -167,9 +180,11 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 ## reads, by element — the one place a shape's effect is phrased: Lightning's
 ## level ([method EdgeGoOff.level_for_points]) and the points to the next;
 ## Fire's disc ([method DiscGoOff.shape_disc_radius] of the shape alone, at node
-## radius 1, so in node radii — the seed's own radius scales it). Any other
-## element leaves the line at element and points.
-static func shape_reach(line: ReadoutLine) -> void:
+## radius 1, so in node radii — the seed's own radius scales it); Ice's cut and
+## multiplier ([method LoadBag.hops_removed], [method LoadBag.multiplier] on
+## [param infusion]'s bag — what [SpellResolver] reads), or why [param spell]
+## refuses it. Any other element leaves the line at element and points.
+static func shape_reach(line: ReadoutLine, spell: SpellDef = null, infusion: Infusion = null) -> void:
 	var element := ElementRoster.shared().by_id(line.aspect_id)
 	if element == null:
 		return
@@ -188,6 +203,31 @@ static func shape_reach(line: ReadoutLine) -> void:
 				return
 			line.shape_radius = disc.shape_disc_radius(element.shape_power(line.points), 0.0, 1.0)
 			line.shape_effect = "a disc reaching %s node radii out" % NumFmt.num(snappedf(line.shape_radius, 0.1))
+		&"ice":
+			_ice_reach(line, spell, infusion)
+
+
+## The Ice shape's walk: "6 hops → 3, seed ×2.5", or [member
+## ReadoutLine.shape_refused] when [param spell] has nothing to cut or its
+## concentrate row refuses (gain 0). No spell or walk, no reach.
+static func _ice_reach(line: ReadoutLine, spell: SpellDef, infusion: Infusion) -> void:
+	if spell == null or spell.propagation == null:
+		return
+	var hops := spell.propagation.max_hops
+	line.shape_hops_from = hops
+	if hops <= 0.0:
+		line.shape_refused = "%s has no hops to cut" % spell.name
+	elif is_inf(hops):
+		line.shape_refused = "%s walks unbounded" % spell.name
+	elif Infusion.rate_of(spell, Infusion.ICE, Infusion.RowKind.CONCENTRATE) <= 0.0:
+		line.shape_refused = "%s takes no Ice shape" % spell.name
+	if not line.shape_refused.is_empty() or infusion == null:
+		return
+	var bag := infusion.bag(spell)
+	line.shape_hops_to = int(hops) - bag.hops_removed(hops)
+	line.shape_multiplier = bag.multiplier(hops)
+	line.shape_effect = "%d %s → %d, seed ×%s" % [int(hops), "hop" if int(hops) == 1 else "hops",
+			line.shape_hops_to, NumFmt.num(line.shape_multiplier)]
 
 
 ## [param element]'s first band [DiscGoOff] (Fire's Burning disc), or null —

@@ -291,3 +291,65 @@ func test_an_ice_shape_line_carries_no_fire_or_lightning_reach() -> void:
 		return
 	assert_eq(line.shape_level, 0)
 	assert_eq(line.shape_radius, 0.0)
+
+
+func _ice_line(spell: SpellDef, points: int) -> ReadoutLines.ReadoutLine:
+	var infusion := Infusion.innate(spell)
+	infusion.set_shape(&"ice", points)
+	var shapes := _of_kind(ReadoutLines.for_infusion(spell, null, infusion), ReadoutLines.Kind.SHAPE)
+	return shapes[0] if shapes.size() == 1 else null
+
+
+## A 6-hop plain-damage walk down a chain; crit 0 so two casts compare.
+func _ice_cast(points: int) -> Dictionary:
+	var graph := h.make_graph([[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8]], self)
+	var atk := h.make_entity(graph, "A")
+	var def := h.make_entity(graph, "D")
+	h.give_big_hp(def)
+	atk.stat_board.get_stat(&"crit_chance").base_value = 0.0
+	h.assign_owner(graph, atk, [0])
+	h.assign_owner(graph, def, [1, 2, 3, 4, 5, 6, 7, 8])
+	var n: Array[SkillNode] = []
+	n.assign(graph.get_skill_nodes())
+	var config := h.make_config(h.fan_all(), h.owner_enemy(), h.sum_reducer(), {max_hops = 6})
+	var spell := h.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 10.0)
+	var infusion := Infusion.innate(spell)
+	if points > 0:
+		infusion.set_shape(&"ice", points)
+	var out := SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, infusion)
+	var seed := 0.0
+	for hit in out.hits:
+		if hit is DamageInstance and hit.target == n[1]:
+			seed += hit.amount
+	return {spell = spell, walked = out.timeline.size() - 1, seed = seed}
+
+
+func test_an_ice_shape_line_reads_the_resolvers_hops_and_multiplier() -> void:
+	var plain := _ice_cast(0)
+	var cut := _ice_cast(3)
+	assert_eq(plain.walked, 6, "fixture: the plain cast walks 6 hops")
+	var line := _ice_line(cut.spell, 3)
+	assert_not_null(line, "one shape line")
+	if line == null:
+		return
+	assert_eq(line.shape_refused, "", "a 6-hop spell takes the shape")
+	assert_eq(line.shape_hops_from, 6.0)
+	assert_eq(line.shape_hops_to, cut.walked, "the hops left are the resolver's walk")
+	assert_almost_eq(line.shape_multiplier, cut.seed / plain.seed, 1e-4, "the multiplier is the resolver's")
+	var plain_text := BadgeText.strip(line.text())
+	assert_string_contains(plain_text, "6 hops → %d" % cut.walked)
+	assert_string_contains(plain_text, "seed ×%s" % NumFmt.num(line.shape_multiplier))
+
+
+func test_a_spell_refusing_an_ice_shape_yields_the_refusal_line() -> void:
+	for path in ["res://attack/spell/defs/spark.tres", "res://attack/spell/defs/trail_blazer.tres"]:
+		var spell := load(path) as SpellDef
+		var line := _ice_line(spell, 2)
+		assert_not_null(line, "%s: one shape line" % path)
+		if line == null:
+			continue
+		assert_ne(line.shape_refused, "", "%s refuses an Ice shape" % path)
+		assert_almost_eq(line.shape_multiplier, 1.0, 1e-6, "%s: no multiplier" % path)
+		var plain_text := BadgeText.strip(line.text())
+		assert_string_contains(plain_text, "refused")
+		assert_string_contains(plain_text, line.shape_refused)
