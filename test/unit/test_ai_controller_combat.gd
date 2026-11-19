@@ -794,6 +794,34 @@ func test_an_equal_score_on_one_target_goes_to_the_bigger_cap() -> void:
 			"a tie across spells keeps the first, as before")
 
 
+## The cheap gate ranks on raw damage, blind to the fill a caster's capacity
+## buys: a base-cap copy of the spell learned FIRST puts three equal-estimate
+## candidates ahead of the overqualified N1 in enumeration order, so a gate
+## that keeps the first K of a tie cuts the cast the real resolve would pick.
+func test_the_cheap_gate_keeps_the_overqualified_caster_among_equal_estimates() -> void:
+	var flat: SpellDef = _VENOM_SPELL.duplicate()
+	flat.min_degree = 1
+	flat.infusion_capacity = float(_BASE_CAP)
+	flat.infusion_capacity_per_degree = 0
+	_enemy.get_spellbook().learn(flat)
+	var spell := await _overqualified_fixture()
+	_ai.ai_tier = AIController.Tier.FIGHTER
+	var spells := _enemy.get_spellbook().spells
+	assert_lt(spells.find(flat), spells.find(spell), "fixture: the base-cap copy enumerates first")
+	var visible := AiRecon.visible_enemy_nodes(_enemy)
+	var promoted := _ai._gather_magic_candidates(visible)
+	assert_gt(_ai.last_magic_candidate_count, AIController._CANDIDATE_GATE_K,
+			"fixture guard: more candidates than K, or the gate never engages")
+	var kept := false
+	for c in promoted:
+		if c.spell == spell and c.source_node == _nodes[1]:
+			kept = true
+	assert_true(kept, "the overqualified caster survives the cheap gate")
+	var best := AiCombatScorer.pick_best(promoted)
+	assert_true(best != null and best.spell == spell and best.source_node == _nodes[1],
+			"...and is the cast chosen")
+
+
 # ---------------------------------------------------------------------------
 # #958 — fire-to-kill / reload loop: the AI never single-shots
 # ---------------------------------------------------------------------------
