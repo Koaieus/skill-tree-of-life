@@ -443,8 +443,6 @@ that landing's `lctx`.
 
 #### `max_hops` takes NO stat scaling — owner ruling, 2026-09-02
 
-changing: the Ice concentrate removes hops from `hops_remaining` per cast, #1813; see docs/design/elements/casting.md
-
 There are two different "spell hops" and they must never share a modifier:
 
 | | what it means | where | scalable? |
@@ -458,9 +456,18 @@ There are two different "spell hops" and they must never share a modifier:
 > proper way to tune it — adding max hops to a spell dramatically alters its
 > performance" — owner, 2026-09-02
 
-Runtime honours this: `spell_resolver.gd` sets
-`seed_state.hops_remaining = config.max_hops` **raw**, and the tooltip prints the
-same raw depth.
+Runtime honours this: no stat reaches `max_hops`, the def is never written, and
+the tooltip prints the raw depth. The one thing that shortens a walk is a
+per-cast spend the spell can refuse: the **Ice shape's concentrate** (ADR 0084
+§8; `docs/design/elements/casting.md` § Ice on a cast). A `ConcentrateUse` on
+the spell's Ice concentrate row spends the shape load as `LoadBag.hop_cut`
+(1 load per hop) and its `bonus_per_hop`; `SpellResolver` reads once, before
+wave 0, `hops_removed = LoadBag.hops_removed(max_hops)` (min(cut, max_hops); 0
+when `max_hops` is 0 or `inf`) and `m = LoadBag.multiplier(max_hops)`
+(1 + bonus × hops removed), and seeds `hops_remaining = max_hops −
+hops_removed`. A def with `max_hops` 0 or `inf` authors an Ice row of gain 0
+and refuses the shape; the forge's shape line (`ReadoutLines.shape_reach`)
+reads the same two bag functions. It is a cast's purchase, never a stat.
 
 **Why it cannot take a global modifier at all**, independent of tuning taste:
 `max_hops` means two different things depending on whether the walk
@@ -534,12 +541,16 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-changing: the concentrate's hop cut, #1813; see docs/design/elements/casting.md
-
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.
 
 ```
+# 0. the cast, read once: the bag (riders + the Ice shape's concentrate);
+#    hops_removed = bag.hops_removed(max_hops), m = bag.multiplier(max_hops);
+#    m scales the seed damage and, ceil, every cast rider that is not
+#    Heat / Cold / Charge; each seed starts at hops_remaining =
+#    max_hops − hops_removed, and its wave-0 head carries hops_removed
+#    (HitInstance.hops_removed → Arrival.hops_removed, Frozen's burst term)
 seed_wave = [initial CastSpell at seed_node]
 while wave not empty:
     # 1. group by target node

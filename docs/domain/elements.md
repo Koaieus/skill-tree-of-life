@@ -597,3 +597,44 @@ concentrate (#1813), not this section's.
   U2); a spell-authored shape default (parked).
 - Guards: `test/unit/elements/test_cast_shape_reach.gd`,
   `test/unit/ui/test_readout_lines.gd`.
+
+## Ice on a cast: the concentrate (#1813)
+
+An Ice **shape** cuts the cast's own walk and pays up every landing left (ADR
+0084 §8; `docs/design/elements/casting.md` § Ice on a cast). It plants nothing.
+
+- **The row.** An Ice `AspectIntake` whose `use` is a `ConcentrateUse` is a
+  *concentrate row* (`Infusion.is_concentrate_row`); every other row is a
+  plant row. `intake_of` / `ratio_of` / `gained` / `rate_of` / `use_of` take an
+  `Infusion.RowKind` (PLANT by default, which skips concentrate rows), so a
+  refusing shape row never refuses a Cold ride. No authored row: the shared
+  `ConcentrateUse.shared_default()` at 1:1.
+- **The load and the bag.** `Infusion.shape_load` (the row's innate + shape
+  points at its affinity) spends through the use into `LoadBag.hop_cut` and
+  `bonus_per_hop` (knob on the use, 0.5). `LoadBag.hops_removed(max_hops)` and
+  `multiplier(max_hops)` are the one pure pair the resolver and the readout
+  both read.
+- **The resolver** (`SpellResolver`, before wave 0): `hops_remaining` loses the
+  cut, the seed damage and every aspect rider (ceil) take ×m; Heat, Cold and
+  Charge riders land at cast value. The def is never written.
+- **Refusal.** Every def with `max_hops` 0 or `inf` authors an Ice
+  concentrate row of gain 0 (`test_spell_defs.gd`). The shape socket greys
+  Ice on such a spell (`InfusionChoices.field_entries`, concentrate-kind
+  `rate_of` ≤ 0; the ride socket reads the plant kind and still offers it);
+  the shape line reads the refusal and its reason.
+- **The shatter.** The wave-0 seed head carries `HitInstance.hops_removed`;
+  `HitGather.stage_one` copies it onto that head's own `Arrival` only (copies,
+  extra landings and later heads read 0). `FrozenAdmits.read_in` hands its
+  breaking arrivals to `added_excess`, which returns their summed cut ×
+  `shatter_excess_per_hop_cut` (1.0, tentative): the burst reads (excess +
+  that) × `shatter_fraction_per_stack` × max HP, the spend the node's own
+  excess. The ×m is already in the stamped amount, so the damage breaker
+  needs nothing; the break's `break_channels` landings carry ×m like any
+  payload landing.
+- **The readout.** `ReadoutLines.shape_reach`'s `&"ice"` branch fills
+  `shape_hops_from`, `shape_hops_to`, `shape_multiplier` ("6 hops → 3, seed
+  ×2.5") or `shape_refused`; an Ice shape line's detail is the concentrate
+  row's `describe`. The spell-picker tile's rate note skips concentrate rows.
+- Guards: `test/unit/spell/test_concentrate_use.gd`,
+  `test/unit/ui/test_readout_lines.gd`, `test/unit/spell/test_spell_defs.gd`,
+  `test/unit/spell/test_infusion_choices.gd`.
