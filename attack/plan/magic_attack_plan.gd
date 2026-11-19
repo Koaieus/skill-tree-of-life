@@ -746,7 +746,8 @@ func _set_fields(next: Infusion) -> void:
 ## the aspect it displaces drops out; a new aspect past `infusion_slots` is a
 ## no-op. Every socket's depth is then re-walked ([method socket_points]) against
 ## [method capacity], so this never overruns; a committed non-aimed target then
-## re-stamps [member source] from the casters that carry the new total. Emits [signal state_changed] once, and only on change.
+## re-stamps [member source] from the casters that carry the new total. Emits
+## [signal state_changed] once, and only on change.
 func set_socket(index: int, aspect_id: StringName) -> void:
 	var points := socket_points(socket_order_with(index, aspect_id))
 	if points == infusion.points and points.keys() == infusion.points.keys():
@@ -841,8 +842,6 @@ func aspect_overrun() -> int:
 	return over
 
 
-## The aim-time preview's resolved outcome (null with nothing to preview) —
-## the same [method SpellResolver.resolve] walk the cast makes, infusion and all.
 ## The aspect points a socket write may fill to — the cap in force (ADR 0089):
 ## an aimed spell with its aim set, its locked caster's capacity; a non-aimed
 ## spell with a target committed, the best capacity among the casters reaching
@@ -938,6 +937,8 @@ func _trimmed_points(cap: int) -> Dictionary[StringName, int]:
 	return out
 
 
+## The aim-time preview's resolved outcome (null with nothing to preview) —
+## the same [method SpellResolver.resolve] walk the cast makes, infusion and all.
 func preview_outcome() -> AttackOutcome:
 	if _preview_dirty:
 		_rebuild_preview()
