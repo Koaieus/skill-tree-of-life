@@ -554,3 +554,46 @@ as built. One branch of code, the rest pins on what Fire, Lightning and Ice buil
   Charge blips dim by as much, its frame takes the tint, and `label_for` ends in `TRAPPED_SUFFIX`, so the tooltip's terrain row
   reads it too.
 - Guards: `test/unit/attack/test_element_pairs.gd`.
+
+## Cast shapes: Fire and Lightning (#1812)
+
+A spell's forged shape (`Infusion.shape_of(spell)`, `shape_points`; ADR 0084)
+reshapes the cast's seed at once and plants nothing. Ice's shape is the
+concentrate (#1813), not this section's.
+
+- **The feed.** `SpellResolver` stamps the cast's shape on each wave-0 head
+  (`HitInstance.cast_shape`, `cast_shape_points`), so every seed of a
+  multi-seed cast is shaped; later waves and every gather copy carry none
+  (`_clone` clears it). Arrows and blades have no walk and no shape.
+- **The route** (`HitGather`, at the head's own node, after the riders):
+  `_shape_at` reads the shape once; `_shape_band` is the element's first band
+  holding a `DiscGoOff` or an `EdgeGoOff`, and an element with none is no
+  shape. If the node's band of that element goes off, `_shaped_in` hands the
+  shape to that band's own go-off: one combined go-off, one channel, one
+  centre copy, the node's solo spend (ADR 0084 §3, §4, ADR 0086 §5).
+  Otherwise `_fire_shape_alone` answers the same go-off with no read and
+  appends it as a list: no spend, no own damage, no centre copy, no channel
+  (ADR 0086 §4). A Frozen node's mute drops its own bands, never the shape,
+  so there the shape runs alone. Its mark names the band's identity (Fire →
+  Burning, Lightning → Shocked; tentative), so `BlastVFX.look_for` plays it in
+  the element's look at the shaped size (a shape-alone disc has power 0,
+  which only the stroke width reads).
+- **Lightning**: `EdgeGoOff.level_for_points(points)`, the largest N with
+  N(N + 1)/2 ≤ points (1 / 3 / 6 / 10 → 1 / 2 / 3 / 4), into
+  `fire_level_in(…, added)`: reach M + N hops, spend for M alone (0 when not
+  Shocked). No knob.
+- **Fire**: `Element.shape_power(points)` = points × `shape_power_per_point`
+  (5.0 on `fire.tres`; tentative, a ballpark) into
+  `DiscGoOff.fire_shaped_in`, which reaches by `shape_disc_radius(shape,
+  excess, R)` = A × (√shape + √excess + B) × R, R the seed node's radius;
+  `disc_radius(e, R)` is the same function at shape 0. On a Burning node it
+  spends the solo disc's nodes, floored at `solo_cost_floor` when the
+  combined disc reaches anyone; its own damage reads the excess only.
+- **The readout**: `ReadoutLines.shape_reach` phrases the shape line from the
+  same functions: Lightning's level and the points to the next, Fire's radius
+  in node radii (`shape_disc_radius` of the shape alone at R = 1). One
+  function, one branch per element.
+- Not built: the aim-time range preview of a shape (`MagicAttackPlan`, #1812's
+  U2); a spell-authored shape default (parked).
+- Guards: `test/unit/elements/test_cast_shape_reach.gd`,
+  `test/unit/ui/test_readout_lines.gd`.

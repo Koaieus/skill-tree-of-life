@@ -534,7 +534,7 @@ and fails to parse with "Expected '('". Same collision that named
 
 ## Resolver flow (wave-based)
 
-changing: cast shapes at the gather head and the concentrate's hop cut, #1812, #1813; see docs/design/elements/hit-resolution.md, docs/design/elements/go-offs.md, docs/design/elements/casting.md
+changing: the concentrate's hop cut, #1813; see docs/design/elements/casting.md
 
 The resolver processes **waves** (BFS frontiers) so the reducer can merge
 simultaneous arrivals before effects fire.
@@ -567,7 +567,11 @@ while wave not empty:
         ctx.global_visit_count[state.current_node] += 1
 
     # 3a. one head per landing carries walk_spreads = (config.spread != null),
-    #     so a merged landing pays a conduct cost once
+    #     so a merged landing pays a conduct cost once; on wave 0 the same head
+    #     carries the cast's shape (cast_shape, cast_shape_points: the
+    #     infusion's shape_of(spell) element and its forged shape_points), so
+    #     every seed of a multi-seed cast is shaped at its own head and no
+    #     later wave carries one
 
     # 3b. land the wave through OutcomeApplier.drain, on the cast world: one
     #     wave is one beat (structural_key = hop_index). Its first hit opens
@@ -652,6 +656,20 @@ the one before left. At each node of a generation:
    its `GoOff` with the post-rider read (a go-off takes no load). The
    generation's spends and transfers (the breaks' included) commit together
    before the next generation's admit.
+4. **Shape.** A head carrying a cast's Fire or Lightning shape reads it once,
+   at its own node, in the same loop and after the riders (`_shape_at`; any
+   other element is no shape here). Where the node's band of the shape's
+   element goes off (Burning for Fire, Shocked for Lightning) the shape is an
+   extra input to that band's own call (`_shaped_in`):
+   `DiscGoOff.fire_shaped_in` at `Element.shape_power(points)`, or
+   `EdgeGoOff.fire_level_in` at `EdgeGoOff.level_for_points(points)`. That
+   answers one go-off at the combined reach and the node's solo spend, so it
+   is the band's one channel and one centre copy. Otherwise (unprimed, primed
+   only in another element, or muted by Frozen) the shape runs alone
+   (`_fire_shape_alone`): the same call with no read, appended as a list with
+   no spend, no own damage and no centre copy. It is no channel, so the seed
+   takes no extra landing for it. Its mark names the shape band's identity
+   (Burning, Shocked), so the disc and arc looks play at the shaped size.
 
 A go-off's reach enters through `HitGather._append_reach`. A node at hop depth
 1 arrives in the next generation, and so does the centre copy when
