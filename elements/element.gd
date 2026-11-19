@@ -19,7 +19,7 @@ extends Resource
 @export var movers: Array[StatusDef] = []
 ## The attribute whose pool rolls this count ([code]Kind.ATTRIBUTE[/code]).
 @export var school: Identity = null
-## The element's arrow. Null until its arrow cell lands (#1810).
+## The element's arrow; each element def authors one.
 @export var ammo: AmmoType = null
 ## The element's [SkillNodeAddon] scene. Null until its addon cell lands (#1804).
 @export var addon_scene: PackedScene = null
