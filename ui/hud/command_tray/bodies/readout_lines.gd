@@ -12,7 +12,8 @@ extends RefCounted
 
 
 ## What a line reads: an aspect, the cast's ride (an element's load, named by
-## the terrain it plants), or its shape (the element and its points only).
+## the terrain it plants), or its shape (the element, its points and the reach
+## they buy: [method shape_reach]).
 enum Kind { ASPECT, RIDE, SHAPE }
 
 
@@ -53,7 +54,8 @@ class ReadoutLine extends RefCounted:
 	## concept token).
 	func text() -> String:
 		if kind == Kind.SHAPE:
-			return "+ shapes the cast with {%s} (%d points)" % [aspect_id, points]
+			var head := "+ shapes the cast with {%s} (%d points)" % [aspect_id, points]
+			return head if shape_effect.is_empty() else "%s: %s" % [head, shape_effect]
 		var parts: PackedStringArray = []
 		if innate > 0:
 			parts.append("%d innate" % innate)
@@ -154,10 +156,46 @@ static func for_infusion(spell: SpellDef, board: StatBoard, infusion: Infusion) 
 		line.kind = Kind.SHAPE
 		line.aspect_id = shape
 		line.points = infusion.shape_points
+		shape_reach(line)
 		out.append(line)
 	if ride != null:
 		out.append(ride)
 	return out
+
+
+## Fill [param line]'s (a SHAPE line's) reach off the pure functions the gather
+## reads, by element — the one place a shape's effect is phrased: Lightning's
+## level ([method EdgeGoOff.level_for_points]) and the points to the next;
+## Fire's disc ([method DiscGoOff.shape_disc_radius] of the shape alone, at node
+## radius 1, so in node radii — the seed's own radius scales it). Any other
+## element leaves the line at element and points.
+static func shape_reach(line: ReadoutLine) -> void:
+	var element := ElementRoster.shared().by_id(line.aspect_id)
+	if element == null:
+		return
+	match line.aspect_id:
+		&"lightning":
+			line.shape_level = EdgeGoOff.level_for_points(line.points)
+			line.shape_next_points = 1
+			while EdgeGoOff.level_for_points(line.points + line.shape_next_points) == line.shape_level:
+				line.shape_next_points += 1
+			line.shape_effect = "level %d, every node within %d hops (%d more for level %d)" % [
+					line.shape_level, line.shape_level, line.shape_next_points, line.shape_level + 1]
+		&"fire":
+			var disc := _disc_of(element)
+			if disc == null:
+				return
+			line.shape_radius = disc.shape_disc_radius(element.shape_power(line.points), 0.0, 1.0)
+			line.shape_effect = "a disc reaching %s node radii out" % NumFmt.num(snappedf(line.shape_radius, 0.1))
+
+
+## [param element]'s first band [DiscGoOff] (Fire's Burning disc), or null —
+## the band the gather's Fire shape answers through.
+static func _disc_of(element: Element) -> DiscGoOff:
+	for band in element.bands:
+		if band != null and band.go_off is DiscGoOff:
+			return band.go_off
+	return null
 
 
 ## The status concept [param id] lands as on [param spell] — [method
