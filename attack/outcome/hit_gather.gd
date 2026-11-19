@@ -218,6 +218,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 		var a := Arrival.new()
 		a.node = h.head.target
 		a.head = h.head
+		a.hops_removed = h.head.hops_removed
 		arrivals.append(a)
 	var generation := 0
 	while not arrivals.is_empty() or not gather._deep.is_empty():

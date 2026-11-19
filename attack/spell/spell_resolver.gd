@@ -150,6 +150,13 @@ static func _resolve(
 	# Riders are fresh per cast, so gating them in place is safe.
 	for rider in riders:
 		rider.when = spell.rider_when
+	# The Ice shape's concentrate (ADR 0084 §8), read once: the walk loses the
+	# cut and the cast's payload carries ×m, so every landing left carries it
+	# the way it carries the seed's damage — nothing re-applies it per hop.
+	var hops_removed := load_bag.hops_removed(config.max_hops)
+	var concentrate := load_bag.multiplier(config.max_hops)
+	if concentrate != 1.0:
+		_concentrate_riders(riders, concentrate)
 
 	var ctx := PropagationContext.new()
 	ctx.graph = graph
@@ -173,7 +180,7 @@ static func _resolve(
 	# first meets them where their fronts converge later on.
 	var wave: Array[CastSpell] = []
 	var seeded: Dictionary = {}  ## SkillNode -> true
-	var damage := impact_damage(spell, source)
+	var damage := impact_damage(spell, source) * concentrate
 	for node in seeds:
 		if node == null or seeded.has(node):
 			continue
@@ -185,7 +192,7 @@ static func _resolve(
 		seed_state.source = source
 		seed_state.damage = damage
 		seed_state.seed_damage = seed_state.damage
-		seed_state.hops_remaining = config.max_hops
+		seed_state.hops_remaining = config.max_hops - hops_removed
 		seed_state.hop_index = 0
 		seed_state.visited = [node]
 		seed_state.caster = caster
@@ -399,6 +406,7 @@ static func _resolve(
 					if state.hop_index == 0:
 						hit.cast_shape = shape
 						hit.cast_shape_points = shape_points
+						hit.hops_removed = hops_removed
 					break
 		OutcomeApplier.drain(HitQueue.over(outcome.hits, wave_first), world,
 				BeatClock.instant_clock(), null, crit_rng)
@@ -536,6 +544,19 @@ static func _mark_terminal(event_of: Dictionary, state: CastSpell) -> void:
 	var ev: PropagationEvent = event_of.get(state, null)
 	if ev != null:
 		ev.is_terminal = true
+
+
+## The concentrate's ×[param m] on the cast's own [param riders] (fresh per
+## cast, so scaled in place): each aspect rider's power, ceil (a hair under, so
+## float noise never rounds up a whole stack); an element's stack or mover
+## (Heat, Cold, Charge) lands at its cast value, so concentrating never freezes
+## harder.
+static func _concentrate_riders(riders: Array[OnHitEffect], m: float) -> void:
+	for rider in riders:
+		var apply := rider as ApplyStatusEffect
+		if apply == null or ElementRoster.shared().for_status(apply.def) != null:
+			continue
+		apply.power = ceilf(apply.power * m - 1e-6)
 
 
 ## The impact hit: [code]spell_damage × SpellDef.power[/code] (D-32), or
