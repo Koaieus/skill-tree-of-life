@@ -74,7 +74,9 @@ var last_magic_promoted_count: int = 0
 ## The AI difficulty ladder. Each rung switches habits ON in
 ## [method AiCombatScorer.score] at the same x1 weight — a higher tier knows
 ## more tricks, it never weighs the same trick harder:
-## BRAWLER raw EV (+ kill preference); FIGHTER + cut-vertex; TACTICIAN
+## BRAWLER raw EV (+ kill preference), every spell filled to its base cap;
+## FIGHTER + cut-vertex, + overclock (each caster fills to its own capacity
+## and an equal score on one target goes to the bigger cap); TACTICIAN
 ## + enemy-weak-point and self-shape risk; WARLORD + kill-XP ("hunts the rich
 ## kill"). The same int also drives the melee handle ladder
 ## ([method AiBladeRollout._propose_blade_selections]). Names are placeholders.
@@ -653,7 +655,8 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 				else:
 					probe.target = target
 				if probe.is_valid():
-					pre.append([spell, source, target, raw_damage, angle, _source_pierce(source, pierce_by_source)])
+					pre.append([spell, source, target, raw_damage, angle,
+							_source_pierce(source, pierce_by_source), union.source_capacity.get(source, 0)])
 				probe.target = null
 				probe.aim_angle = NAN
 
@@ -671,14 +674,18 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	last_magic_candidate_count = pre.size()
 	last_magic_promoted_count = order.size()
 	order.sort()
-	# The infusion is per (spell, entity), so it is picked once per spell here
-	# and never per target.
+	# The infusion is per (spell, cap), so it is picked once per pair here and
+	# never per target: below FIGHTER every source fills to the spell's base
+	# cap, from FIGHTER up each to its own capacity (the overclock habit).
 	var infusions: Dictionary[SpellDef, Dictionary] = {}
 	for i in order:
 		var entry: Array = pre[i]
 		var spell: SpellDef = entry[0]
-		if not infusions.has(spell):
-			infusions[spell] = AiInfusionPicker.pick(entity, spell, SpellDef.UNCAPPED)
+		var cap: int = entry[6] if ai_tier >= Tier.FIGHTER else spell.capacity_at(spell.min_degree)
+		var by_cap: Dictionary = infusions.get_or_add(spell, {})
+		if not by_cap.has(cap):
+			by_cap[cap] = AiInfusionPicker.pick(entity, spell, cap)
+		var infusion: Dictionary[StringName, int] = by_cap[cap]
 		var source: SkillNode = entry[1]
 		var target: SkillNode = entry[2]
 		var probe := MagicAttackPlan.new()
@@ -689,13 +696,15 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 			probe.aim_angle = entry[4]
 		else:
 			probe.target = target
-		_apply_infusion(probe, infusions[spell])
+		_apply_infusion(probe, infusion)
 		var outcome := probe.resolve()
 		var c := AiCombatScorer.score(BattleSystem.AttackMode.MAGIC, outcome, target, entity, ai_tier,
 				0, loot_system)
 		c.source_node = source
 		c.spell = spell
 		c.aim_angle = entry[4]
+		c.infusion = infusion
+		c.infusion_cap = cap
 		out.append(c)
 	return out
 
@@ -713,8 +722,10 @@ func _apply_infusion(plan: MagicAttackPlan, picked: Dictionary) -> void:
 
 
 ## Arm [param plan] with the MAGIC [param candidate] exactly as it was scored:
-## source, spell and infusion, then the aim on an aimed spell or the target
-## otherwise. Assigned directly — the candidate came out of the union already.
+## source, spell and the infusion it was scored with
+## ([member AiCombatScorer.ScoredCandidate.infusion]), then the aim on an aimed
+## spell or the target otherwise. Assigned directly — the candidate came out of
+## the union already.
 func _arm_magic_plan(plan: MagicAttackPlan, candidate: AiCombatScorer.ScoredCandidate) -> void:
 	plan.source = candidate.source_node
 	plan.spell = candidate.spell
@@ -722,7 +733,7 @@ func _arm_magic_plan(plan: MagicAttackPlan, candidate: AiCombatScorer.ScoredCand
 		plan.aim_angle = candidate.aim_angle
 	else:
 		plan.target = candidate.target
-	_apply_infusion(plan, AiInfusionPicker.pick(entity, candidate.spell, SpellDef.UNCAPPED))
+	_apply_infusion(plan, candidate.infusion)
 
 
 ## Builds its OWN plan with [method BattleSystem.new_plan] and copies the scored

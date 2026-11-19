@@ -288,11 +288,16 @@ static func cheap_estimate(target: SkillNode, raw_damage: float, pierce: FoldTer
 
 ## Highest-[member ScoredCandidate.total] entry, or null if [param candidates]
 ## is empty. Ties keep the first entry (stable — callers build candidates in a
-## deterministic order).
+## deterministic order), except that of two equal casts of one spell on one
+## target the bigger [member ScoredCandidate.infusion_cap] wins — the
+## overqualified caster, no new weight. Tier-blind: below FIGHTER every source
+## of a spell carries the same base cap, so the tie never fires there.
 static func pick_best(candidates: Array[ScoredCandidate]) -> ScoredCandidate:
 	var best: ScoredCandidate = null
 	for c in candidates:
-		if best == null or c.total > best.total:
+		if best == null or c.total > best.total or (c.total == best.total
+				and c.target == best.target and c.spell == best.spell
+				and c.infusion_cap > best.infusion_cap):
 			best = c
 	return best
 
