@@ -64,6 +64,13 @@ func test_slots_used_counts_aspects_with_points() -> void:
 
 # ── the plan's overrun ──────────────────────────────────────────────────
 
+## [param spell] with no total cap — the aspects capped by what each holds alone.
+func _uncapped(spell: SpellDef) -> SpellDef:
+	var out := spell.duplicate() as SpellDef
+	out.infusion_capacity = INF
+	return out
+
+
 func _plan(spell: SpellDef, intelligence: float) -> MagicAttackPlan:
 	var graph := h.make_graph([[0, 1]], self)
 	var atk := h.make_entity(graph, "ATK", Color.RED)
@@ -106,19 +113,43 @@ func test_points_above_the_aspect_stat_count() -> void:
 
 
 func test_each_aspect_carries_what_it_holds_with_no_pool() -> void:
-	var plan := _plan(_VENOM, 100.0)
+	var plan := _plan(_uncapped(_VENOM), 100.0)
 	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
 	plan.set_infusion(&"poison", 40)
 	plan.set_infusion(&"curse", 20)
 	assert_eq(plan.aspect_overrun(), 0, "poison 40 + curse 20 at 2 slots, no total cap")
 
 
-func test_spell_capacity_caps_the_total() -> void:
-	var spell := _SPARK.duplicate() as SpellDef
+## An owned path n0 - n1 - n2 (owned degrees 1 / 2 / 1) under a min_degree-1
+## [param spell] with base cap 4 and 3 per degree: n0 carries the base cap,
+## n1 one degree's more.
+func _path_plan(spell: SpellDef, intelligence: float) -> MagicAttackPlan:
+	var graph := h.make_graph([[0, 1], [1, 2]], self)
+	var atk := h.make_entity(graph, "ATK", Color.RED)
+	h.assign_owner(graph, atk, [0, 1, 2])
+	atk.stat_board.intelligence.base_value = intelligence
+	atk.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 20.0
+	atk.stat_board.facet(&"curse", StatDef.Role.COUNT).base_value = 20.0
+	spell.min_degree = 1
 	spell.infusion_capacity = 4.0
-	var plan := _plan(spell, 1000.0)
-	plan.set_infusion(&"poison", 6)
-	assert_eq(plan.aspect_overrun(), 2, "6 points on a capacity-4 spell")
+	spell.infusion_capacity_per_degree = 3
+	var plan := MagicAttackPlan.new()
+	plan.attacker = atk
+	plan.set_spell(spell)
+	return plan
+
+
+func test_the_stamped_casters_capacity_caps_the_total() -> void:
+	var spell := _SPARK.duplicate() as SpellDef
+	var plan := _path_plan(spell, 10.0)
+	var nodes := plan.attacker.navigator.graph.get_skill_nodes()
+	var base := spell.capacity_at(spell.min_degree)
+	plan.source = nodes[0]
+	plan.set_infusion(&"poison", base + 2)
+	assert_eq(plan.aspect_overrun(), 2, "base + 2 points from a base-degree caster")
+	plan.source = nodes[1]
+	assert_gte(spell.infusion_capacity_per_degree, 2, "fixture: one degree up carries the 2")
+	assert_eq(plan.aspect_overrun(), 0, "the same points from a caster one degree up")
 
 
 func test_points_on_a_refused_aspect_count() -> void:
@@ -134,7 +165,7 @@ func test_points_on_a_refused_aspect_count() -> void:
 func test_clamp_infusion_refills_each_kept_aspect_to_what_it_holds() -> void:
 	var plan := _plan(_VENOM, 100.0)
 	plan.attacker.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
-	var kept := ArmedStack.clamp_infusion(_VENOM, plan.attacker, {&"poison": 5})
+	var kept := ArmedStack.clamp_infusion(_uncapped(_VENOM), plan.attacker, {&"poison": 5})
 	assert_eq(kept, {&"poison": 40} as Dictionary[StringName, int], "re-maxed to the held 40")
 
 
@@ -152,10 +183,22 @@ func test_clamp_infusion_drops_refused_and_past_the_slots() -> void:
 			{&"curse": 1, &"poison": 1, &"wither": 1})
 	assert_eq(kept, {&"curse": 20, &"poison": 10} as Dictionary[StringName, int],
 			"entry order, 2 slots, capacity 30 left after curse 20")
-	var uncapped := ArmedStack.clamp_infusion(_VENOM, plan.attacker,
+	var uncapped := ArmedStack.clamp_infusion(_uncapped(_VENOM), plan.attacker,
 			{&"curse": 1, &"poison": 1, &"wither": 1})
 	assert_eq(uncapped, {&"curse": 20, &"poison": 40} as Dictionary[StringName, int],
 			"no capacity: the third aspect is dropped by the 2 slots alone")
+
+
+func test_clamp_infusion_fills_to_the_best_eligible_capacity() -> void:
+	var spell := _SPARK.duplicate() as SpellDef
+	var plan := _path_plan(spell, 100.0)
+	var kept := ArmedStack.clamp_infusion(spell, plan.attacker,
+			{&"poison": 20, &"curse": 20}, plan.capacity())
+	var total := 0
+	for id in kept:
+		total += kept[id]
+	assert_eq(total, spell.capacity_at(spell.min_degree + 1),
+			"the best caster before any pick carries one degree's more")
 
 
 func test_set_infusion_emits_state_changed() -> void:

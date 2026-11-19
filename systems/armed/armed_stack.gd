@@ -120,7 +120,8 @@ func restore_infusion(plan: MagicAttackPlan) -> void:
 		return
 	var remembered := magic.last_infusion
 	if remembered.has(plan.spell.id):
-		var kept := clamp_infusion(plan.spell, plan.attacker, remembered[plan.spell.id])
+		var kept := clamp_infusion(plan.spell, plan.attacker, remembered[plan.spell.id],
+				plan.capacity())
 		for id in plan.infusion.points.keys():
 			if not kept.has(id):
 				plan.set_infusion(id, 0)
@@ -136,15 +137,19 @@ func restore_infusion(plan: MagicAttackPlan) -> void:
 ## into one cast of [param spell] by [param attacker] today, in entry order (the
 ## socket order): refused concepts dropped, no more entries than
 ## `infusion_slots`, and each kept aspect filled to the most it can carry —
-## `min(<concept>_aspect held, what infusion_capacity leaves)`. Nothing is
+## `min(<concept>_aspect held, what [param cap] leaves)`. [param cap] is the
+## cap in force — [method MagicAttackPlan.capacity], the best eligible caster's
+## before a target is picked; below 0 it is the spell's base cap. Nothing is
 ## consumed, so the remembered point counts are ignored. Its
 ## [method MagicAttackPlan.aspect_overrun] is 0.
 static func clamp_infusion(spell: SpellDef, attacker: Entity,
-		points: Dictionary) -> Dictionary[StringName, int]:
+		points: Dictionary, cap: int = -1) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
+	if spell == null:
+		return out
 	var slots := AspectCurrency.cap_of(attacker, &"infusion_slots")
-	var capped := spell != null and not is_inf(spell.infusion_capacity)
-	var left := maxi(0, floori(spell.infusion_capacity)) if capped else 0
+	var left := cap if cap >= 0 else spell.capacity_at(spell.min_degree)
+	var capped := left < SpellDef.UNCAPPED
 	for key in points:
 		var id := StringName(key)
 		if out.size() >= slots or (capped and left <= 0):

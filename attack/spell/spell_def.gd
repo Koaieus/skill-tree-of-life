@@ -130,9 +130,12 @@ var icon: Texture2D:
 	set(value):
 		ingest_cost = maxi(value, 1)
 
-## Most infusion points one cast of this spell takes in total, across every
-## socketed aspect; INF leaves each aspect capped only by its `<concept>_aspect`.
-@export var infusion_capacity: float = INF
+## The base cap: the aspect points one cast takes in total from a caster at
+## [member min_degree] (0 overqualification); a caster node adds
+## [member infusion_capacity_per_degree] per degree above it
+## ([method capacity_at]). INF leaves each aspect capped only by its
+## `<concept>_aspect`. Tentative default.
+@export var infusion_capacity: float = 10.0
 
 ## Points a caster node adds to [member infusion_capacity] per degree of its
 ## owned subgraph above [member min_degree] — overqualified casting. Tentative.

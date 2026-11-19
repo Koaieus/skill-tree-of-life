@@ -13,6 +13,8 @@ extends AttackPlan
 ## directly. Falls back to the bundled default if nothing is selected so the
 ## plan is never silently unarmed.
 
+## A pick or an aim's lock cut the aspects from [param before] points to
+## [param after] — the notice. Never the player's own reset.
 signal loadout_trimmed(before: int, after: int)
 
 const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
@@ -45,6 +47,10 @@ var has_claimed_seeds: bool = false
 ## The points this cast spends on aspects — never null; innate-only on a
 ## fresh plan and after [method set_spell]. Set through [method set_infusion].
 var infusion: Infusion = Infusion.new()
+
+## Set by a [method set_target] whose pick trimmed the loadout; see
+## [method is_target_muted].
+var _target_muted: bool = false
 
 ## The viewing seat's fog, for caller-side vision filtering — set by
 ## [BattleSystem], null on the AI's probe plans (they carry their own recon).
@@ -202,14 +208,27 @@ func set_target(node: SkillNode) -> bool:
 	# scout line would otherwise commit a target and skip the drag.
 	if is_aimed():
 		return false
-	var picked := union().source_for(node)
-	if picked == null:
+	var u := union()
+	if u.source_for(node) == null:
 		return false
-	if target == node and source == picked:
+	# A target too low for the loadout trims it to its best cap, one-shot
+	# (ADR 0089 §4); the pick then carries what is left.
+	var before := infusion.total_points()
+	var trimmed := before > u.best_capacity(node)
+	if trimmed:
+		infusion = infusion.rebuilt(spell, _trimmed_points(u.best_capacity(node)))
+		_preview_key_valid = false
+	var picked := u.source_for(node, infusion.total_points())
+	if not trimmed and target == node and source == picked:
 		return false
 	source = picked
+	if target != node:
+		_target_muted = false
+	_target_muted = _target_muted or trimmed
 	target = node
 	state_changed.emit()
+	if trimmed:
+		loadout_trimmed.emit(before, infusion.total_points())
 	return true
 
 
@@ -241,6 +260,7 @@ func reset() -> void:
 	source = null
 	target = null
 	aim_angle = NAN
+	_target_muted = false
 	_preview_key_valid = false
 	state_changed.emit()
 
@@ -724,13 +744,20 @@ func _set_fields(next: Infusion) -> void:
 ## no gap: a cleared socket's right neighbours slide left, and an index past the
 ## filled sockets appends. An aspect already in another socket moves here and
 ## the aspect it displaces drops out; a new aspect past `infusion_slots` is a
-## no-op. Every socket's depth is then re-walked ([method socket_points]), so
-## this never overruns. Emits [signal state_changed] once, and only on change.
+## no-op. Every socket's depth is then re-walked ([method socket_points]) against
+## [method capacity], so this never overruns; a committed non-aimed target then
+## re-stamps [member source] from the casters that carry the new total. Emits [signal state_changed] once, and only on change.
 func set_socket(index: int, aspect_id: StringName) -> void:
 	var points := socket_points(socket_order_with(index, aspect_id))
 	if points == infusion.points and points.keys() == infusion.points.keys():
 		return
 	infusion = infusion.rebuilt(spell, points)
+	# A non-aimed pick re-picks its caster among those carrying the new total
+	# (ADR 0089 §5); the walk is capped at the target's best, so one exists.
+	if target != null and not is_aimed():
+		var carrier := union().source_for(target, infusion.total_points())
+		if carrier != null:
+			source = carrier
 	_preview_key_valid = false
 	state_changed.emit()
 
@@ -762,15 +789,14 @@ func socket_order_with(index: int, aspect_id: StringName) -> Array[StringName]:
 
 
 ## Each socket's depth for socket order [param order], walked front to back:
-## `min(held, capacity left)`, nothing on an aspect the spell refuses (rate 0).
+## `min(held, capacity left)` from [method capacity], nothing on an aspect the
+## spell refuses (rate 0).
 ## Unspendable aspects drop out, which keeps [method aspect_overrun] at 0. Pure.
 func socket_points(order: Array[StringName]) -> Dictionary[StringName, int]:
 	var out: Dictionary[StringName, int] = {}
 	if spell == null:
 		return out
-	var left := 1 << 62
-	if not is_inf(spell.infusion_capacity):
-		left = maxi(0, floori(spell.infusion_capacity))
+	var left := capacity()
 	for id in order:
 		if Infusion.rate_of(spell, id) <= 0.0:
 			continue
@@ -783,8 +809,9 @@ func socket_points(order: Array[StringName]) -> Dictionary[StringName, int]:
 
 ## How far the infusion runs past what the caster may spend on one cast (the
 ## host's launch check, ADR 0035): points above each `<concept>_aspect`, aspects
-## above `infusion_slots`, the aspects' total above
-## `floor(SpellDef.infusion_capacity)` when that is finite, and every point on a
+## above `infusion_slots`, the aspects' total above the stamped caster's
+## capacity ([member SpellTargetUnion.source_capacity]; [method capacity] with
+## no source stamped), and every point on a
 ## concept the spell refuses (rate 0). The shape and the ride sit outside the
 ## cap (ADR 0094 §6): per element either names, [method Infusion.spent_on]
 ## above that element's count, plus every ride point on a refused element.
@@ -799,7 +826,8 @@ func aspect_overrun() -> int:
 		over += maxi(0, pts - AspectCurrency.cap_of(attacker, AspectCurrency.stat_of(id)))
 	over += maxi(0, infusion.slots_used() - AspectCurrency.cap_of(attacker, &"infusion_slots"))
 	if spell != null and not is_inf(spell.infusion_capacity):
-		over += maxi(0, infusion.total_points() - maxi(0, floori(spell.infusion_capacity)))
+		var cap: int = union().source_capacity.get(source, 0) if source != null else capacity()
+		over += maxi(0, infusion.total_points() - cap)
 	var elements := {}
 	if infusion.shape_points > 0:
 		elements[infusion.shape_element] = true
@@ -815,36 +843,99 @@ func aspect_overrun() -> int:
 
 ## The aim-time preview's resolved outcome (null with nothing to preview) —
 ## the same [method SpellResolver.resolve] walk the cast makes, infusion and all.
+## The aspect points a socket write may fill to — the cap in force (ADR 0089):
+## an aimed spell with its aim set, its locked caster's capacity; a non-aimed
+## spell with a target committed, the best capacity among the casters reaching
+## it (the top of the range); otherwise the best among every eligible caster,
+## the base cap when there is none. [constant SpellDef.UNCAPPED] on an
+## uncapped spell. Gates the aspects alone, never the shape or the ride.
 func capacity() -> int:
-	return SpellDef.UNCAPPED
+	if spell == null:
+		return 0
+	var u := union()
+	if is_aimed() and source != null and not is_nan(aim_angle):
+		return u.source_capacity.get(source, 0)
+	if not is_aimed() and target != null and u.can_target(target):
+		return u.best_capacity(target)
+	if u.source_capacity.is_empty():
+		return base_capacity()
+	return u.source_capacity.values().max()
 
 
+## The cap at 0 overqualification: [method SpellDef.capacity_at] at the
+## spell's own `min_degree`.
 func base_capacity() -> int:
-	return SpellDef.UNCAPPED
+	return spell.capacity_at(spell.min_degree) if spell != null else 0
 
 
-func trim_to(_cap: int) -> bool:
-	return false
+## Cut the aspects' points to [param cap], one-shot: the last aspect entry loses
+## a point and is popped at zero, until the total fits — so the last-socketed
+## give way first (socket order, ADR 0094 §6). The shape and the ride are never
+## cut. The only code that trims a loadout. True iff it changed; emits
+## [signal state_changed] then, never [signal loadout_trimmed].
+func trim_to(cap: int) -> bool:
+	var next := _trimmed_points(cap)
+	if next == infusion.points:
+		return false
+	infusion = infusion.rebuilt(spell, next)
+	_preview_key_valid = false
+	state_changed.emit()
+	return true
 
 
+## The player's way back: [method trim_to] the base cap. The next socket write
+## walks against [method capacity] again.
 func reset_to_base_capacity() -> bool:
-	return false
+	return trim_to(base_capacity())
 
 
+## Trim to the locked caster's capacity, with the notice — what an aim's lock
+## does ([method MagicMode.lock_aim]), never a drag. True iff it cut.
 func trim_to_source() -> bool:
-	return false
+	if source == null:
+		return false
+	var before := infusion.total_points()
+	if not trim_to(union().source_capacity.get(source, 0)):
+		return false
+	loadout_trimmed.emit(before, infusion.total_points())
+	return true
 
 
+## True while the committed target is one whose pick trimmed the loadout;
+## cleared by a target change and [method reset].
 func is_target_muted() -> bool:
-	return false
+	return _target_muted
 
 
-func get_node_pip(_node: SkillNode) -> int:
-	return 0
+## The "+N" overclock pip on [param node]: its best caster's capacity above
+## the base cap, 0 for none (a non-target, or only base-degree casters reach it).
+func get_node_pip(node: SkillNode) -> int:
+	var best := union().best_capacity(node)
+	if best <= 0 or best >= SpellDef.UNCAPPED:
+		return 0
+	return maxi(0, best - base_capacity())
 
 
-func is_node_pip_red(_node: SkillNode) -> bool:
-	return false
+## Red pip: the loadout is above the best capacity reaching [param node] — a
+## pick there would trim it. The target stays pickable.
+func is_node_pip_red(node: SkillNode) -> bool:
+	return get_node_pip(node) > 0 \
+			and infusion.total_points() > union().best_capacity(node)
+
+
+## [member infusion]'s aspects cut to [param cap] in [method trim_to]'s order.
+func _trimmed_points(cap: int) -> Dictionary[StringName, int]:
+	var out: Dictionary[StringName, int] = {}
+	out.assign(infusion.points)
+	var over := infusion.total_points() - maxi(0, cap)
+	while over > 0 and not out.is_empty():
+		var last: StringName = out.keys().back()
+		var cut := mini(over, out[last])
+		out[last] -= cut
+		over -= cut
+		if out[last] <= 0:
+			out.erase(last)
+	return out
 
 
 func preview_outcome() -> AttackOutcome:
@@ -864,6 +955,7 @@ func set_spell(new_spell: SpellDef) -> void:
 		return
 	spell = new_spell
 	infusion = Infusion.innate(new_spell)
+	_target_muted = false
 	invalidate_union()
 	# An aim is only meaningful for an aimed spell from a caster it still
 	# allows; a committed target never survives into an aimed spell.

@@ -112,13 +112,16 @@ func update_aim(world: Vector2) -> void:
 	p.set_aim(nearest, delta.angle())
 
 
-## Lock the hover-aim: a plan it left castable commits by pushing
+## Lock the hover-aim: the loadout is first trimmed to the locked caster's
+## capacity, once, with the notice (never in [method update_aim], which runs
+## every drag move); a plan it left castable then commits by pushing
 ## [TargetMode]. Idempotent — a no-op once locked (this level is no longer the
 ## top) or while the aim does not validate. True iff it pushed.
 func lock_aim() -> bool:
 	if not is_aiming():
 		return false
 	var p := plan() as MagicAttackPlan
+	p.trim_to_source()
 	if not p.validate().is_empty():
 		return false
 	return stack.push(TargetMode.new(self))
