@@ -45,8 +45,6 @@ order.
 
 ## MagicBody (`ui/hud/command_tray/bodies/magic_body.gd`)
 
-changing: the cap in force (the caster node's capacity), its reset control, the trim notice and the refusal at the cap, #1814; see docs/design/elements/forge.md § The forge
-
 Magic tab content: the crucible. The vessel (`%SpellButton`, the equipped spell
 full-bleed at `vessel_px`, an `ArcaneCircle` turning behind it) on the left, its
 `InfusionSockets` fanned on an arc hugging its bottom edge, a circuit trace from
@@ -102,11 +100,34 @@ shape line shows no badge, because the ride-line badge (Heat or Fire) is an open
 owner call.
 
 **The tally** is `%Tally` in Controls, above Reset: `used / cap`, from
-`MagicBody.tally_text`. Used is `Infusion.total_points()`, the aspects' points
-alone (the shape and the ride sit outside the cap, ADR 0094 §6). Cap is
-`SpellDef.capacity_at(min_degree)`, the base cap. An uncapped spell
-(`UNCAPPED`) shows the used count alone. The body only shows the tally and
-refuses nothing at the cap.
+`MagicBody.tally_text(used, cap)`. Used is `Infusion.total_points()`, the
+aspects' points alone (the shape and the ride sit outside the cap, ADR 0094 §6).
+Cap is `MagicAttackPlan.capacity()`, the cap in force: the best eligible
+caster's before a pick, the best caster reaching the target once one is
+picked, the locked caster's on an aimed spell — so it shows the real cap once a
+target is picked (ADR 0089). An uncapped spell (`UNCAPPED`) shows the used
+count alone. The body refuses nothing at the cap; the sockets do
+(`InfusionChoices`' "At <spell>'s infusion capacity (N points)" names the same
+`capacity()`).
+
+**The way back and the notice** sit in Controls between the tally and Reset.
+`%BaseCapReset` ("⤓ Base cap") shows while the total is above
+`plan.base_capacity()` (`MagicBody.shows_base_cap_reset`) and calls
+`reset_to_base_capacity()`: one-shot, the next socket write fills against the
+cap in force again. It is not `%ResetButton`, which clears the plan's
+selection. `%TrimNotice` shows `MagicBody.trim_notice_text(before, after)` on
+the plan's `loadout_trimmed` (a pick too low for the loadout, an aim's lock)
+and hides once the plan's target, source or total moves off what it read then,
+or the plan is swapped. The body follows the armed plan's signal itself:
+`ArmedStack` relays `state_changed`, not `loadout_trimmed`.
+
+**The pip and the muted look** are on the board, not the body:
+`HighlightProvider.get_node_pip` / `is_node_pip_red` / `is_node_muted` (no pip,
+not muted by default), pushed by `NodeHighlightOverlay._sync_indicators` onto
+`Indicator.pip` / `pip_red` / `muted`. `TargetReticle` (and `TargetGhost`, an
+in-range target) draws "+N" in `%Pip` (`IndicatorPipLabel`), red over the
+node's cap, and greys a muted pick; its sizes and colours are exports. The
+role's tint multiplies the pip's colour.
 
 **The picker floats.** Pressing the vessel toggles `SpellPickMode` on the seat's
 `ArmedStack` (`MagicMode.toggle_picker`). The spell bar lives in `%PickerPanel`, a
