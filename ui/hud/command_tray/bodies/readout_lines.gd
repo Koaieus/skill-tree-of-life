@@ -34,6 +34,16 @@ class ReadoutLine extends RefCounted:
 	var per_hit: float = 0.0
 	## The status the concept lands: a ride's terrain; null for a shape.
 	var status: StatusDef = null
+	## A Lightning shape's level ([method EdgeGoOff.level_for_points]); 0 else.
+	var shape_level: int = 0
+	## Points a Lightning shape needs on top of [member points] for the next
+	## level; 0 else.
+	var shape_next_points: int = 0
+	## A Fire shape's disc radius in node radii ([method
+	## DiscGoOff.shape_disc_radius] of the shape alone at node radius 1); 0 else.
+	var shape_radius: float = 0.0
+	## The shape's reach as prose, appended to the line; "" for no reach.
+	var shape_effect: String = ""
 
 	## `innate + infused` — the plan's [method Infusion.load_of] entry.
 	func total() -> int:

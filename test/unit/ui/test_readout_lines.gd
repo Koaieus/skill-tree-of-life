@@ -236,3 +236,55 @@ func test_previewing_a_socket_keeps_the_forged_ride() -> void:
 	assert_eq(plan.infusion.ride_points, 2, "guard: the ride is forged")
 	var preview := ReadoutLines.preview(plan, 0, &"poison")
 	assert_eq(_of_kind(preview, ReadoutLines.Kind.RIDE).size(), 1, "the preview keeps the ride line")
+
+
+func _shape_line(element: StringName, points: int) -> ReadoutLines.ReadoutLine:
+	var spell := SpellDef.new()
+	var infusion := Infusion.for_cast(spell, {})
+	infusion.set_shape(element, points)
+	var shapes := _of_kind(ReadoutLines.for_infusion(spell, _caster(0.0).stat_board, infusion),
+			ReadoutLines.Kind.SHAPE)
+	return shapes[0] if shapes.size() == 1 else null
+
+
+func test_a_lightning_shape_line_reads_its_level_and_the_points_to_the_next() -> void:
+	var line := _shape_line(&"lightning", 3)
+	assert_not_null(line, "one shape line")
+	if line == null:
+		return
+	var level := EdgeGoOff.level_for_points(3)
+	assert_eq(line.shape_level, level, "the level is level_for_points'")
+	var more := 1
+	while EdgeGoOff.level_for_points(3 + more) == level:
+		more += 1
+	assert_eq(line.shape_next_points, more, "points to the next level")
+	assert_eq(line.shape_radius, 0.0, "an arc has no radius")
+	var plain := BadgeText.strip(line.text())
+	assert_string_contains(plain, "level %d" % level)
+	assert_string_contains(plain, "within %d hops" % level)
+
+
+func test_a_fire_shape_line_reads_its_disc_radius_in_node_radii() -> void:
+	var line := _shape_line(&"fire", 3)
+	assert_not_null(line, "one shape line")
+	if line == null:
+		return
+	var fire := ElementRoster.shared().by_id(&"fire")
+	var disc: DiscGoOff = null
+	for band in fire.bands:
+		if band != null and band.go_off is DiscGoOff:
+			disc = band.go_off
+			break
+	var radius := disc.shape_disc_radius(fire.shape_power(3), 0.0, 1.0)
+	assert_almost_eq(line.shape_radius, radius, 0.0001, "the radius is shape_disc_radius'")
+	assert_eq(line.shape_level, 0, "a disc has no level")
+	assert_string_contains(BadgeText.strip(line.text()), NumFmt.num(snappedf(radius, 0.1)))
+
+
+func test_an_ice_shape_line_carries_no_fire_or_lightning_reach() -> void:
+	var line := _shape_line(&"ice", 2)
+	assert_not_null(line, "one shape line")
+	if line == null:
+		return
+	assert_eq(line.shape_level, 0)
+	assert_eq(line.shape_radius, 0.0)
