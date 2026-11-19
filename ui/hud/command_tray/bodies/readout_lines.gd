@@ -5,9 +5,10 @@ extends RefCounted
 ## behaviour change: `+ applies 95 poison stacks per hit (15 innate + 80
 ## infused)`. Socketed aspects first, in socket order (the insertion order of
 ## [member Infusion.points]), then the spell's innate-only aspects in authored
-## order, then the shape line, then the ride line. Pure statics: the plan owns the points, [method Infusion.load_of]
-## the load, [method StatusDef.stacks_per_hit] the per-hit fold and
-## [InfusionExchange] the exchange text — nothing here derives a second number.
+## order, then the shape line, then the ride line. Pure statics: the plan owns
+## the points, [method Infusion.load_of] the load, [method
+## StatusDef.stacks_per_hit] the per-hit fold and [InfusionExchange] the
+## exchange text — nothing here derives a second number.
 
 
 ## What a line reads: an aspect, the cast's ride (an element's load, named by
