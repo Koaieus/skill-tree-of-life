@@ -136,6 +136,9 @@ var _entries: Array = []
 ## `generation -> {SkillNode: true}`: the nodes whose second read in that
 ## generation ended the paths through them ([method _ends_at]).
 var _ended: Dictionary = {}
+## The beat's Ice cues ([member HitInstance.ice_cues]), SkillNode -> excess or
+## [constant HitInstance.ICE_HELD], in first-cue order: a break outranks a hold.
+var _cues: Dictionary = {}
 ## `generation -> [[_Fired, GoOffResult.Reach], ...]`: the depth-d reaches
 ## parked until that generation's read (g + d − 1), the hop seat.
 var _deep: Dictionary = {}
@@ -228,6 +231,7 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 	gather._push(queue)
 	# After the push: a copy clones its head's fields, and only the head feeds.
 	order[0].head.row_ops = gather._row_ops
+	order[0].head.ice_cues = gather._ice_cues()
 
 
 ## Land [param hit]'s recorded stage-one terrain on [param world], then its
@@ -266,8 +270,12 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	for node in nodes:
 		var before := TerrainRead.of(_slice(node), node)
 		for a: Arrival in at[node]:
-			if a.is_copy and _admits(node, before, a):
+			if not a.is_copy:
+				continue
+			if _admits(node, before, a):
 				_entries.append(a)
+			else:
+				_cue_hold(node)
 	# Land every arrival's element riders, absorbed or not.
 	var batch := TerrainSettle.Batch.new()
 	var reading: Dictionary = {}  # SkillNode -> Array of the _Hits read there
@@ -414,6 +422,7 @@ func _read_node(node: SkillNode, read: TerrainRead, arrivals: Array, generation:
 		if not _ended.has(generation):
 			_ended[generation] = {}
 		_ended[generation][node] = true
+		_cue_hold(node)
 	for a in handed:
 		if not a.is_copy:
 			a.head.path_ends = path_ends
@@ -439,6 +448,7 @@ func _ends_at(node: SkillNode, generation: int) -> bool:
 ## Several breakers still spend and burst once.
 func _shatter(node: SkillNode, e: Element, answer: AdmitsAnswer, arrivals: Array[Arrival],
 		spends: TerrainSettle.Batch, bursts: Array[HitInstance]) -> void:
+	_cues[node] = maxi(int(_cues.get(node, HitInstance.ICE_HELD)), maxi(answer.excess, 0))
 	_spend_stacks(spends, node, e, answer.spend)
 	var seen: Dictionary = {}
 	for i in answer.breakers:
@@ -450,6 +460,21 @@ func _shatter(node: SkillNode, e: Element, answer: AdmitsAnswer, arrivals: Array
 	var slice := _slice(node)
 	if answer.burst > 0.0 and slice != null and slice.owner() != null:
 		bursts.append(_Burst.at(node, arrivals[0].head, answer.burst))
+
+
+## [param node]'s ice held an arrival (an absorbed copy, an ended walk): cued
+## once, and never over a break.
+func _cue_hold(node: SkillNode) -> void:
+	if not _cues.has(node):
+		_cues[node] = HitInstance.ICE_HELD
+
+
+## The beat's [member _cues] as [member HitInstance.ice_cues] pairs.
+func _ice_cues() -> Array:
+	var out: Array = []
+	for node: SkillNode in _cues:
+		out.append([node, int(_cues[node])])
+	return out
 
 
 ## An arrival's own landing's damage, before mitigation: each damage row of its
@@ -1168,6 +1193,7 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	c.settle = no_settle
 	c.terrain_ops = []
 	c.row_ops = []
+	c.ice_cues = []
 	c.target = a.node
 	c.paired = a.head
 	c.is_head = false

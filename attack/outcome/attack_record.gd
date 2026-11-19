@@ -204,6 +204,14 @@ const KEY_ROW_DELTA := "rw_d"
 const KEY_ROW_CONV_COUNT := "rw_cn"
 const KEY_ROW_CONV_ELEMENT := "rw_ce"
 const KEY_ROW_CONV_STACKS := "rw_cs"
+## Stage one's Ice cues ([member HitInstance.ice_cues]): one count per hit
+## slicing flat per-cue columns, the node's stable id and its excess
+## ([constant HitInstance.ICE_HELD] for a hold). A presentation cue like
+## [constant KEY_HIT_POP]. All omitted when no hit carries any, so a cue-less
+## record is dict-identical to an older one.
+const KEY_ICE_COUNT := "ic_n"
+const KEY_ICE_NODE := "ic_node"
+const KEY_ICE_EXCESS := "ic_x"
 ## [member settle_core] bits: the op's `from` / `to` is the core pile of the
 ## entity standing on the recorded node, not the node itself.
 const SETTLE_FROM_CORE := 1
@@ -319,6 +327,9 @@ var row_deltas := PackedFloat64Array()
 var row_conv_counts := PackedInt32Array()
 var row_conv_elements := PackedStringArray()
 var row_conv_stacks := PackedInt32Array()
+var ice_counts := PackedInt32Array()
+var ice_nodes := PackedInt32Array()
+var ice_excess := PackedInt32Array()
 var aim_origin: int = 0
 var aim_geom := PackedFloat64Array()
 
@@ -397,6 +408,9 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"row_conv_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_CONV_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"row_conv_elements", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_CONV_ELEMENT).omitted_at_default(),
 		WireFields.Field.new(&"row_conv_stacks", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_CONV_STACKS).omitted_at_default(),
+		WireFields.Field.new(&"ice_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ICE_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"ice_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ICE_NODE).omitted_at_default(),
+		WireFields.Field.new(&"ice_excess", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ICE_EXCESS).omitted_at_default(),
 		WireFields.Field.new(&"blasts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_HIT_BLAST).omitted_at_default(),
 		WireFields.Field.new(&"blast_centres", TYPE_PACKED_INT32_ARRAY).as_key(KEY_BLAST_CENTRE).omitted_at_default(),
 		WireFields.Field.new(&"blast_reach", TYPE_PACKED_FLOAT64_ARRAY).as_key(KEY_BLAST_REACH).omitted_at_default(),
@@ -455,6 +469,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 		for op: Array in hit.row_ops:
 			if op.size() > 4 and not (op[4] as Dictionary).is_empty():
 				any_converted = true
+	var any_ice := false
+	for hit in outcome.hits:
+		if not hit.ice_cues.is_empty():
+			any_ice = true
+			break
 	for i in outcome.hits.size():
 		var hit := outcome.hits[i]
 		index_of[hit] = i
@@ -528,6 +547,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 					for id: Variant in conv:
 						r.row_conv_elements.append(String(id))
 						r.row_conv_stacks.append(int(conv[id]))
+		if any_ice:
+			r.ice_counts.append(hit.ice_cues.size())
+			for cue: Array in hit.ice_cues:
+				r.ice_nodes.append(_id_of(cue[0], graph))
+				r.ice_excess.append(int(cue[1]))
 		var flip := hit as GateFlipInstance
 		if flip != null:
 			r.gate_counts.append(flip.gates.size())
@@ -619,6 +643,8 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var row_at := 0
 	# Running offset over the flattened converted stacks, advanced per row op.
 	var conv_at := 0
+	# Running offset over the flattened Ice cues, advanced per hit.
+	var ice_at := 0
 	# Running offsets for the gate-flip arrays: `flip_at` over flip hits,
 	# `gate_at` over their flattened pairs.
 	var flip_at := 0
@@ -783,6 +809,12 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 					hit.row_ops.append([_node_of(r.row_nodes[at], graph),
 							StatusInstance.HostKind.NODE, def, r.row_deltas[at], conv])
 			row_at += r.row_counts[i]
+		if i < r.ice_counts.size():
+			for k in r.ice_counts[i]:
+				var at := ice_at + k
+				if at < r.ice_excess.size():
+					hit.ice_cues.append([_node_of(r.ice_nodes[at], graph), r.ice_excess[at]])
+			ice_at += r.ice_counts[i]
 		hit.staged = (r.flags[i] & FLAG_STAGED) != 0
 		hit.gated = gated
 		hit.structural_key = r.structural[i]

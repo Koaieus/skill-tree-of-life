@@ -56,6 +56,7 @@ func read_in(world: CombatWorld, node: SkillNode, after: TerrainRead,
 	var ice := ElementRoster.shared().by_id(&"ice")
 	var excess := Terrain.excess(after.count(ice), after.threshold) if ice != null else 0
 	answer.spend = roundi(excess * shatter_spend_fraction)
+	answer.excess = excess
 	var holder := _holder(world, node)
 	if holder != null:
 		var broke: Array[Arrival] = []

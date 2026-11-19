@@ -163,6 +163,8 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		_queue: HitQueue = null) -> void:
 	if hit == null or hit.target == null:
 		return
+	if not hit.ice_cues.is_empty() and not world.is_shadow():
+		_announce_ice(hit)
 	# A rebuilt record arrives with its deallocations pre-populated (the
 	# record's contract, see DeallocEntry); a fresh resolve never does. So
 	# this is the replay signal: a record feeds the beat its recorded spill, a
@@ -222,6 +224,21 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	if hit.popped_vertex != null and not world.is_shadow():
 		Events.blade_vertex_popped.emit(
 				hit.popped_vertex, hit.attacker, hit.popped_vertex.global_position)
+
+
+## [param hit]'s Ice cues ([member HitInstance.ice_cues]), announced on the
+## mutation clock before any of its landing's early returns: the carrier is the
+## beat's first head, whose own landing (staged, refused, retargeted) says
+## nothing about the cues it carries. A freed node is skipped.
+static func _announce_ice(hit: HitInstance) -> void:
+	for cue: Array in hit.ice_cues:
+		var node: SkillNode = cue[0] if is_instance_valid(cue[0]) else null
+		if node == null:
+			continue
+		if int(cue[1]) == HitInstance.ICE_HELD:
+			Events.ice_held.emit(node, hit.attacker)
+		else:
+			Events.ice_shattered.emit(node, int(cue[1]), hit.attacker)
 
 
 ## Decorate-sort-undecorate on `(schedule_index, original_index)`. This is
