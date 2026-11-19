@@ -209,21 +209,23 @@ static func shape_reach(line: ReadoutLine, spell: SpellDef = null, infusion: Inf
 
 ## The Ice shape's walk: "6 hops → 3, seed ×2.5", or [member
 ## ReadoutLine.shape_refused] when [param spell] has nothing to cut or its
-## concentrate row refuses (gain 0). No spell or walk, no reach.
+## concentrate row refuses (gain 0) and its innate cuts nothing either. No
+## spell or walk, no reach.
 static func _ice_reach(line: ReadoutLine, spell: SpellDef, infusion: Infusion) -> void:
 	if spell == null or spell.propagation == null:
 		return
 	var hops := spell.propagation.max_hops
 	line.shape_hops_from = hops
+	var bag := infusion.bag(spell) if infusion != null else LoadBag.new()
 	if hops <= 0.0:
 		line.shape_refused = "%s has no hops to cut" % spell.name
 	elif is_inf(hops):
 		line.shape_refused = "%s walks unbounded" % spell.name
-	elif Infusion.rate_of(spell, Infusion.ICE, Infusion.RowKind.CONCENTRATE) <= 0.0:
+	elif Infusion.rate_of(spell, Infusion.ICE, Infusion.RowKind.CONCENTRATE) <= 0.0 \
+			and bag.hops_removed(hops) == 0:
 		line.shape_refused = "%s takes no Ice shape" % spell.name
 	if not line.shape_refused.is_empty() or infusion == null:
 		return
-	var bag := infusion.bag(spell)
 	line.shape_hops_to = int(hops) - bag.hops_removed(hops)
 	line.shape_multiplier = bag.multiplier(hops)
 	line.shape_effect = "%d %s → %d, seed ×%s" % [int(hops), "hop" if int(hops) == 1 else "hops",

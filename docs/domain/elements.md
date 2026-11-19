@@ -455,8 +455,9 @@ seams and settles the answer (hit-resolution.md § The beat).
   `spend = round(excess × shatter_spend_fraction)` of the node's own excess
   (count − T, overflow included: deep freeze), and
   `burst = (excess + added_excess(...)) × shatter_fraction_per_stack × holder max
-  HP`, 0 with no holder. `added_excess` is 0: the seat a cast's concentrate
-  (#1813) overrides; it never reaches the spend.
+  HP`, 0 with no holder. `added_excess` is the breaking arrivals' summed
+  Ice-shape cut × `shatter_excess_per_hop_cut` (§ Ice on a cast, below); it
+  never reaches the spend.
 - **Knobs** (all `@export` on the resource, tentative): `break_fraction_max_hp`
   0.10, `break_channels` 2, `shatter_fraction_per_stack` 0.01,
   `shatter_spend_fraction` 1.0, and `vertex_bonus_per_excess` 0.10 (the Frozen

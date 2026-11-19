@@ -353,3 +353,35 @@ func test_a_spell_refusing_an_ice_shape_yields_the_refusal_line() -> void:
 		var plain_text := BadgeText.strip(line.text())
 		assert_string_contains(plain_text, "refused")
 		assert_string_contains(plain_text, line.shape_refused)
+
+
+func _gain0_spell(innate: int) -> SpellDef:
+	var spell := SpellDef.new()
+	spell.name = "Gain Zero"
+	var prop := PropagationConfig.new()
+	prop.max_hops = 6
+	spell.propagation = prop
+	var row := AspectIntake.new()
+	row.identity = ElementRoster.shared().by_id(&"ice").identity
+	row.affinity_gain = 0
+	row.innate = innate
+	row.use = ConcentrateUse.new()
+	spell.intakes = [row] as Array[AspectIntake]
+	return spell
+
+
+func test_a_refusing_row_with_innate_still_reads_the_cut_its_innate_buys() -> void:
+	var spell := _gain0_spell(2)
+	var line := _ice_line(spell, 2)
+	assert_not_null(line, "one shape line")
+	if line == null:
+		return
+	var bag := Infusion.innate(spell).bag(spell)
+	assert_eq(line.shape_refused, "", "the innate cut is taken")
+	assert_eq(line.shape_hops_to, 4, "6 − the innate 2; the forged points buy nothing")
+	assert_almost_eq(line.shape_multiplier, bag.multiplier(6.0), 1e-6)
+	assert_true(Infusion.is_concentrate_row(line.intake_of(spell)), "the detail reads the concentrate row")
+	var none := _ice_line(_gain0_spell(0), 2)
+	assert_not_null(none)
+	if none != null:
+		assert_string_contains(none.shape_refused, "takes no Ice shape")
