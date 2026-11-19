@@ -23,6 +23,9 @@ extends Admits
 @export_range(0.0, 0.2, 0.001, "or_greater") var shatter_fraction_per_stack: float = 0.01
 ## Share of the excess (count − T) a shatter spends, rounded to whole stacks.
 @export_range(0.0, 1.0, 0.05) var shatter_spend_fraction: float = 1.0
+## Excess stacks a breaking arrival adds to the burst per hop its cast's Ice
+## shape cut ([member Arrival.hops_removed]); the spend never reads it.
+@export_range(0.0, 5.0, 0.25, "or_greater") var shatter_excess_per_hop_cut: float = 1.0
 ## A Frozen blade vertex's damage multiplier per copied excess stack, no base
 ## term. Read at blade fill, not by either answer here.
 @export_range(0.0, 1.0, 0.01, "or_greater") var vertex_bonus_per_excess: float = 0.10

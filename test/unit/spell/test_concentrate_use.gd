@@ -559,3 +559,120 @@ func test_4b_a_two_channel_combo_lands_three_on_the_seed() -> void:
 	assert_eq(got.heat, plain.heat, "Heat as the plain cast's")
 	assert_eq(got.charge, plain.charge, "Charge as the plain cast's")
 	assert_eq(_reached(got), _reached(plain), "the go-offs reach the same nodes")
+
+
+# --- acceptance 5: the shatter ---------------------------------------------
+# One isolated node, Frozen alone at Cold T + e, the seed of a spell that cannot
+# walk on; crit 0. τ = break_fraction_max_hp × M; D is set as a fraction of τ.
+
+const _E := 2
+
+
+## Cast on a fresh world. [param frac]: plain seed damage D = frac × τ, × [param
+## scale]; [param p] Poison points; [param held]: Blue holds the node.
+func _shatter_cast(points: int, frac: float, p: int, held := true, scale := 1.0) -> Dictionary:
+	CombatWorld.reset_live()
+	var w := TestWorld.create(self)
+	var red := w.add_entity("Red")
+	var blue := w.add_entity("Blue")
+	await get_tree().process_frame
+	_no_crit(red)
+	var src := w.add_node(&"src", Vector2(0, 100000))
+	var x := w.add_node(&"x", Vector2.ZERO)
+	w.allocate(red, [src])
+	if held:
+		w.allocate(blue, [x])
+	await get_tree().process_frame
+	var live := CombatWorld.live()
+	var xc := live.combat_for(x) as NodeCombat
+	var t := xc.terrain_threshold()
+	xc.add_terrain(ElementRoster.shared().by_id(&"fire"), -(t + _E) - xc.terrain_t())
+	var fa := ElementRoster.shared().by_id(&"ice").bands[0].admits as FrozenAdmits
+	var big_m: float = (blue.stat_board.get_stat(&"health") as PoolStat).value
+	if held:
+		assert_almost_eq(xc.owner().get_max_hp(), big_m, 1e-3, "fixture: M is the holder's max HP")
+	var tau: float = fa.break_fraction_max_hp * big_m
+	var helper := H.new()
+	var config := helper.make_config(null,
+			helper.owner(SkillNode.Ownership.HOSTILE | SkillNode.Ownership.NEUTRAL),
+			helper.sum_reducer(), {max_hops = 6})
+	var spell := helper.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 1.0)
+	spell.intakes = [_poison_row()] as Array[AspectIntake]
+	var d: float = frac * tau
+	spell.power = d * scale / SpellResolver.impact_damage(spell, src)
+	var inf := Infusion.innate(spell)
+	inf.points[&"poison"] = p
+	if points > 0:
+		inf.set_shape(&"ice", points)
+	var out := SpellResolver.resolve_against(spell, x, src, red, w.graph, live, null, inf)
+	var bursts := out.hits.filter(func(h: HitInstance) -> bool: return HitGather.is_burst(h)) \
+			.map(func(h: HitInstance) -> float: return h.amount)
+	return {out = out, x = x, d = d, tau = tau, big_m = big_m, t = t, fa = fa, bursts = bursts,
+			cold = xc.terrain_count(ElementRoster.shared().by_id(&"ice"))}
+
+
+func _m6() -> float:
+	return 1.0 + ConcentrateUse.shared_default().bonus_per_hop * 6
+
+
+func _assert_landings(got: Dictionary, n: int, each: float, poison: float, why: String) -> void:
+	var lands := _landings(got.out, got.x)
+	assert_eq(lands.size(), n, "%s: %d landings" % [why, n])
+	for h: HitInstance in lands:
+		assert_almost_eq(h.amount, each, 1e-3, "%s: each landing" % why)
+	var ps := _statuses_on(got.out, got.x, _POISON)
+	assert_eq(ps.size(), n, "%s: a Poison rider per landing" % why)
+	for s: StatusInstance in ps:
+		assert_eq(s.power, poison, "%s: Poison per landing" % why)
+
+
+func test_5a_the_unshaped_cast_does_not_break_the_ice() -> void:
+	var got: Dictionary = await _shatter_cast(0, 0.9, 3)
+	assert_lt(got.d, got.tau, "fixture: D < τ")
+	_assert_landings(got, 1, got.d, 3.0, "plain")
+	assert_eq(got.cold, got.t + _E, "Cold still T + e")
+	assert_eq(got.bursts, [], "no DotTick.mint")
+
+
+func test_5b_the_concentrated_seed_breaks_and_its_cut_adds_to_the_burst() -> void:
+	var m := _m6()
+	var got: Dictionary = await _shatter_cast(6, 0.9, 3)
+	var fa: FrozenAdmits = got.fa
+	assert_true(got.tau <= m * got.d, "fixture: τ ≤ m × D")
+	_assert_landings(got, 1 + fa.break_channels, m * got.d, ceilf(3.0 * m - 1e-6), "concentrated")
+	assert_eq(got.cold, got.t + _E - roundi(_E * fa.shatter_spend_fraction), "the spend reads the node's own excess")
+	assert_eq(got.bursts.size(), 1, "one burst")
+	if got.bursts.size() == 1:
+		assert_almost_eq(got.bursts[0],
+				(_E + 6 * fa.shatter_excess_per_hop_cut) * fa.shatter_fraction_per_stack * got.big_m,
+				1e-3, "(e + 6 × per-hop-cut) × fraction × M")
+
+
+func test_5c_an_unshaped_cast_of_the_same_payload_bursts_the_excess_alone() -> void:
+	var m := _m6()
+	var p := ceili(3.0 * m - 1e-6)
+	var got: Dictionary = await _shatter_cast(0, 0.9, p, true, m)
+	var fa: FrozenAdmits = got.fa
+	_assert_landings(got, 1 + fa.break_channels, m * got.d, float(p), "control")
+	assert_eq(got.cold, got.t + _E - roundi(_E * fa.shatter_spend_fraction), "the same Cold left")
+	assert_eq(got.bursts.size(), 1, "one burst")
+	if got.bursts.size() == 1:
+		assert_almost_eq(got.bursts[0], _E * fa.shatter_fraction_per_stack * got.big_m, 1e-3,
+				"e × fraction × M: 6 × per-hop-cut × fraction × M under (b)'s")
+
+
+func test_5d_a_concentrated_seed_under_the_threshold_does_not_break_it() -> void:
+	var m := _m6()
+	var got: Dictionary = await _shatter_cast(6, 0.2, 3)
+	assert_lt(m * got.d, got.tau, "fixture: m × D < τ")
+	_assert_landings(got, 1, m * got.d, ceilf(3.0 * m - 1e-6), "under τ")
+	assert_eq(got.cold, got.t + _E, "Cold still T + e")
+	assert_eq(got.bursts, [], "no burst")
+
+
+func test_5e_no_holder_no_flat_breaker() -> void:
+	var m := _m6()
+	var got: Dictionary = await _shatter_cast(6, 0.9, 3, false)
+	_assert_landings(got, 1, m * got.d, ceilf(3.0 * m - 1e-6), "unallocated")
+	assert_eq(got.cold, got.t + _E, "Cold still T + e")
+	assert_eq(got.bursts, [], "no DotTick.mint")
