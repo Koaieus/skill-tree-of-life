@@ -101,6 +101,42 @@ func test_exhausted_capacity_disables_and_the_line_reads_capacity_left() -> void
 	assert_string_contains(curse.disabled_reason.to_lower(), "capacity")
 
 
+## The capacity reason names the cap in force ([method MagicAttackPlan.capacity]),
+## not the spell's base: ATK owns n0 - n1 - n2 (owned degrees 1 / 2 / 1) and a
+## min_degree-1 spell, so with no target the best eligible caster (n1) carries
+## one degree above base.
+func test_the_capacity_reason_names_the_cap_in_force() -> void:
+	var graph := h.make_graph([[0, 1], [1, 2], [1, 3]], self)
+	var atk := h.make_entity(graph, "ATK", Color.RED)
+	var def := h.make_entity(graph, "DEF", Color.BLUE)
+	h.assign_owner(graph, atk, [0, 1, 2])
+	h.assign_owner(graph, def, [3])
+	var board := atk.stat_board
+	board.intelligence.base_value = 1000.0
+	for aspect in AspectRoster.shared().aspects:
+		if aspect.stat != null and board.get_stat(aspect.stat.id) != null:
+			board.get_stat(aspect.stat.id).base_value = 0.0
+	for id in [&"poison", &"curse"]:
+		board.facet(id, StatDef.Role.COUNT).base_value = 50.0
+	var spell := _spell(4.0)
+	spell.min_degree = 1
+	spell.infusion_capacity_per_degree = 3
+	var t := NodeTargeting.new()
+	t.ownership_filter = SkillNode.Ownership.HOSTILE
+	var f := HopRangeFinder.new()
+	f.max_hops = 0
+	t.range_finder = f
+	spell.targeting = t
+	var plan := _plan(atk, spell)
+	var cap := plan.capacity()
+	assert_ne(cap, plan.base_capacity(), "guard: an overqualified caster is eligible")
+	plan.set_socket(0, &"poison")
+	assert_eq(plan.infusion.total_points(), cap, "guard: the socket filled to the cap in force")
+	var curse: AspectWheelEntry = _by_id(InfusionChoices.entries(plan, 1))[&"curse"]
+	assert_false(curse.is_pickable())
+	assert_string_contains(curse.disabled_reason, "(%d points)" % cap)
+
+
 func test_next_threshold_walks_the_infusion_slots_ladder() -> void:
 	for row in [[5.0, 10.0], [10.0, 100.0], [99.0, 100.0], [100.0, 1000.0]]:
 		var board := _caster({}, row[0]).stat_board as EntityStatBoard

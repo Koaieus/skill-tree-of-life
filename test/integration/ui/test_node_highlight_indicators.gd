@@ -144,6 +144,9 @@ class KeyedProvider extends HighlightProvider:
 	var facings: Dictionary = {}
 	var orders: Dictionary = {}
 	var fills: Dictionary = {}
+	var pips: Dictionary = {}
+	var red: Dictionary = {}
+	var muted: Dictionary = {}
 
 	func get_theme_key() -> StringName:
 		return key
@@ -159,6 +162,15 @@ class KeyedProvider extends HighlightProvider:
 
 	func get_node_range_fill(node: SkillNode) -> float:
 		return fills.get(node, 1.0)
+
+	func get_node_pip(node: SkillNode) -> int:
+		return pips.get(node, 0)
+
+	func is_node_pip_red(node: SkillNode) -> bool:
+		return red.get(node, false)
+
+	func is_node_muted(node: SkillNode) -> bool:
+		return muted.get(node, false)
 
 
 func _theme(role: HighlightProvider.HighlightRole, scene: PackedScene) -> IndicatorTheme:
@@ -320,3 +332,65 @@ func test_core_move_theme_marks_origin_and_reachable() -> void:
 			"res://ui/indicator/core_move_origin.tscn")
 	assert_eq(t.scene_for(HighlightProvider.HighlightRole.REACHABLE).resource_path,
 			"res://ui/indicator/tick_ring.tscn")
+
+
+# --- overclock pip and muted look (#1814) ------------------------------------
+
+func _indicator_on(sn: SkillNode) -> Node:
+	for ind in _indicators():
+		if (ind as Node2D).position == _overlay.to_local(sn.global_position):
+			return ind
+	return null
+
+
+func test_overlay_pushes_the_pip_its_red_and_the_muted_look() -> void:
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.IN_RANGE, _SCENE_A)
+	var p := KeyedProvider.new()
+	for sn in [_nodes[0], _nodes[2], _nodes[4]]:
+		p.roles[sn] = HighlightProvider.HighlightRole.IN_RANGE
+	p.pips[_nodes[0]] = 5
+	p.pips[_nodes[2]] = 10
+	p.red[_nodes[2]] = true
+	p.muted[_nodes[4]] = true
+	_ctl.provider = p
+	assert_eq(_indicators().size(), 3)
+	var pipped := _indicator_on(_nodes[0])
+	var red := _indicator_on(_nodes[2])
+	var bare := _indicator_on(_nodes[4])
+	assert_not_null(pipped)
+	assert_not_null(red)
+	assert_not_null(bare)
+	if pipped == null or red == null or bare == null:
+		return
+	assert_eq(pipped.get("pip"), 5, "a pipped target carries N")
+	assert_eq(pipped.get("pip_red"), false)
+	assert_eq(red.get("pip"), 10)
+	assert_eq(red.get("pip_red"), true, "the loadout is above its cap")
+	assert_eq(bare.get("pip"), 0, "an unpipped target carries none")
+	assert_eq(bare.get("muted"), true)
+	assert_eq(pipped.get("muted"), false)
+
+
+func test_a_pip_change_repaints_the_live_indicator() -> void:
+	_overlay.default_theme = _theme(HighlightProvider.HighlightRole.IN_RANGE, _SCENE_A)
+	var p := KeyedProvider.new()
+	p.roles[_nodes[1]] = HighlightProvider.HighlightRole.IN_RANGE
+	_ctl.provider = p
+	var ind := _indicator_on(_nodes[1])
+	assert_not_null(ind)
+	if ind == null:
+		return
+	assert_eq(ind.get("pip"), 0)
+	p.pips[_nodes[1]] = 3
+	p.red[_nodes[1]] = true
+	p.state_changed.emit()
+	assert_eq(_indicator_on(_nodes[1]), ind, "same instance, repainted")
+	assert_eq(ind.get("pip"), 3)
+	assert_eq(ind.get("pip_red"), true)
+
+
+func test_the_base_provider_answers_no_pip_and_no_mute() -> void:
+	var base := HighlightProvider.new()
+	assert_eq(base.call("get_node_pip", _nodes[0]), 0)
+	assert_eq(base.call("is_node_pip_red", _nodes[0]), false)
+	assert_eq(base.call("is_node_muted", _nodes[0]), false)
