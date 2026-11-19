@@ -407,3 +407,145 @@ func test_the_seed_heads_cut_reaches_the_second_read_and_no_copy_or_later_head_c
 	(live.combat_for(s) as NodeCombat).add_terrain(fire, -sc.terrain_t() - sc.terrain_threshold() - 1)
 	SpellResolver.resolve_against(spell, s, src, red, w.graph, live, null, _shaped(spell, 6))
 	assert_eq(_seen_at(spy, s), [[s, false, 6]], "the seed head of a 6-cut cast reads 6")
+
+
+# --- acceptance 4b: the combo, whole hit -----------------------------------
+# A spell that cannot walk on (no spread), so the walk is the seed alone in
+# both casts and never conducts off a Shocked seed: what differs between the
+# concentrated cast and the plain one is the ×m alone. Burning's own damage 0,
+# crit 0, dedupe off.
+
+var _was_disc_damage := 0.0
+var _was_tunables: HitGatherTunables
+
+
+func _combo_knobs() -> DiscGoOff:
+	var disc := ElementRoster.shared().by_id(&"fire").bands[0].go_off as DiscGoOff
+	_was_disc_damage = disc.damage_per_power
+	disc.damage_per_power = 0.0
+	_was_tunables = HitGather.tunables
+	var tun := HitGatherTunables.new()
+	tun.dedupe_dual_reach = false
+	HitGather.tunables = tun
+	return disc
+
+
+func _restore_combo_knobs() -> void:
+	var disc := ElementRoster.shared().by_id(&"fire").bands[0].go_off as DiscGoOff
+	disc.damage_per_power = _was_disc_damage
+	HitGather.tunables = _was_tunables
+
+
+## The seed s, Burning (Heat T + 1); with [param shocked] also Shocked at
+## level 1. Neighbours, by index: (a) u, v at 3 radii, no edge; (b) x at 3
+## radii with an edge, y at 3 radii without, z at 10 radii with an edge.
+## Casts the combo spell with [param points] Ice shape points onto s.
+func _combo_cast(shocked: bool, points: int) -> Dictionary:
+	CombatWorld.reset_live()
+	var w := TestWorld.create(self)
+	var red := w.add_entity("Red")
+	var blue := w.add_entity("Blue")
+	await get_tree().process_frame
+	H.new().give_big_hp(blue)
+	var src := w.add_node(&"src", Vector2(0, 100000))
+	var s := w.add_node(&"s", Vector2.ZERO)
+	var r := s.radius
+	var others: Array[SkillNode] = []
+	if shocked:
+		var x := w.add_node(&"x", Vector2(3.0 * r, 0))
+		var y := w.add_node(&"y", Vector2(0, 3.0 * r))
+		var z := w.add_node(&"z", Vector2(-10.0 * r, 0))
+		w.link(s, x)
+		w.link(s, z)
+		others = [x, y, z]
+	else:
+		others = [w.add_node(&"u", Vector2(3.0 * r, 0)), w.add_node(&"v", Vector2(-3.0 * r, 0))]
+	# Two far anchors each: a threshold above 1, so a copy's Heat 1 primes no
+	# neighbour and nothing chains back onto the seed (every other node bare).
+	for n in others:
+		for k in [1, 2]:
+			w.link(n, w.add_node(StringName("%s_anchor%d" % [n.name, k]), n.global_position + Vector2(k * 20000.0, 50000.0)))
+	w.allocate(red, [src])
+	var blues: Array = [s]
+	blues.append_array(others)
+	w.allocate(blue, blues)
+	await get_tree().process_frame
+	var live := CombatWorld.live()
+	var sc := live.combat_for(s) as NodeCombat
+	sc.add_terrain(ElementRoster.shared().by_id(&"fire"), sc.terrain_threshold() + 1 - sc.terrain_t())
+	if shocked:
+		sc.add_terrain(ElementRoster.shared().by_id(&"lightning"), sc.terrain_threshold() + 1 - sc.charge())
+	var helper := H.new()
+	var config := helper.make_config(null, helper.owner_enemy(), helper.sum_reducer(), {max_hops = 6})
+	var spell := helper.make_spell(config, [DamageEffect.new()] as Array[OnHitEffect], 10.0)
+	spell.intakes = [_poison_row()] as Array[AspectIntake]
+	var inf := Infusion.innate(spell)
+	inf.points[&"poison"] = 3
+	inf.set_ride(&"fire", 1)
+	if points > 0:
+		inf.set_shape(&"ice", points)
+	var out := SpellResolver.resolve_against(spell, s, src, red, w.graph, live, null, inf)
+	var nodes: Array[SkillNode] = [s]
+	nodes.append_array(others)
+	var heat := nodes.map(func(n: SkillNode) -> int: return (live.combat_for(n) as NodeCombat).terrain_t())
+	var charge := nodes.map(func(n: SkillNode) -> int: return (live.combat_for(n) as NodeCombat).charge())
+	return {out = out, nodes = nodes, d = SpellResolver.impact_damage(spell, src), heat = heat, charge = charge}
+
+
+func _landings(out: AttackOutcome, node: SkillNode) -> Array:
+	return out.hits.filter(func(h: HitInstance) -> bool:
+		return h is DamageInstance and h.target == node and not HitGather.is_burst(h))
+
+
+func _reached(got: Dictionary) -> Array:
+	return (got.nodes as Array).map(func(n: SkillNode) -> int: return _landings(got.out, n).size())
+
+
+func test_4b_a_one_channel_combo_lands_the_concentrated_payload_twice_on_the_seed() -> void:
+	var disc := _combo_knobs()
+	var m := 1.0 + ConcentrateUse.shared_default().bonus_per_hop * 6
+	var got: Dictionary = await _combo_cast(false, 6)
+	var plain: Dictionary = await _combo_cast(false, 0)
+	_restore_combo_knobs()
+	var out: AttackOutcome = got.out
+	var d: float = got.d
+	var s: SkillNode = got.nodes[0]
+	var p := ceilf(3.0 * m - 1e-6)
+	assert_eq(_landings(out, s).size(), 2, "the seed and the go-off's centre copy")
+	assert_almost_eq(_dmg_on(out, s), m * d * (1.0 + disc.share), 1e-3, "m × D, then m × D × share")
+	var on_s := _statuses_on(out, s, _POISON).map(func(h: StatusInstance) -> float: return h.power)
+	on_s.sort()
+	var want := [ceilf(p * disc.share - 1e-6), p]
+	want.sort()
+	assert_eq(on_s, want, "Poison ceil(3m) twice at share 1")
+	for i in [1, 2]:
+		var n: SkillNode = got.nodes[i]
+		assert_eq(_landings(out, n).size(), 1, "%s: one landing" % n.name)
+		assert_almost_eq(_dmg_on(out, n), m * d * disc.share, 1e-3, "%s: m × D × share" % n.name)
+		var pn := _statuses_on(out, n, _POISON)
+		assert_eq(pn.size(), 1)
+		if pn.size() == 1:
+			assert_eq(pn[0].power, ceilf(p * disc.share - 1e-6), "%s: Poison at the share" % n.name)
+	assert_eq(got.heat, plain.heat, "the bonus never scales the Heat ride; no extra landing carries terrain")
+	assert_eq(got.charge, plain.charge)
+	assert_eq(_reached(got), _reached(plain), "the go-off reaches the same nodes")
+
+
+func test_4b_a_two_channel_combo_lands_three_on_the_seed() -> void:
+	var disc := _combo_knobs()
+	var edge := ElementRoster.shared().by_id(&"lightning").bands[0].go_off as EdgeGoOff
+	var m := 1.0 + ConcentrateUse.shared_default().bonus_per_hop * 6
+	var got: Dictionary = await _combo_cast(true, 6)
+	var plain: Dictionary = await _combo_cast(true, 0)
+	_restore_combo_knobs()
+	var out: AttackOutcome = got.out
+	var md: float = m * got.d
+	var n: Array = got.nodes
+	assert_eq(_reached(got), [3, 2, 1, 1], "s 1 + 2 channels; x both; y disc; z arc")
+	assert_almost_eq(_dmg_on(out, n[0]), md * (1.0 + disc.share + edge.share), 1e-3, "s: 12D at the defaults")
+	assert_almost_eq(_dmg_on(out, n[1]), md * (disc.share + edge.share), 1e-3, "x: 8D")
+	assert_almost_eq(_dmg_on(out, n[2]), md * disc.share, 1e-3, "y: 4D")
+	assert_almost_eq(_dmg_on(out, n[3]), md * edge.share, 1e-3, "z: 4D")
+	assert_eq(got.heat, plain.heat, "Heat as the plain cast's")
+	assert_eq(got.charge, plain.charge, "Charge as the plain cast's")
+	assert_eq(_reached(got), _reached(plain), "the go-offs reach the same nodes")
