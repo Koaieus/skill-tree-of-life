@@ -45,7 +45,7 @@ order.
 
 ## MagicBody (`ui/hud/command_tray/bodies/magic_body.gd`)
 
-changing: shape and ride sockets and the element tally, #1811; the reset and the notice when the cap shrinks, #1814; see docs/design/elements/forge.md
+changing: the cap in force (the caster node's capacity), its reset control, the trim notice and the refusal at the cap, #1814; see docs/design/elements/forge.md § The forge
 
 Magic tab content: the crucible. The vessel (`%SpellButton`, the equipped spell
 full-bleed at `vessel_px`, an `ArcaneCircle` turning behind it) on the left, its
@@ -59,6 +59,32 @@ nest without crossing.
 The readout owns its hover, wheel-preview and Shift state; the body only forwards
 socket hovers and wheel-wedge hovers to it. It scrolls inside `%ReadoutScroll`, so
 its Shift expansion never grows the tray.
+
+**The shape and ride sockets** sit beside the aspect sockets in `InfusionSockets`.
+Neither is one of `infusion_slots`, and each reads its own field
+(`Infusion.shape_of` / `ride_of`). Their contract is the element-socket unit's
+(#1811 slice A); see `infusion_sockets.gd`'s header.
+
+**The readout reads three kinds of line** (`ReadoutLines.Kind`). It lists the
+aspects first, socketed in socket order and then innate-only, then the shape
+line, then the ride line. The **ride line** is the cast's ride element, forged or
+else innate. A forged ride that replaces the spell's authored one leaves no line
+for the cleared one. The line names the terrain it plants, not the element:
+`+ plants {heat:N} stacks per hit (k innate + m forged)`. Its status comes from
+`Infusion.status_of` (the row's `plants`, else the element's terrain), and its
+exchange is the forged points' `InfusionExchange` line. The **shape line** shows
+only the element and its points (`+ shapes the cast with {fire} (N points)`). It
+has no status and no exchange until a shape row exists (#1812 / #1813).
+`CrucibleReadoutLine` shows its aspect badge for aspect lines only. A ride or
+shape line shows no badge, because the ride-line badge (Heat or Fire) is an open
+owner call.
+
+**The tally** is `%Tally` in Controls, above Reset: `used / cap`, from
+`MagicBody.tally_text`. Used is `Infusion.total_points()`, the aspects' points
+alone (the shape and the ride sit outside the cap, ADR 0094 §6). Cap is
+`SpellDef.capacity_at(min_degree)`, the base cap. An uncapped spell
+(`UNCAPPED`) shows the used count alone. The body only shows the tally and
+refuses nothing at the cap.
 
 **The picker floats.** Pressing the vessel toggles `SpellPickMode` on the seat's
 `ArmedStack` (`MagicMode.toggle_picker`). The spell bar lives in `%PickerPanel`, a
@@ -83,6 +109,14 @@ the row count is not a pure function of spell count. `RESERVE` keeps the gutter
 whether or not the bar shows: a single-pass fixed point for 8px of permanent
 width. Verified on 4.7.1: inner width 292/292 under `RESERVE` where `AUTO` gives
 300/292.
+
+## RangedBody (`ui/hud/command_tray/bodies/ranged_body.gd`)
+
+Each element card (fire, ice, lightning) labels its bin `stock/cap +gain`. The cap
+is `AmmoType.stock_cap` of that type's reload mint (`_bank_cap_of`). A type with
+`stock_cap_reloads == 0` shows no cap, so the plain pool and the goo card get none.
+For now that gate stands in for "is an element bin". The cap number lives on the
+`AmmoType`, so never restate it here.
 
 ## HeroSigilCard (`ui/hud/hero_sigil_card/`)
 
