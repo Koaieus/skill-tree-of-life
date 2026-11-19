@@ -249,13 +249,15 @@ func _rebuild_chips() -> void:
 	_chips.visible = _chips.get_child_count() > 0
 
 
-## "poison ×2" per intake whose affinity is not 1:1, one per line.
+## "poison ×2" per intake whose affinity is not 1:1, one per line; an Ice
+## shape (concentrate) row is no infusion rate and is skipped.
 func _rate_note() -> String:
 	if spell == null:
 		return ""
 	var lines := PackedStringArray()
 	for intake in spell.intakes:
-		if intake != null and intake.affinity_gain != intake.affinity_cost:
+		if intake != null and intake.affinity_gain != intake.affinity_cost \
+				and not Infusion.is_concentrate_row(intake):
 			lines.append("%s ×%s" % [intake.aspect_id(), NumFmt.num(float(intake.affinity_gain) / intake.affinity_cost)])
 	return "\n".join(lines)
 
