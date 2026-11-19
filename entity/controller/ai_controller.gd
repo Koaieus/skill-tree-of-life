@@ -36,7 +36,8 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## lockstep with melee's own constant rather than drifting to a tuned number
 ## nobody asked for (D2: "the worst has passed", not a millisecond target).
 ## The estimate is raw damage only, blind to the infusion a caster's capacity
-## buys: a magic tie goes to the bigger fill cap (from FIGHTER up), never wider K.
+## buys: within one spell and target, an estimate tie goes to the bigger fill
+## cap (from FIGHTER up), the order pick_best's tie reads — never a wider K.
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
 ## gate-accurately scored, identically to the earlier exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
@@ -668,24 +669,31 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# survivors: the characterization tests pin THAT order (fog order
 	# within a source, source order within union.sources, spell order within
 	# the spellbook), never cheap-score order.
-	# The rank key is [estimate, fill cap, PASS 1 index], read once per entry:
-	# the estimate is raw-damage-only, so among equal estimates the bigger cap
-	# (the fill the real resolve will spend) goes first, and the index makes the
-	# order total — sort_custom is not stable. Below FIGHTER every fill is the
-	# base cap, so the cap term is 0 and the ranking is the estimate's alone.
+	# The rank key is [estimate, tie group's first index, fill cap, index],
+	# read once per entry. The estimate is raw-damage-only, so a tie group (one
+	# estimate, spell and target) is ranked where its first member enumerates,
+	# and inside it the bigger cap goes first: exactly the order pick_best's
+	# same-spell, same-target tie reads, so the gate never cuts its winner for
+	# a cast it would not pick. Below FIGHTER every fill is the base cap, so
+	# the cap term is 0. The index makes the order total (sort_custom is not
+	# stable).
 	var keys: Array = []
+	var group_first: Dictionary = {}
 	for i in pre.size():
 		var e: Array = pre[i]
-		keys.append([AiCombatScorer.cheap_estimate(e[2], e[3], e[5]),
-				e[6] if ai_tier >= Tier.FIGHTER else 0, i])
+		var estimate := AiCombatScorer.cheap_estimate(e[2], e[3], e[5])
+		var first: int = group_first.get_or_add([estimate, e[0], e[2]], i)
+		keys.append([estimate, first, e[6] if ai_tier >= Tier.FIGHTER else 0, i])
 	var order := AiBladeRollout.top_k_indices(
 			keys,
 			func(a: Array, b: Array) -> bool:
 				if a[0] != b[0]:
 					return a[0] > b[0]
 				if a[1] != b[1]:
-					return a[1] > b[1]
-				return a[2] < b[2],
+					return a[1] < b[1]
+				if a[2] != b[2]:
+					return a[2] > b[2]
+				return a[3] < b[3],
 			_CANDIDATE_GATE_K)
 	last_magic_candidate_count = pre.size()
 	last_magic_promoted_count = order.size()

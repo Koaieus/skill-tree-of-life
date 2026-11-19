@@ -795,30 +795,70 @@ func test_an_equal_score_on_one_target_goes_to_the_bigger_cap() -> void:
 
 
 ## The cheap gate ranks on raw damage, blind to the fill a caster's capacity
-## buys: a base-cap copy of the spell learned FIRST puts three equal-estimate
-## candidates ahead of the overqualified N1 in enumeration order, so a gate
-## that keeps the first K of a tie cuts the one cast that fills past base.
-func test_the_cheap_gate_keeps_the_overqualified_caster_among_equal_estimates() -> void:
-	var flat: SpellDef = _VENOM_SPELL.duplicate()
-	flat.min_degree = 1
-	flat.infusion_capacity = float(_BASE_CAP)
-	flat.infusion_capacity_per_degree = 0
-	_enemy.get_spellbook().learn(flat)
-	var spell := await _overqualified_fixture()
+## buys, and the scorer here does not price the fill either: every cast ties,
+## and pick_best's same-spell, same-target tie gives it to the biggest cap.
+## N0, N1, C and D sit at min_degree and enumerate before the hub X (degree 2,
+## allocated last), so a gate keeping the first K of a tie cuts the winner.
+## M is a neutral junction putting every caster within the spell's hops of H0.
+func test_the_cheap_gate_keeps_a_late_overqualified_caster_of_one_spell() -> void:
+	var spell: SpellDef = _VENOM_SPELL.duplicate()
+	spell.min_degree = 1
+	spell.infusion_capacity = float(_BASE_CAP)
+	spell.infusion_capacity_per_degree = _PER_DEGREE
+	_enemy.get_spellbook().learn(spell)
+	_enemy.stat_board.vision_range.base_value = 6000.0
+	_enemy.stat_board.intelligence.base_value = 10.0
+	_enemy.stat_board.facet(&"poison", StatDef.Role.COUNT).base_value = 40.0
+	_add_edge(_nodes[1], _nodes[2])
+	var made: Dictionary[String, SkillNode] = {}
+	for n in ["M", "C", "D", "X"]:
+		var sn := _SKILL_NODE_SCENE.instantiate() as SkillNode
+		sn.name = n
+		_graph.add_skill_node(sn)
+		sn.global_position = Vector2(100.0, 100.0)
+		made[n] = sn
+	_add_edge(made["M"], _nodes[2])
+	for n in ["C", "D", "X"]:
+		_add_edge(made["M"], made[n])
+	_add_edge(made["C"], made["X"])
+	_add_edge(made["X"], made["D"])
+	await get_tree().process_frame # the mirrors see the edges before allocation
+	for n in ["C", "D", "X"]:
+		_alloc.force_allocate(_enemy, made[n])
+	var hub := made["X"]
 	_ai.ai_tier = AIController.Tier.FIGHTER
-	var spells := _enemy.get_spellbook().spells
-	assert_lt(spells.find(flat), spells.find(spell), "fixture: the base-cap copy enumerates first")
-	var visible := AiRecon.visible_enemy_nodes(_enemy)
-	var promoted := _ai._gather_magic_candidates(visible)
+	assert_eq(_enemy.navigator.get_degree(hub), 2, "fixture: the hub is one degree up")
+	var union := SpellTargetUnion.build(spell, _enemy, _graph, null)
+	assert_gt(union.sources.find(hub), AIController._CANDIDATE_GATE_K - 1,
+			"fixture guard: K min_degree casters enumerate before the hub: %s" % [union.sources])
+	var promoted := _ai._gather_magic_candidates(AiRecon.visible_enemy_nodes(_enemy))
 	assert_gt(_ai.last_magic_candidate_count, AIController._CANDIDATE_GATE_K,
 			"fixture guard: more candidates than K, or the gate never engages")
-	var kept: AiCombatScorer.ScoredCandidate = null
-	for c in promoted:
-		if c.spell == spell and c.source_node == _nodes[1]:
-			kept = c
-	assert_not_null(kept, "the overqualified caster survives the cheap gate")
-	if kept != null:
-		assert_gt(_total(kept), _BASE_CAP, "...scored with the fill past base its cap buys")
+	var best := AiCombatScorer.pick_best(promoted)
+	assert_true(best != null and best.source_node == hub,
+			"the hub's cast survives the cheap gate and is the one chosen: %s"
+					% (str(best.source_node.name) if best != null else "none"))
+	if best != null and best.source_node == hub:
+		assert_gt(_total(best), _BASE_CAP, "...scored with the fill past base its cap buys")
+
+
+## The cap only orders casts inside one spell's tie: a second spell with a
+## bigger flat cap, learned after, never pushes the first spell's winner out —
+## pick_best keeps the first spell across a cross-spell tie.
+func test_a_bigger_cap_on_a_later_spell_never_cuts_the_first_spells_winner() -> void:
+	var spell := await _overqualified_fixture()
+	var flat: SpellDef = _VENOM_SPELL.duplicate()
+	flat.min_degree = 1
+	flat.infusion_capacity = 20.0
+	flat.infusion_capacity_per_degree = 0
+	_enemy.get_spellbook().learn(flat)
+	_ai.ai_tier = AIController.Tier.FIGHTER
+	var promoted := _ai._gather_magic_candidates(AiRecon.visible_enemy_nodes(_enemy))
+	assert_gt(_ai.last_magic_candidate_count, AIController._CANDIDATE_GATE_K,
+			"fixture guard: more candidates than K, or the gate never engages")
+	var best := AiCombatScorer.pick_best(promoted)
+	assert_true(best != null and best.spell == spell and best.source_node == _nodes[1],
+			"the first spell's overqualified cast is still the one chosen")
 
 
 # ---------------------------------------------------------------------------
