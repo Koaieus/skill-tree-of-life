@@ -1,9 +1,10 @@
 class_name InfusionChoices
 extends RefCounted
 
-## The wedges an infusion socket's [AspectWheel] offers — pure statics over a
-## [MagicAttackPlan]; the plan owns what a pick would do
+## The wedges an infusion socket's [AspectWheel] offers — statics over a
+## [MagicAttackPlan]; the plan owns what an aspect pick would do
 ## ([method MagicAttackPlan.socket_order_with] / [method MagicAttackPlan.socket_points]).
+## The one write here is [method pick_element], an element socket's pick.
 
 ## The shape socket's index: not one of the aspect sockets.
 const SHAPE_SOCKET := -1

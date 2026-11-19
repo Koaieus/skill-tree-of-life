@@ -4,8 +4,9 @@ extends ArmedMode
 ## One infusion socket's aspect chooser is open: a leaf over [MagicMode] (or
 ## the [TargetMode] above it), opened by [method MagicMode.toggle_socket]. It
 ## mirrors [SpellPickMode] — seat-local, never on the wire, never seen by the
-## AI. Its one plan write is [method pick]'s [method MagicAttackPlan.set_socket];
-## every other close (a pop on Esc or right-click, a graph click, a spell swap,
+## AI. Its one plan write is [method pick]'s — [method MagicAttackPlan.set_socket]
+## on an aspect socket (and close), [method InfusionChoices.pick_element] on an
+## element socket (and stay open); every other close (a pop on Esc or right-click, a graph click, a spell swap,
 ## this player's launch) leaves the plan as it was. Every close tolerates the
 ## chooser already being gone.
 

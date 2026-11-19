@@ -14,11 +14,13 @@ extends Control
 ## minimum size. The STACK decides its visibility — shown iff an
 ## [InfusionPickMode] is on the branch, repainted on [signal ArmedStack.changed]
 ## — so every close path (a pick, Esc, right-click, a launch, a graph click)
-## hides it for free. Its `picked` is [method InfusionPickMode.pick]; its
-## `dismissed` pops the mode.
+## hides it for free. Its `picked` is [method InfusionPickMode.pick] (an
+## aspect pick closes it; an element pick keeps it open, its wedges rebound to
+## the new counts); its `dismissed` pops the mode.
 ##
-## Beside the arc, past its right end, stand the forge's two element sockets
-## (%ShapeSocket, the crystal, and %RideSocket): neither is an aspect socket —
+## Flanking the arc stand the forge's two element sockets — %ShapeSocket (the
+## crystal) left of it, %RideSocket right of it, so the arc keeps its centre
+## under the vessel. Neither is an aspect socket —
 ## not in [method socket_count], reached as [method socket] of
 ## [constant InfusionChoices.SHAPE_SOCKET] / [constant InfusionChoices.RIDE_SOCKET]
 ## — so both take a pick at 0 `infusion_slots` and with every aspect socket full.
@@ -192,10 +194,6 @@ func _refresh() -> void:
 	if not _ghost.is_empty():
 		_sockets[_owned].show_locked(_ghost)
 	_mark_open()
-	if _wheel.visible:
-		var open := _open()
-		if open != null:
-			_wheel.bind(InfusionChoices.entries(_plan, open.socket))
 
 
 ## Paint element socket [param s] showing [param shown] — forged as
@@ -235,6 +233,8 @@ func _layout() -> void:
 	if not is_node_ready():
 		return
 	var n := _sockets.size()
+	var element_w := maxi(element_slot_px, element_socket_px)
+	var left := element_w + (element_gap_px if n > 0 else 0)
 	var half := deg_to_rad(socket_arc_deg) * 0.5
 	var slot := Vector2(maxi(slot_width_px, socket_px), 0.0)
 	for i in n:
@@ -246,13 +246,12 @@ func _layout() -> void:
 		var x := arc_radius_px * (sin(theta) + sin(half)) if n > 1 else 0.0
 		var y := arc_radius_px * (cos(theta) - cos(half))
 		s.size = slot
-		s.position = Vector2(x, y)
-	var at := _arc_width() + (element_gap_px if n > 0 else 0)
+		s.position = Vector2(left + x, y)
 	for s in [_shape_socket, _ride_socket]:
 		s.socket_px = element_socket_px
-		s.size = Vector2(maxi(element_slot_px, element_socket_px), s.get_combined_minimum_size().y)
-		s.position = Vector2(at, 0.0)
-		at += s.size.x
+		s.size = Vector2(element_w, s.get_combined_minimum_size().y)
+	_shape_socket.position = Vector2.ZERO
+	_ride_socket.position = Vector2(left + _arc_width() + (element_gap_px if n > 0 else 0), 0.0)
 	update_minimum_size()
 	if _wheel.visible:
 		_place_wheel()
@@ -276,7 +275,7 @@ func _get_minimum_size() -> Vector2:
 		return Vector2(element_w, element_h)
 	var half := deg_to_rad(socket_arc_deg) * 0.5
 	var slot_h := _sockets[0].get_combined_minimum_size().y
-	return Vector2(_arc_width() + element_gap_px + element_w,
+	return Vector2(_arc_width() + 2 * element_gap_px + element_w,
 			maxf(arc_radius_px * (1.0 - cos(half)) + slot_h, element_h))
 
 
@@ -341,8 +340,10 @@ func _on_socket_cleared(index: int) -> void:
 	match index:
 		InfusionChoices.SHAPE_SOCKET:
 			_plan.set_shape(&"", 0)
+			_rebind_open_field()
 		InfusionChoices.RIDE_SOCKET:
 			_plan.set_ride(&"", 0)
+			_rebind_open_field()
 		_:
 			_plan.set_socket(index, &"")
 
@@ -351,6 +352,15 @@ func _on_wheel_picked(id: StringName) -> void:
 	var open := _open()
 	if open != null:
 		open.pick(id)
+	_rebind_open_field()
+
+
+## An element chooser stays open across its picks and clears: rebind its
+## wedges to the counts the write left.
+func _rebind_open_field() -> void:
+	var open := _open()
+	if open != null and open.socket < 0 and _wheel.visible and _plan != null:
+		_wheel.bind(InfusionChoices.entries(_plan, open.socket))
 
 
 func _on_wheel_dismissed() -> void:

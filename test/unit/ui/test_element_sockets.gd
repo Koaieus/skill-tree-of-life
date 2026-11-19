@@ -185,3 +185,63 @@ func test_one_count_feeds_both_sockets() -> void:
 	k = plan.infusion.ride_points
 	assert_true(_entry(plan, SHAPE, &"fire").value <= n - k, "shape offered at most N - k")
 	assert_eq(_entry(plan, RIDE, &"fire").value, n, "a socket's own spend is not held against it")
+
+
+# ── The click path: socket → MagicMode → InfusionPickMode → the plan ────────
+
+const _PLAYER_FACTION := preload("res://entity/factions/player.tres")
+
+
+## A real stack: magic armed with lightning_bolt on a caster holding 3 Fire.
+func _armed() -> PlayerInputController:
+	var world := TestWorld.create(self)
+	var node := world.add_node(&"Home", Vector2.ZERO)
+	var attacker := TestWorld.new_entity("", null, _PLAYER_FACTION)
+	world.graph.add_child(attacker)
+	var alloc := TestWorld.around(world.graph).allocator()
+	alloc.force_allocate(attacker, node)
+	var tm := TurnManager.new()
+	add_child_autofree(tm)
+	tm.start_turn(attacker)
+	var bs := BattleSystem.new()
+	bs.turn_manager = tm
+	bs.allocation_system = alloc
+	bs.graph = world.graph
+	add_child_autofree(bs)
+	var ctl := PlayerInputController.new()
+	ctl.graph = world.graph
+	ctl.allocation_system = alloc
+	ctl.turn_manager = tm
+	ctl.battle_system = bs
+	ctl.player = attacker
+	add_child_autofree(ctl)
+	attacker.stat_board.intelligence.base_value = 100.0
+	attacker.stat_board.get_stat(ElementRoster.shared().by_id(&"fire").stat.id).base_value = 3.0
+	ctl.armed_stack.select_spell(ctl.player, _BOLT)
+	ctl.arm_attack(BattleSystem.AttackMode.MAGIC)
+	return ctl
+
+
+func test_a_ride_socket_click_opens_its_chooser_and_picks_step_it() -> void:
+	var ctl := _armed()
+	var plan := ctl.armed_stack.attack_plan() as MagicAttackPlan
+	assert_not_null(plan, "precondition: magic armed")
+	var sockets: InfusionSockets = _SOCKETS_SCENE.instantiate()
+	add_child_autofree(sockets)
+	sockets.bind(plan, ctl.armed_stack)
+	var points := plan.infusion.points.duplicate()
+	var ev := InputEventMouseButton.new()
+	ev.button_index = MOUSE_BUTTON_LEFT
+	ev.pressed = true
+	sockets.socket(RIDE)._gui_input(ev)
+	var picker := ctl.armed_stack.find(InfusionPickMode) as InfusionPickMode
+	assert_not_null(picker, "the ride socket's click opens a chooser")
+	assert_eq(picker.socket, RIDE, "on the ride field")
+	assert_true(sockets.wheel().visible, "the wheel shows")
+	assert_eq(sockets.wheel().entry_count(), ElementRoster.shared().elements.size(), "the roster's elements")
+	sockets.wheel().picked.emit(&"fire")
+	sockets.wheel().picked.emit(&"fire")
+	assert_eq(plan.infusion.ride_element, &"fire", "the ride forged")
+	assert_eq(plan.infusion.ride_points, 2, "two picks, two points")
+	assert_not_null(ctl.armed_stack.find(InfusionPickMode), "an element pick keeps the chooser open")
+	assert_eq(plan.infusion.points, points, "the aspects untouched")
