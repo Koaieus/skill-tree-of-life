@@ -243,9 +243,11 @@ func test_a_lightning_shape_alone_lands_once_on_the_seed_and_copies_every_node_w
 	assert_eq(EdgeGoOff.level_for_points(3), 2, "fixture: 3 points buy level 2")
 	var ball := _ball(x, 2)
 	assert_eq(ball.size(), 6, "fixture: 3 neighbours and their 3 anchors")
+	_set_charge(x, _t(x))
+	assert_eq(_edge.level_of(TerrainRead.of(_c(x), x)), 0, "fixture: X holds Charge T, not Shocked")
 	var all := _land(_hit(x, _light, 3))
 	assert_eq(_takes(all, x), 1, "the seed lands once: the shape is no channel")
-	assert_eq(_charge(x), 0, "no Charge spent, none planted")
+	assert_eq(_charge(x), _t(x), "no Charge spent, none planted")
 	for n: SkillNode in ball:
 		var d := _dmg(all, n)
 		assert_eq(d.size(), 1, "%s takes one shape copy" % n.name)
@@ -290,11 +292,13 @@ func test_a_fire_shape_alone_reaches_by_the_seeds_own_radius() -> void:
 	var inside := _at("In", Vector2(r3 + probe.radius - 2.0, 0.0))
 	var outside := _at("Out", Vector2(-(r3 + probe.radius + 2.0), 0.0))
 	await _own([x, inside, outside])
+	assert_ne(x.radius, probe.radius, "fixture: the seed's radius is its own")
+	_set_t(x, _t(x) - 1)
 	var all := _land(_hit(x, _fire, 3))
 	assert_eq(_takes(all, x), 1, "the seed lands once")
 	assert_eq(_takes(all, inside), 1, "just inside the shaped disc: a copy")
 	assert_eq(_takes(all, outside), 0, "just outside: none")
-	assert_eq(_heat(x), 0, "its Heat is unchanged")
+	assert_eq(_heat(x), _t(x) - 1, "its Heat is unchanged")
 	assert_null(_c(x).terrain_band(_fire), "no status planted")
 
 
@@ -525,6 +529,37 @@ func test_8b_every_seed_of_a_multi_seed_cast_is_shaped() -> void:
 	for m: BlastMark in marks:
 		var want := [n[0], n[2]] if m.centre == n[1] else [n[4], n[6]]
 		assert_true(_same_set(_copies_of(hits, m), want), "one copy on each 1-hop node of %s" % m.centre.name)
-	for h: HitInstance in hits:
-		if h.is_head and h.target != n[1] and h.target != n[5]:
-			assert_null(h.cast_shape, "no later landing carries a shape")
+
+
+# 2 (the walk) ─────────────────────────────────────────────────────────────────
+## A shape touches the cast's seed, never its walk: a 2-hop walk lands on the
+## same nodes in the same beats shaped or not, and only wave 0 carries it.
+func test_a_shaped_cast_walks_exactly_as_the_unshaped_one() -> void:
+	var helper := H.new()
+	var graph := helper.make_graph([[0, 1], [1, 2], [2, 3], [3, 4]], self)
+	var atk := helper.make_entity(graph, "A")
+	var def := helper.make_entity(graph, "D")
+	helper.give_big_hp(def)
+	helper.assign_owner(graph, atk, [0])
+	helper.assign_owner(graph, def, [1, 2, 3, 4])
+	var config := helper.make_config(helper.fan_all(), helper.owner_enemy(), helper.sum_reducer(),
+			{max_hops = 2})
+	var spell := helper.make_spell(config, [DamageEffect.new()], 10.0)
+	var n: Array[SkillNode] = []
+	n.assign(graph.get_skill_nodes())
+	var shaped := Infusion.new()
+	shaped.set_shape(&"lightning", 1)
+	var walks: Array = []
+	var outs: Array = []
+	for inf: Infusion in [Infusion.new(), shaped]:
+		var out := SpellResolver.resolve(spell, n[1], n[0], atk, graph, null, inf)
+		outs.append(out)
+		walks.append(out.timeline.map(func(ev: PropagationEvent) -> Array: return [ev.beat, ev.target]))
+	assert_eq(walks[0].size(), 3, "fixture: the walk lands three waves")
+	assert_eq(walks[1], walks[0], "same landings, same beats")
+	var shaped_out: AttackOutcome = outs[1]
+	assert_eq(_marks(shaped_out.hits).size(), 1, "one shape mark, at the seed")
+	for ev: PropagationEvent in shaped_out.timeline:
+		for h: HitInstance in ev.hits:
+			if ev.beat > 0:
+				assert_null(h.cast_shape, "no later wave's landing carries a shape")
