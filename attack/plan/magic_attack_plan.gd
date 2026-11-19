@@ -13,6 +13,8 @@ extends AttackPlan
 ## directly. Falls back to the bundled default if nothing is selected so the
 ## plan is never silently unarmed.
 
+signal loadout_trimmed(before: int, after: int)
+
 const _FALLBACK_SPELL: SpellDef = preload("res://attack/spell/defs/spark.tres")
 
 ## The cast-from node. No longer clicked — [method set_target]
@@ -813,6 +815,38 @@ func aspect_overrun() -> int:
 
 ## The aim-time preview's resolved outcome (null with nothing to preview) —
 ## the same [method SpellResolver.resolve] walk the cast makes, infusion and all.
+func capacity() -> int:
+	return SpellDef.UNCAPPED
+
+
+func base_capacity() -> int:
+	return SpellDef.UNCAPPED
+
+
+func trim_to(_cap: int) -> bool:
+	return false
+
+
+func reset_to_base_capacity() -> bool:
+	return false
+
+
+func trim_to_source() -> bool:
+	return false
+
+
+func is_target_muted() -> bool:
+	return false
+
+
+func get_node_pip(_node: SkillNode) -> int:
+	return 0
+
+
+func is_node_pip_red(_node: SkillNode) -> bool:
+	return false
+
+
 func preview_outcome() -> AttackOutcome:
 	if _preview_dirty:
 		_rebuild_preview()
