@@ -179,7 +179,10 @@ func _configure(spell: SpellDef) -> void:
 	_body.bind(caster, bs, _ctl)
 	_plan = MagicAttackPlan.new()
 	_plan.attacker = caster
-	_plan.set_spell(spell)
+	# Uncapped: the layout pins fill every owned socket, past any cap.
+	var uncapped := spell.duplicate() as SpellDef
+	uncapped.infusion_capacity = INF
+	_plan.set_spell(uncapped)
 	_ctl.armed_stack.push(_STUB_ARM.new(_plan))
 	_panel.visible = false
 	_body.size = Vector2(TRAY_WIDTH, _body.get_combined_minimum_size().y)

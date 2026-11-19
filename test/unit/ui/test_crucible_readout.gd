@@ -32,7 +32,10 @@ func _caster() -> Entity:
 func _plan() -> MagicAttackPlan:
 	var plan := MagicAttackPlan.new()
 	plan.attacker = _caster()
-	plan.set_spell(_VENOM)
+	# Uncapped: these pins read every point a held aspect fills, past any cap.
+	var spell := _VENOM.duplicate() as SpellDef
+	spell.infusion_capacity = INF
+	plan.set_spell(spell)
 	return plan
 
 
