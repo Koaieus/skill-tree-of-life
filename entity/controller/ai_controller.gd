@@ -35,6 +35,8 @@ const _NO_RUN_RNG_BASE_SEED := 823
 ## three modes (`3 modes x 3 finalists x 11.58ms ~= 104ms`), so this stays in
 ## lockstep with melee's own constant rather than drifting to a tuned number
 ## nobody asked for (D2: "the worst has passed", not a millisecond target).
+## The estimate is raw damage only, blind to the infusion a caster's capacity
+## buys: a magic tie goes to the bigger fill cap (from FIGHTER up), never wider K.
 ## Below this count, gating is a no-op — every candidate is both cheaply AND
 ## gate-accurately scored, identically to the earlier exhaustive behaviour.
 const _CANDIDATE_GATE_K := 3
@@ -666,10 +668,24 @@ func _gather_magic_candidates(visible_enemies: Array[SkillNode]) -> Array[AiComb
 	# survivors: the characterization tests pin THAT order (fog order
 	# within a source, source order within union.sources, spell order within
 	# the spellbook), never cheap-score order.
+	# The rank key is [estimate, fill cap, PASS 1 index], read once per entry:
+	# the estimate is raw-damage-only, so among equal estimates the bigger cap
+	# (the fill the real resolve will spend) goes first, and the index makes the
+	# order total — sort_custom is not stable. Below FIGHTER every fill is the
+	# base cap, so the cap term is 0 and the ranking is the estimate's alone.
+	var keys: Array = []
+	for i in pre.size():
+		var e: Array = pre[i]
+		keys.append([AiCombatScorer.cheap_estimate(e[2], e[3], e[5]),
+				e[6] if ai_tier >= Tier.FIGHTER else 0, i])
 	var order := AiBladeRollout.top_k_indices(
-			pre,
+			keys,
 			func(a: Array, b: Array) -> bool:
-				return AiCombatScorer.cheap_estimate(a[2], a[3], a[5]) > AiCombatScorer.cheap_estimate(b[2], b[3], b[5]),
+				if a[0] != b[0]:
+					return a[0] > b[0]
+				if a[1] != b[1]:
+					return a[1] > b[1]
+				return a[2] < b[2],
 			_CANDIDATE_GATE_K)
 	last_magic_candidate_count = pre.size()
 	last_magic_promoted_count = order.size()
