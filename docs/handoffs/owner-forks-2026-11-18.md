@@ -27,7 +27,7 @@ listed under their "Settled" heading.
 | # | Group | Items | State |
 |---|---|---|---|
 | 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below; ADR gate run (one record, 0096) |
-| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **reopened as a design talk 2026-11-20**: start at "Next session starts here" below |
+| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **settled 2026-11-20** (session 3, see "Settled 2026-11-20" below); ADR 0097; two forks left as #1844, #1845 |
 | 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
@@ -82,7 +82,49 @@ against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
 - H: the blade `remove_vertex` item is a deliberate fix (`e54e963b`, pinned by
   `test_fuse_on_a_dead_vertex.gd`) and is cut from H below.
 
-## Next session starts here — group 2 is a design talk (owner, 2026-11-20)
+## Next session starts here (after session 3, 2026-11-20)
+
+Owner, 2026-11-20: *"the followup of this session can tackle the ND to
+settle forks"*. So: swarmify **#1844** (blade vertex spend; the owner saw
+something in all three options, quoted in the body; the filer's lean of
+option 2 is tentative, not the owner's) and **#1845** (graph-wide buildup
+readout), then group 3 (Ice). #1842 and #1843 are written for Ready and need
+their lane and priority set on the board from a local session (the cloud gets
+a GraphQL 403). ADR 0097 is on branch `claude/eager-pascal-edzoi3` until that
+branch lands; the specs cite it.
+
+## Settled 2026-11-20 — Lightning / conduct and the go-off pay rule (session 3)
+
+Each is the owner's, 2026-11-20, in an `AskUserQuestion` pass; quotes verbatim.
+
+1. **Conduction is cut** (picked *Cut it*): the arc is Lightning's only way of
+   making lines, and a spell walk spends a hop on a Shocked node like anywhere
+   else. It reverses the 2026-11-10 lean. → #1842 (intended Ready). #1838 is
+   closed as not planned; #1839 loses its wire case.
+2. **Every go-off voids at least 1**: *"void AT LEAST 1, always. it's the
+   condition that things can settle at all"*.
+3. **One pay rule for both elements**: *"fire pays 1 (floor) + 1 per node
+   reached. and given it's a closed system, the real consideration is: are
+   they balanced in their graph-wide buildups? … if a D degree node has N then
+   blasts/arcs to D neighbors, it becomes N-D-1 on that node and +1 on the
+   reached nodes … at least that's how i see these void/transfer concepts:
+   knobs to tweak spread and feel and decay etc"*. Fire's disc now moves Heat.
+   The floor is a single export on the base `GoOff`, and void or move stays a
+   per-element knob. A Fire disc that reaches nobody still pays its floor
+   (`floor_when_unreached`, a tentative pass pick from "always"). → #1843
+   (intended Ready, blocked by #1842).
+4. **Blade vertex spend: open.** *"option 1 and 2 and 3 all got something
+   1: clean, just 1 2: more accurately reflects the state, e.g. 2~3 times
+   arcing also possible instead of just 1 3: more uniform with e.g. "what if a
+   shocked blade node hits a shocked node" which we treat with symmetry"*.
+   → #1844 (intended Needs design). It also covers Fire's vertex (G #1805).
+5. **Graph-wide buildup readout: open.** → #1845 (intended Needs design).
+
+ADR 0097 supersedes 0084 §7 for Burning and 0081 §1's Fire pay rule. The
+advisor review step was skipped: no advisor tool was available in this cloud
+session.
+
+## Group 2 design talk as put to the owner (2026-11-20; kept for the numbers)
 
 The owner reopened two Lightning rules, and one Fire rule with them. Ask Q1
 and Q2 before anything else; #1838, #1839's wire case and the vertex spend all
