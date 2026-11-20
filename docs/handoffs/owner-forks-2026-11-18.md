@@ -85,10 +85,12 @@ against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
 ## Next session starts here (after session 3, 2026-11-20)
 
 Owner, 2026-11-20: *"the followup of this session can tackle the ND to
-settle forks"*. So: swarmify **#1844** (blade vertex spend; the owner saw
-something in all three options, quoted in the body; the filer's lean of
-option 2 is tentative, not the owner's) and **#1845** (graph-wide buildup
-readout), then group 3 (Ice). #1842 and #1843 are written for Ready and need
+settle forks"*. **#1844's forks were all settled later the same session**
+(issuecomment-7045068885: resolve at the hit node; solo bills; no per-swing
+cap, since the copy's drain is the bound; no backlash; source read-only). It
+needs only its acceptance spec, then Ready: one `spec` pass, no owner
+questions. Then **#1845** (graph-wide buildup readout; its fact-finding
+Explore was lost to a restart, so start with a fresh one), then group 3 (Ice). #1842 and #1843 are written for Ready and need
 their lane and priority set on the board from a local session (the cloud gets
 a GraphQL 403). ADR 0097 is on branch `claude/eager-pascal-edzoi3` until that
 branch lands; the specs cite it.
