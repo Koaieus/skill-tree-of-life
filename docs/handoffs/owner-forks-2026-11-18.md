@@ -27,7 +27,7 @@ listed under their "Settled" heading.
 | # | Group | Items | State |
 |---|---|---|---|
 | 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below; ADR gate run (one record, 0096) |
-| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **half settled 2026-11-19**; two questions wait on the owner, see "Group 2" below |
+| 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **reopened as a design talk 2026-11-20**: start at "Next session starts here" below |
 | 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
@@ -39,9 +39,17 @@ write its context and game situations in plain words with real numbers
 then one `AskUserQuestion` per situation, scored; file through one subagent;
 update this doc. Practicalities learned in session 1:
 
-- **Context.** The skill, rules and one closed issue body put session 1 at
-  160k before the first question. Do not read a closed issue's body in full;
-  ask the Haiku Explore for the owner's sentences. Start asking by ~180k.
+- **Context: delegate first, ask early** (owner, 2026-11-20: *"the ADR
+  stuff consumed like 150k tokens without us getting into anything useful
+  yet … some very suboptimal decisions were made this session of not
+  offloading research or mechanical work (=writing ADRs) to subagents even
+  before i got my first response in"*). Session 1 reached 160k and session 2
+  over 200k before the first question: session 2 read eight open issue
+  bodies itself and drafted an ADR in the main thread. The main session reads
+  this doc and nothing else in full. In its FIRST turn it sends, in
+  parallel: one Haiku Explore for the code facts, one subagent for any ADR
+  gate or ADR drafting, one for issue and comment reads (owner sentences
+  verbatim). Filing goes to one subagent. First question by ~80k.
 - **GitHub from a cloud session.** `gh issue view` and `mise gh-project` fail
   (GraphQL 403); `gh api repos/Koaieus/skill-tree-of-life/issues/<n>` (REST)
   and the GitHub MCP tools work. Lanes cannot be moved from there: each filed
@@ -73,6 +81,149 @@ against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
   bake.
 - H: the blade `remove_vertex` item is a deliberate fix (`e54e963b`, pinned by
   `test_fuse_on_a_dead_vertex.gd`) and is cut from H below.
+
+## Next session starts here — group 2 is a design talk (owner, 2026-11-20)
+
+The owner reopened two Lightning rules, and one Fire rule with them. Ask Q1
+and Q2 before anything else; #1838, #1839's wire case and the vertex spend all
+hang on them. Plain words and real numbers first, then one `AskUserQuestion`
+per question, scored. The facts below were checked at `5b5d6cb9c` (session 2);
+re-verify only what an option turns on.
+
+### The rules as built, in numbers
+
+- **T** = 2 × a node's graph degree. **Shocked** = Charge > T. The cap is
+  k × T (k = 3 on bare ground), and past it the overflow decays 2 per world
+  turn instead of 1.
+- **The arc**: any hit on a Shocked node, a copy included, sets it off. It
+  reaches every node within L hops; L = 1 above T, 2 above 4T, 3 above 9T
+  (`elements/edge_go_off.gd:30-36`, `ladder_exponent` 2, `max_level` 3). A
+  copy that lands on another Shocked node sets that one off in the same hit,
+  so a string of Shocked nodes cascades. Each node goes off at most once per
+  hit (ADR 0094 §1). It pays 1 Charge per node reached and **moves** that
+  Charge onto the reached node (ADR 0084 §7, `spent_charge_goes_to` = Reached
+  node; Void is the knob's other value). So an arc voids nothing; only decay
+  removes Charge.
+- **Fire's disc** pays 1 Heat per node it reaches and **voids** it (ADR 0084
+  §7: *"Burning and Frozen keep the void"*). A disc that reaches nobody pays
+  nothing and is no go-off (`elements/disc_go_off.gd:15`, `:82`).
+- **Conduction**: the spell's own projectile lands on its target node. If
+  that node is Shocked and the spell picks next targets, the walk leaves
+  without spending a hop (even at 0 hops left), and the node pays 1 Charge,
+  voided (`attack/outcome/hit_gather.gd:372-379`;
+  `attack/spell/spell_resolver.gd:433`; `conduct_cost` 1 on
+  `elements/defs/lightning.tres:21`, `:29`). The spell's children can fan out
+  to several targets there, as at any landing. Only the projectile's own
+  landing conducts: an arc or a Lightning shape's reach never does. The walk
+  visits each node at most once (`max_visits_per_node` 1).
+- **A blade vertex** copies a primed state for one swing. Its copy pays 1 per
+  node reached, voided; that spend is the only thing that stops the vertex
+  going off again on a later contact of the same swing (*"a later contact
+  arcs only while the copy stays > T"*, `docs/domain/elements.md` §
+  Lightning; the same rule for a Burning vertex in § Fire).
+
+**Owner history the questions revisit** (verbatim):
+- Conduction: *"elec - hops -> 1D (lines)"* (2026-11-06); *"i forgot i
+  designed that as a feature. it's rather powerful, not spending a hop. but
+  might be just what it needs"*, then *"i agree with that lean."* (2026-11-10,
+  `docs/design/elements/go-offs.md:208-210`).
+- Transfer: *"knob, transfer by default"*, because *"decay is 1 per charged
+  node. if it voids 4, they are gone. if it spreads them to 0 charge nodes,
+  they are gone by next tick. if more charge is at play, more things can
+  happen, chain effects, priming mid hit or after, all reads as *very* STATIC
+  DISCHARGE i must say"* (2026-11-10, `docs/design/elements/terrain.md:217-219`).
+
+### Worked example: a wire of four (the pass's reading of the rules, not run)
+
+A chain X – A – B – C – D – Y; every node has degree 2 (T 4). A, B, C and D
+hold Charge 6 each (Shocked, 1-hop arc); X and Y hold 0. A chaining spell's
+projectile lands on A with 1 hop left.
+
+- **The cascade, in one hit.** A arcs to X and B: it pays 2 and each gains 1.
+  The copy on B sets B off; B arcs to A and C, so A takes the payload again
+  but does not go off again. C goes off, then D. X, A, B, C, D and Y all take
+  the payload; A, B and C take it twice. A, B, C and D each pay 2 and gain 1
+  or 2: A 5, B 6, C 6, D 5, **all still Shocked**. X and Y end at 1.
+  Of 24 Charge, 22 is still on the wire and none was voided.
+- **Conduction on top.** A is still Shocked after the cascade (5 > 4), so
+  the walk leaves A with its hop unspent; A pays 1 (5 → 4, down to T, so it
+  is no longer Shocked). The spell fans out to A's neighbours; its
+  wave-2 child on B sets B off again (a new hit), which sets off C and D
+  again. The walk then conducts from B for free, and so on along the wire,
+  while each node stays over T.
+- So **one cast re-runs the whole cascade once per wave**, and the wire
+  barely drains, because the arcs move Charge instead of spending it. That is
+  the owner's "doubled-up" (Q1) and "can things settle" (Q2) in one picture.
+
+### Q1. Keep conduction, or cut it?
+
+Owner, 2026-11-20, verbatim: *"i'm kinda wondering whether conduction should
+be kept, or that it makes it all too doubled-up strong. like: say a shocked
+(primed) node takes a hit, and it has a string of 3 neighbors that are also
+shocked. the arcs from the initially hit node will hit & set off the other 3
+charged neigbors too as one big cascade (all as receivers for that *one* hit
+with varying degrees of how many times each node receives the hit's
+payload). do we ALSO need to let spells walk on through them at no cost?
+where each walk could potentially split in N new spell hits (spell instance
+can fan out at each landing point when determining next targets)"*
+
+Options to put (the pass's, unscored until the talk):
+- **Cut it.** Lightning's line identity is the arc alone (the arc's hops are
+  the "1D lines"); a spell spends hops on a wire as anywhere. Falls away:
+  `conduct_cost`, `HitInstance.walk_spreads` / `conducted`, the resolver's
+  `not conducted` term, `PropagationConfig.mint`'s `conducts`,
+  `test/unit/spell/test_shocked_conduction.gd`; **#1838 closes as moot**;
+  #1839 loses its wire case (its review of the old spell movements stands).
+  It reverses the owner's 2026-11-10 lean, so it needs a superseding ADR.
+- **Either, not both.** On the projectile's own target, a Shocked node
+  either goes off (the arc) or conducts the walk, never both in one landing.
+  This keeps the wire for anyone's magic and removes the doubling, but a
+  second rule now decides which one happens.
+- **Keep, as built.** The doubling is the fantasy, and Q2's void rule is what
+  bounds it.
+
+Note for the talk: cutting conduction also removes the question of what
+conduction costs (session 2's open item 4).
+
+### Q2. What does a go-off pay, and where does it go? (Fire and Lightning)
+
+Owner, 2026-11-20, verbatim: *"so for payment when goes off, i'd say: * void
+AT LEAST 1, always. it's the condition that things can settle at all *
+transfer 1 to each nb (lightning), or pay 1 per hit node (fire); possibly
+these are to be unified into both lightning and fire pay OR they both
+transfer"*
+
+The finding to lead with: Fire already voids everything it pays, so "void at
+least 1" only bites on **Lightning**, whose arc today voids nothing; that was
+the owner's own 2026-11-10 pick, for chains (quote above). On the wire
+example, a 1-void floor per go-off drains the wire by 4 per hit (A, B, C and
+D each void 1). A Charge-6 node on T 4 then stops being Shocked after about
+two hits that set it off, instead of only through decay.
+
+Options to put (the pass's):
+- **Floor of 1, elements keep their verbs.** Every go-off voids 1, then pays
+  per reached node in its element's way: Lightning moves 1 per reached node
+  (total cost reached + 1), Fire voids 1 per reached node (its floor is
+  already met when it reaches anyone). Open within this option: does a
+  go-off that reaches nobody still void its 1?
+- **Both void.** Lightning's arc voids like Fire's disc: a data change
+  (`spent_charge_goes_to` = Void on `lightning.tres`). Chains come only from
+  Charge that landing riders bring in. Settles fastest; loses the "static
+  discharge" feel the owner wanted on 2026-11-10.
+- **Both move, plus a floor.** Fire's disc moves Heat onto the nodes it
+  reaches (fire spreads), plus the 1-void floor on both. That is new code
+  for Fire and the most heat in play (Heat also diffuses on the world turn).
+
+The blade vertex (session 2's open item 5) belongs here. Owner, 2026-11-19:
+*"Maybe vertex just doesn't spend? It's a temporary blade node right? Exists
+only during the few second swing"*. Finding: with no spend, every contact of
+one swing goes off at full reach. The same pick covers Fire's vertex (group
+4, G #1805).
+
+**Where the answers land.** Q1 cut / either-or and any Q2 change supersede
+ADR 0084 §7 (and 0081's pay rule if Fire changes) — a subagent writes that
+ADR. #1838 waits on Q1 (a comment on it says so). Then file the build issues
+through one subagent.
 
 ## Settled 2026-11-19 — Catalyst (owner calls, session 1)
 
@@ -171,29 +322,9 @@ Checked at `5b5d6cb9c`: every claim the group makes holds. One correction:
    walk even on a Shocked node". Pass reading, tentative: as built stands
    until the review, which is #1839 (intended Needs design). Was H #1806.
 
-**Asked, not answered: put these first next session**
-
-4. **Does a conduct that leads nowhere cost Charge?** The owner asked what
-   "walk" means: *"By the walk of a spell do you mean a hit by a spell
-   projectile in a wave, or the arcs emitted by such a hit if it were on a
-   shocked node OR an arc walking out during such a hit due to a lightning
-   reach load ? Be precise"*. It is the first: the spell's own projectile
-   landing on its own target node, for a spell that has a spread. A node's
-   arc and a Lightning shape's arc never conduct and never pay
-   `conduct_cost` (`hit_gather.gd:376`, the head's own target only). Today
-   the node pays on that landing even when the spread then picks nobody.
-   Options: pays on entry (as built) / pays only when a child is minted (a
-   terrain write after the spread has picked, which the two-stage order does
-   not have).
-5. **A blade vertex's copy spend.** The owner's idea: *"Maybe vertex just
-   doesn't spend? It's a temporary blade node right? Exists only during the
-   few second swing"*. Finding to lead with: the copy's spend is the only
-   thing that stops a vertex going off again in the same swing (*"a later
-   contact arcs only while the copy stays > T"*, `docs/domain/elements.md`
-   § Lightning; the same line for a Burning vertex in § Fire). With no spend,
-   every contact of the swing goes off at full reach. This is the same pick
-   as group 4's G #1805 (Fire's vertex-copy spend): one answer covers both.
-   If the vertex does not spend, the "voided Charge" question is gone.
+**Superseded by the 2026-11-20 design talk**: the two questions left open
+here (does a conduct that leads nowhere pay; does a blade vertex's copy spend)
+are now part of Q1 and Q2 under "Next session starts here".
 
 ## Already settled tonight (for reference, not to re-argue)
 
