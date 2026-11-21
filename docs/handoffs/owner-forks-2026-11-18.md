@@ -28,6 +28,8 @@ listed under their "Settled" heading.
 |---|---|---|---|
 | 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below; ADR gate run (one record, 0096) |
 | 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **settled 2026-11-20** (session 3, see "Settled 2026-11-20" below); ADR 0097; two forks left as #1844, #1845 |
+| 2b | #1844 blade vertex | spec | **settled + specced 2026-11-21** (session 4) |
+| 2c | #1845 buildup readout; #{ranged-aoe} element AoE per mode | design | open — next |
 | 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
@@ -82,18 +84,59 @@ against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
 - H: the blade `remove_vertex` item is a deliberate fix (`e54e963b`, pinned by
   `test_fuse_on_a_dead_vertex.gd`) and is cut from H below.
 
-## Next session starts here (after session 3, 2026-11-20)
+## Next session starts here (after session 4, 2026-11-21)
 
-Owner, 2026-11-20: *"the followup of this session can tackle the ND to
-settle forks"*. **#1844's forks were all settled later the same session**
-(issuecomment-7045068885: resolve at the hit node; solo bills; no per-swing
-cap, since the copy's drain is the bound; no backlash; source read-only). It
-needs only its acceptance spec, then Ready: one `spec` pass, no owner
-questions. Then **#1845** (graph-wide buildup readout; its fact-finding
-Explore was lost to a restart, so start with a fresh one), then group 3 (Ice). #1842 and #1843 are written for Ready and need
-their lane and priority set on the board from a local session (the cloud gets
-a GraphQL 403). ADR 0097 is on branch `claude/eager-pascal-edzoi3` until that
-branch lands; the specs cite it.
+**#1845 first**: the graph-wide buildup readout. Its fact-finding Explore ran in
+session 4, and the facts are below under "#1845 facts". Put its forks straight to
+the owner; no re-read is needed. Then **#{ranged-aoe}** (element AoE per attack
+mode, the owner's "thorn"), then group 3 (Ice).
+
+The board still cannot be set from the cloud (GraphQL 403). Set these from a
+local session:
+- #1842, #1843 → Ready.
+- #1844 → Ready, blocked by #1843.
+- #{ranged-aoe} → Needs design.
+
+## Settled 2026-11-20/21 — #1844 blade vertex (session 4)
+
+The spec is on #1844, and the ADR is {adr}. Calls are verbatim on #1844 and in
+the ADR. In short:
+
+- **Cost and effect are separate.** A primed party's cost is the floor plus its
+  own ring, all voided and stopping at 0. The effect is +1 terrain on each node
+  reached, not funded by the cost. A note on #1843 says this changes nothing
+  there except a short payer.
+- **+1 per go-off over the whole combined reach.** This replaces the 11-20 "dry
+  outer ring".
+- **A cast shape alone has no effect** (*"No, ride plants"*).
+- **One path:** a blade copy and a cast shape are one incoming `GoOffSource`.
+
+## #1845 facts (checked at `1cf6168`, session 4)
+
+- `tools/balance/` has no terrain, world turn, procgen or AI. Its scripted
+  fixtures run against real Entity/SkillNode objects. `invariants.json` is all
+  TBD.
+- There is no headless AI-vs-AI level driver. The closest is `--autoplay` in
+  `network/mp_harness.gd:113-135`, which uses `SeatHandover.hand_seat_to_ai`
+  (`network/seat_handover.gd:98`).
+- Terrain has one writer, `NodeCombat.add_terrain` (`combat/node_combat.gd:665`).
+  Bulk writes go through `TerrainSettle.commit_with`
+  (`combat/terrain/terrain_settle.gd:156`). `GraphSnapshot` restore writes
+  NodeState directly (`network/graph_snapshot.gd:316-317`).
+- `CombatWorld` keeps a terrain index (`terrain_nodes()`,
+  `combat/combat_world.gd:226-249`), so a graph-wide sum is cheap. No sum exists
+  today.
+- The world turn: `TurnManager._end_world_turn` (`systems/turn_manager.gd:442-450`)
+  runs burn → status decay → `flow_temperature` (diffuse, then `decay_terrain`).
+  `CombatWorld.terrain_settled(changed)` emits the list of moved nodes, not a
+  delta. No `Events` signal covers terrain, go-offs or decay.
+- Go-off cost commits at `hit_gather.gd:359`, and landings at `:320`.
+- No chart widget exists anywhere: `GaugeSpark` is a gauge tween, not a plot.
+  Debug overlays are per-feature F-keys (F2 fog, F3 stat board).
+- Correction to #1845's body: the `71_blast` tab picks a go-off *look*; it edits
+  no GoOff knob.
+- Name trap: `StatusDef.decay_per_world_turn` is a bool, unrelated to
+  `ElementBand.decay_per_world_turn` (int).
 
 ## Settled 2026-11-20 — Lightning / conduct and the go-off pay rule (session 3)
 
