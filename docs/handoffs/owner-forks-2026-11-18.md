@@ -29,7 +29,7 @@ listed under their "Settled" heading.
 | 1 | Catalyst | A, B-S3, B-S5, the Catalyst leftovers in D and H | **settled 2026-11-19**, see below; ADR gate run (one record, 0096) |
 | 2 | Lightning / conduct | H #1806 (a `terminal` child conducts on), H #1808 (conduct on a Frozen + Shocked node), G #1806 knobs and its two flagged behaviours | **settled 2026-11-20** (session 3, see "Settled 2026-11-20" below); ADR 0097; two forks left as #1844, #1845 |
 | 2b | #1844 blade vertex | spec | **settled + specced 2026-11-21** (session 4) |
-| 2c | #1845 buildup readout; #{ranged-aoe} element AoE per mode | design | open — next |
+| 2c | #1845 buildup readout; #1847 element AoE per mode | design | open — next |
 | 3 | Ice | G #1813 B / C / a, G #1807 L, G #1811 (who greys a refused Ice), #1837 (a core and a Frozen node) | open |
 | 4 | Fire / Burning | B-S2, G #1805 (vertex-copy spend), H "G-b retired pin", H "F4 build caveat", E #1805 | open |
 | 5 | Forge / overclock / ammo | G #1812 U1–U3, G #1814 and its H item, G #1809 and its H items, G #1811 (point-split UI, wedges), H #1811 (arrow colours), G #1804 | open |
@@ -88,18 +88,18 @@ against `f8792f5b`, settled nothing, posted nothing; the owner never saw it):
 
 **#1845 first**: the graph-wide buildup readout. Its fact-finding Explore ran in
 session 4, and the facts are below under "#1845 facts". Put its forks straight to
-the owner; no re-read is needed. Then **#{ranged-aoe}** (element AoE per attack
+the owner; no re-read is needed. Then **#1847** (element AoE per attack
 mode, the owner's "thorn"), then group 3 (Ice).
 
 The board still cannot be set from the cloud (GraphQL 403). Set these from a
 local session:
 - #1842, #1843 → Ready.
 - #1844 → Ready, blocked by #1843.
-- #{ranged-aoe} → Needs design.
+- #1847 → Needs design.
 
 ## Settled 2026-11-20/21 — #1844 blade vertex (session 4)
 
-The spec is on #1844, and the ADR is {adr}. Calls are verbatim on #1844 and in
+The spec is on #1844, and the ADR is 0098 (supersedes 0097 §3, §6, 0084 §7, 0093 §5 in part). Calls are verbatim on #1844 and in
 the ADR. In short:
 
 - **Cost and effect are separate.** A primed party's cost is the floor plus its
