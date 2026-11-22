@@ -537,6 +537,52 @@ func test_cap_off_leaves_the_row_to_power_max() -> void:
 	assert_eq(_store(), cap + 5, "power_max 0 is uncapped")
 
 
+# ── The cap limits gains only (ADR 0096) ─────────────────────────────────────
+
+
+func test_an_edge_removal_dropping_the_cap_takes_nothing_and_a_landing_adds_nothing() -> void:
+	var edge := _w.link(_b, _w.add_node(&"B_far", Vector2(30000.0, 0.0)))
+	var cap := _node.terrain_cap()
+	_plant(cap)
+	assert_eq(_store(), cap, "fixture: the row at its cap")
+	_w.graph.remove_edge(edge)
+	assert_lt(_node.terrain_cap(), cap, "fixture: the edge removal dropped the cap under the row")
+	assert_eq(_store(), cap, "a cap that drops takes nothing away")
+	_plant(2)
+	assert_eq(_store(), cap, "a landing on an over-cap row adds nothing and removes nothing")
+
+
+func test_a_lower_k_dropping_the_cap_takes_nothing_and_a_landing_adds_nothing() -> void:
+	var cap := _node.terrain_cap()
+	_plant(cap)
+	var k := _node.board().get_stat(&"terrain_cap_k")
+	k.base_value = k.base_value - 1.0
+	assert_lt(_node.terrain_cap(), cap, "fixture: a lower k dropped the cap under the row")
+	assert_eq(_store(), cap, "a cap that drops takes nothing away")
+	_plant(2)
+	assert_eq(_store(), cap, "a landing on an over-cap row adds nothing and removes nothing")
+
+
+func test_a_row_under_the_cap_gains_only_up_to_it() -> void:
+	var cap := _node.terrain_cap()
+	_plant(cap - 1)
+	_plant(5)
+	assert_eq(_store(), cap, "the gain stops at the cap")
+
+
+func test_a_restored_over_cap_row_is_written_as_sent() -> void:
+	var cap := _node.terrain_cap()
+	_node.restore_status_row(_def, float(cap + 5), true)
+	assert_eq(_store(), cap + 5, "a restore is never bounded by the live cap")
+
+
+func test_a_host_with_no_terrain_cap_is_uncapped() -> void:
+	var ec := _holder.get_combat()
+	var cap := _node.terrain_cap()
+	ec.apply_status(_def, float(cap + 5))
+	assert_eq(int(ec.get_status_power(_def.id)), cap + 5, "an entity host has no k × T")
+
+
 # ── Acceptance 1 (centre), 3, 4 and 4b: the shipped def ──────────────────────
 
 const _CATALYST_TRES := preload("res://effects/status/catalyst.tres")
