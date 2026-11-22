@@ -168,6 +168,9 @@ fingerprint) and `test_terrain_bands.gd` (the band sweep, the signal).
 
 ## Flow: the world-turn settle (#1795)
 
+Every commit here and in the gather is booked for the graph-wide counts: see
+[terrain-ledger.md](terrain-ledger.md).
+
 Terrain changes between beats on the world turn only. Guards:
 `test/unit/combat/test_terrain_settle.gd` (the commit),
 `test_temperature_flow.gd` (the pass) and
