@@ -295,6 +295,14 @@ var staged: bool = false
 ## replay lands the same terrain without gathering.
 var terrain_ops: Array = []
 
+## Stage one's applied terrain amounts for this hit's beat, in
+## [CombatWorld.TerrainBook] layout (per element: produced, effect, voided,
+## voided incoming, decayed, onto opposite); empty when nothing moved. On the
+## beat's first gathered head beside [member terrain_ops], never on a copy.
+## Read-only telemetry ([TerrainLedger] counts it at
+## [method OutcomeApplier.land_one] on the live world); never fed.
+var terrain_sums := PackedInt32Array()
+
 ## Stage one's status-row changes for this hit's beat, in commit order, as
 ## `[SkillNode, StatusInstance.HostKind, StatusDef, delta, converted]`: the
 ## holder (always the node's slice, [code]NODE[/code]), the signed power change

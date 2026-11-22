@@ -187,6 +187,11 @@ const KEY_TERRAIN_COUNT := "tr_n"
 const KEY_TERRAIN_NODE := "tr_node"
 const KEY_TERRAIN_DT := "tr_dt"
 const KEY_TERRAIN_DC := "tr_dc"
+## Stage one's applied terrain amounts ([member HitInstance.terrain_sums]): one
+## count per hit (0 or [constant CombatWorld.TerrainBook.SIZE]) slicing one
+## flat column. Telemetry only; omitted when no hit carries any.
+const KEY_TERRAIN_SUM_COUNT := "tr_sn"
+const KEY_TERRAIN_SUM := "tr_s"
 ## Stage one's recorded status-row changes ([member HitInstance.row_ops],
 ## #1799): one count per hit slicing flat per-op columns, the node's stable id,
 ## the def as its resource_path (as [member status_defs]) and the signed power
@@ -320,6 +325,8 @@ var terrain_counts := PackedInt32Array()
 var terrain_nodes := PackedInt32Array()
 var terrain_dt := PackedInt32Array()
 var terrain_dc := PackedInt32Array()
+var terrain_sum_counts := PackedInt32Array()
+var terrain_sums := PackedInt32Array()
 var row_counts := PackedInt32Array()
 var row_nodes := PackedInt32Array()
 var row_defs := PackedStringArray()
@@ -401,6 +408,8 @@ static func wire_fields() -> Array[WireFields.Field]:
 		WireFields.Field.new(&"terrain_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_NODE).omitted_at_default(),
 		WireFields.Field.new(&"terrain_dt", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DT).omitted_at_default(),
 		WireFields.Field.new(&"terrain_dc", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_DC).omitted_at_default(),
+		WireFields.Field.new(&"terrain_sum_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_SUM_COUNT).omitted_at_default(),
+		WireFields.Field.new(&"terrain_sums", TYPE_PACKED_INT32_ARRAY).as_key(KEY_TERRAIN_SUM).omitted_at_default(),
 		WireFields.Field.new(&"row_counts", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_COUNT).omitted_at_default(),
 		WireFields.Field.new(&"row_nodes", TYPE_PACKED_INT32_ARRAY).as_key(KEY_ROW_NODE).omitted_at_default(),
 		WireFields.Field.new(&"row_defs", TYPE_PACKED_STRING_ARRAY).as_key(KEY_ROW_DEF).omitted_at_default(),
@@ -460,6 +469,11 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 	for hit in outcome.hits:
 		if not hit.terrain_ops.is_empty():
 			any_terrain = true
+			break
+	var any_sums := false
+	for hit in outcome.hits:
+		if not hit.terrain_sums.is_empty():
+			any_sums = true
 			break
 	var any_rows := false
 	var any_converted := false
@@ -534,6 +548,9 @@ static func capture(outcome: AttackOutcome, graph: Graph) -> Dictionary:
 				r.terrain_nodes.append(_id_of(op[0], graph))
 				r.terrain_dt.append(int(op[1]))
 				r.terrain_dc.append(int(op[2]))
+		if any_sums:
+			r.terrain_sum_counts.append(hit.terrain_sums.size())
+			r.terrain_sums.append_array(hit.terrain_sums)
 		if any_rows:
 			r.row_counts.append(hit.row_ops.size())
 			for op: Array in hit.row_ops:
@@ -639,6 +656,7 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 	var settle_at := 0
 	# Running offset over the flattened terrain ops, advanced per hit.
 	var terrain_at := 0
+	var sums_at := 0
 	# Running offset over the flattened row changes, advanced per hit.
 	var row_at := 0
 	# Running offset over the flattened converted stacks, advanced per row op.
@@ -788,6 +806,11 @@ static func rebuild(d: Dictionary, graph: Graph, rate: float = -1.0) -> AttackOu
 					hit.terrain_ops.append([_node_of(r.terrain_nodes[at], graph),
 							r.terrain_dt[at], r.terrain_dc[at]])
 			terrain_at += r.terrain_counts[i]
+		if i < r.terrain_sum_counts.size():
+			var n := r.terrain_sum_counts[i]
+			if n > 0 and sums_at + n <= r.terrain_sums.size():
+				hit.terrain_sums = r.terrain_sums.slice(sums_at, sums_at + n)
+			sums_at += n
 		if i < r.row_counts.size():
 			for k in r.row_counts[i]:
 				var at := row_at + k

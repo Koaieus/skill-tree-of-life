@@ -165,6 +165,10 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 		return
 	if not hit.ice_cues.is_empty() and not world.is_shadow():
 		_announce_ice(hit)
+	# The beat's terrain telemetry: counted on the live world only, here where
+	# the head lands whatever its target.
+	if not hit.terrain_sums.is_empty():
+		world.book_terrain(hit.terrain_sums)
 	if hit.target == null:
 		return
 	# A rebuilt record arrives with its deallocations pre-populated (the

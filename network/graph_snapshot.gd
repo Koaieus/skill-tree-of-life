@@ -100,6 +100,8 @@ static func decode(bytes: PackedByteArray, graph: Graph) -> void:
 		graph.remove_skill_node(node)
 	_reconcile_edges(graph, payload.get("edges", []) as Array, by_id, edges_before)
 	_reconcile_owner_mirrors(graph)
+	# Terrain was written straight into NodeState: a counter rebaselines.
+	CombatWorld.live().terrain_rebased.emit()
 
 
 ## Every [EntityNavigator] this decode just invalidated (#756).

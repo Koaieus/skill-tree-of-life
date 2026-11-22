@@ -126,6 +126,10 @@ var _slices: Dictionary = {}  # SkillNode -> NodeCombat (null: not a node slice)
 var _pre: Dictionary = {}  # SkillNode -> [t, charge] before stage one touched it
 ## Every status-row change committed, in order ([member HitInstance.row_ops]).
 var _row_ops: Array = []
+## The beat's applied terrain amounts ([member HitInstance.terrain_sums]).
+var _sums := CombatWorld.TerrainBook.new()
+## `TerrainSettle.Batch -> CombatWorld.TerrainBook`: each batch's gross adds.
+var _books: Dictionary = {}
 ## Stage two's worklist, in push order: [Arrival] entries, and each generation's
 ## shatter bursts ([HitInstance]) after that generation's entries.
 var _entries: Array = []
@@ -226,6 +230,8 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 	gather._push(queue)
 	# After the push: a copy clones its head's fields, and only the head feeds.
 	order[0].head.row_ops = gather._row_ops
+	if CombatWorld.TerrainBook.any(gather._sums.sums):
+		order[0].head.terrain_sums = gather._sums.sums
 	order[0].head.ice_cues = gather._ice_cues()
 
 
@@ -273,6 +279,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 				_cue_hold(node)
 	# Land every arrival's element riders, absorbed or not.
 	var batch := TerrainSettle.Batch.new()
+	_books[batch] = CombatWorld.TerrainBook.new()
 	var reading: Dictionary = {}  # SkillNode -> Array of the _Hits read there
 	var landed: Dictionary = {}  # SkillNode -> {element id: int} landing there (_convert_landing)
 	var pre_land := _LandedFrom.new(TerrainSettle.seat(_seat_take))
@@ -312,11 +319,12 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 	for node: SkillNode in landed:
 		if _slice(node) != null:
 			batch.sums(_slice(node))
-	TerrainSettle.commit_with(batch, pre_land.seat())
+	_commit_booked(batch, pre_land.seat())
 	# Read: the node's second Admits answer over every arrival of the
 	# generation there, then each hit not yet read there fires its go-offs;
 	# every spend of the generation commits together.
 	var spends := TerrainSettle.Batch.new()
+	_books[spends] = CombatWorld.TerrainBook.new(CombatWorld.TerrainBook.Field.EFFECT)
 	var next: Array[Arrival] = []
 	var bursts: Array[HitInstance] = []
 	for node in nodes:
@@ -329,7 +337,7 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 			for e: Element in ElementRoster.shared().elements:
 				_go_off(h, node, e, null if muted else read, source, generation, spends, next)
 	_release(generation, spends, next)
-	TerrainSettle.commit(spends, _seat_take)
+	_commit_booked(spends, TerrainSettle.seat(_seat_take))
 	_entries.append_array(bursts)
 	return next
 
@@ -665,7 +673,9 @@ func _land_riders(h: _Hit, landed: Dictionary, pre_land: _LandedFrom) -> void:
 		if slice == null:
 			continue
 		pre_land.note(slice)
+		var was := [slice.terrain_t(), slice.charge()]
 		status.land_on(slice, _world)
+		_sums.book_landing(int(was[0]), int(was[1]), slice.terrain_t(), slice.charge())
 		status.staged = true
 		h.terrain[e] = int(h.terrain.get(e, 0)) + int(status.power)
 		_landed(landed, status.target, e, int(status.power))
@@ -808,9 +818,46 @@ func _go_off(h: _Hit, node: SkillNode, e: Element, read: TerrainRead, source: Go
 	_spend(spends, node, e, result)
 	var incoming := result.incoming_at_read()
 	if incoming > 0 and source.pays():
-		source.spend.call(e, incoming)
+		_pay(e, incoming, source)
 	_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
-			source.spend if theirs != null else Callable(), own != null)
+			_pay.bind(source) if theirs != null and source.pays() else Callable(), own != null)
+
+
+## [param n] stacks of [param e] off [param source]'s store through its payer,
+## the amount it actually had booked as [code]VOIDED_INCOMING[/code] (a payer
+## pays what it has). A payer whose holder answers no [code]copy_read[/code] is
+## booked at [param n].
+func _pay(e: Element, n: int, source: GoOffSource) -> void:
+	var before := _store(source)
+	source.spend.call(e, n)
+	var after := _store(source)
+	var row := CombatWorld.TerrainBook.row_of(e)
+	var paid := n
+	if before != null and after != null:
+		if row == CombatWorld.TerrainBook.CHARGE:
+			paid = before.charge - after.charge
+		else:
+			paid = absi(before.t) - absi(after.t)
+			row = CombatWorld.TerrainBook.HEAT if before.t > 0 else CombatWorld.TerrainBook.COLD
+	_sums.book(row, CombatWorld.TerrainBook.Field.VOIDED_INCOMING, paid)
+
+
+static func _store(source: GoOffSource) -> TerrainRead:
+	if source == null or source.holder == null or not source.holder.has_method(&"copy_read"):
+		return null
+	return source.holder.call(&"copy_read", source.index) as TerrainRead
+
+
+## Commit [param batch] with [param readers] and its book last, the book's
+## applied amounts summed into the beat's ([member _sums]).
+func _commit_booked(batch: TerrainSettle.Batch, readers: Array[TerrainSettle.SettleReader]) -> void:
+	var book: CombatWorld.TerrainBook = _books.get(batch)
+	if book != null:
+		readers.append(book)
+	TerrainSettle.commit_with(batch, readers)
+	if book != null:
+		_sums.merge(book.sums)
+		_books.erase(batch)
 
 
 ## The band of [param e] whose [GoOff] takes a cast's shape: its first holding
@@ -910,6 +957,7 @@ func _spend_stacks(batch: TerrainSettle.Batch, node: SkillNode, e: Element, tota
 			batch.add_toward_zero_t(_slice(node), total)
 		Terrain.Axis.CHARGE:
 			batch.add_charge(_slice(node), -total)
+			_ask(batch).ask_charge(_slice(node), -total)
 
 
 func _add(batch: TerrainSettle.Batch, node: SkillNode, e: Element, n: int) -> void:
@@ -919,10 +967,20 @@ func _add(batch: TerrainSettle.Batch, node: SkillNode, e: Element, n: int) -> vo
 	match Terrain.axis_of(e):
 		Terrain.Axis.HEAT:
 			batch.add_net_t(slice, n)
+			_ask(batch).ask_net_t(slice, n)
 		Terrain.Axis.COLD:
 			batch.add_net_t(slice, -n)
+			_ask(batch).ask_net_t(slice, -n)
 		Terrain.Axis.CHARGE:
 			batch.add_charge(slice, n)
+			_ask(batch).ask_charge(slice, n)
+
+
+## [param batch]'s book; a batch opened with none books into a throwaway.
+func _ask(batch: TerrainSettle.Batch) -> CombatWorld.TerrainBook:
+	if not _books.has(batch):
+		_books[batch] = CombatWorld.TerrainBook.new()
+	return _books[batch]
 
 
 func _copy(h: _Hit, node: SkillNode, result: GoOffResult, generation: int) -> Arrival:
@@ -1023,6 +1081,7 @@ static func _clone(src: HitInstance, a: Arrival) -> HitInstance:
 	var no_settle: Array[CombatWorld.SettleOp] = []
 	c.settle = no_settle
 	c.terrain_ops = []
+	c.terrain_sums = PackedInt32Array()
 	c.row_ops = []
 	c.ice_cues = []
 	c.target = a.node
