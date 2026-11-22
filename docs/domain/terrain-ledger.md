@@ -7,7 +7,7 @@ minting outrunning void + decay*). Three parts, each knowing only the one below:
 
 ## What is booked, and where
 
-`CombatWorld.TerrainBook` holds one commit's **applied** amounts per element
+`TerrainBook` holds one commit's **applied** amounts per element
 (Heat, Cold, Charge) × field: `PRODUCED`, `EFFECT`, `VOIDED` (node-paid),
 `VOIDED_INCOMING` (a blade copy's pay: off the graph), `DECAYED`,
 `ONTO_OPPOSITE`. As a `SettleReader` appended **last** to a commit's readers it

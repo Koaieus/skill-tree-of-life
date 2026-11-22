@@ -188,7 +188,7 @@ const KEY_TERRAIN_NODE := "tr_node"
 const KEY_TERRAIN_DT := "tr_dt"
 const KEY_TERRAIN_DC := "tr_dc"
 ## Stage one's applied terrain amounts ([member HitInstance.terrain_sums]): one
-## count per hit (0 or [constant CombatWorld.TerrainBook.SIZE]) slicing one
+## count per hit (0 or [constant TerrainBook.SIZE]) slicing one
 ## flat column. Telemetry only; omitted when no hit carries any.
 const KEY_TERRAIN_SUM_COUNT := "tr_sn"
 const KEY_TERRAIN_SUM := "tr_s"

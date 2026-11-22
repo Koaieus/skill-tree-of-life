@@ -1,7 +1,7 @@
 extends GutTest
 
 ## Stage one's per-beat terrain sums ([member HitInstance.terrain_sums],
-## [CombatWorld.TerrainBook] layout): per element the applied amounts produced,
+## [TerrainBook] layout): per element the applied amounts produced,
 ## effect, voided (node-paid), voided incoming (copy-paid, off the graph) and
 ## onto the opposite side. Every case also reconciles them with the netted
 ## per-node deltas ([member HitInstance.terrain_ops]): per element,
@@ -236,8 +236,8 @@ func _solo_disc(x: SkillNode, read: TerrainRead) -> Array:
 
 
 
-const _B := CombatWorld.TerrainBook
-const _F := CombatWorld.TerrainBook.Field
+const _B := TerrainBook
+const _F := TerrainBook.Field
 
 
 func _all_nodes() -> Array:

@@ -296,7 +296,7 @@ var staged: bool = false
 var terrain_ops: Array = []
 
 ## Stage one's applied terrain amounts for this hit's beat, in
-## [CombatWorld.TerrainBook] layout (per element: produced, effect, voided,
+## [TerrainBook] layout (per element: produced, effect, voided,
 ## voided incoming, decayed, onto opposite); empty when nothing moved. On the
 ## beat's first gathered head beside [member terrain_ops], never on a copy.
 ## Read-only telemetry ([TerrainLedger] counts it at

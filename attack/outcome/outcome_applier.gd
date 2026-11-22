@@ -227,7 +227,7 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	if not was.is_empty():
 		var landed := slice as NodeCombat
 		if landed.terrain_t() != int(was[0]) or landed.charge() != int(was[1]):
-			var book := CombatWorld.TerrainBook.new()
+			var book := TerrainBook.new()
 			book.book_landing(int(was[0]), int(was[1]), landed.terrain_t(), landed.charge())
 			world.book_terrain(book.sums)
 	if not recorded:

@@ -24,14 +24,14 @@ const FIELDS: Array[StringName] = [
 	&"onto_opposite", &"from_opposite", &"total",
 	&"voided_incoming", &"primed",
 ]
-## [CombatWorld.TerrainBook.Field] -> the sample key it adds to.
+## [TerrainBook.Field] -> the sample key it adds to.
 const _BOOKED := {
-	CombatWorld.TerrainBook.Field.PRODUCED: &"produced",
-	CombatWorld.TerrainBook.Field.EFFECT: &"effect",
-	CombatWorld.TerrainBook.Field.VOIDED: &"voided",
-	CombatWorld.TerrainBook.Field.VOIDED_INCOMING: &"voided_incoming",
-	CombatWorld.TerrainBook.Field.DECAYED: &"decayed",
-	CombatWorld.TerrainBook.Field.ONTO_OPPOSITE: &"onto_opposite",
+	TerrainBook.Field.PRODUCED: &"produced",
+	TerrainBook.Field.EFFECT: &"effect",
+	TerrainBook.Field.VOIDED: &"voided",
+	TerrainBook.Field.VOIDED_INCOMING: &"voided_incoming",
+	TerrainBook.Field.DECAYED: &"decayed",
+	TerrainBook.Field.ONTO_OPPOSITE: &"onto_opposite",
 }
 
 ## World turns kept (tentative, easy to change).
@@ -116,7 +116,7 @@ func _on_booked(sums: PackedInt32Array) -> void:
 	for i in ELEMENTS.size():
 		var row: Dictionary = _current[ELEMENTS[i]]
 		for f: int in _BOOKED:
-			row[_BOOKED[f]] = int(row[_BOOKED[f]]) + CombatWorld.TerrainBook.read_of(sums, i, f)
+			row[_BOOKED[f]] = int(row[_BOOKED[f]]) + TerrainBook.read_of(sums, i, f)
 
 
 ## Clear the history and take the board as it stands as the new baseline.
