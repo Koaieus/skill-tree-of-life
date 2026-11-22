@@ -162,9 +162,10 @@ vision_system = NodePath("../VisionSystem")
 unique_name_in_owner = true
 script = ExtResource("7_turn")
 
-[node name="TerrainLedger" type="Node" parent="Systems"]
+[node name="TerrainLedger" type="Node" parent="Systems" node_paths=PackedStringArray("turn_manager")]
 unique_name_in_owner = true
 script = ExtResource("101_terrain_ledger")
+turn_manager = NodePath("../TurnManager")
 
 [node name="VisionSystem" type="Node" parent="Systems" unique_id=872348382 node_paths=PackedStringArray("graph", "allocation_system")]
 unique_name_in_owner = true

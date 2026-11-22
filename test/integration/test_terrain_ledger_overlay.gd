@@ -102,6 +102,40 @@ func _spawned_entities(root: GameRoot) -> Array[Entity]:
 	return out
 
 
+## One gathered hit on the live world: a hostile node with neighbours primed
+## in Lightning, hit by the other camp, its head landed as a replay lands it.
+func _attack_once(root: GameRoot) -> bool:
+	var es := _spawned_entities(root)
+	if es.size() < 2:
+		return false
+	var light := ElementRoster.shared().by_id(&"lightning")
+	var live := CombatWorld.live()
+	for n: SkillNode in root.graph.get_skill_nodes():
+		if n.owned_by != es[1] or n.get_graph_degree(n.get_graph()) < 2:
+			continue
+		var c := live.combat_for(n) as NodeCombat
+		c.add_terrain(light, c.terrain_threshold() + 1 - c.charge())
+		var d := DamageInstance.new()
+		d.amount = 1.0
+		d.type = DamageInstance.Type.TRUE
+		d.is_head = true
+		d.target = n
+		d.attacker = es[0]
+		var span: Array[HitInstance] = [d]
+		HitGather.stage_one(span.duplicate(), live, HitQueue.over(span.duplicate()))
+		OutcomeApplier.land_one(d, live)
+		return true
+	return false
+
+
+func _moved(sample: Dictionary) -> bool:
+	for e: StringName in TerrainLedger.ELEMENTS:
+		for f: StringName in [&"produced", &"effect", &"voided", &"decayed"]:
+			if int(sample[e][f]) != 0:
+				return true
+	return false
+
+
 func _press_toggle(overlay: TerrainLedgerOverlay) -> void:
 	var ev := InputEventKey.new()
 	ev.keycode = overlay.toggle_key
@@ -119,6 +153,15 @@ func test_f4_shows_the_overlay_and_hidden_stops_its_draw() -> void:
 	assert_same(overlay.ledger, root.get_node("%TerrainLedger"),
 			"game_root wires the overlay to the level's TerrainLedger")
 	assert_false(overlay.visible, "the overlay starts hidden")
+
+	# The level's own ledger: one attack and one world turn close a sample
+	# with the attack's terrain in it.
+	var ledger: TerrainLedger = root.get_node("%TerrainLedger")
+	assert_true(_attack_once(root), "fixture: a primed hostile node to hit")
+	root.get_node("%TurnManager")._end_world_turn()
+	assert_false(ledger.samples().is_empty(), "a world turn closes a sample")
+	if not ledger.samples().is_empty():
+		assert_true(_moved(ledger.samples().back()), "the latest sample is non-empty")
 
 	var counting := CountingLedger.new()
 	add_child_autofree(counting)
