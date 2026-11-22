@@ -11,8 +11,8 @@ bypass are [defense-axes.md](defense-axes.md).
 - **Definition.** `StatusDef` (`effects/status/status_def.gd`) is a `.tres`-authored
   resource: id, tags, `power_max`, a `decay` slot, `reapply` policy, `on_dealloc`,
   display identity. Subclasses override `_on_applied` / `_on_tick` / `_on_removed`
-  (and `_on_restored`, which defaults to `_on_applied`, when a snapshot restore
-  must not re-derive) and stay stateless.
+  and `cap_on` (a per-host bound on gains, 0 = none; a snapshot restore calls
+  `_on_applied` and skips it) and stay stateless.
 - **Rows.** A `NodeStatus{power, key, camp_id, applier_id}` per `(def.id, key)`,
   held on the `StatusHost` slice `NodeCombat` composes beside `_board` —
   "on NodeCombat, like node HP" (owner). See
