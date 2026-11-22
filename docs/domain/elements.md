@@ -250,10 +250,14 @@ has one power source and one radius law; `fire.tres` sets only `damage_per_power
   `radius_a × (√power + radius_b) ×` the origin node's radius.
   `radius_a` (default 2) and `radius_b` (default 1) are tentative knobs
   (#1800).
-- **Spend.** 1 Heat per other node reached (the base `GoOff` law), through
-  `GoOffResult.cost` and the gather's `TerrainSettle` batch. A disc that
-  reaches no other node spends nothing and does not go off (the base `GoOff`
-  law); it has no nodeless cost.
+- **Spend.** The one go-off pay rule (ADR 0097 §2-§5): `GoOff.void_floor`
+  (1) voided as `nodeless_cost`, plus 1 Heat per other node reached
+  (`GoOffResult.cost`), through the gather's `TerrainSettle` batch. On
+  `spent_heat_goes_to` = Reached node (default) each reached node takes +1
+  Heat (`GoOffResult.transfer`); on Void none does. The bill stops at 0 and
+  the +1s land regardless (cost and effect are separate). A disc that reaches
+  no other node makes no entry, no centre copy and no mark, yet still voids
+  its floor while `GoOff.floor_when_unreached` holds (default on).
 - **Own damage.** `damage_per_power × power` on each copy and on the centre
   landing; 2 on Fire's instance (tentative knob, #1800).
 - **Reach.** Shape alone (`_within`, `EuclideanRangeFinder`), the centre
@@ -295,17 +299,16 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   vertex passes its excess at fill (#1829), a cast passes points ×
   `shape_power_per_point` (#1812).
 - **Burning node** (`power_at` > 0). It reaches every node inside the combined
-  radius. It pays its **solo cost**, 1 per reached node that is also inside its
-  own `disc_radius(excess)`, which is the same spend `fire_in` makes there. When
-  the combined disc reaches anyone and that spend is below
-  `solo_cost_floor`, the shortfall goes into `nodeless_cost`. `solo_cost_floor`
-  defaults to 1, `@export_range(0, 3)`, and 0 turns it off (tentative knob,
-  #1828). `power` and `own_damage` (`damage_per_power × excess`) read the
+  radius. It pays its **solo cost**, the spend `fire_in` makes there:
+  `void_floor` nodeless plus 1 per reached node also inside its own
+  `disc_radius(excess)`, each of those taking its +1 Heat on the default. The
+  floor is added, never a max. `power` and `own_damage` (`damage_per_power × excess`) read the
   excess only, and `reach` is the combined radius.
 - **Node not Burning** (Heat ≤ T, or Cold). The shape runs alone over
   `shape_disc_radius(shape_power, 0, R)`, with no spend, no power and no own
   damage. With shape power ≤ 0 as well, it is no go-off.
-- A disc that reaches nobody spends nothing, the floor included.
+- A Burning node whose combined disc reaches nobody voids its floor only
+  (`floor_when_unreached`); a shape alone reaching nobody is nothing.
 - **What stays with the callers.** The caller routes the answer through
   `HitGather`: the one Fire channel, whether a centre copy lands (ADR 0086 §4,
   §5), and who spends what.
@@ -323,7 +326,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   `_fire_vertex_disc`, which calls `fire_shaped_in` on the contact node's read:
   - **Contact node Burning**: one Fire channel. The node's own plain `fire_in`
     is skipped for that hit (`_vertex_disc`), the combined disc lands the
-    centre copy and mints one mark, and the node pays its solo cost (floored).
+    centre copy and mints one mark, and the node pays its solo cost (its floor
+    added; a combined disc reaching nobody still voids that floor).
   - **Contact node not Burning** (Frozen included): the shape runs alone, with a
     mark but no centre copy (`_append_reach`'s `centre_copy = false`), no node
     spend, no own damage; the mark's `power` is 0.
@@ -353,10 +357,12 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   whole count, never count − k × T, so a node past the cap arcs on the same
   ladder. With a T of 0, any Charge ≥ 1 reads straight to `max_level` (0 at
   Charge 0).
-- **Cost and transfer**, within the node's own level M only. Each node reached
-  within M hops costs 1, itemised in `GoOffResult.cost`. On the default
-  `spent_charge_goes_to` (Reached node), that node also takes the spent stack
-  as `transfer`. On Void, no stack moves. A node reached only through an added
+- **Cost and transfer**, within the node's own level M only. A node with
+  M > 0 voids `GoOff.void_floor` (1) as `nodeless_cost`, and each node
+  reached within M hops costs 1 more, itemised in `GoOffResult.cost`. On the
+  default `spent_charge_goes_to` (Reached node), that node also takes +1
+  Charge as `transfer`; on Void, it takes nothing. A degree-D node at N
+  arcing its neighbours ends at N − D − 1 (ADR 0097). A node reached only through an added
   level (beyond M) costs nothing and takes nothing.
 - **`fire_level_in(world, node, read, added)`** is the entry point for an extra
   level. It is one go-off at M + `added` hops from `node` (never `read.node`),
@@ -370,8 +376,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   - **Contact node Shocked**: one Lightning channel. The node's own plain arc
     is skipped for that hit (`_vertex_arc`). One arc goes out at the node's
     level plus the copy's (`fire_level_in`), with one mark and the centre copy,
-    and the node pays its solo cost (within M) off its store, each such stack
-    transferring to its reached node. The copy's own stacks never transfer, so
+    and the node pays its solo cost (the floor plus 1 per node within M) off
+    its store, each per-node stack transferring to its reached node. The copy's own stacks never transfer, so
     a node within M costs two stacks, of which only the node's moves.
   - **Contact node not Shocked**: the copy's arc runs alone, with a mark but no
     centre copy, and no node spend. On the Reached-node default each node
@@ -386,7 +392,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   addon, rider only: one `ApplyStatusEffect` of `charge` at `power = 1`
   (tentative knob), costing 1 `lightning_element`.
 - **Tentative knobs**: `ladder_exponent` 2, `max_level` 3,
-  and `spent_charge_goes_to` Reached node.
+  `spent_charge_goes_to` Reached node, and the base's `void_floor` 1 and
+  `floor_when_unreached` on (shared with Fire's disc).
 - **Guards**: `test/unit/elements/test_shocked_go_off.gd`,
   `test/unit/spell/test_shocked_walk_spends_hops.gd`,
   `test/unit/attack/melee/test_shocked_vertex.gd`,
@@ -577,8 +584,7 @@ concentrate (#1813), not this section's.
   `DiscGoOff.fire_shaped_in`, which reaches by `shape_disc_radius(shape,
   excess, R)` = A × (√shape + √excess + B) × R, R the seed node's radius;
   `disc_radius(e, R)` is the same function at shape 0. On a Burning node it
-  spends the solo disc's nodes, floored at `solo_cost_floor` when the
-  combined disc reaches anyone; its own damage reads the excess only.
+  spends its floor plus the solo disc's nodes; its own damage reads the excess only.
 - **The readout**: `ReadoutLines.shape_reach` phrases the shape line from the
   same functions: Lightning's level and the points to the next, Fire's radius
   in node radii (`shape_disc_radius` of the shape alone at R = 1). One

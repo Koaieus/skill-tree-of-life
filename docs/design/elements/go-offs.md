@@ -25,11 +25,19 @@ Burning 1 per node its disc covers (picked over 1 per blast, whose big disc
 underpays a shock — *"at some explosion size, fire would hit basically "all
 its nbs" like equalling a shock to each nb"* — and over a radiating transfer,
 which mirrors the diffusion flow), Frozen the 0D case turned inward: one
-target, the whole store ([frozen.md](frozen.md) § A blade on Frozen). A blast whose disc reaches no
-*other* node **does not go off** — no spend (owner: *"possibly extend this rule to
-make it cost 0 if it hits nobody?"*, framed as no targets, no go-off, so
-every go-off still voids at least one stack — *"there should be at least 1
-stack disappearing, possibly more"*). A spend pays its full cost even when
+target, the whole store ([frozen.md](frozen.md) § A blade on Frozen). **On top
+of that, every go-off voids a floor of 1** (owner, 2026-11-20: *"void AT LEAST
+1, always. it's the condition that things can settle at all"*; ADR 0097 §2):
+a degree-D node at N that arcs or blasts all D neighbours ends at N − D − 1,
+and **each reached node gets +1** of the element's terrain (*"a blast is hot.
+a discharge is charged."*), so the next decay tick works on 1 + D nodes. Cost
+and effect are separate (owner, 2026-11-20): the node's whole bill is voided,
+stopping at 0, and every reached node takes its +1 whether or not the payer
+covered it. Void and move are per-element balance knobs (ADR 0097 §3), as is
+the floor. A Burning node whose disc reaches no *other* node makes no entry
+yet still voids its floor (ADR 0097 §5, tentative knob): hitting a tiny fire
+beats it down.
+A spend pays its full cost even when
 that digs under T (owner picked *dig below T* over clamping at T: a degree-4
 node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 — *"would
 decharge more rapidly"*). **Primed-ness and power are both read after the
@@ -40,10 +48,7 @@ sub-reach node charge it hit by hit until the disc first catches a neighbour
 — the owner's ramp (*"heat builds up as arrows land, critical at some point,
 then explodes spreading, then heat up again, more explosion"*) — and a capped
 degree-5 hub pays out as roughly 20 → 10 → 5 → 3 → 1, the volley (*"explode
-for size(F), size(F-1), …, size(1)"*) in topology-sized steps. What
-no-target-no-spend costs: a tiny fire cannot be beaten out by hitting it;
-Cold and decay are the extinguishers. The spend destroys stacks and hands
-none to the reached nodes; only the triggering hit's riders ride the copies. **Copies carry everything**, element
+for size(F), size(F-1), …, size(1)"*) in topology-sized steps. Only the triggering hit's riders ride the copies. **Copies carry everything**, element
 stacks included, chained links flat (owner, 2026-11-08: *"everything rides
 yeah, LET IT RIDE! can change that later if it becomes too much"*); the spend,
 the cap and decay are the brakes.
