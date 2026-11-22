@@ -41,7 +41,7 @@ bypass are [defense-axes.md](defense-axes.md).
   - Peers reproduce it, since `EndTurnCommand` runs `end_turn` everywhere.
   - A **turnless host** (an in-scope entity with no `initiative` pool: a
     blocker, a dormant core) has no turn: it runs the same `resolve_turn_end` on
-    the **world turn** (`TurnManager._end_world_turn`, one every N played turn
+    the **world turn** (`TurnManager.run_world_turn`, one every N played turn
     ends, N = the living carriers; ADR 0055; N is read through the rate rule
     `TurnManager.world_clock`, per carrier by default, #1795), in tree order,
     then the unowned `LINGER` rows tick once, then every live node's

@@ -35,7 +35,7 @@ the goo arrow, the barrel and Firecracker; it carries no `GoOff`.
   turn**, never at its holder's turn end: the def sets
   `StatusDef.decay_per_world_turn`, so `StatusHost` skips the row in
   `tick_statuses` and `CombatWorld.tick_world_turn_decay` ticks it, run by
-  `TurnManager._end_world_turn` right after `tick_lingering`. The live world
+  `TurnManager.run_world_turn` right after `tick_lingering`. The live world
   keeps the holders in `CombatWorld._world_turn_decay`. Its loss per world turn
   stays at or under the Fire band's `decay_per_world_turn` (a pinned
   invariant, both read from the defs).

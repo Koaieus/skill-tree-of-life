@@ -268,7 +268,7 @@ table (one mark, many copies) is already that shape. The world turn carries
 what *time* did — decay, diffusion, a no-parent go-off, Burning's burn — and
 every peer reproduces it from the end-turn command, as the damage-over-time
 ticks already land HP on the world turn today with no record (ADR 0055's
-`_end_world_turn` runs inside `end_turn`). ADR 0079's "mutated only by
+`run_world_turn` runs inside `end_turn`). ADR 0079's "mutated only by
 `OutcomeApplier`" is scoped to attack resolution and never claimed the world
 turn. The constraint that makes this safe: the settle is roll-free (the
 temperature step is the integer Laplacian, `floor((t_i − t_j) /

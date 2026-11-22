@@ -184,7 +184,7 @@ Terrain changes between beats on the world turn only. Guards:
   `>=` the period. Turnless hosts and lingering rows ride whichever rule is
   set. `terrain_steps_per_world_turn` (default 1, tentative) is the number of
   diffusion steps a world turn runs.
-- **The call.** `_end_world_turn` runs `CombatWorld.flow_temperature(steps)`
+- **The call.** `run_world_turn` runs `CombatWorld.flow_temperature(steps)`
   after `tick_lingering` and before `flush_removals`: the steps, then one
   decay sweep. A shadow world refuses it.
 - **Diffusion** (`diffuse_temperature`, one step from one snapshot). It
@@ -421,7 +421,7 @@ whole excess, Heat − T, never Heat − k × T. Guards:
   That is TRUE damage with no record, so the floater and a kill come from
   the same door a poison tick uses. The burn ignores camps and lands nothing
   on an unallocated node. Amounts come from one snapshot; a node that an
-  earlier burn in the pass left unheld takes nothing. `TurnManager._end_world_turn`
+  earlier burn in the pass left unheld takes nothing. `TurnManager.run_world_turn`
   calls it after `tick_lingering` and before `tick_world_turn_decay` /
   `flow_temperature`, so it reads the pre-diffusion t. It is not in
   `TerrainSettle`, which stays pure (a grep pin). `EndTurnCommand` replays it
