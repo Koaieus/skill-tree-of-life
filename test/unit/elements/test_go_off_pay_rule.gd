@@ -21,6 +21,10 @@ var _red: Entity
 var _blue: Entity
 var _saved_disc: Array = []
 var _saved_edge: Array = []
+## Held for the test: an unreferenced roster reloads its defs fresh, dropping
+## a knob write.
+var _fire_el: Element = null
+var _light_el: Element = null
 
 
 func before_each() -> void:
@@ -28,6 +32,8 @@ func before_each() -> void:
 	_w = TestWorld.create(self)
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
+	_fire_el = ElementRoster.shared().by_id(&"fire")
+	_light_el = ElementRoster.shared().by_id(&"lightning")
 	var d := _disc()
 	_saved_disc = [d.void_floor, d.floor_when_unreached, d.spent_heat_goes_to]
 	var e := _edge()
@@ -50,11 +56,11 @@ func after_each() -> void:
 # --- fixture -------------------------------------------------------------------
 
 func _fire() -> Element:
-	return ElementRoster.shared().by_id(&"fire")
+	return _fire_el
 
 
 func _light() -> Element:
-	return ElementRoster.shared().by_id(&"lightning")
+	return _light_el
 
 
 func _disc() -> DiscGoOff:

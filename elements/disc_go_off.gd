@@ -11,8 +11,11 @@ extends GoOff
 ##
 ## Power comes through ONE read, picked by [member power_source]; the radius
 ## is [method disc_radius] off the origin node's own radius; the spend is the
-## base [GoOff] law, 1 per other node reached ([member GoOffResult.cost]), so
-## a disc reaching none spends 0 and does not go off. The own damage is
+## base [GoOff] rule: [member GoOff.void_floor] nodeless plus 1 per other node
+## reached ([member GoOffResult.cost]), each of those +1 Heat on the node it
+## reached on the [member spent_heat_goes_to] default. A disc reaching none
+## makes no entry and still voids its floor ([member GoOff.floor_when_unreached]).
+## The own damage is
 ## [member damage_per_power]: the class is reused with other values, never
 ## subclassed for them. Burning's (`elements/defs/fire.tres`, on Fire's
 ## Burning band) sets [member damage_per_power] 2. Power 0 is no go-off.
@@ -36,11 +39,6 @@ enum SpentHeatGoesTo { REACHED_NODE, VOID }
 ## damage ∝ power"). 0 by default; Burning's 2 on Fire's instance.
 ## Tentative knob (#1800).
 @export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
-## The least a Burning node pays when a shape adds up with its disc and the
-## combined disc reaches anyone ([method fire_shaped_in]): its solo spend is
-## raised to this, the shortfall nodeless. 0 turns it off. Tentative knob
-## (#1828). Editor feedback: the sandbox host's blast tab.
-@export_range(0, 3) var solo_cost_floor := 1
 ## Where each per-reached Heat stack goes: +1 Heat on the node it reached (a
 ## blast is hot, ADR 0097 §3) or nowhere. Mirrors
 ## [member EdgeGoOff.spent_charge_goes_to]. Tentative knob.
@@ -73,20 +71,29 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffRes
 	out.own_damage = damage_per_power * power
 	for n in _within(node, out.reach):
 		out.reached.append(GoOffResult.Reach.new(n))
-		out.cost[n] = 1
+		_pay_for(out, n)
+	out.nodeless_cost = floor_for(not out.reached.is_empty())
 	return out
+
+
+## [param n]'s per-reached part on [param out]: 1 stack, and its +1 Heat on
+## the [member spent_heat_goes_to] default.
+func _pay_for(out: GoOffResult, n: SkillNode) -> void:
+	out.cost[n] = 1
+	if spent_heat_goes_to == SpentHeatGoesTo.REACHED_NODE:
+		out.transfer[n] = 1
 
 
 ## Fire's add-up (ADR 0084 §3, §4): a shape of [param shape_power] (the
 ## caller's: a blade vertex's excess at fill, a cast's points × its per-point
 ## power) and this disc at [param node] go off as ONE disc of
 ## [method shape_disc_radius]. A Burning node ([method power_at] > 0) pays its
-## solo cost, 1 per reached node inside its own [method radius_at] disc, raised
-## to [member solo_cost_floor] (the shortfall nodeless) when the combined disc
-## reaches anyone; its own damage reads its excess only. A node that is not
-## Burning runs the shape alone: no spend, no power, no own damage. No shape
-## and no excess is no go-off; a disc reaching nobody spends nothing. Whether a
-## centre copy lands is the caller's. [method fire_in] is the unshaped disc.
+## solo cost: [member GoOff.void_floor] nodeless plus 1 per reached node inside
+## its own [method radius_at] disc, each of those its +1 Heat on the default;
+## its own damage reads its excess only. A node that is not Burning runs the
+## shape alone: no spend, no power, no own damage. No shape and no excess is no
+## go-off. Whether a centre copy lands is the caller's. [method fire_in] is the
+## unshaped disc.
 func fire_shaped_in(world: CombatWorld, node: SkillNode, read: TerrainRead, shape_power: float) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
@@ -106,14 +113,11 @@ func fire_shaped_in(world: CombatWorld, node: SkillNode, read: TerrainRead, shap
 	var solo := {}
 	for n in _within(node, radius_at(node, excess)):
 		solo[n] = true
-	var spent := 0
 	for n in _within(node, out.reach):
 		out.reached.append(GoOffResult.Reach.new(n))
 		if solo.has(n):
-			out.cost[n] = 1
-			spent += 1
-	if not out.reached.is_empty():
-		out.nodeless_cost = maxi(solo_cost_floor - spent, 0)
+			_pay_for(out, n)
+	out.nodeless_cost = floor_for(not out.reached.is_empty())
 	return out
 
 

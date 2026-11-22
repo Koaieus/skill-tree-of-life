@@ -10,11 +10,15 @@ extends Resource
 ## commits the spend it returns as returned, and makes entries (each reached
 ## node, plus the centre copy) only when the reach holds a node.
 ##
-## The base is the element law (ADR 0081 §1): spend 1 per other node
-## [method _reach] returns, the centre copy uncounted, so reaching no other node
-## spends 0 and does not go off; a spend may dig under T. Every reach at depth
-## 1, at [member share], own damage 0. A subclass overrides [method _reach] for
-## its shape, or [method fire] for another law.
+## The pay rule (ADR 0097 §2-§5): a primed node that goes off voids
+## [member void_floor] ([member GoOffResult.nodeless_cost]) and pays 1 more per
+## other node it reaches ([member GoOffResult.cost]), the centre copy
+## uncounted; a spend may dig under T and stops at 0. Reaching nobody makes no
+## entry yet still voids the floor while [member floor_when_unreached] holds.
+## Where a per-reached stack goes is the element's (the base voids it; Fire's
+## disc and Lightning's arc land +1 on each reached node by default). Every
+## reach at depth 1, at [member share], own damage 0. A subclass overrides
+## [method _reach] for its shape, or [method fire] for another law.
 
 ## The share of this go-off's copies, its centre copy included: damage × s,
 ## riders ceil(r × s). Tentative knob (#1798); 1 = the whole hit (ADR 0086 §1).
@@ -39,7 +43,14 @@ func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 			continue
 		out.reached.append(reach)
 		out.cost[reach.node] = 1
+	out.nodeless_cost = floor_for(not out.reached.is_empty())
 	return out
+
+
+## The floor a primed node going off voids: [member void_floor], or 0 when it
+## [param reached_any] nobody and [member floor_when_unreached] is off.
+func floor_for(reached_any: bool) -> int:
+	return void_floor if reached_any or floor_when_unreached else 0
 
 
 ## [method fire] on [param world]'s store: the call [HitGather] makes, handing

@@ -5,8 +5,9 @@ extends GoOff
 ## The edge [GoOff] (Lightning's Shocked): a node that goes off arcs to every
 ## node within L hops over the whole graph, the centre excluded, allocated or
 ## not (ADR 0084 §7), L read off the node's post-land Charge on the ladder
-## `count > L^exp × T` ([method level_of]). Each reached node costs 1 and, on
-## the transfer default, takes the spent stack ([member GoOffResult.transfer]);
+## `count > L^exp × T` ([method level_of]). The node voids
+## [member GoOff.void_floor] and pays 1 per reached node within its own level;
+## on the default each of those takes +1 Charge ([member GoOffResult.transfer]);
 ## a node at hop depth d ≥ 2 names the depth − 1 nodes it hangs behind
 ## ([member GoOffResult.Reach.ring]). No own damage. The gather owns the rest
 ## (chains, the once-per-node set, the generations, the centre landing).
@@ -19,8 +20,8 @@ enum SpentChargeGoesTo { REACHED_NODE, VOID }
 ## A ceiling on the level read from the node's own count (a level a caller
 ## adds is the caller's). Tentative knob; the cap k × T already bounds it.
 @export_range(1, 6) var max_level := 3
-## Where each spent stack lands: on the node it reached (the owner's default:
-## an arc moves its Charge, ADR 0084 §7) or nowhere.
+## Where each per-reached stack goes: +1 Charge on the node it reached (the
+## owner's default: a discharge is charged, ADR 0097 §3) or nowhere.
 @export_enum("Reached node", "Void") var spent_charge_goes_to: int = SpentChargeGoesTo.REACHED_NODE
 
 
@@ -61,9 +62,9 @@ func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
 ## The arc at the read's own level M plus [param added] (ADR 0084 §3, §4): one
 ## go-off reaching every node within M + added hops of [param node] (never
 ## [code]read.node[/code]: a blade source's read names none), paying the
-## node's solo cost: 1 per node within M hops, each its transfer on the
-## default. M = 0 with an added level is a shape alone: it reaches, pays
-## nothing. The reach is the global mirror's one BFS ([method GraphMirror.nodes_within]).
+## node's solo cost: [member GoOff.void_floor] nodeless plus 1 per node within
+## M hops, each its transfer on the default. M = 0 with an added level is a
+## shape alone: it reaches, pays nothing. The reach is the global mirror's one BFS ([method GraphMirror.nodes_within]).
 ## [member GoOffResult.power] names M + added, the hops its [BlastMark] draws.
 func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, added: int) -> GoOffResult:
 	var out := GoOffResult.new()
@@ -98,4 +99,6 @@ func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, adde
 			out.cost[n] = 1
 			if spent_charge_goes_to == SpentChargeGoesTo.REACHED_NODE:
 				out.transfer[n] = 1
+	if own > 0:
+		out.nodeless_cost = floor_for(not out.reached.is_empty())
 	return out

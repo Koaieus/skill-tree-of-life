@@ -27,11 +27,14 @@ var reached: Array[Reach] = []
 ## `SkillNode -> int`: the spend per reached node. Only a reached node's cost
 ## commits (spend follows landings, ADR 0093 §5).
 var cost: Dictionary = {}
-## A spend that names no node, committed all the same.
+## A spend that names no node, committed all the same at the go-off's own
+## read: the floor a primed node voids each time it goes off
+## ([member GoOff.void_floor]).
 var nodeless_cost: int = 0
-## `SkillNode -> int`: spent stacks that land on a reached node instead of
-## being voided (#1806's Charge transfer). Part of the spend, never capped by
-## the once-per-node set.
+## `SkillNode -> int`: the element's terrain each reached node takes (Fire's
+## Heat, Lightning's Charge), on the element's "Reached node" default. Lands
+## whether or not the payer could cover its cost; never capped by the
+## once-per-node set.
 var transfer: Dictionary = {}
 var share: float = 1.0
 var own_damage: float = 0.0
