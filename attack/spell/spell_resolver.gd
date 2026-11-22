@@ -391,7 +391,7 @@ static func _resolve(
 		# and lands the whole wave before this returns. One wave, one beat: the
 		# drain's closing flush spills its strips over their union before step
 		# 4's filter reads the world. No blast cue: a cast world has no audience.
-		# Wave 0's heads also carry the cast's shape (ADR 0084 §1): every seed of
+		# Wave 0's heads carry the cast's shape (ADR 0084 §1): every seed of
 		# a multi-seed cast is shaped at its own gather head; later waves none.
 		for state in merged:
 			var at: PropagationEvent = event_of.get(state, null)

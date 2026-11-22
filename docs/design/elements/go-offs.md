@@ -292,5 +292,4 @@ feature on it's own"*.
 Looks the doc does not specify, each riding its mechanic: the blast rendered
 from the record's blast table; a stagger so a cascade reads as a chain; a
 damage number per copy; the disc's effect sized by √power; the burn tick; the
-arc's flash per hop; a wire's arc cascade and the Charge it spends per
-node.
+arc's flash per hop.
