@@ -10,6 +10,8 @@ const _GREED := preload("res://entity/blocker/faces/greed_face.tres")
 const _SUNDER := preload("res://entity/blocker/faces/sunder_face.tres")
 const _FACELESS := preload("res://entity/blocker/blocker_core.tres")
 const _LARGE := EntityFactory.BlockerSize.LARGE
+const _SMALL := EntityFactory.BlockerSize.SMALL
+const _FACES_DIR := "res://entity/blocker/faces/"
 
 
 func _factory() -> EntityFactory:
@@ -63,6 +65,35 @@ func test_large_poison_face_grants_count_potency_and_resistance() -> void:
 	assert_eq(res.size(), 1, "poison resistance exists, so it is granted")
 	if res.size() == 1:
 		assert_eq(res[0].value, _POISON.resistance_by_size[2], "LARGE resistance")
+		assert_lte(res[0].value, 1.0, "a resistance is a fraction: 1.0 is immune")
+
+
+## Every shipped face's `resistance_by_size` is a fraction per size (0..1, 1.0 =
+## immune) and never shrinks with size. Reads only the array: which faces the
+## grant reaches depends on which `<id>_resistance` stats exist.
+func test_every_face_resistance_by_size_is_a_non_decreasing_fraction() -> void:
+	var visited := 0
+	for file in ResourceLoader.list_directory(_FACES_DIR):
+		if not file.ends_with(".tres"):
+			continue
+		var face := load(_FACES_DIR + file) as BlockerCoreClass
+		if face == null:
+			continue
+		visited += 1
+		var values := face.resistance_by_size
+		for i in values.size():
+			assert_between(values[i], 0.0, 1.0, "%s size %d is a fraction" % [file, i])
+			if i > 0:
+				assert_gte(values[i], values[i - 1], "%s size %d never shrinks" % [file, i])
+	assert_gt(visited, 0, "the faces directory holds faces")
+
+
+func test_small_poison_face_grants_its_resistance() -> void:
+	var res := _grants(_spawn(_SMALL, _POISON), &"poison_resistance")
+	assert_eq(res.size(), 1, "even a small poison face resists poison")
+	if res.size() == 1:
+		assert_eq(res[0].value, _POISON.resistance_by_size[0], "SMALL resistance")
+		assert_gt(res[0].value, 0.0)
 
 
 func test_large_potency_rolls_both_ways_across_seeds() -> void:
