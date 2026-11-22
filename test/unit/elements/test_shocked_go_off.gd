@@ -233,7 +233,7 @@ func test_the_arc_answers_cost_transfer_depth_ring_share_and_no_damage() -> void
 	for n in [g[1], g[2], g[3]]:
 		assert_eq(int(result.cost.get(n, 0)), 1, "1 Charge per node reached")
 		assert_eq(int(result.transfer.get(n, 0)), 1, "1 stack lands on each node reached")
-	assert_eq(result.spend(), 3, "spend = the number reached")
+	assert_eq(result.spend(), 3 + arc.void_floor, "spend = the floor plus the number reached")
 	assert_eq(result.share, arc.share, "share is the instance's")
 	assert_eq(result.own_damage, 0.0, "no own damage")
 	arc.spent_charge_goes_to = EdgeGoOff.SpentChargeGoesTo.VOID
@@ -270,7 +270,7 @@ func test_a_level_2_arc_reaches_two_hops_and_spends_that_count() -> void:
 	var lv2 := arc.fire(c, _read(int(pow(2, arc.ladder_exponent)) * t + 1, t))
 	assert_eq(_reached(lv1).size(), 2, "level 1: the two neighbours")
 	assert_eq(_reached(lv2).size(), 2 * _reached(lv1).size(), "level 2 on a line: twice level 1's reach")
-	assert_eq(lv2.spend(), _reached(lv2).size(), "spend = the count reached")
+	assert_eq(lv2.spend(), _reached(lv2).size() + arc.void_floor, "spend = the floor plus the count reached")
 
 
 func test_an_added_level_is_one_go_off_paying_the_solo_cost() -> void:
@@ -323,7 +323,7 @@ func test_a_hit_tipping_past_t_arcs_both_neighbours_and_lands_the_whole_hit() ->
 	assert_eq(_landings(all, y), 1, "Y, unallocated, takes one copy")
 	assert_eq(_landings(all, z), 1, "Z takes one copy")
 	assert_eq(_curses(all, y), 1, "Curse once on each neighbour")
-	assert_eq(_charge(x), t_x + 1 - 2, "X lands +1 once, then spends 1 per neighbour, under T")
+	assert_eq(_charge(x), t_x + 1 - 2 - arc.void_floor, "X lands +1 once, then voids the floor and spends 1 per neighbour, under T")
 	var rider := int(ceil(1 * arc.share))
 	assert_eq(_charge(y), rider + 1, "Y: the copy's rider and the transferred stack")
 	assert_eq(_charge(z), rider + 1, "Z: the copy's rider and the transferred stack")
@@ -350,7 +350,7 @@ func test_on_void_no_reached_node_gains_beyond_the_rider() -> void:
 	var t_x := _t(x)
 	_land(_hit(x, 1))
 	assert_eq(_charge(got[2]), int(ceil(1 * arc.share)), "Z: the rider only")
-	assert_eq(_charge(x), t_x + 1 - 2, "X still pays 1 per neighbour")
+	assert_eq(_charge(x), t_x + 1 - 2 - arc.void_floor, "X still pays the floor and 1 per neighbour")
 
 
 func test_an_absorbed_copy_still_lands_its_charge_and_the_transfer() -> void:
@@ -367,13 +367,13 @@ func test_an_absorbed_copy_still_lands_its_charge_and_the_transfer() -> void:
 	var t_x := _t(x)
 	var all := _land(_hit(x, 1))
 	assert_eq(_landings(all, y), 0, "Y absorbs the arc's copy")
-	assert_eq(_charge(x), t_x + 1 - 2, "X still spends 2")
+	assert_eq(_charge(x), t_x + 1 - 2 - arc.void_floor, "X still spends 2 and the floor")
 	assert_eq(_charge(y), int(ceil(1 * arc.share)) + 1, "Y's Charge rises by the rider and the transfer")
 
 
 # --- 1: the wire ---------------------------------------------------------------------
 
-func test_a_shocked_line_hands_every_stack_back() -> void:
+func test_a_shocked_line_hands_back_every_stack_but_the_floor() -> void:
 	var g := _line(5)
 	await _own(g)
 	var before := {}
@@ -382,7 +382,7 @@ func test_a_shocked_line_hands_every_stack_back() -> void:
 		before[n] = _charge(n)
 	var all := _land(_hit(g[2]))
 	for n in g:
-		assert_eq(_charge(n), before[n], "%s gives one stack per neighbour and gets one back" % n.name)
+		assert_eq(_charge(n), before[n] - _edge().void_floor, "%s gives one stack per neighbour, gets one back, voids the floor" % n.name)
 	assert_eq(_landings(all, g[2]), 4, "C: the hit, its centre landing, B's and D's arcs back")
 	assert_eq(_landings(all, g[1]), 3, "B: C's arc, its centre landing, A's arc back")
 	assert_eq(_landings(all, g[3]), 3, "D likewise")
@@ -443,7 +443,7 @@ func test_past_the_cap_the_level_reads_the_whole_count() -> void:
 	for n in [g[1], g[2], g[4], g[5]]:
 		assert_gt(_landings(all, n), 0, "%s within 2 hops is reached" % n.name)
 	assert_eq(_landings(all, g[0]) + _landings(all, g[6]), 0, "3 hops out is not")
-	assert_eq(_charge(c), lv2 - 4, "spends the 4 reached")
+	assert_eq(_charge(c), lv2 - 4 - _edge().void_floor, "spends the 4 reached and the floor")
 
 
 # --- 3a: generations and the arc paying for what it reaches -----------------------------
@@ -478,7 +478,7 @@ func test_a_two_hop_arc_advances_one_hop_per_generation() -> void:
 	assert_eq(gen.get(got[1], -1), 1, "Y one above the hit")
 	assert_eq(gen.get(got[3], -1), 1, "W one above the hit")
 	assert_eq(gen.get(got[0], -1), 2, "Z two above")
-	assert_eq(_charge(x), before - 3, "X spends 3")
+	assert_eq(_charge(x), before - 3 - _edge().void_floor, "X spends 3 and the floor")
 	assert_eq(_landings(all, got[0]), 1, "Z takes one entry")
 
 
@@ -491,7 +491,7 @@ func test_an_arc_whose_ring_ends_pays_only_for_what_it_reaches() -> void:
 	var before := _charge(x) + 1
 	var all := _land(_hit(x, 1))
 	assert_eq(_landings(all, z), 0, "Z, behind the ended Y, takes no entry")
-	assert_eq(_charge(x), before - 2, "X spends 2 (Y and W)")
+	assert_eq(_charge(x), before - 2 - _edge().void_floor, "X spends 2 (Y and W) and the floor")
 	assert_eq(_charge(z), 0, "Z gains no transferred stack")
 
 
@@ -557,7 +557,8 @@ func test_a_burning_and_shocked_node_blasts_and_arcs_once_each() -> void:
 	assert_eq(_curses(all, y), 2, "Y: the aspect rider on each entry")
 	assert_eq(_landings(all, z), 1, "Z, outside the disc: the arc's entry alone")
 	assert_eq(_curses(all, z), 1, "Z: one Curse")
-	assert_eq(_charge(x), t_x + 1 - 2, "X: its Charge rider once, then 1 spent per neighbour")
+	assert_eq(_charge(x), t_x + 1 - 2 - _edge().void_floor, "X: its Charge rider once, then the floor and 1 per neighbour")
 	assert_eq(_charge(y), rider + 1, "Y: the Charge rider once plus the transferred stack")
 	assert_eq(_charge(z), rider + 1, "Z: the copy's rider and the transferred stack")
-	assert_eq(_combat(x).terrain_t(), t_x + 1 - 1, "X: its Heat rider once, then 1 spent on Y")
+	assert_eq(_combat(x).terrain_t(), t_x + 1 - 1 - (_fire_el.bands[0].go_off as DiscGoOff).void_floor,
+			"X: its Heat rider once, then the floor and 1 spent on Y")

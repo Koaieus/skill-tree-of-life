@@ -16,6 +16,9 @@ const _SKILL_NODE_SCENE := preload("res://skill_node/skill_node.tscn")
 ## per other node reached).
 class _SpyGoOff:
 	extends GoOff
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var to: SkillNode = null
 	var fired := 0
 

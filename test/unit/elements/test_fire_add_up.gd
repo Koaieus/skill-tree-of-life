@@ -3,8 +3,8 @@ extends GutTest
 ## Fire's add-up on [DiscGoOff]: [method DiscGoOff.shape_disc_radius] (A × (√shape
 ## + √excess + B) × the origin's radius) and [method DiscGoOff.fire_shaped_in],
 ## the one combined disc a shape and a Burning node make (ADR 0084 §3), which
-## spends the node's solo cost (ADR 0084 §4) floored at
-## [member DiscGoOff.solo_cost_floor] when it reaches anyone; on a node that is
+## spends the node's solo cost (ADR 0084 §4), its [member GoOff.void_floor]
+## added (ADR 0097 §4); on a node that is
 ## not Burning the shape runs alone and spends nothing.
 ##
 ## A bare instance throughout, so knob writes never leak into Fire's shared def.
@@ -118,11 +118,11 @@ func test_a_burning_node_shaped_reaches_the_combined_disc_and_pays_its_solo_cost
 	assert_true(reached.has(s1) and reached.has(s2), "the solo disc's nodes are reached")
 	assert_false(reached.has(c), "never the centre")
 	var solo_spend := disc.fire_in(null, c, _read(c)).spend()
-	assert_eq(solo_spend, 2, "fixture: the solo disc holds S1 and S2")
+	assert_eq(solo_spend, 2 + disc.void_floor, "fixture: the solo disc holds S1 and S2, plus the floor")
 	assert_eq(result.spend(), solo_spend, "the node pays what its own disc spends")
-	assert_lt(result.spend(), reached.size(), "not 1 per node reached")
+	assert_lt(result.spend() - result.nodeless_cost, reached.size(), "not 1 per node reached")
 	assert_false(result.cost.has(inside), "a node past the solo disc costs nothing")
-	assert_eq(result.nodeless_cost, 0, "a solo spend at the floor has no shortfall")
+	assert_eq(result.nodeless_cost, disc.void_floor, "the floor is added, never a max")
 	assert_eq(result.power, 4, "power is the node's excess")
 	assert_almost_eq(result.reach, combined, 0.001, "reach is the combined radius")
 	assert_almost_eq(result.own_damage, disc.damage_per_power * 4, 0.0001, "own damage reads the excess only")
@@ -139,23 +139,25 @@ func test_a_solo_disc_reaching_nobody_pays_the_floor_inside_a_reaching_combined_
 	var n := _at(c, &"N", 0.5 * (solo + combined))
 	await get_tree().process_frame
 	_prime(c, 1)
-	assert_eq(disc.fire_in(null, c, _read(c)).spend(), 0, "fixture: the solo disc reaches nobody")
+	assert_true(disc.fire_in(null, c, _read(c)).reached.is_empty(), "fixture: the solo disc reaches nobody")
 	var result := disc.fire_shaped_in(null, c, _read(c), 4.0)
 	assert_eq(_reached(result), [n], "the combined disc reaches N")
-	assert_eq(result.spend(), disc.solo_cost_floor, "the node pays the floor")
+	assert_eq(result.spend(), disc.void_floor, "the node pays the floor")
 	assert_eq(result.spend(), 1, "the floor defaults to 1")
-	disc.solo_cost_floor = 0
+	disc.void_floor = 0
 	assert_eq(disc.fire_shaped_in(null, c, _read(c), 4.0).spend(), 0, "floor 0 turns it off")
 
 
-func test_a_combined_disc_reaching_nobody_is_empty_and_spends_nothing() -> void:
+func test_a_combined_disc_reaching_nobody_is_empty_and_voids_only_its_floor() -> void:
 	var disc := DiscGoOff.new()
 	var c := _centre()
 	await get_tree().process_frame
 	_prime(c, 1)
 	var result := disc.fire_shaped_in(null, c, _read(c), 4.0)
 	assert_true(result.reached.is_empty(), "nobody in the combined disc")
-	assert_eq(result.spend(), 0, "and no spend, the floor notwithstanding")
+	assert_eq(result.spend(), disc.void_floor, "only the floor (floor_when_unreached)")
+	disc.floor_when_unreached = false
+	assert_eq(disc.fire_shaped_in(null, c, _read(c), 4.0).spend(), 0, "off: no spend")
 
 
 # --- 4: alone ---------------------------------------------------------------------

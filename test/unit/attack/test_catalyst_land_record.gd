@@ -27,7 +27,10 @@ var _shadow: CombatWorld
 var _roster: StatusRoster
 
 
+var _pay_pin: Array = []
+
 func before_each() -> void:
+	_pay_pin = _pin_pay_rule()
 	CombatWorld.reset_live()
 	_w = TestWorld.create(self)
 	_red = _w.add_entity("Red")
@@ -46,6 +49,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	_unpin_pay_rule(_pay_pin)
 	_roster.statuses.erase(_def)
 	_roster = null
 	if _shadow != null:
@@ -202,3 +206,31 @@ func test_a_land_that_splits_and_primes_records_both_takes() -> void:
 	assert_eq(live.terrain_t(), t + 2, "the rebuilt beat lands the same Heat")
 	assert_eq(live.charge(), 2, "and the same Charge")
 	assert_eq(_held(n, CombatWorld.live()), 0, "and takes the row as the gather did")
+
+
+# --- not about the go-off pay rule ----------------------------------------------
+
+## Pins the pre-floor bill on Fire's and Lightning's shared defs (no floor, the
+## disc voids its per-reached Heat), holding both elements so the writes stay;
+## [method _unpin_pay_rule] restores it. The pay rule's own cases live in
+## `test/unit/elements/test_go_off_pay_rule.gd`.
+func _pin_pay_rule() -> Array:
+	var fire := ElementRoster.shared().by_id(&"fire")
+	var light := ElementRoster.shared().by_id(&"lightning")
+	var disc := fire.bands[0].go_off as DiscGoOff
+	var edge := light.bands[0].go_off as EdgeGoOff
+	var out := [fire, light, disc.void_floor, disc.spent_heat_goes_to, edge.void_floor]
+	disc.void_floor = 0
+	disc.spent_heat_goes_to = DiscGoOff.SpentHeatGoesTo.VOID
+	edge.void_floor = 0
+	return out
+
+
+func _unpin_pay_rule(pin: Array) -> void:
+	if pin.size() < 5:
+		return
+	var disc := (pin[0] as Element).bands[0].go_off as DiscGoOff
+	var edge := (pin[1] as Element).bands[0].go_off as EdgeGoOff
+	disc.void_floor = pin[2]
+	disc.spent_heat_goes_to = pin[3]
+	edge.void_floor = pin[4]

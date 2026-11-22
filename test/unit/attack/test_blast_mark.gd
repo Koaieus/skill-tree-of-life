@@ -13,6 +13,9 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 ## A go-off that reaches what [member reach_of] names for the node it fires on,
 ## through the base law.
 class _ChainGoOff extends GoOff:
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var reach_of: Dictionary = {}
 
 	func _reach(node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:

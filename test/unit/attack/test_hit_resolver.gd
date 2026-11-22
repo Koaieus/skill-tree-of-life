@@ -21,6 +21,9 @@ const _MARKED := preload("res://effects/status/marked.tres")
 ## A test go-off: reaches what [member reach_of] names for the node it fires
 ## on, through the base law unless told otherwise, and logs what it is handed.
 class _TestGoOff extends GoOff:
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var reach_of: Dictionary = {}
 	## `SkillNode -> [[node, depth, ring], ...]`: reaches past depth 1 (B2).
 	var deep_of: Dictionary = {}
@@ -59,6 +62,9 @@ class _TestGoOff extends GoOff:
 
 ## A go-off with a shape and nothing else: the base law on the base itself.
 class _ShapeOnly extends GoOff:
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var nodes: Array[SkillNode] = []
 
 	func _reach(_node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:

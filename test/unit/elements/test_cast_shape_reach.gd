@@ -44,7 +44,7 @@ func before_each() -> void:
 	_fa = _ice.bands[0].admits as FrozenAdmits
 	_disc = _fire.bands[0].go_off as DiscGoOff
 	_edge = _light.bands[0].go_off as EdgeGoOff
-	_was_disc = [_disc.damage_per_power, _disc.solo_cost_floor, _disc.radius_a, _disc.radius_b]
+	_was_disc = [_disc.damage_per_power, _disc.void_floor, _disc.radius_a, _disc.radius_b]
 	_disc.damage_per_power = 0.0
 	_was_tunables = HitGather.tunables
 	_dedupe(false)
@@ -52,7 +52,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	_disc.damage_per_power = _was_disc[0]
-	_disc.solo_cost_floor = _was_disc[1]
+	_disc.void_floor = _was_disc[1]
 	_disc.radius_a = _was_disc[2]
 	_disc.radius_b = _was_disc[3]
 	HitGather.tunables = _was_tunables
@@ -273,7 +273,7 @@ func test_a_lightning_shape_on_a_shocked_node_adds_up_into_one_arc_at_its_solo_c
 	assert_eq(_edge.level_of(TerrainRead.of(_c(x), x)), 1, "fixture: X is Shocked, level 1")
 	var before := _charge(x)
 	var all := _land(_hit(x, _light, 1))
-	assert_eq(before - _charge(x), _ball(x, 1).size(), "X pays its solo cost: its 1-hop count")
+	assert_eq(before - _charge(x), _ball(x, 1).size() + _edge.void_floor, "X pays its solo cost: the floor and its 1-hop count")
 	for n: SkillNode in _ball(x, 2):
 		assert_eq(_takes(all, n), 1, "%s: one entry, not two" % n.name)
 	assert_eq(_marks(all).size(), 1, "one go-off")
@@ -324,13 +324,13 @@ func test_a_fire_shape_on_a_burning_node_adds_the_roots_into_one_disc() -> void:
 	assert_eq(_marks(all).size(), 1, "one go-off")
 	if _marks(all).size() == 1:
 		assert_almost_eq((_marks(all)[0] as BlastMark).reach, both, 0.001, "reach = shape_disc_radius(3, 4, R)")
-	assert_eq(_heat(x), _t(x) + 4 - 2, "X loses its solo disc's spend (A and B), never the shape's")
+	assert_eq(_heat(x), _t(x) + 4 - 2 - _disc.void_floor, "X loses its solo disc's spend (the floor, A and B), never the shape's")
 	assert_eq(_takes(all, x), 2, "the seed and the one centre copy")
 
 
 # 6 ─────────────────────────────────────────────────────────────────────────────
 func _floor_case(floor: int) -> Array:
-	_disc.solo_cost_floor = floor
+	_disc.void_floor = floor
 	var x := _at("X", Vector2.ZERO)
 	var far := _at("F", Vector2(_shape_r(3, 1.0, x) - x.radius, 0.0))
 	await _own([x, far])
@@ -393,7 +393,7 @@ func test_a_fire_shape_on_a_shocked_node_is_two_reaches_concatenated() -> void:
 	var got: Array = await _two_reaches(3, {_fire.terrain: 1})
 	var x: SkillNode = got[0]
 	var all: Array = got[4]
-	assert_eq(_charge(x), _t(x) + 1 - _ball(x, 1).size(), "the arc spends as without the shape")
+	assert_eq(_charge(x), _t(x) + 1 - _ball(x, 1).size() - _edge.void_floor, "the arc spends as without the shape")
 	assert_eq(_takes(all, x), 2, "the seed and the arc's centre copy; the disc adds none")
 	var on_x := _dmg(all, x).map(func(h: HitInstance) -> float: return h.amount)
 	on_x.sort()

@@ -97,8 +97,8 @@ func test_the_disc_spends_one_per_node_reached_and_reaches_by_disc_radius() -> v
 		var result := disc.fire(centre, _read(centre))
 		var reached := _reached(result)
 		assert_eq(disc.power_at(centre, _read(centre)), power, "power is Heat's excess (%d)" % power)
-		assert_eq(result.spend(), reached.size(), "1 per node reached at power %d" % power)
-		assert_eq(result.nodeless_cost, 0, "nothing nodeless at power %d" % power)
+		assert_eq(result.spend(), reached.size() + disc.void_floor, "the floor plus 1 per node reached at power %d" % power)
+		assert_eq(result.nodeless_cost, disc.void_floor, "the floor nodeless at power %d" % power)
 		assert_almost_eq(result.share, disc.share, 0.0001, "the copies ride the disc's share")
 		assert_false(reached.has(centre), "never the centre, power %d" % power)
 		assert_almost_eq(disc.radius_at(centre, power), disc.disc_radius(power, centre.radius), 0.0001,

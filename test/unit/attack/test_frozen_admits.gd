@@ -20,6 +20,9 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 ## A test go-off: reaches what [member reach_of] names for the node it fires
 ## on, through the base law, and adds [member own_damage] to each copy.
 class _TestGoOff extends GoOff:
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var reach_of: Dictionary = {}
 	var own_damage := 0.0
 

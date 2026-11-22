@@ -12,6 +12,9 @@ const _BOARD := preload("res://entity/default_entity_board.tres")
 
 
 class _TestGoOff extends GoOff:
+	func _init() -> void:
+		void_floor = 0  # not about the pay rule
+
 	var reach_of: Dictionary = {}
 
 	func _reach(node: SkillNode, _read: TerrainRead) -> Array[GoOffResult.Reach]:

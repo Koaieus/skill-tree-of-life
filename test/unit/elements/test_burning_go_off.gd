@@ -35,17 +35,18 @@ func before_each() -> void:
 	_red = _w.add_entity("Red")
 	_blue = _w.add_entity("Blue")
 	var disc := _fire().bands[0].go_off as DiscGoOff
-	_saved = [disc.radius_a, disc.radius_b, disc.damage_per_power, disc.share] if disc != null else []
+	_saved = [disc.radius_a, disc.radius_b, disc.damage_per_power, disc.share, disc.floor_when_unreached] if disc != null else []
 	await get_tree().process_frame
 
 
 func after_each() -> void:
 	var disc := _fire().bands[0].go_off as DiscGoOff
-	if disc != null and _saved.size() == 4:
+	if disc != null and _saved.size() == 5:
 		disc.radius_a = _saved[0]
 		disc.radius_b = _saved[1]
 		disc.damage_per_power = _saved[2]
 		disc.share = _saved[3]
+		disc.floor_when_unreached = _saved[4]
 	CombatWorld.reset_live()
 
 
@@ -203,7 +204,7 @@ func test_the_disc_reaches_by_the_radius_function_from_its_own_node() -> void:
 	assert_false(got.has(out1), "not the one at r + 0.1R")
 	assert_false(got.has(c1), "the centre is never a reached node")
 	assert_eq(got.size(), 2, "row 0's disc reaches exactly In1 and Wild")
-	assert_eq(one.spend(), got.size(), "1 Heat per node reached")
+	assert_eq(one.spend(), got.size() + disc.void_floor, "the floor plus 1 Heat per node reached")
 	assert_eq(one.power, 1, "power is the excess")
 	var four := disc.fire_in(CombatWorld.live(), c4, TerrainRead.of(_combat(c4), c4))
 	assert_eq(_reached(four), [in4], "excess 4 reaches r(4) − 0.1R, not r(4) + 0.1R")
@@ -223,19 +224,19 @@ func test_a_disc_spend_may_leave_heat_under_t() -> void:
 	await _own([c, a, b])
 	_set_heat(c, _t(c) + 1)
 	_land(_hit(c))
-	assert_eq(_heat(c), _t(c) + 1 - 2, "excess 1 reaching two nodes spends 2: Heat under T")
+	assert_eq(_heat(c), _t(c) + 1 - 2 - disc.void_floor, "excess 1 reaching two nodes spends 2 and the floor: Heat under T")
 
 
 # --- 2: no reach, no go-off; riders first ----------------------------------------
 
-func test_a_disc_reaching_no_other_node_spends_nothing_and_lands_nothing() -> void:
+func test_a_disc_reaching_no_other_node_voids_its_floor_and_lands_nothing() -> void:
 	var c := _at(&"C", Vector2.ZERO)
 	await _own([c])
 	_set_heat(c, _t(c) + 3)
 	var span := _hit(c)
 	var all := _land(span)
 	assert_eq(all.size(), span.size(), "no copy and no centre landing")
-	assert_eq(_heat(c), _t(c) + 3, "no spend")
+	assert_eq(_heat(c), _t(c) + 3 - _disc().void_floor, "the floor only (floor_when_unreached)")
 
 
 func test_heat_at_t_after_the_rider_lands_plainly() -> void:
@@ -262,7 +263,7 @@ func test_the_rider_that_tips_the_node_sets_it_off_in_that_hit() -> void:
 	_set_heat(c, _t(c))
 	var all := _land(_hit(c, 1))
 	assert_eq(_damage_of(_on(all, n)).size(), 1, "the hit that lifts T to T + 1 sets the disc off")
-	assert_eq(_heat(c), _t(c), "its rider lands, then 1 Heat is spent for N")
+	assert_eq(_heat(c), _t(c) - disc.void_floor, "its rider lands, then the floor and 1 Heat for N")
 
 
 # --- 3: power after the land; the copy's payload ---------------------------------
@@ -273,6 +274,7 @@ func test_repeated_one_heat_hits_grow_the_disc_until_it_catches_a_neighbour() ->
 		return
 	var c := _at(&"C", Vector2.ZERO)
 	var n := _east(c, &"N", 0.5 * (_r(disc, 1, c.radius) + _r(disc, 2, c.radius)))
+	disc.floor_when_unreached = false  # the ramp: an unreached floor would beat it down
 	await _own([c, n])
 	_set_heat(c, _t(c))
 	var first := _land(_hit(c, 1))
@@ -283,7 +285,7 @@ func test_repeated_one_heat_hits_grow_the_disc_until_it_catches_a_neighbour() ->
 	assert_eq(_damage_of(copy), [_RAW * disc.share + disc.damage_per_power * 2],
 			"excess 2 catches N: damage × share plus damage_per_power × power")
 	assert_eq(_poison_of(copy), [ceilf(_POISON * disc.share)], "riders ceil(r × share)")
-	assert_eq(_heat(c), _t(c) + 1, "the second rider lands, 1 Heat spent for N")
+	assert_eq(_heat(c), _t(c) + 2 - 1 - disc.void_floor, "the second rider lands, the floor and 1 Heat spent for N")
 
 
 # --- 3b / 3c: the whole hit ---------------------------------------------------
@@ -311,8 +313,8 @@ func test_the_whole_hit_lands_once_per_channel_and_terrain_once_per_node() -> vo
 	assert_eq(_poison_of(_on(got[2], c)), [_POISON, _POISON], "each with Poison")
 	assert_eq(_damage_of(_on(got[2], n)), [_RAW], "N takes one copy")
 	assert_eq(_poison_of(_on(got[2], n)), [_POISON], "with Poison")
-	assert_eq(_heat(n), 1, "N's Heat moves by h")
-	assert_eq(_heat(c), _t(c) + 1 + 1 - 1, "C's Heat moves by h − 1, never 2h − 1")
+	assert_eq(_heat(n), 1 + 1, "N's Heat moves by h, plus the disc's +1")
+	assert_eq(_heat(c), _t(c) + 1 + 1 - 1 - disc.void_floor, "C's Heat moves by h − 1 − the floor, never 2h − 1")
 	assert_eq(_heat_riders(_on(got[2], c)), 1, "C's centre landing carries no Heat rider: only the hit's own")
 	assert_eq(_heat_riders(_on(got[2], n)), 0, "N's copy lands its Heat in stage one, not as a later rider")
 
@@ -341,7 +343,7 @@ func test_a_copys_heat_sets_off_the_next_node_one_generation_later() -> void:
 	await _own([c, n, m])
 	_set_heat(c, _t(c) + 4 - 1)
 	_set_heat(n, _t(n) + 1 - 1)
-	assert_lt(1, _t(m) + 1, "fixture: M stays unprimed after its copy")
+	assert_lt(2, _t(m) + 1, "fixture: M stays unprimed after its copy and the +1")
 	var all := _land(_hit(c, 1))
 	var from_c := _marks(all, n, c)
 	var from_n := _marks(all, m, n)
@@ -350,7 +352,7 @@ func test_a_copys_heat_sets_off_the_next_node_one_generation_later() -> void:
 	assert_true(_marks(all, c, n).is_empty(), "N's disc does not reach back to C")
 	if from_c.size() == 1 and from_n.size() == 1:
 		assert_eq(from_n[0].generation, from_c[0].generation + 1, "N's mark is one generation after C's")
-	assert_eq(_heat(m), 1, "M's Heat moves by h: copies carry everything")
+	assert_eq(_heat(m), 1 + 1, "M's Heat moves by h (copies carry everything) plus N's +1")
 	assert_eq(_damage_of(_on(all, c)).size(), 2, "C: its hit and its centre landing")
 	assert_eq(_damage_of(_on(all, n)).size(), 2, "N: C's copy and its own centre landing")
 	assert_eq(_damage_of(_on(all, m)).size(), 1, "M: N's copy")
@@ -421,7 +423,7 @@ func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
 				"radius disc_radius(Heat − T, R)")
 		assert_eq(marks[0].go_off, _fire().bands[0].identity, "the mark names Burning")
 	assert_eq(_damage_of(_on(all, c)).size(), 2, "the centre landing as in 3b")
-	assert_eq(_heat(c), cap + 1 - 1, "1 Heat per node reached")
+	assert_eq(_heat(c), cap + 1 - 1 - disc.void_floor, "the floor and 1 Heat per node reached")
 
 
 # --- 7: a bare disc spends the base law ------------------------------------------
@@ -429,7 +431,7 @@ func test_a_node_past_its_cap_goes_off_by_the_whole_excess() -> void:
 ## Nothing authors another spend: a fresh [DiscGoOff]
 ## reads Heat's excess over T, reaches by [method DiscGoOff.disc_radius] and
 ## spends 1 per other node reached, nothing nodeless.
-func test_a_new_disc_spends_one_heat_per_node_reached_and_nothing_nodeless() -> void:
+func test_a_new_disc_spends_one_heat_per_node_reached_and_the_floor_nodeless() -> void:
 	var fresh := DiscGoOff.new()
 	assert_eq(fresh.damage_per_power, 0.0, "no own damage by default")
 	var c := _at(&"C", Vector2.ZERO)
@@ -441,15 +443,16 @@ func test_a_new_disc_spends_one_heat_per_node_reached_and_nothing_nodeless() -> 
 	assert_almost_eq(result.reach, _r(fresh, 1, c.radius), 0.001, "the reach is disc_radius")
 	assert_eq(_reached(result), [a], "it reaches A")
 	assert_eq(result.cost.get(a, 0), 1, "1 per node reached")
-	assert_eq(result.nodeless_cost, 0, "nothing nodeless")
-	assert_eq(result.spend(), 1, "spend = nodes reached")
+	assert_eq(result.nodeless_cost, fresh.void_floor, "the floor is nodeless")
+	assert_eq(result.spend(), 1 + fresh.void_floor, "spend = the floor plus nodes reached")
+	assert_eq(result.transfer.get(a, 0), 1, "A takes +1 Heat")
 
 
-func test_a_new_disc_reaching_no_other_node_spends_nothing() -> void:
+func test_a_new_disc_reaching_no_other_node_spends_its_floor() -> void:
 	var fresh := DiscGoOff.new()
 	var c := _at(&"C", Vector2.ZERO)
 	await _own([c])
 	_set_heat(c, _t(c) + 1)
 	var result := fresh.fire_in(CombatWorld.live(), c, TerrainRead.of(_combat(c), c))
 	assert_true(result.reached.is_empty(), "no node reached")
-	assert_eq(result.spend(), 0, "spend 0")
+	assert_eq(result.spend(), fresh.void_floor, "the floor only")
