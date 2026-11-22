@@ -236,8 +236,6 @@ func _solo_disc(x: SkillNode, read: TerrainRead) -> Array:
 
 
 
-const _B := TerrainBook
-const _F := TerrainBook.Field
 
 
 func _all_nodes() -> Array:
@@ -260,7 +258,7 @@ func _sums(all: Array) -> PackedInt32Array:
 
 
 func _v(sums: PackedInt32Array, row: int, field: int) -> int:
-	return _B.read_of(sums, row, field)
+	return TerrainBook.read_of(sums, row, field)
 
 
 ## Δtotal per element from the recorded ops and from the live board both, each
@@ -284,9 +282,9 @@ func _reconcile(all: Array, pre: Dictionary) -> void:
 		d_board[2] += _charge(n) - int(was[1])
 	for row in 3:
 		var other := 1 - row if row < 2 else -1
-		var expect := _v(sums, row, _F.PRODUCED) + _v(sums, row, _F.EFFECT) \
-				- _v(sums, row, _F.VOIDED) - _v(sums, row, _F.ONTO_OPPOSITE) \
-				- (_v(sums, other, _F.ONTO_OPPOSITE) if other >= 0 else 0)
+		var expect := _v(sums, row, TerrainBook.Field.PRODUCED) + _v(sums, row, TerrainBook.Field.EFFECT) \
+				- _v(sums, row, TerrainBook.Field.VOIDED) - _v(sums, row, TerrainBook.Field.ONTO_OPPOSITE) \
+				- (_v(sums, other, TerrainBook.Field.ONTO_OPPOSITE) if other >= 0 else 0)
 		assert_eq(d_ops[row], expect, "row %d: the sums reconcile with the netted ops" % row)
 		assert_eq(d_board[row], expect, "row %d: the sums reconcile with the board" % row)
 
@@ -300,9 +298,9 @@ func test_a_solo_lightning_go_off_on_a_degree_3_node_voids_1_plus_3_and_lands_3(
 	var pre := _pre()
 	var all := _land(_head(DamageInstance.new(), x))
 	var sums := _sums(all)
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED), _edge.void_floor + 3, "cost: floor + 3")
-	assert_eq(_v(sums, _B.CHARGE, _F.EFFECT), 3, "effect: 3")
-	assert_eq(_v(sums, _B.CHARGE, _F.PRODUCED), 0, "no rider")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED), _edge.void_floor + 3, "cost: floor + 3")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.EFFECT), 3, "effect: 3")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.PRODUCED), 0, "no rider")
 	_reconcile(all, pre)
 
 
@@ -317,9 +315,9 @@ func test_the_combined_example_voids_8_and_lands_9() -> void:
 	var pre := _pre()
 	var all := _land(_contact(s, x))
 	var sums := _sums(all)
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED) + _v(sums, _B.CHARGE, _F.VOIDED_INCOMING), 8, "8 voided")
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED_INCOMING), _edge.void_floor + 3, "the copy's part is off the graph")
-	assert_eq(_v(sums, _B.CHARGE, _F.EFFECT), 9, "9 landed")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED) + _v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED_INCOMING), 8, "8 voided")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED_INCOMING), _edge.void_floor + 3, "the copy's part is off the graph")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.EFFECT), 9, "9 landed")
 	_reconcile(all, pre)
 
 
@@ -332,9 +330,9 @@ func test_a_short_payer_copy_voids_what_it_has_and_lands_8() -> void:
 	var pre := _pre()
 	var all := _land(_contact(s, x))
 	var sums := _sums(all)
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED_INCOMING), c0, "voids what it has")
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED), 0, "the unprimed hub pays nothing")
-	assert_eq(_v(sums, _B.CHARGE, _F.EFFECT), 8, "lands 8")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED_INCOMING), c0, "voids what it has")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED), 0, "the unprimed hub pays nothing")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.EFFECT), 8, "lands 8")
 	_reconcile(all, pre)
 
 
@@ -355,8 +353,8 @@ func test_a_heat_rider_on_cold_is_produced_and_applied_onto_cold() -> void:
 	var pre := _pre()
 	var all := _land(span)
 	var sums := _sums(all)
-	assert_eq(_v(sums, _B.HEAT, _F.PRODUCED), 1, "produced 1 Heat")
-	assert_eq(_v(sums, _B.HEAT, _F.ONTO_OPPOSITE), 1, "applied onto Cold 1")
+	assert_eq(_v(sums, TerrainBook.HEAT, TerrainBook.Field.PRODUCED), 1, "produced 1 Heat")
+	assert_eq(_v(sums, TerrainBook.HEAT, TerrainBook.Field.ONTO_OPPOSITE), 1, "applied onto Cold 1")
 	assert_eq(_heat(x), -2, "the node's Cold reads 2")
 	_reconcile(all, pre)
 
@@ -377,7 +375,7 @@ func test_a_charge_spend_counts_the_applied_amount_not_the_request() -> void:
 	var pre := _pre()
 	var all := _land(_head(DamageInstance.new(), x))
 	var sums := _sums(all)
-	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED), have, "the clamp at 0: what was there")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.VOIDED), have, "the clamp at 0: what was there")
 	_reconcile(all, pre)
 
 
@@ -393,7 +391,7 @@ func test_the_sums_ride_the_record_and_the_live_replay_counts_them_once() -> voi
 	await OutcomeApplier.drain(HitQueue.over(outcome.hits), shadow, BeatClock.instant_clock(), null,
 			RandomNumberGenerator.new())
 	var sums := _sums(outcome.hits)
-	assert_eq(_v(sums, _B.CHARGE, _F.EFFECT), 3, "fixture: the shadow resolve booked the go-off")
+	assert_eq(_v(sums, TerrainBook.CHARGE, TerrainBook.Field.EFFECT), 3, "fixture: the shadow resolve booked the go-off")
 	assert_eq(int(ledger.current()[&"charge"][&"effect"]), 0, "the shadow resolve counts nothing")
 	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
 	var carriers := rebuilt.hits.filter(func(h: HitInstance) -> bool: return not h.terrain_sums.is_empty())
