@@ -800,8 +800,9 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 ## [param h]'s head's second store ([member _Hit.source]) going off at the
 ## head's own [param node], beside the node's bands: each band the source's
 ## read sits in fires its [GoOff] from [param node] with that read, and the
-## spend (its per-reached part: a copy pays no floor) comes off the source through its callable, never the node's ints; a
-## transfer still lands on the reached nodes. Once per hit, as the node's own
+## spend (its per-reached part: a copy pays no floor) comes off the source
+## through its callable, never the node's ints; a transfer still lands on the
+## reached nodes. Once per hit, as the node's own
 ## go-offs are. An inert source sits in no band, fires nothing, spends nothing.
 func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSettle.Batch,
 		next: Array[Arrival], muted := false) -> void:
@@ -909,8 +910,9 @@ func _vertex_disc(h: _Hit, node: SkillNode, e: Element) -> DiscGoOff:
 ## solo spend off its store; on any other node (Frozen included) the shape runs
 ## alone: a mark, no centre copy, no node spend. Either way the copy pays 1 per
 ## node the disc reaches, through the source's spend, and no floor; reaching no
-## one is no go-off for the copy, while a Burning node still voids its floor. The node's own plain go-off is skipped in the
-## go-off loop on the same predicate ([method _vertex_disc]).
+## one is no go-off for the copy, while a Burning node still voids its floor.
+## The node's own plain go-off is skipped in the go-off loop on the same
+## predicate ([method _vertex_disc]).
 func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOff,
 		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
 	var read := TerrainRead.of(_slice(node), node)
