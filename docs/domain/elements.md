@@ -562,26 +562,27 @@ concentrate (#1813), not this section's.
   (`HitInstance.cast_shape`, `cast_shape_points`), so every seed of a
   multi-seed cast is shaped; later waves and every gather copy carry none
   (`_clone` clears it). Arrows and blades have no walk and no shape.
-- **The route** (`HitGather`, at the head's own node, after the riders):
-  `_shape_at` reads the shape once; `_shape_band` is the element's first band
+- **The route** (`HitGather`, at the head's own node, after the riders): the
+  gather mints the shape as the head's one incoming party,
+  `GoOffSource.shape(element, points)` (no read, no payer), unless the head
+  already carries a blade copy. `_shape_band` is the element's first band
   holding a `DiscGoOff` or an `EdgeGoOff`, and an element with none is no
-  shape. If the node's band of that element goes off, `_shaped_in` hands the
-  shape to that band's own go-off: one combined go-off, one channel, one
-  centre copy, the node's solo spend (ADR 0084 §3, §4, ADR 0086 §5).
-  Otherwise `_fire_shape_alone` answers the same go-off with no read and
-  appends it as a list: no spend, no own damage, no centre copy, no channel
-  (ADR 0086 §4). A Frozen node's mute drops its own bands, never the shape,
-  so there the shape runs alone. Its mark names the band's identity (Fire →
-  Burning, Lightning → Shocked; tentative), so `BlastVFX.look_for` plays it in
-  the element's look at the shaped size (a shape-alone disc has power 0,
-  which only the stroke width reads).
+  shape. `_go_off` is the one path (ADR 0098): if the node's band of that
+  element goes off, the shape widens it into one combined go-off with one
+  centre copy, the node pays its solo cost, and every reached node takes the
+  effect. Otherwise the same call runs with an unprimed node: no cost, no
+  effect, no own damage, no centre copy (ADR 0086 §4). A Frozen node's mute
+  reads the node as unprimed, so there the shape runs alone. Its mark names
+  the band's identity (Fire → Burning, Lightning → Shocked; tentative), so
+  `BlastVFX.look_for` plays it in the element's look at the shaped size (a
+  shape-alone disc has power 0, which only the stroke width reads).
 - **Lightning**: `EdgeGoOff.level_for_points(points)`, the largest N with
   N(N + 1)/2 ≤ points (1 / 3 / 6 / 10 → 1 / 2 / 3 / 4), into
-  `fire_level_in(…, added)`: reach M + N hops, spend for M alone (0 when not
-  Shocked). No knob.
+  `fire_level_in(…, source)`: reach M + N hops, spend for M alone (0 when not
+  Shocked); the shape pays nothing. No knob.
 - **Fire**: `Element.shape_power(points)` = points × `shape_power_per_point`
   (`Element`'s default 5.0, unset on `fire.tres`; tentative, a ballpark) into
-  `DiscGoOff.fire_shaped_in`, which reaches by `shape_disc_radius(shape,
+  `DiscGoOff.fire_shaped_in(…, source)`, which reaches by `shape_disc_radius(shape,
   excess, R)` = A × (√shape + √excess + B) × R, R the seed node's radius;
   `disc_radius(e, R)` is the same function at shape 0. On a Burning node it
   spends its floor plus the solo disc's nodes; its own damage reads the excess only.
