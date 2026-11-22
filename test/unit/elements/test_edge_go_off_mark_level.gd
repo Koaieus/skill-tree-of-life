@@ -51,6 +51,12 @@ func test_the_result_names_its_level_as_power() -> void:
 	var lv2 := _read(int(pow(2, arc.ladder_exponent)) * t + 1, t)
 	assert_eq(arc.fire(c, lv1).power, arc.level_of(lv1), "a level-1 arc names level 1")
 	assert_eq(arc.fire(c, lv2).power, arc.level_of(lv2), "a level-2 arc names level 2")
-	assert_eq(arc.fire_level_in(null, c, lv1, 1).power, arc.level_of(lv1) + 1,
+	assert_eq(arc.fire_level_in(null, c, lv1, _shape(1)).power, arc.level_of(lv1) + 1,
 			"an added level names the whole level it reached")
 	assert_eq(arc.fire(c, lv2).reach, 0.0, "an arc has no px reach")
+
+
+## A cast shape of [param points] as the incoming party: level
+## [method EdgeGoOff.level_for_points] of it.
+func _shape(points: int) -> GoOffSource:
+	return GoOffSource.shape(Element.new(), points)

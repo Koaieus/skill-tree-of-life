@@ -294,24 +294,33 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   `radius_a × (√shape_power + √excess + radius_b) ×` the origin node's radius;
   each root's term is floored at 0. It is the one formula: `disc_radius(power, R)`
   is `shape_disc_radius(0, power, R)`.
-- **The fire.** `DiscGoOff.fire_shaped_in(world, node, read, shape_power)`, beside
-  `fire_in` (which is unchanged). The caller computes the shape power: a blade
-  vertex passes its excess at fill (#1829), a cast passes points ×
-  `shape_power_per_point` (#1812).
-- **Burning node** (`power_at` > 0). It reaches every node inside the combined
-  radius. It pays its **solo cost**, the spend `fire_in` makes there:
-  `void_floor` nodeless plus 1 per reached node also inside its own
-  `disc_radius(excess)`, each of those taking its +1 Heat on the default. The
-  floor is added, never a max. `power` and `own_damage` (`damage_per_power × excess`) read the
-  excess only, and `reach` is the combined radius.
-- **Node not Burning** (Heat ≤ T, or Cold). The shape runs alone over
-  `shape_disc_radius(shape_power, 0, R)`, with no spend, no power and no own
-  damage. With shape power ≤ 0 as well, it is no go-off.
-- A Burning node whose combined disc reaches nobody voids its floor only
-  (`floor_when_unreached`); a shape alone reaching nobody is nothing.
-- **What stays with the callers.** The caller routes the answer through
-  `HitGather`: the one Fire channel, whether a centre copy lands (ADR 0086 §4,
-  §5), and who spends what.
+- **The fire.** `DiscGoOff.fire_shaped_in(world, node, read, source)`, reached
+  through `GoOff.fire_with` (`fire_in` is the unshaped disc). The incoming
+  party is a `GoOffSource` and the disc reads its power off it
+  (`power_from`): a blade copy's excess (`power_at` on its read, #1829), a
+  cast's points × `shape_power_per_point` (#1812). A null `read` is an
+  unprimed node.
+- **Cost and effect are separate (ADR 0098).** It reaches every node inside
+  the combined radius. Each **primed** party pays its own **solo cost**:
+  `void_floor` plus 1 per reached node inside its own `radius_at` disc
+  around the hit node. That is the node's `cost` + `nodeless_cost` and a
+  copy's `incoming_cost`; a shape pays nothing. The floor is added, never a
+  max. While any party is primed, **every** reached node takes +1 Heat as
+  `effect` on the Reached-node default, the combined reach included. The
+  cost never funds the effect. `power` and `own_damage`
+  (`damage_per_power × excess`) read the node's excess only; `reach` is the
+  combined radius.
+- **Nothing primed** (a shape on a node that is not Burning): it reaches over
+  `shape_disc_radius(shape_power, 0, R)` and carries payload only: no cost,
+  no effect, no power, no own damage. With no power on either side it is no
+  go-off.
+- A primed party whose disc reaches nobody voids its floor only
+  (`floor_when_unreached`), a copy included; a shape alone reaching nobody is
+  nothing.
+- **What stays with the callers.** `HitGather._go_off` routes the answer: the
+  node's cost off its store, the incoming cost off the party's payer, the
+  effect onto the reached nodes, and a centre copy only when the node is
+  primed (ADR 0086 §4, §5).
 
 ## The Burning vertex and the Heat addon (#1829)
 
@@ -320,22 +329,20 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   one `ApplyStatusEffect` of `heat` at `power = 1` (tentative knob), costing 1
   `fire_element`. Its vertex lands that Heat on every contact the gate admits.
 - **The Burning vertex.** A vertex whose terrain copy sits in a band that goes off
-  by a `DiscGoOff` (Fire's Burning: copy > T at fill) is a **Fire shape on the
-  node it touches**, of shape power copy − T (`power_at` on the copy), centred on
-  and sized by the contact node. `HitGather._fire_source` hands a disc band to
-  `_fire_vertex_disc`, which calls `fire_shaped_in` on the contact node's read:
-  - **Contact node Burning**: one Fire channel. The node's own plain `fire_in`
-    is skipped for that hit (`_vertex_disc`), the combined disc lands the
-    centre copy and mints one mark, and the node pays its solo cost (its floor
-    added; a combined disc reaching nobody still voids that floor).
-  - **Contact node not Burning** (Frozen included): the shape runs alone, with a
-    mark but no centre copy (`_append_reach`'s `centre_copy = false`), no node
-    spend, no own damage; the mark's `power` is 0.
-  - The copy pays 1 per node the disc reaches, through the source's spend
-    (tentative pass pick: the alternative is the copy pays nothing beyond the
-    node's solo cost). A disc reaching nobody spends nothing. The source node is
-    never touched; a later contact goes off only while the copy stays > T.
-  - A go-off whose disc is not a `DiscGoOff` keeps the generic source path.
+  by a `DiscGoOff` (Fire's Burning: copy > T at fill) is the incoming party at
+  the node it touches (ADR 0098), its power copy − T, centred on and sized by
+  the contact node. `HitGather._go_off` fires the one disc with the node's
+  read and the copy (Fire's add-up, above):
+  - **Contact node Burning**: one disc, one mark, the centre copy; the node
+    and the copy each pay their own solo cost.
+  - **Contact node not Burning** (Frozen included: a muted node reads as
+    unprimed): the copy's disc alone, with a mark but no centre copy, no node
+    spend, no own damage; the mark's `power` is 0. The copy pays its solo
+    cost and every reached node takes +1 Heat.
+  - The copy pays through its payer (`BladeState.spend_copy`, clamped at 0);
+    the source node is never touched. A later contact goes off only while
+    the copy stays > T, at its current power. A Burning copy on a Shocked
+    node is two go-offs, each its own cost and effect.
 - Guards: `test/unit/attack/melee/test_burning_vertex.gd`,
   `test/unit/attack/melee/test_heat_addon.gd`.
 
@@ -357,36 +364,29 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   whole count, never count − k × T, so a node past the cap arcs on the same
   ladder. With a T of 0, any Charge ≥ 1 reads straight to `max_level` (0 at
   Charge 0).
-- **Cost and transfer**, within the node's own level M only. A node with
-  M > 0 voids `GoOff.void_floor` (1) as `nodeless_cost`, and each node
-  reached within M hops costs 1 more, itemised in `GoOffResult.cost`. On the
-  default `spent_charge_goes_to` (Reached node), that node also takes +1
-  Charge as `effect`; on Void, it takes nothing. A degree-D node at N
-  arcing its neighbours ends at N − D − 1 (ADR 0097). A node reached only through an added
-  level (beyond M) costs nothing and takes nothing.
-- **`fire_level_in(world, node, read, added)`** is the entry point for an extra
-  level. It is one go-off at M + `added` hops from `node` (never `read.node`),
-  paying M's solo cost. `added` = 0 is the plain `fire`. M = 0 with an added
-  level is a shape alone: it reaches but pays nothing. `max_level` caps only
-  M; `added` goes on top uncapped, so a combined arc can exceed it.
+- **Cost and effect (ADR 0098).** A node with M > 0 voids `GoOff.void_floor`
+  (1) as `nodeless_cost`, and each node reached within M hops costs 1 more,
+  itemised in `GoOffResult.cost`. A degree-D node at N arcing its neighbours
+  ends at N − D − 1 (ADR 0097). While any party is primed, every reached node
+  takes +1 Charge as `effect` on the default `spent_charge_goes_to`
+  (Reached node), the combined reach included; on Void nothing lands.
+- **`fire_level_in(world, node, read, source)`** (through `GoOff.fire_with`) is
+  the one go-off at M + N hops from `node` (never `read.node`), N the
+  incoming `GoOffSource`'s level (`level_from`: a copy's `level_of` its read,
+  a shape's `level_for_points`). A copy with a payer pays its own solo cost,
+  the floor plus 1 per node within N hops, as `incoming_cost` (per node in
+  `incoming_at`, so a deeper node's commits at `_release`); a shape pays
+  nothing. M = 0 with a shape is a shape alone: it reaches, no cost, no
+  effect. `max_level` caps only M and N's read; their sum can exceed it.
 - **The Shocked vertex.** A vertex whose Charge copy sits in an `EdgeGoOff`
-  band is a Lightning shape on the node it touches. It arcs at the copy's level
-  (`level_of` on the copy's read). `HitGather._fire_source` hands it to
-  `_fire_vertex_arc`:
-  - **Contact node Shocked**: one Lightning channel. The node's own plain arc
-    is skipped for that hit (`_vertex_arc`). One arc goes out at the node's
-    level plus the copy's (`fire_level_in`), with one mark and the centre copy,
-    and the node pays its solo cost (the floor plus 1 per node within M) off
-    its store, each per-node stack transferring to its reached node. The copy's own stacks never transfer, so
-    a node within M costs two stacks, of which only the node's moves.
-  - **Contact node not Shocked**: the copy's arc runs alone, with a mark but no
-    centre copy, and no node spend. On the Reached-node default each node
-    reached takes the copy's transferred stack; on Void nothing moves.
-  - Either way the copy pays 1 per node reached, through the source's spend:
-    depth 1 at this read, deeper nodes as `_release` lets them on
-    (`_Fired.copy_spend`). An arc reaching nobody is no go-off. A later contact
-    arcs only while the copy stays > T.
-  - Not built: the Frozen-contact mute (#1807, #1808).
+  band is the incoming party at the node it touches, at the copy's level.
+  `HitGather._go_off` fires one arc at M + N with one mark:
+  - **Contact node Shocked**: the centre copy lands; the node pays its solo
+    cost off its store, the copy its own off its payer.
+  - **Contact node not Shocked** (or muted by Frozen): the copy's arc alone,
+    no centre copy, no node spend; the copy pays its floor and its ring.
+  - The copy's level is re-read from its current count on each contact, so it
+    drains across a swing and stops once ≤ T. No per-swing cap, no backlash.
 - **The Charge addon** (`skill_node/addons/defs/charge_addon.tscn`, look
   `skill_node/addons/visuals/charge_visual.gd`). This is Lightning's element
   addon, rider only: one `ApplyStatusEffect` of `charge` at `power = 1`
@@ -529,9 +529,9 @@ as built. One branch of code, the rest pins on what Fire, Lightning and Ice buil
   generation (no shatter: a thaw is no breaker), a Cold rider that freezes a
   Shocked node mutes it. The released arc reads its level after the breaker's
   riders, so a breaker carrying Charge feeds the arc it releases.
-- A Shocked blade vertex's arc on a muted node runs alone (`_fire_vertex_arc`
-  with `muted`): the node's own arc stays trapped, the vertex arcs with no
-  centre copy and no node spend. Unpinned (no blade fixture here).
+- A Shocked blade vertex's arc on a muted node runs alone (`HitGather._go_off`
+  reads the muted node as unprimed): the node's own arc stays trapped, the
+  vertex arcs with no centre copy and no node spend.
 - **Landing counts** (b = `FrozenAdmits.break_channels`, 2): a Frozen + Shocked
   node hit under the threshold takes 1; broken, 1 + b + 1 (the released arc's
   centre) plus the burst, each neighbour 1; two breakers in one beat: one

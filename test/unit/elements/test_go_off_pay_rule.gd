@@ -215,7 +215,7 @@ func test_a_shaped_burning_node_pays_the_floor_plus_its_solo_reach() -> void:
 	var s2 := _disc_node(&"S2", 0.5 * solo, PI / 2.0, all)
 	await _own(all)
 	_set_heat(c, _t(c) + 4)
-	var result := disc.fire_shaped_in(null, c, TerrainRead.of(_combat(c), c), 15.0)
+	var result := disc.fire_shaped_in(null, c, TerrainRead.of(_combat(c), c), _shape(15.0))
 	assert_eq(result.cost.size(), 2, "fixture: the solo disc holds S1 and S2")
 	assert_eq(result.spend(), disc.void_floor + 2, "the floor plus 1 per solo node")
 	assert_eq(result.nodeless_cost, disc.void_floor, "the floor is nodeless")
@@ -289,7 +289,7 @@ func test_a_lightning_shape_on_a_node_not_shocked_spends_nothing() -> void:
 	var g: Array[SkillNode] = await _charged_star()
 	_set_charge(g[0], 0)
 	var edge := EdgeGoOff.new()
-	var result := edge.fire_level_in(null, g[0], TerrainRead.of(_combat(g[0]), g[0]), 1)
+	var result := edge.fire_level_in(null, g[0], TerrainRead.of(_combat(g[0]), g[0]), _shape(1))
 	assert_eq(result.reached.size(), 3, "fixture: the shape reaches the leaves")
 	assert_eq(result.spend(), 0, "no spend, no floor")
 	assert_true(result.effect.is_empty(), "no transfer")
@@ -300,7 +300,7 @@ func test_a_fire_shape_on_a_node_not_burning_spends_nothing() -> void:
 	var c: SkillNode = got[0]
 	_set_heat(c, 0)
 	var disc := DiscGoOff.new()
-	var result := disc.fire_shaped_in(null, c, TerrainRead.of(_combat(c), c), 4.0)
+	var result := disc.fire_shaped_in(null, c, TerrainRead.of(_combat(c), c), _shape(4.0))
 	assert_false(result.reached.is_empty(), "fixture: the shape reaches someone")
 	assert_eq(result.spend(), 0, "no spend, no floor")
 	assert_true(result.effect.is_empty(), "no transfer")
@@ -323,3 +323,11 @@ func test_a_wire_of_four_goes_off_once_each_and_voids_four() -> void:
 	assert_eq(_charge(g[0]), 1, "X takes +1")
 	assert_eq(_charge(g[5]), 1, "Y takes +1")
 	assert_eq(_sum(g, _charge), before - 4, "each of the four voids its floor")
+
+
+## A cast shape of [param power] as the incoming party (a bare element whose
+## one point buys exactly that power).
+func _shape(power: float) -> GoOffSource:
+	var e := Element.new()
+	e.shape_power_per_point = power
+	return GoOffSource.shape(e, 1)

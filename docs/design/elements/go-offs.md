@@ -33,7 +33,14 @@ and **each reached node gets +1** of the element's terrain (*"a blast is hot.
 a discharge is charged."*), so the next decay tick works on 1 + D nodes. Cost
 and effect are separate (owner, 2026-11-20): the node's whole bill is voided,
 stopping at 0, and every reached node takes its +1 whether or not the payer
-covered it. Void and move are per-element balance knobs (ADR 0097 §3), as is
+covered it. **A blade vertex's primed copy is billed like a node at the hit
+node** (ADR 0098): the copy and the hit node are two parties of ONE go-off
+whose reach sums their sizes, every primed party pays its own solo bill (the
+floor plus 1 per node inside its own reach, measured from the hit node; the
+copy pays through its own store, never the source node's), and every node
+the combined reach touches takes +1 once. A cast's shape enters the same slot
+but pays nothing, and alone (on an unprimed node) it only reaches: the effect
+needs a primed party. Void and move are per-element balance knobs (ADR 0097 §3), as is
 the floor. A Burning node whose disc reaches no *other* node makes no entry
 yet still voids its floor (ADR 0097 §5, tentative knob): a hit with no Heat
 rider beats a tiny fire down, and a 1-Heat hit on a sub-reach node nets 0,

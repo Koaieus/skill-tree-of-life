@@ -282,10 +282,10 @@ func test_an_added_level_is_one_go_off_paying_the_solo_cost() -> void:
 	var t := 3
 	var read := _read(t + 1, t)
 	var plain := arc.fire(c, read)
-	var zero := arc.fire_level_in(null, c, read, 0)
+	var zero := arc.fire_level_in(null, c, read, null)
 	assert_eq(_reached(zero).keys(), _reached(plain).keys(), "N = 0 is the plain call")
 	assert_eq(zero.spend(), plain.spend(), "N = 0 spends as the plain call")
-	var added := arc.fire_level_in(null, c, read, 1)
+	var added := arc.fire_level_in(null, c, read, _shape(1))
 	var got := _reached(added)
 	assert_eq(got.size(), 4, "level 1 + 1: every node within 2 hops, one entry each")
 	assert_eq(added.reached.size(), got.size(), "one Reach per node, never two")
@@ -562,3 +562,9 @@ func test_a_burning_and_shocked_node_blasts_and_arcs_once_each() -> void:
 	assert_eq(_charge(z), rider + 1, "Z: the copy's rider and the transferred stack")
 	assert_eq(_combat(x).terrain_t(), t_x + 1 - 1 - (_fire_el.bands[0].go_off as DiscGoOff).void_floor,
 			"X: its Heat rider once, then the floor and 1 spent on Y")
+
+
+## A cast shape of [param points] as the incoming party: level
+## [method EdgeGoOff.level_for_points] of it.
+func _shape(points: int) -> GoOffSource:
+	return GoOffSource.shape(Element.new(), points)

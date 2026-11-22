@@ -111,7 +111,7 @@ func test_a_burning_node_shaped_reaches_the_combined_disc_and_pays_its_solo_cost
 	assert_gt(combined - 0.1 * r, solo, "fixture: In sits outside the solo disc")
 	await get_tree().process_frame
 	_prime(c, 4)
-	var result := disc.fire_shaped_in(null, c, _read(c), 15.0)
+	var result := disc.fire_shaped_in(null, c, _read(c), _shape(15.0))
 	var reached := _reached(result)
 	assert_true(reached.has(inside), "the node just inside the combined disc is reached")
 	assert_false(reached.has(outside), "the one just outside is not")
@@ -140,12 +140,12 @@ func test_a_solo_disc_reaching_nobody_pays_the_floor_inside_a_reaching_combined_
 	await get_tree().process_frame
 	_prime(c, 1)
 	assert_true(disc.fire_in(null, c, _read(c)).reached.is_empty(), "fixture: the solo disc reaches nobody")
-	var result := disc.fire_shaped_in(null, c, _read(c), 4.0)
+	var result := disc.fire_shaped_in(null, c, _read(c), _shape(4.0))
 	assert_eq(_reached(result), [n], "the combined disc reaches N")
 	assert_eq(result.spend(), disc.void_floor, "the node pays the floor")
 	assert_eq(result.spend(), 1, "the floor defaults to 1")
 	disc.void_floor = 0
-	assert_eq(disc.fire_shaped_in(null, c, _read(c), 4.0).spend(), 0, "floor 0 turns it off")
+	assert_eq(disc.fire_shaped_in(null, c, _read(c), _shape(4.0)).spend(), 0, "floor 0 turns it off")
 
 
 func test_a_combined_disc_reaching_nobody_is_empty_and_voids_only_its_floor() -> void:
@@ -153,17 +153,17 @@ func test_a_combined_disc_reaching_nobody_is_empty_and_voids_only_its_floor() ->
 	var c := _centre()
 	await get_tree().process_frame
 	_prime(c, 1)
-	var result := disc.fire_shaped_in(null, c, _read(c), 4.0)
+	var result := disc.fire_shaped_in(null, c, _read(c), _shape(4.0))
 	assert_true(result.reached.is_empty(), "nobody in the combined disc")
 	assert_eq(result.spend(), disc.void_floor, "only the floor (floor_when_unreached)")
 	disc.floor_when_unreached = false
-	assert_eq(disc.fire_shaped_in(null, c, _read(c), 4.0).spend(), 0, "off: no spend")
+	assert_eq(disc.fire_shaped_in(null, c, _read(c), _shape(4.0)).spend(), 0, "off: no spend")
 
 
 # --- 4: alone ---------------------------------------------------------------------
 
 func _assert_alone(disc: DiscGoOff, c: SkillNode, inside: SkillNode, outside: SkillNode, label: String) -> void:
-	var result := disc.fire_shaped_in(null, c, _read(c), 9.0)
+	var result := disc.fire_shaped_in(null, c, _read(c), _shape(9.0))
 	var reached := _reached(result)
 	assert_true(reached.has(inside), "%s: the shape alone reaches the node inside it" % label)
 	assert_false(reached.has(outside), "%s: not the one past it" % label)
@@ -183,7 +183,7 @@ func test_on_a_node_at_t_the_shape_runs_alone() -> void:
 	_prime(c, 0)
 	assert_eq(disc.power_at(c, _read(c)), 0, "fixture: Heat at T is not Burning")
 	_assert_alone(disc, c, inside, outside, "Heat at T")
-	var none := disc.fire_shaped_in(null, c, _read(c), 0.0)
+	var none := disc.fire_shaped_in(null, c, _read(c), _shape(0.0))
 	assert_true(none.reached.is_empty(), "no shape and no excess is no go-off")
 	assert_eq(none.spend(), 0, "and spends nothing")
 
@@ -199,3 +199,11 @@ func test_on_a_frozen_node_the_shape_runs_alone() -> void:
 	combat.add_terrain(_element(&"ice"), combat.terrain_threshold() + 1)
 	assert_lt(combat.terrain_t(), -combat.terrain_threshold(), "fixture: Cold past T, the node is Frozen")
 	_assert_alone(disc, c, inside, outside, "Frozen")
+
+
+## A cast shape of [param power] as the incoming party (a bare element whose
+## one point buys exactly that power).
+func _shape(power: float) -> GoOffSource:
+	var e := Element.new()
+	e.shape_power_per_point = power
+	return GoOffSource.shape(e, 1)

@@ -213,7 +213,7 @@ func test_a_primed_copy_goes_off_from_the_contact_and_spends_only_the_copy() -> 
 	var copy_t := s.vertex_t[1]
 	var copies := await _land(hits)
 	assert_eq(spy.fired, 1, "the copy's band went off once")
-	assert_eq(s.vertex_t[1], copy_t - 1, "the go-off spent the vertex copy")
+	assert_eq(s.vertex_t[1], copy_t - spy.void_floor - 1, "the copy paid its floor and its one reached node")
 	assert_eq(_heat(_f.leaves[0]), source_t, "never the source node's ints")
 	assert_eq(_heat(_f.target), target_t, "never the struck node's ints")
 	assert_true(copies.any(func(h: HitInstance) -> bool: return h.target == _f.cluster[0]),
@@ -250,5 +250,5 @@ func test_two_primed_vertices_on_one_node_each_spend_only_their_own_copy() -> vo
 	var t2 := s.vertex_t[2]
 	await _land(hits)
 	assert_eq(spy.fired, 2, "each head's copy went off")
-	assert_eq(s.vertex_t[1], t1 - 1, "vertex 1 paid once, for its own")
-	assert_eq(s.vertex_t[2], t2 - 1, "vertex 2 paid once, for its own")
+	assert_eq(s.vertex_t[1], t1 - spy.void_floor - 1, "vertex 1 paid once, for its own")
+	assert_eq(s.vertex_t[2], t2 - spy.void_floor - 1, "vertex 2 paid once, for its own")

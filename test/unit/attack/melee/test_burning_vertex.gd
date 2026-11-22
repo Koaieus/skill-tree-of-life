@@ -1,12 +1,12 @@
 extends GutTest
 
-## The Burning vertex: a vertex filled from a Burning source carries a Fire
-## shape of power copy − T, set off at the node it touches. The disc is centred
-## on, and sized by, the contact node. On a node that is not Burning (Frozen
-## included) the shape runs alone: no centre landing, no node spend, the copy
-## pays 1 per reached node. On a Burning node it adds up with the node's own
-## go-off as ONE Fire channel: one blast, one centre landing, the node pays its
-## solo cost (floored), the copy 1 per reached node. The source never moves.
+## The Burning vertex: a vertex filled from a Burning source is the incoming
+## party (ADR 0098) of power copy − T at the node it touches. The disc is
+## centred on, and sized by, the contact node. On a node that is not Burning
+## (Frozen included) the copy's disc runs alone: no centre landing, no node
+## spend. On a Burning node the two are ONE disc: one blast, one centre
+## landing. Either way each primed party pays its own solo cost (its floor
+## plus its own disc), and the source never moves.
 ##
 ## Board: VolleyBoardFixture — target (450,0) hostile, radius 40; cluster
 ## (600,0), (700,100) hostile; the attacker owns the hub and the leaves.
@@ -134,12 +134,12 @@ func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> v
 	var s := _blade()
 	var shape := _disc().power_at(null, s.copy_read(1))
 	assert_eq(shape, 8, "fixture: the vertex's power is copy − T")
-	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), float(shape))
+	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), _copy(s))
 	assert_gt(want.reached.size(), 0, "fixture: the disc reaches someone")
 	var source_t := _heat(_f.leaves[0])
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
-	assert_gt(copy_t, want.reached.size(), "fixture: the copy affords its reach")
+	assert_gt(copy_t, want.incoming_cost, "fixture: the copy affords its bill")
 	var hits: Array[HitInstance] = []
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
 	var copies := await _land(hits)
@@ -151,23 +151,25 @@ func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> v
 	assert_almost_eq(marks[0].reach, _disc().shape_disc_radius(shape, 0.0, r), 0.001,
 			"radius shape_disc_radius(copy − T, 0, R_contact)")
 	assert_almost_eq(marks[0].reach, _disc().disc_radius(shape, r), 0.001, "= disc_radius(copy − T, R)")
-	assert_eq(_heat(_f.leaves[0]), source_t, "the source's Heat is unchanged")
+	assert_eq(_heat(_f.leaves[0]), source_t + int(want.effect.get(_f.leaves[0], 0)),
+			"the source pays nothing: it takes only the effect, if the disc reaches it")
 	assert_eq(_heat(_f.target), target_t, "an unprimed contact node pays nothing")
-	assert_eq(s.vertex_t[1], copy_t - want.reached.size(), "the copy pays 1 per node reached")
+	assert_eq(s.vertex_t[1], copy_t - _disc().void_floor - want.reached.size(),
+			"the copy pays its floor and 1 per node reached")
 
 
-func test_a_disc_reaching_no_other_node_spends_nothing_and_lands_nothing() -> void:
+func test_a_disc_reaching_no_other_node_voids_the_copys_floor_and_lands_nothing() -> void:
 	await _board()
 	var lone := _f.add_node(&"lone", Vector2(9000, 0), _f.hostile)
 	_prime(_f.leaves[0], 1)
 	var s := _blade()
-	assert_true(_disc().fire_shaped_in(null, lone, _read(lone), 1.0).reached.is_empty(),
+	assert_true(_disc().fire_shaped_in(null, lone, _read(lone), _copy(s)).reached.is_empty(),
 			"fixture: nothing near the lone node")
 	var copy_t := s.vertex_t[1]
 	var hits: Array[HitInstance] = []
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, lone)
 	var copies := await _land(hits)
-	assert_eq(s.vertex_t[1], copy_t, "a disc reaching no one spends nothing")
+	assert_eq(s.vertex_t[1], copy_t - _disc().void_floor, "a disc reaching no one voids the copy's floor only")
 	assert_true(copies.is_empty(), "and adds no landing")
 
 
@@ -197,8 +199,7 @@ func test_an_unprimed_contact_lands_once_and_each_reached_node_once_a_generation
 	_f.leaves[0].add_child(load(_HEAT_ADDON).instantiate())
 	await get_tree().process_frame
 	var s := _blade()
-	var shape := float(_disc().power_at(null, s.copy_read(1)))
-	var want := _hostile(_disc().fire_shaped_in(null, _f.target, _read(_f.target), shape))
+	var want := _hostile(_disc().fire_shaped_in(null, _f.target, _read(_f.target), _copy(s)))
 	assert_gt(want.size(), 0, "fixture: the disc reaches a hostile node")
 	var target_t := _heat(_f.target)
 	assert_lt(target_t + 1, _f.target.get_combat().terrain_threshold(), "fixture: the rider leaves it unprimed")
@@ -227,12 +228,12 @@ func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 	var shape := float(_disc().power_at(null, s.copy_read(1)))
 	var e := float(_disc().power_at(null, _read(_f.target)))
 	assert_eq(e, 1.0, "fixture: the contact node's excess")
-	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), shape)
+	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), _copy(s))
 	var solo := want.spend_at_read()
 	assert_gte(solo, _disc().void_floor, "fixture: the solo spend, its floor included")
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
-	assert_gt(copy_t, want.reached.size(), "fixture: the copy affords the combined reach")
+	assert_gt(copy_t, want.incoming_cost, "fixture: the copy affords its bill")
 	var hits: Array[HitInstance] = []
 	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, _f.target)
 	var copies := await _land(hits)
@@ -243,8 +244,8 @@ func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 				"radius shape_disc_radius(copy − T, e, R_contact)")
 	assert_eq(_on(copies, _f.target).size(), 1, "one centre landing: the contact node takes 2")
 	assert_eq(_heat(_f.target), target_t - solo, "the node pays exactly its solo spend")
-	assert_eq(s.vertex_t[1], copy_t - want.reached.size(),
-			"the copy pays 1 per node the combined disc reaches")
+	assert_eq(s.vertex_t[1], copy_t - want.incoming_cost,
+			"the copy pays its floor and its own disc")
 
 
 # --- 2d: Frozen contact node ----------------------------------------------------------
@@ -255,7 +256,7 @@ func test_a_frozen_contact_runs_the_disc_alone() -> void:
 	_freeze(_f.target)
 	var s := _blade()
 	var shape := float(_disc().power_at(null, s.copy_read(1)))
-	var want := _hostile(_disc().fire_shaped_in(null, _f.target, _unprimed(_read(_f.target)), shape))
+	var want := _hostile(_disc().fire_shaped_in(null, _f.target, _unprimed(_read(_f.target)), _copy(s)))
 	assert_gt(want.size(), 0, "fixture: the alone disc reaches a hostile node")
 	var target_t := _heat(_f.target)
 	var hits: Array[HitInstance] = []
@@ -277,3 +278,9 @@ func test_a_frozen_contact_runs_the_disc_alone() -> void:
 	assert_eq(got, want, "it reaches what it reaches from an unprimed node")
 	assert_eq(_on(copies, _f.target).size(), 0, "no centre landing")
 	assert_eq(_heat(_f.target), target_t, "the Frozen node pays nothing")
+
+
+## Vertex 1's copy as the incoming party, with a payer that records nothing
+## (so a go-off's [member GoOffResult.incoming_cost] reads the copy's bill).
+func _copy(s: BladeState) -> GoOffSource:
+	return GoOffSource.new(s, 1, s.copy_read(1), func(_e: Element, _n: int) -> void: pass)

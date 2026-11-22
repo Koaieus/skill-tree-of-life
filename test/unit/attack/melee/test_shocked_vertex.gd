@@ -1,12 +1,12 @@
 extends GutTest
 
-## The Shocked vertex: a vertex filled from a Shocked source carries a
-## Lightning shape of the copy's level, set off at the node it touches. On a
+## The Shocked vertex: a vertex filled from a Shocked source is the incoming
+## party (ADR 0098) at the copy's level, set off at the node it touches. On a
 ## node that is not Shocked the copy's arc runs alone: no centre landing, no
-## node spend, the copy pays 1 per reached node and each reached node gains
-## the transferred stack. On a Shocked node it is ONE Lightning channel with
-## the node's own arc: one arc at the summed level, one centre landing, the
-## node pays its solo cost, the copy 1 per node reached. The source never moves.
+## node spend. On a Shocked node it is ONE arc at the summed level with one
+## centre landing. Either way each primed party pays its own solo cost (its
+## floor plus its own level's ring) and every reached node takes +1 Charge.
+## The source never moves.
 ##
 ## Board: VolleyBoardFixture — target (450,0) hostile, linked to the cluster
 ## (600,0), (700,100) hostile; the attacker owns the hub and the leaves.
@@ -123,8 +123,8 @@ func test_a_shocked_copy_arcs_from_an_unprimed_contact_and_pays_out_of_the_copy(
 	assert_eq(_on(copies, _f.target).size(), 0, "no centre landing: the contact takes 1, the contact")
 	for i in 2:
 		assert_eq(_on(copies, _f.cluster[i]).size(), 1, "cluster %d takes 1 landing" % i)
-		assert_eq(_charge(_f.cluster[i]), reached[i] + 1, "cluster %d gains the transferred stack" % i)
-	assert_eq(s.vertex_charge[1], copy - 2, "the copy pays 1 per node reached")
+		assert_eq(_charge(_f.cluster[i]), reached[i] + 1, "cluster %d takes the effect's +1 Charge" % i)
+	assert_eq(s.vertex_charge[1], copy - _edge().void_floor - 2, "the copy pays its floor and 1 per node reached")
 	assert_eq(_charge(_f.leaves[0]), source, "never the source node's ints")
 	assert_eq(_charge(_f.target), target, "nor the contact node's")
 
@@ -156,7 +156,7 @@ func test_a_shocked_contact_is_one_lightning_channel_with_the_copy() -> void:
 	var n := _edge().level_of(s.copy_read(1))
 	var m := _edge().level_of(_read(_f.target))
 	assert_eq([n, m], [1, 1], "fixture: copy and node both at level 1")
-	var want := _edge().fire_level_in(null, _f.target, _read(_f.target), n)
+	var want := _edge().fire_level_in(null, _f.target, _read(_f.target), _copy(s))
 	assert_eq(want.reached.size(), 3, "fixture: level 2 reaches the cluster and the far node")
 	var solo := _edge().fire(_f.target, _read(_f.target)).reached.size()
 	var target := _charge(_f.target)
@@ -168,4 +168,11 @@ func test_a_shocked_contact_is_one_lightning_channel_with_the_copy() -> void:
 	assert_eq(_on(copies, _f.target).size(), 1, "one centre landing: the contact node takes 2")
 	assert_eq(_on(copies, far).size(), 1, "the summed level reaches two hops")
 	assert_eq(_charge(_f.target), target - solo - _edge().void_floor, "the node pays its solo cost and its floor")
-	assert_eq(s.vertex_charge[1], copy - want.reached.size(), "the copy pays 1 per node reached")
+	assert_eq(s.vertex_charge[1], maxi(0, copy - want.incoming_cost), "the copy pays its own solo cost")
+	assert_eq(want.incoming_cost, _edge().void_floor + solo, "its floor and its own L1 ring, never the combined reach")
+
+
+## Vertex 1's copy as the incoming party, with a payer that records nothing
+## (so a go-off's [member GoOffResult.incoming_cost] reads the copy's bill).
+func _copy(s: BladeState) -> GoOffSource:
+	return GoOffSource.new(s, 1, s.copy_read(1), func(_e: Element, _n: int) -> void: pass)
