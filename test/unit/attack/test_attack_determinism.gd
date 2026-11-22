@@ -573,7 +573,7 @@ static func _combat_hits(outcome: AttackOutcome) -> Array[HitInstance]:
 # ── A Shocked walk: shadow and live agree on reach and spend ─────────────────
 
 ## The branching world's charges after one fan-all cast on N1, resolved
-## against [param world]: N1 and N2 Shocked first, so the walk conducts and
+## against [param world]: N1 and N2 Shocked first, so the walk stays on N1 and
 ## both arc. Returns [fingerprint, charges by node index].
 func _shocked_cast(w: Dictionary, world: CombatWorld) -> Array:
 	var helper: H = w.helper
@@ -606,7 +606,10 @@ func test_a_shocked_cast_reaches_and_spends_the_same_on_shadow_and_live() -> voi
 	shadow.free_shadow()
 	var on_live := _shocked_cast(w, CombatWorld.live())
 	assert_ne(on_live[1], before, "fixture: the cast moved Charge")
-	assert_gt((on_live[0] as Array).size(), 2, "fixture: the walk conducted past its seed")
+	var seed_id := _id_of(nodes[1])
+	var past_seed := (on_live[0] as Array).filter(
+			func(row: String) -> bool: return row.get_slice("|", 0) != seed_id)
+	assert_false(past_seed.is_empty(), "fixture: the arcs reach past the seed")
 	assert_eq(on_shadow[0], on_live[0], "the same landings, in the same order")
 	assert_eq(on_shadow[1], on_live[1], "the same Charge spent and moved, node by node")
 	CombatWorld.reset_live()

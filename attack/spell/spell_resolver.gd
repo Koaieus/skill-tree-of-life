@@ -391,9 +391,6 @@ static func _resolve(
 		# and lands the whole wave before this returns. One wave, one beat: the
 		# drain's closing flush spills its strips over their union before step
 		# 4's filter reads the world. No blast cue: a cast world has no audience.
-		# A walk that can leave its landing conducts through a Shocked node
-		# there (the gather pays the cost at the node's read): one head per
-		# landing carries it, so a merged landing pays once.
 		# Wave 0's heads also carry the cast's shape (ADR 0084 §1): every seed of
 		# a multi-seed cast is shaped at its own gather head; later waves none.
 		for state in merged:
@@ -402,7 +399,6 @@ static func _resolve(
 				continue
 			for hit in at.hits:
 				if hit.is_head:
-					hit.walk_spreads = config.spread != null
 					if state.hop_index == 0:
 						hit.cast_shape = shape
 						hit.cast_shape_points = shape_points
@@ -419,18 +415,13 @@ static func _resolve(
 			# in the generation its head arrived in, said paths end there
 			# (#1798; ADR 0087 §3, ADR 0091 §1): the head carries the answer,
 			# and a shatter walks every head of that read on.
-			# A walk through a Shocked node conducts: it leaves without
-			# spending a hop, on 0 hops left too, the gather having paid the
-			# band's conduct cost at the node's read.
 			var paths_end := false
-			var conducted := false
 			var landed: PropagationEvent = event_of.get(state, null)
 			if landed != null:
 				for hit in landed.hits:
 					if hit.is_head:
 						paths_end = paths_end or hit.path_ends
-						conducted = conducted or hit.conducted
-			if (state.hops_remaining <= 0 and not conducted) or config.spread == null or paths_end:
+			if state.hops_remaining <= 0 or config.spread == null or paths_end:
 				_mark_terminal(event_of, state)
 				continue
 			# Always enforce max_visits_per_node FIRST, and even if the filter
@@ -465,7 +456,7 @@ static func _resolve(
 			if picks.is_empty():
 				_mark_terminal(event_of, state)
 			for pick in picks:
-				next_wave.append(config.mint(state, pick, lctx, conducted))
+				next_wave.append(config.mint(state, pick, lctx))
 		ctx.wave_index += 1
 		wave = next_wave
 

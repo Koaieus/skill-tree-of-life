@@ -427,8 +427,6 @@ func test_the_overflow_band_answers_as_shocked() -> void:
 	var bands := _light().bands
 	assert_true(is_same(bands[-1].go_off, bands[0].go_off), "the overflow band's go_off is Shocked's instance")
 	assert_eq(bands[-1].travel, bands[0].travel, "same travel verb")
-	assert_eq(bands[-1].conduct_cost, bands[0].conduct_cost, "same conduct cost")
-	assert_gt(bands[0].conduct_cost, 0, "the Shocked band conducts at a cost")
 
 
 func test_past_the_cap_the_level_reads_the_whole_count() -> void:

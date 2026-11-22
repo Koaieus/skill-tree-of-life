@@ -319,16 +319,6 @@ const ICE_HELD := -1
 ## [SpellResolver]'s expansion step, which mints no next wave from the landing.
 ## Never shipped: the walk reads it on the authority, before the record.
 var path_ends: bool = false
-## The head is a spell walk's landing whose walk can leave it (its config has
-## a spread): only such a head conducts through a node whose band's travel is
-## [enum ElementBand.Travel] CONDUCTS. Set by [SpellResolver] before the wave
-## lands, on one head per landing. Never shipped.
-var walk_spreads: bool = false
-## The head's walk conducted through its node: the gather paid the band's
-## [member ElementBand.conduct_cost] off the node at its read, with the read's
-## other spends, so the expansion step leaves the node without spending a hop,
-## on 0 hops left too. Written by [HitGather]; never shipped.
-var conducted: bool = false
 ## A spell cast's shape (ADR 0084 §1): the element and points [SpellResolver]
 ## hands each wave-0 seed head, read once by [HitGather] at that head's own
 ## node ([method HitGather.stage_one]). Null / 0 on every other hit (later

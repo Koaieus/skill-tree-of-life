@@ -18,7 +18,6 @@ script = ExtResource("2_band")
 identity = ExtResource("7_primed")
 go_off = SubResource("edge_go_off")
 travel = 2
-conduct_cost = 1
 decay_per_world_turn = 1
 
 [sub_resource type="Resource" id="band_overflow"]
@@ -26,7 +25,6 @@ script = ExtResource("2_band")
 at_cap = true
 go_off = SubResource("edge_go_off")
 travel = 2
-conduct_cost = 1
 decay_per_world_turn = 2
 
 [resource]

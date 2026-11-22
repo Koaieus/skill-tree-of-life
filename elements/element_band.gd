@@ -28,9 +28,6 @@ const EXCESS_AT_CAP := 0
 ## hold one [FrozenAdmits]).
 @export var admits: Admits = null
 @export var travel: Travel = Travel.NONE
-## Charge a spell walk spends passing through a node in this band when its
-## [member travel] is CONDUCTS (Shocked: 1). Tentative knob; read by the gather.
-@export_range(0, 5) var conduct_cost: int = 0
 ## Terrain decay per world turn while in this band (a knob; read by #1795).
 @export_range(0, 100, 1, "or_greater") var decay_per_world_turn: int = 1
 ## The band is a light source (Burning): every viewer sees a disc of

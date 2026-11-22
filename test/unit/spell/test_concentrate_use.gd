@@ -422,9 +422,8 @@ func test_the_seed_heads_cut_reaches_the_second_read_and_no_copy_or_later_head_c
 
 # --- acceptance 4b: the combo, whole hit -----------------------------------
 # A spell that cannot walk on (no spread), so the walk is the seed alone in
-# both casts and never conducts off a Shocked seed: what differs between the
-# concentrated cast and the plain one is the ×m alone. Burning's own damage 0,
-# crit 0, dedupe off.
+# both casts: what differs between the concentrated cast and the plain one is
+# the ×m alone. Burning's own damage 0, crit 0, dedupe off.
 
 var _was_disc_damage := 0.0
 var _was_tunables: HitGatherTunables

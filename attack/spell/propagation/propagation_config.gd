@@ -86,9 +86,7 @@ extends Resource
 ## re-cast. The child is [method CastSpell.derived] from [param payload], then
 ## advanced: damage is shaped by [member hop_damage] (null is identity) and
 ## THEN multiplied by [member PropagationPick.share], so an authored ramp
-## composes with a spread's split; hops_remaining decrements, unless
-## [param conducts] (the parent's landing conducted through a Shocked node:
-## [member HitInstance.conducted]) keeps it; hop_index
+## composes with a spread's split; hops_remaining decrements; hop_index
 ## advances; the lineage gains the destination (or is replaced by the pick's
 ## [member PropagationPick.lineage_override]); [member CastSpell.arrival_share]
 ## records the pick's share.
@@ -99,8 +97,7 @@ extends Resource
 ##
 ## [param lctx] is the landing [param payload] just made — this wave has
 ## LANDED, so a world read through it sees this wave's stacks and damage.
-func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext,
-		conducts := false) -> CastSpell:
+func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext) -> CastSpell:
 	var next := CastSpell.derived(payload)
 	next.current_node = pick.node
 	next.predecessor = payload.current_node
@@ -113,8 +110,6 @@ func mint(payload: CastSpell, pick: PropagationPick, lctx: LandingContext,
 	next.stack_weight *= pick.stack_share
 	if pick.terminal:
 		next.hops_remaining = 0.0
-	elif conducts:
-		next.hops_remaining = payload.hops_remaining
 	else:
 		next.hops_remaining = payload.hops_remaining - 1
 	next.hop_index = payload.hop_index + 1
