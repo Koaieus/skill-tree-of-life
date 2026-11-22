@@ -37,8 +37,10 @@ const _SIZE_COUNT := 3
 @export_range(0.0, 1.0, 0.01) var potency_multiply_weight: float = 0.25
 ## The LARGE potency multiplier when the roll lands on MULTIPLY. Tentative.
 @export var potency_multiply_value: float = 2.0
-## `<id>_resistance` ADD_BASE per size, where the stat exists. Tentative.
-@export var resistance_by_size: Array[float] = [0.0, 5.0, 10.0]
+## `<id>_resistance` ADD_BASE per size, where the stat exists. Each entry is a
+## fraction in 0..1 (1.0 = 100% = immune to its own status, ADR 0031), never
+## shrinking with size. Tentative.
+@export var resistance_by_size: Array[float] = [0.25, 0.5, 1.0]
 
 
 func apply(entity: Entity) -> void:

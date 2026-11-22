@@ -215,7 +215,8 @@ and core look and adds, from `entity_tier` (SMALL..LARGE):
   rolls MULTIPLY `potency_multiply_value` at `potency_multiply_weight`, else the
   additive grant;
 - `<id>_resistance` — `resistance_by_size`, only where the stat exists (bleeding,
-  blindness, corruption, curse, poison).
+  blindness, corruption, curse, poison): a fraction, default 25% / 50% / 100%
+  (`[0.25, 0.5, 1.0]`), so a LARGE face is immune to its own status.
 
 Every number is a tentative exported knob on the face. The grants are minted
 fresh in `apply()` and go through `grant_core_modifier`, so they sit in the core
