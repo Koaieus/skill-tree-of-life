@@ -27,6 +27,7 @@ earlier reader added (a Catalyst conversion) books as `PRODUCED`.
 | diffusion | Heat that met Cold → Heat onto_opposite | `CombatWorld.diffuse_temperature` |
 | decay | decayed | `CombatWorld.decay_terrain` |
 | a degree drop's prime read | produced | `CombatWorld.prime_threshold_drops` |
+| an unstaged terrain rider's `land_on` | `book_landing`, produced | `OutcomeApplier.land_one` (live only) |
 
 The gather's beat sum rides the beat's first head as `HitInstance.terrain_sums`
 (record columns `tr_sn` / `tr_s`, beside `tr_*`), never on a copy. Per beat, not
@@ -50,6 +51,7 @@ Cold). `voided_incoming` is outside it: a copy's store is not graph terrain. A
 `GraphSnapshot.decode` raises `CombatWorld.terrain_rebased`, and the ledger
 clears its history and takes a new baseline. Session-only: never saved.
 
-**Not booked**: a direct `NodeCombat.add_terrain` outside these commits (a test
-or the terrain sandbox tab's arrange writes). Such a write breaks the identity
-for that sample; it is not a gameplay path.
+**Not booked**: any other direct `NodeCombat.add_terrain` / terrain
+`apply_status` (a test's or the terrain sandbox tab's arrange writes, and any
+caller outside the attack pipeline, unaudited). Such a write breaks the identity
+for that sample.

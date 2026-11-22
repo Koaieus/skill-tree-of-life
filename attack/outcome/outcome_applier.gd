@@ -219,7 +219,17 @@ static func land_one(hit: HitInstance, world: CombatWorld,
 	# head's crit there, so its landing does not run twice.
 	if hit.staged:
 		return
+	var was := [slice.terrain_t(), slice.charge()] \
+			if hit is StatusInstance and slice is NodeCombat and not world.is_shadow() else []
 	hit.land_on(slice, world)
+	# A terrain stack landing outside the gather (an unstaged rider) is booked
+	# here, on the live world, as what it changed.
+	if not was.is_empty():
+		var landed := slice as NodeCombat
+		if landed.terrain_t() != int(was[0]) or landed.charge() != int(was[1]):
+			var book := CombatWorld.TerrainBook.new()
+			book.book_landing(int(was[0]), int(was[1]), landed.terrain_t(), landed.charge())
+			world.book_terrain(book.sums)
 	if not recorded:
 		world.track_entries(hit.deallocations)
 	# A recorded PRESENTATION cue (#536; the Ice cues are the other), announced on the mutation clock

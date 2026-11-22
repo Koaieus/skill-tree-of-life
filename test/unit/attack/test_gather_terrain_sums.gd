@@ -379,3 +379,27 @@ func test_a_charge_spend_counts_the_applied_amount_not_the_request() -> void:
 	var sums := _sums(all)
 	assert_eq(_v(sums, _B.CHARGE, _F.VOIDED), have, "the clamp at 0: what was there")
 	_reconcile(all, pre)
+
+
+func test_the_sums_ride_the_record_and_the_live_replay_counts_them_once() -> void:
+	var g := await _tree("r", Vector2.ZERO, 3, 0)
+	var x := g[0]
+	_set_charge(x, _l1(x, 4))
+	var ledger := TerrainLedger.new()
+	add_child_autofree(ledger)
+	var shadow := CombatWorld.shadow()
+	var outcome := AttackOutcome.new()
+	outcome.hits.append_array(_head(DamageInstance.new(), x))
+	await OutcomeApplier.drain(HitQueue.over(outcome.hits), shadow, BeatClock.instant_clock(), null,
+			RandomNumberGenerator.new())
+	var sums := _sums(outcome.hits)
+	assert_eq(_v(sums, _B.CHARGE, _F.EFFECT), 3, "fixture: the shadow resolve booked the go-off")
+	assert_eq(int(ledger.current()[&"charge"][&"effect"]), 0, "the shadow resolve counts nothing")
+	var rebuilt := AttackRecord.rebuild(AttackRecord.capture(outcome, _w.graph), _w.graph)
+	var carriers := rebuilt.hits.filter(func(h: HitInstance) -> bool: return not h.terrain_sums.is_empty())
+	assert_eq(carriers.size(), 1, "only the head carries the sums")
+	assert_eq(_sums(rebuilt.hits), sums, "the sums survive capture and rebuild")
+	await OutcomeApplier.drain(HitQueue.over(rebuilt.hits), CombatWorld.live(), BeatClock.instant_clock())
+	assert_eq(int(ledger.current()[&"charge"][&"effect"]), 3, "the live replay counts them once")
+	assert_eq(int(ledger.current()[&"charge"][&"voided"]), _edge.void_floor + 3, "and its cost")
+	shadow.free_shadow()
