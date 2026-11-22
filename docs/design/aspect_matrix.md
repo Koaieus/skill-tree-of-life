@@ -407,7 +407,7 @@ it turns it into "5 Heat" doing a 1:1 Catalyst→{incoming element} trade"*.
   *"Elements should do just that (affect reach, characteristic to each
   concrete element) and Aspects do anything else"*.
 - **School and facets.** DEX, where Explosive sat; count `catalyst_aspect`,
-  facets `catalyst_stacks_per_hit` / `catalyst_resistance`. The arrow is the
+  facet `catalyst_stacks_per_hit` (no resistance). The arrow is the
   goo (plants Catalyst), the addon is the barrel (map-laid Catalyst), the
   spell intake is Firecracker's row. Look: purple crystals, not black goo.
 

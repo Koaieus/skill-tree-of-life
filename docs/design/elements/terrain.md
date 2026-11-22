@@ -126,7 +126,7 @@ aspect, the Explosive aspect retagged** (owner, 2026-11-09: *"yeahhh exactly
 option 1. w/visually like purple crystals or smth instead of black goo"*; the
 line behind it: *"Aspects do anything else"*): one status,
 count `catalyst_aspect`, school DEX, facets
-`catalyst_stacks_per_hit` / `catalyst_resistance`. The goo arrow plants it, a
+`catalyst_stacks_per_hit` (no resistance). The goo arrow plants it, a
 plain arrow with a Catalyst rider (owner, 2026-11-11: *"Catalyst arrow is
 just a regularly hitting arrow with catalyst rider. It plants catalyst
 stack(s). Not much different from a poison arrow."*). Two volley shapes: Heat arrows

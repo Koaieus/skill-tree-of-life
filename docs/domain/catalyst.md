@@ -18,7 +18,7 @@ order): [hit-resolution.md](hit-resolution.md) § "Catalyst at the land step".
 a `StatusDef`): id `catalyst`, tag `catalyst`, identity
 `identity/defs/catalyst.tres` (violet). The Catalyst `Aspect`
 (`aspects/defs/catalyst.tres`, school DEX) names it with the count
-`catalyst_aspect`, the facets `catalyst_stacks_per_hit` / `catalyst_resistance`,
+`catalyst_aspect`, the facet `catalyst_stacks_per_hit` (no resistance),
 the goo arrow, the barrel and Firecracker; it carries no `GoOff`.
 
 - **Planting.** A row naming Catalyst takes the default `PlantUse`
