@@ -102,3 +102,7 @@ fit_content = true
 scroll_active = false
 autowrap_mode = 0
 theme_override_font_sizes/normal_font_size = 12
+
+[node name="Refresh" type="Timer" parent="."]
+unique_name_in_owner = true
+wait_time = 0.25
