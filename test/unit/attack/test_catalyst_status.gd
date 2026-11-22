@@ -14,14 +14,7 @@ var _entity: Entity
 var _nodes: Array[SkillNode] = []
 
 
-var _pay_pin: Array = []
-
-func after_each() -> void:
-	_unpin_pay_rule(_pay_pin)
-
-
 func before_each() -> void:
-	_pay_pin = _pin_pay_rule()
 	_graph = TestWorld.create(self).graph
 	_alloc = TestWorld.allocator_for(_graph)
 	_entity = autofree(Entity.new())
@@ -189,7 +182,8 @@ func test_a_poison_arrow_on_a_burning_node_spends_heat_and_blasts_poison_outward
 	var reached := EuclideanRangeFinder.new().gather_reach(_f.target, _f.graph.navigator, marks[0].blast_mark.reach)
 	reached.erase(_f.target)
 	assert_gt(reached.size(), 1, "fixture: the disc reaches past the one hostile it hits")
-	assert_eq(before - _heat(_f.target), reached.size(), "the disc spends Heat, 1 per other node reached")
+	var floor := (ElementRoster.shared().by_id(&"fire").bands[0].go_off as GoOff).void_floor
+	assert_eq(before - _heat(_f.target), reached.size() + floor, "the disc spends Heat: its floor and 1 per other node reached")
 
 
 func test_catalyst_only_landings_plant_and_never_go_off() -> void:
@@ -271,31 +265,3 @@ func test_the_catalyst_aspect_mints_the_shipped_arrow() -> void:
 	assert_not_null(aspect.ammo, "catalyst aspect sets ammo")
 	if aspect.ammo != null:
 		assert_eq(aspect.ammo.resource_path, _CATALYST_ARROW_PATH)
-
-
-# --- not about the go-off pay rule ----------------------------------------------
-
-## Pins the pre-floor bill on Fire's and Lightning's shared defs (no floor, the
-## disc voids its per-reached Heat), holding both elements so the writes stay;
-## [method _unpin_pay_rule] restores it. The pay rule's own cases live in
-## `test/unit/elements/test_go_off_pay_rule.gd`.
-func _pin_pay_rule() -> Array:
-	var fire := ElementRoster.shared().by_id(&"fire")
-	var light := ElementRoster.shared().by_id(&"lightning")
-	var disc := fire.bands[0].go_off as DiscGoOff
-	var edge := light.bands[0].go_off as EdgeGoOff
-	var out := [fire, light, disc.void_floor, disc.spent_heat_goes_to, edge.void_floor]
-	disc.void_floor = 0
-	disc.spent_heat_goes_to = DiscGoOff.SpentHeatGoesTo.VOID
-	edge.void_floor = 0
-	return out
-
-
-func _unpin_pay_rule(pin: Array) -> void:
-	if pin.size() < 5:
-		return
-	var disc := (pin[0] as Element).bands[0].go_off as DiscGoOff
-	var edge := (pin[1] as Element).bands[0].go_off as EdgeGoOff
-	disc.void_floor = pin[2]
-	disc.spent_heat_goes_to = pin[3]
-	edge.void_floor = pin[4]

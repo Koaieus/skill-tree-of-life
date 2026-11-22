@@ -27,10 +27,7 @@ var _shadow: CombatWorld
 var _roster: StatusRoster
 
 
-var _pay_pin: Array = []
-
 func before_each() -> void:
-	_pay_pin = _pin_pay_rule()
 	CombatWorld.reset_live()
 	_w = TestWorld.create(self)
 	_red = _w.add_entity("Red")
@@ -49,7 +46,6 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	_unpin_pay_rule(_pay_pin)
 	_roster.statuses.erase(_def)
 	_roster = null
 	if _shadow != null:
@@ -191,8 +187,9 @@ func test_a_land_that_splits_and_primes_records_both_takes() -> void:
 	live.apply_status(_def, 3.0)
 	var outcome := _beat(n, {_fire: 1, _lightning: 1})
 	await _drain(outcome, _shadow)
-	assert_eq(_slice(n, _shadow).terrain_t(), t + 2,
-			"1 Heat landed, 1 converted at land, the leftover 1 converted at settle")
+	var floor := (_fire.bands[0].go_off as GoOff).void_floor
+	assert_eq(_slice(n, _shadow).terrain_t(), t + 2 - floor,
+			"1 Heat landed, 1 converted at land, the leftover 1 at settle; the unreached disc voids its floor")
 	assert_eq(_slice(n, _shadow).charge(), 2, "1 Charge landed and 1 converted")
 	assert_eq(_held(n, _shadow), 0, "the row ends at 0")
 	assert_eq(_taken(outcome), -3.0, "the land take and the settle take are both recorded")
@@ -203,34 +200,6 @@ func test_a_land_that_splits_and_primes_records_both_takes() -> void:
 	assert_eq(takes[0][4], {_fire.id(): 1, _lightning.id(): 1}, "the land take's split")
 	assert_eq(takes[1][4], {_fire.id(): 1}, "the primed settle take records its element")
 	await _drain(_rebuilt(outcome), CombatWorld.live())
-	assert_eq(live.terrain_t(), t + 2, "the rebuilt beat lands the same Heat")
+	assert_eq(live.terrain_t(), t + 2 - floor, "the rebuilt beat lands the same Heat")
 	assert_eq(live.charge(), 2, "and the same Charge")
 	assert_eq(_held(n, CombatWorld.live()), 0, "and takes the row as the gather did")
-
-
-# --- not about the go-off pay rule ----------------------------------------------
-
-## Pins the pre-floor bill on Fire's and Lightning's shared defs (no floor, the
-## disc voids its per-reached Heat), holding both elements so the writes stay;
-## [method _unpin_pay_rule] restores it. The pay rule's own cases live in
-## `test/unit/elements/test_go_off_pay_rule.gd`.
-func _pin_pay_rule() -> Array:
-	var fire := ElementRoster.shared().by_id(&"fire")
-	var light := ElementRoster.shared().by_id(&"lightning")
-	var disc := fire.bands[0].go_off as DiscGoOff
-	var edge := light.bands[0].go_off as EdgeGoOff
-	var out := [fire, light, disc.void_floor, disc.spent_heat_goes_to, edge.void_floor]
-	disc.void_floor = 0
-	disc.spent_heat_goes_to = DiscGoOff.SpentHeatGoesTo.VOID
-	edge.void_floor = 0
-	return out
-
-
-func _unpin_pay_rule(pin: Array) -> void:
-	if pin.size() < 5:
-		return
-	var disc := (pin[0] as Element).bands[0].go_off as DiscGoOff
-	var edge := (pin[1] as Element).bands[0].go_off as EdgeGoOff
-	disc.void_floor = pin[2]
-	disc.spent_heat_goes_to = pin[3]
-	edge.void_floor = pin[4]

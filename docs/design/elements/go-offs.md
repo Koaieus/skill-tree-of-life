@@ -35,8 +35,10 @@ and effect are separate (owner, 2026-11-20): the node's whole bill is voided,
 stopping at 0, and every reached node takes its +1 whether or not the payer
 covered it. Void and move are per-element balance knobs (ADR 0097 §3), as is
 the floor. A Burning node whose disc reaches no *other* node makes no entry
-yet still voids its floor (ADR 0097 §5, tentative knob): hitting a tiny fire
-beats it down.
+yet still voids its floor (ADR 0097 §5, tentative knob): a hit with no Heat
+rider beats a tiny fire down, and a 1-Heat hit on a sub-reach node nets 0,
+so the 1-Heat ramp below stalls at excess 1 while that knob is on (open for
+the owner).
 A spend pays its full cost even when
 that digs under T (owner picked *dig below T* over clamping at T: a degree-4
 node at 9 Charge arcs all four neighbours at cost 4 and drops to 5 — *"would
