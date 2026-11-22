@@ -230,7 +230,7 @@ lands damage outside a hit. Every allocated indexed node whose Fire band sets
 `ElementBand.burn_per_excess` takes that × its excess (Heat − T) through
 `DotTick.mint`: TRUE damage with no record and no attacker, landing by
 `DamageInstance.land_on` on the live slice the way a poison tick does. It runs on
-the world turn's clock and is never a hit (ADR 0081 §9). `_end_world_turn` calls
+the world turn's clock and is never a hit (ADR 0081 §9). `run_world_turn` calls
 it before the flow, so it reads the pre-diffusion t. A shadow world refuses it.
 `docs/domain/elements.md` § Burning burns and lights.
 
