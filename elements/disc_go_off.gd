@@ -22,6 +22,8 @@ extends GoOff
 ## riders landed, the overflow past the cap included.
 enum Power { HEAT_EXCESS }
 
+enum SpentHeatGoesTo { REACHED_NODE, VOID }
+
 ## The disc's power source (see [enum Power]).
 @export var power_source: Power = Power.HEAT_EXCESS
 ## [method disc_radius]'s A, the scale (ADR 0084 §2). Tentative knob (#1800).
@@ -39,6 +41,10 @@ enum Power { HEAT_EXCESS }
 ## raised to this, the shortfall nodeless. 0 turns it off. Tentative knob
 ## (#1828). Editor feedback: the sandbox host's blast tab.
 @export_range(0, 3) var solo_cost_floor := 1
+## Where each per-reached Heat stack goes: +1 Heat on the node it reached (a
+## blast is hot, ADR 0097 §3) or nowhere. Mirrors
+## [member EdgeGoOff.spent_charge_goes_to]. Tentative knob.
+@export_enum("Reached node", "Void") var spent_heat_goes_to: int = SpentHeatGoesTo.REACHED_NODE
 
 ## Answers geometry only, at whatever reach it is asked ([method _within]).
 var _finder: EuclideanRangeFinder = null

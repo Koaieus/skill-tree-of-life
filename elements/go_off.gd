@@ -22,6 +22,13 @@ extends Resource
 ## Whether the go-off lands one more copy on the node it goes off from (the
 ## whole hit, ADR 0086 §1). Tentative knob; #1799's disc sets it false.
 @export var lands_on_own_node := true
+## The stacks a primed node voids each time it goes off, on top of the 1 per
+## reached node (ADR 0097 §2, §4): what lets a board settle. Tentative knob,
+## easy to change. Editor feedback: the sandbox host's blast tab.
+@export_range(0, 5) var void_floor := 1
+## Whether a go-off that reaches nobody still voids [member void_floor] (ADR
+## 0097 §5; only Fire's disc can reach nobody). Tentative knob.
+@export var floor_when_unreached := true
 
 
 func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
