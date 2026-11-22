@@ -431,16 +431,16 @@ func test_9_a_burning_copy_on_a_shocked_node_is_two_go_offs_each_its_own_bill() 
 func test_10_a_copy_reaching_nobody_pays_its_floor_while_the_knob_is_on() -> void:
 	var lone := _at("lone", Vector2.ZERO)
 	await _own([lone])
-	var s := await _burning(func(t: int) -> int: return t + 1)
+	var s := await _burning(func(t: int) -> int: return t + 2)
 	assert_true(_solo_disc(lone, s.copy_read(1)).is_empty(), "fixture: the copy's disc reaches nobody")
 	var c0 := s.vertex_t[1]
 	_land(_contact(s, lone))
 	assert_eq(s.vertex_t[1], maxi(0, c0 - _disc.void_floor), "on: the floor")
 	_disc.floor_when_unreached = false
 	var c1 := s.vertex_t[1]
-	if _disc.power_at(null, s.copy_read(1)) > 0:
-		_land(_contact(s, lone))
-		assert_eq(s.vertex_t[1], c1, "off: nothing")
+	assert_gt(_disc.power_at(null, s.copy_read(1)), 0, "fixture: the copy is still Burning")
+	_land(_contact(s, lone))
+	assert_eq(s.vertex_t[1], c1, "off: nothing")
 
 
 func test_10b_a_burning_node_and_copy_reaching_nobody_each_void_their_floor() -> void:

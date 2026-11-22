@@ -39,8 +39,8 @@ enum SpentHeatGoesTo { REACHED_NODE, VOID }
 ## damage ∝ power"). 0 by default; Burning's 2 on Fire's instance.
 ## Tentative knob (#1800).
 @export_range(0.0, 10.0, 0.1) var damage_per_power := 0.0
-## Where each per-reached Heat stack goes: +1 Heat on the node it reached (a
-## blast is hot, ADR 0097 §3) or nowhere. Mirrors
+## Whether the effect lands: +1 Heat on every node the disc reaches (a blast
+## is hot, ADR 0097 §3, ADR 0098) or none; the cost is voided either way. Mirrors
 ## [member EdgeGoOff.spent_charge_goes_to]. Tentative knob.
 @export_enum("Reached node", "Void") var spent_heat_goes_to: int = SpentHeatGoesTo.REACHED_NODE
 

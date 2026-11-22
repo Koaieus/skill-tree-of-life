@@ -7,7 +7,8 @@ extends GoOff
 ## not (ADR 0084 §7), L read off the node's post-land Charge on the ladder
 ## `count > L^exp × T` ([method level_of]). The node voids
 ## [member GoOff.void_floor] and pays 1 per reached node within its own level;
-## on the default each of those takes +1 Charge ([member GoOffResult.effect]);
+## on the default every reached node takes +1 Charge
+## ([member GoOffResult.effect]), combined reach included (ADR 0098);
 ## a node at hop depth d ≥ 2 names the depth − 1 nodes it hangs behind
 ## ([member GoOffResult.Reach.ring]). No own damage. The gather owns the rest
 ## (chains, the once-per-node set, the generations, the centre landing).
@@ -20,8 +21,9 @@ enum SpentChargeGoesTo { REACHED_NODE, VOID }
 ## A ceiling on the level read from the node's own count (a level a caller
 ## adds is the caller's). Tentative knob; the cap k × T already bounds it.
 @export_range(1, 6) var max_level := 3
-## Where each per-reached stack goes: +1 Charge on the node it reached (the
-## owner's default: a discharge is charged, ADR 0097 §3) or nowhere.
+## Whether the effect lands: +1 Charge on every node the arc reaches (the
+## owner's default: a discharge is charged, ADR 0097 §3, ADR 0098) or none.
+## The cost is voided either way.
 @export_enum("Reached node", "Void") var spent_charge_goes_to: int = SpentChargeGoesTo.REACHED_NODE
 
 
