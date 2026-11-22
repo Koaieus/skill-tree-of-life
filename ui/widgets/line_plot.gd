@@ -7,7 +7,9 @@ extends Control
 ## Every series shares one x-domain (index i sits at the same x on every line,
 ## spread over the longest series); y spans the min..max of all series, always
 ## including 0. A series of fewer than 2 points draws nothing; an empty plot
-## draws nothing at all. Size and anchors are the Control's own.
+## draws nothing at all — except in the editor, where an unfed plot shows a
+## fixed preview so its look exports give feedback. Size and anchors are the
+## Control's own.
 
 ## Stroke width of each series line, in pixels.
 @export_range(0.5, 8.0, 0.5) var line_width: float = 2.0:
@@ -41,7 +43,7 @@ var _colors: PackedColorArray = PackedColorArray()
 
 ## Replaces every series; colors[i] paints series i (white when missing).
 func set_series(series: Array[PackedFloat32Array], colors: PackedColorArray) -> void:
-	_series = series.duplicate()
+	_series = series.duplicate(true)
 	_colors = colors.duplicate()
 	queue_redraw()
 
@@ -93,15 +95,18 @@ static func to_points(values: PackedFloat32Array, rect: Rect2, vmin: float, vmax
 
 
 func _draw() -> void:
-	var count := x_count(_series)
+	var series := _series
+	if series.is_empty() and Engine.is_editor_hint():
+		series = _editor_preview()
+	var count := x_count(series)
 	if count < 2:
 		return
 	var rect := Rect2(Vector2.ZERO, size).grow(-padding)
 	if rect.size.x <= 0.0 or rect.size.y <= 0.0:
 		return
-	var domain := value_range(_series)
+	var domain := value_range(series)
 	var lines: Array[PackedVector2Array] = []
-	for values in _series:
+	for values in series:
 		lines.append(to_points(values, rect, domain.x, domain.y, count))
 	if lines.all(func(p: PackedVector2Array) -> bool: return p.is_empty()):
 		return
@@ -113,3 +118,11 @@ func _draw() -> void:
 			continue
 		var color := _colors[i] if i < _colors.size() else Color.WHITE
 		draw_polyline(lines[i], color, line_width, antialiased)
+
+
+static func _editor_preview() -> Array[PackedFloat32Array]:
+	var out: Array[PackedFloat32Array] = [
+		PackedFloat32Array([0, 2, 5, 4, 7, 6, 8]),
+		PackedFloat32Array([1, 0, -2, -3, -1, 1, 2]),
+	]
+	return out
