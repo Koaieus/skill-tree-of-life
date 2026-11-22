@@ -69,6 +69,7 @@ func _contact(gate: BladePopResolver.LiveGate, s: BladeState, hits: Array[HitIns
 	di.type = DamageInstance.Type.PHYSICAL
 	di.target = on
 	di.attacker = _f.attacker
+	di.read_node = s.vertex_node[1]
 	hits.append(di)
 	var landing := HitLanding.riding(di, hits)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
@@ -127,6 +128,26 @@ func test_a_shocked_copy_arcs_from_an_unprimed_contact_and_pays_out_of_the_copy(
 	assert_eq(s.vertex_charge[1], copy - _edge().void_floor - 2, "the copy pays its floor and 1 per node reached")
 	assert_eq(_charge(_f.leaves[0]), source, "never the source node's ints")
 	assert_eq(_charge(_f.target), target, "nor the contact node's")
+
+
+func test_an_arc_reaching_the_source_node_writes_nothing_to_it() -> void:
+	await _board()
+	var links: Array[SkillNode] = [_f.leaves[0], _f.cluster[1]]
+	var next := _f.add_node(&"next", Vector2(420, 60), _f.hostile, links)
+	_prime(_f.leaves[0], 1)
+	var s := _blade()
+	var want := _edge().fire_level_in(null, next, _read(next), _copy(s))
+	assert_true(want.effect.has(_f.leaves[0]), "fixture: the copy's arc reaches its source node")
+	assert_true(want.effect.has(_f.cluster[1]), "fixture: and the contact's other neighbour")
+	var source := _charge(_f.leaves[0])
+	var other := _charge(_f.cluster[1])
+	var copy := s.vertex_charge[1]
+	var hits: Array[HitInstance] = []
+	_contact(BladePopResolver.LiveGate.new(s, _f.attacker), s, hits, next)
+	await _land(hits)
+	assert_eq(_charge(_f.leaves[0]), source, "the source's Charge is unchanged, though the arc reaches it")
+	assert_eq(_charge(_f.cluster[1]), other + 1, "the other neighbour takes the effect's +1 Charge")
+	assert_eq(s.vertex_charge[1], maxi(0, copy - want.incoming_cost), "the copy still pays its own solo cost")
 
 
 func test_a_later_contact_arcs_only_while_the_copy_stays_over_t() -> void:

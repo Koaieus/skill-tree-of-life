@@ -76,6 +76,7 @@ func _contact(gate: BladePopResolver.LiveGate, s: BladeState, hits: Array[HitIns
 	di.type = DamageInstance.Type.PHYSICAL
 	di.target = on
 	di.attacker = _f.attacker
+	di.read_node = s.vertex_node[1]
 	hits.append(di)
 	var landing := HitLanding.riding(di, hits)
 	landing.target_mask = SkillNode.Ownership.HOSTILE
@@ -136,6 +137,7 @@ func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> v
 	assert_eq(shape, 8, "fixture: the vertex's power is copy − T")
 	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), _copy(s))
 	assert_gt(want.reached.size(), 0, "fixture: the disc reaches someone")
+	assert_true(want.effect.has(_f.leaves[0]), "fixture: the disc reaches the source node")
 	var source_t := _heat(_f.leaves[0])
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
@@ -151,8 +153,7 @@ func test_an_unprimed_contact_booms_the_vertexs_disc_sized_by_the_contact() -> v
 	assert_almost_eq(marks[0].reach, _disc().shape_disc_radius(shape, 0.0, r), 0.001,
 			"radius shape_disc_radius(copy − T, 0, R_contact)")
 	assert_almost_eq(marks[0].reach, _disc().disc_radius(shape, r), 0.001, "= disc_radius(copy − T, R)")
-	assert_eq(_heat(_f.leaves[0]), source_t + int(want.effect.get(_f.leaves[0], 0)),
-			"the source pays nothing: it takes only the effect, if the disc reaches it")
+	assert_eq(_heat(_f.leaves[0]), source_t, "the source's Heat is unchanged, though the disc reaches it")
 	assert_eq(_heat(_f.target), target_t, "an unprimed contact node pays nothing")
 	assert_eq(s.vertex_t[1], copy_t - _disc().void_floor - want.reached.size(),
 			"the copy pays its floor and 1 per node reached")
