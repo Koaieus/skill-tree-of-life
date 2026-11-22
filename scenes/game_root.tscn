@@ -49,6 +49,7 @@
 [ext_resource type="PackedScene" path="res://ui/vfx/channel_lasso/channel_lasso_director.tscn" id="32_lasso_dir"]
 [ext_resource type="PackedScene" path="res://ui/vfx/blast_vfx.tscn" id="99_blast_vfx"]
 [ext_resource type="Script" path="res://systems/ring_system.gd" id="100_ring_system"]
+[ext_resource type="Script" path="res://systems/terrain_ledger.gd" id="101_terrain_ledger"]
 
 [node name="GameRoot" type="Node2D" unique_id=599287172]
 script = ExtResource("1_root")
@@ -161,6 +162,10 @@ vision_system = NodePath("../VisionSystem")
 unique_name_in_owner = true
 script = ExtResource("7_turn")
 
+[node name="TerrainLedger" type="Node" parent="Systems"]
+unique_name_in_owner = true
+script = ExtResource("101_terrain_ledger")
+
 [node name="VisionSystem" type="Node" parent="Systems" unique_id=872348382 node_paths=PackedStringArray("graph", "allocation_system")]
 unique_name_in_owner = true
 script = ExtResource("9_vision")
@@ -267,6 +272,9 @@ layer = 2
 [node name="HudRoot" parent="UI" instance=ExtResource("18_hud")]
 unique_name_in_owner = true
 
+[node name="TerrainLedgerOverlay" parent="UI/HudRoot" node_paths=PackedStringArray("ledger")]
+ledger = NodePath("../../../Systems/TerrainLedger")
+
 [node name="Transport" type="Node" parent="." unique_id=1000000531]
 unique_name_in_owner = true
 script = ExtResource("23_transport")
@@ -321,3 +329,4 @@ seat_handover = NodePath("../SeatHandover")
 [connection signal="core_moved" from="Systems/AllocationSystem" to="." method="_on_core_moved"]
 
 [editable path="Graph/FloaterDirector"]
+[editable path="UI/HudRoot"]

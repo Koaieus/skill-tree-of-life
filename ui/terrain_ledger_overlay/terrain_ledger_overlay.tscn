@@ -1,0 +1,104 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/terrain_ledger_overlay/terrain_ledger_overlay.gd" id="1_script"]
+[ext_resource type="PackedScene" path="res://ui/widgets/line_plot.tscn" id="2_plot"]
+[ext_resource type="Resource" path="res://elements/defs/fire.tres" id="3_heat"]
+[ext_resource type="Resource" path="res://elements/defs/ice.tres" id="4_cold"]
+[ext_resource type="Resource" path="res://elements/defs/lightning.tres" id="5_charge"]
+
+[node name="TerrainLedgerOverlay" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+heat_element = ExtResource("3_heat")
+cold_element = ExtResource("4_cold")
+charge_element = ExtResource("5_charge")
+
+[node name="Panel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -460.0
+offset_top = 72.0
+offset_right = -16.0
+offset_bottom = 72.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Rows" type="VBoxContainer" parent="Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Title" type="Label" parent="Panel/Rows"]
+layout_mode = 2
+text = "Terrain ledger (F4) — per world turn"
+
+[node name="HeatRow" type="HBoxContainer" parent="Panel/Rows"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="HeatPlot" parent="Panel/Rows/HeatRow" instance=ExtResource("2_plot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 72)
+layout_mode = 2
+
+[node name="HeatNumbers" type="RichTextLabel" parent="Panel/Rows/HeatRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+theme_override_font_sizes/normal_font_size = 12
+
+[node name="ColdRow" type="HBoxContainer" parent="Panel/Rows"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ColdPlot" parent="Panel/Rows/ColdRow" instance=ExtResource("2_plot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 72)
+layout_mode = 2
+
+[node name="ColdNumbers" type="RichTextLabel" parent="Panel/Rows/ColdRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+theme_override_font_sizes/normal_font_size = 12
+
+[node name="ChargeRow" type="HBoxContainer" parent="Panel/Rows"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="ChargePlot" parent="Panel/Rows/ChargeRow" instance=ExtResource("2_plot")]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(240, 72)
+layout_mode = 2
+
+[node name="ChargeNumbers" type="RichTextLabel" parent="Panel/Rows/ChargeRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+autowrap_mode = 0
+theme_override_font_sizes/normal_font_size = 12

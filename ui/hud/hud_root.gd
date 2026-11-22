@@ -44,6 +44,7 @@ extends Control
 @onready var armed_mode_glow: ArmedModeGlow = %ArmedModeGlow
 @onready var armed_mode_icon: ArmedModeIcon = %ArmedModeIcon
 @onready var stat_board_overlay: StatBoardOverlay = %StatBoardOverlay
+@onready var terrain_ledger_overlay: TerrainLedgerOverlay = %TerrainLedgerOverlay
 @onready var loot_picker: LootPicker = %LootPicker
 @onready var mass_action_confirm_panel: MassActionConfirmPanel = %MassActionConfirmPanel
 @onready var spell_loot_picker: SpellLootPicker = %SpellLootPicker
