@@ -88,12 +88,11 @@ class _Hit:
 	var terrain: Dictionary = {}
 	## `SkillNode -> true`: the nodes this hit landed and read.
 	var visited: Dictionary = {}
-	## Its head's second store ([method HitInstance.go_off_source]), or null.
+	## Its head's one incoming party (ADR 0098): a blade copy
+	## ([method HitInstance.go_off_source]) or a cast's shape
+	## ([member HitInstance.cast_shape]), or null. Read once at the head's own
+	## node ([method _source_at]); null after.
 	var source: GoOffSource = null
-	## Its head's cast shape ([member HitInstance.cast_shape]) and points, read
-	## once at the head's own node ([method _shape_at]); null after.
-	var shape: Element = null
-	var shape_points: int = 0
 
 
 ## One go-off the gather fired that reached a node: its mark, and what its
@@ -109,13 +108,10 @@ class _Fired:
 	var mark: BlastMark = null
 	## `SkillNode -> true`: the reached nodes whose entries it dropped.
 	var dropped: Dictionary = {}
-	## `(Element, int) -> void` when a [GoOffSource] pays instead of the
-	## node's store ([method _fire_source]); else invalid.
-	var spend: Callable = Callable()
-	## `(Element, int) -> void`: a second payer, 1 per reached node, beside
-	## the one above (a vertex's copy whose arc is one channel with a Shocked
-	## node's own: [method _fire_vertex_arc]); else invalid.
-	var copy_spend: Callable = Callable()
+	## `(Element, int) -> void`: the incoming party's payer
+	## ([member GoOffSource.spend]), billed its deeper nodes'
+	## [member GoOffResult.incoming_at] at release; else invalid.
+	var payer: Callable = Callable()
 
 
 const DEFAULT_TUNABLES := preload("res://attack/outcome/hit_gather_tunables.tres")
@@ -209,9 +205,8 @@ static func stage_one(group: Array[HitInstance], world: CombatWorld, queue: HitQ
 	for h in order:
 		h.head.stamp_at_gather(world)
 		h.source = h.head.go_off_source()
-		if h.head.cast_shape != null and h.head.cast_shape_points > 0:
-			h.shape = h.head.cast_shape
-			h.shape_points = h.head.cast_shape_points
+		if h.source == null and h.head.cast_shape != null and h.head.cast_shape_points > 0:
+			h.source = GoOffSource.shape(h.head.cast_shape, h.head.cast_shape_points)
 		gather._open_head(h, crit_rng)
 		# A head its gate refuses takes no part: no go-off, no spend, no copies.
 		h.head.resolve_gate(world)
@@ -330,30 +325,9 @@ func _generation(arrivals: Array[Arrival], generation: int) -> Array[Arrival]:
 		var landing: Array = reading[node]
 		for h: _Hit in landing:
 			var muted: bool = fires != null and not (fires as Dictionary).has(h)
-			var shape := _shape_at(h, node)
+			var source := _source_at(h, node)
 			for e: Element in ElementRoster.shared().elements:
-				var band := read.band(e)
-				if band == null or band.go_off == null or muted:
-					continue
-				if _vertex_disc(h, node, e) != null and band.go_off is DiscGoOff:
-					continue  # adds up with the vertex's shape ([method _fire_vertex_disc])
-				if _vertex_arc(h, node, e) != null and band.go_off is EdgeGoOff:
-					continue  # one Lightning channel with the vertex's arc ([method _fire_vertex_arc])
-				var result: GoOffResult = null
-				var shaped: Variant = _shaped_in(e, h.shape_points, band.go_off) if e == shape else null
-				if shaped != null:
-					result = (shaped as Callable).call(node, read)
-					shape = null  # added up: the band's one channel (ADR 0084 §3, ADR 0086 §5)
-				else:
-					result = band.go_off.fire_in(_world, node, read)
-				if result == null:
-					continue
-				_spend(spends, node, e, result)
-				_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band))
-			if shape != null:
-				_fire_shape_alone(h, node, shape, generation, next)
-			if h.source != null and node == h.head.target:
-				_fire_source(h, node, generation, spends, next, muted)
+				_go_off(h, node, e, null if muted else read, source, generation, spends, next)
 	_release(generation, spends, next)
 	TerrainSettle.commit(spends, _seat_take)
 	_entries.append_array(bursts)
@@ -536,7 +510,7 @@ func _open_head(h: _Hit, crit_rng: RandomNumberGenerator = null) -> void:
 ## its list through this seat (#1812).
 func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 		generation: int, next: Array[Arrival], e: Element = null, named: Identity = null,
-		spend: Callable = Callable(), centre_copy := true, copy_spend: Callable = Callable()) -> void:
+		payer: Callable = Callable(), centre_copy := true) -> void:
 	var fired: _Fired = null
 	var mask := h.head.target_mask
 	for reach in result.reached:
@@ -552,8 +526,7 @@ func _append_reach(h: _Hit, node: SkillNode, result: GoOffResult, go_off: GoOff,
 			fired.node = node
 			fired.element = e
 			fired.result = result
-			fired.spend = spend
-			fired.copy_spend = copy_spend
+			fired.payer = payer
 			if go_off != null:
 				fired.mark = BlastMark.new()
 				fired.mark.centre = node
@@ -594,14 +567,10 @@ func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]
 			fired.dropped[reach.node] = true
 			continue
 		if fired.element != null:
-			var cost := int(fired.result.cost.get(reach.node, 0))
-			if fired.spend.is_valid():
-				if cost > 0:
-					fired.spend.call(fired.element, cost)
-			else:
-				_spend_stacks(spends, fired.node, fired.element, cost)
-			if fired.copy_spend.is_valid():
-				fired.copy_spend.call(fired.element, 1)
+			_spend_stacks(spends, fired.node, fired.element, int(fired.result.cost.get(reach.node, 0)))
+			var incoming := int(fired.result.incoming_at.get(reach.node, 0))
+			if incoming > 0 and fired.payer.is_valid():
+				fired.payer.call(fired.element, incoming)
 			_add(spends, reach.node, fired.element, int(fired.result.effect.get(reach.node, 0)))
 		_join(next, _arrive(fired, reach.node, generation + 1))
 
@@ -797,54 +766,47 @@ func _admits(node: SkillNode, before: TerrainRead, a: Arrival) -> bool:
 	return true
 
 
-## [param h]'s head's second store ([member _Hit.source]) going off at the
-## head's own [param node], beside the node's bands: each band the source's
-## read sits in fires its [GoOff] from [param node] with that read, and the
-## spend (its per-reached part: a copy pays no floor) comes off the source
-## through its callable, never the node's ints; a transfer still lands on the
-## reached nodes. Once per hit, as the node's own
-## go-offs are. An inert source sits in no band, fires nothing, spends nothing.
-func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSettle.Batch,
-		next: Array[Arrival], muted := false) -> void:
-	var read := h.source.read
-	if read == null:
-		return
-	for e: Element in ElementRoster.shared().elements:
-		var band := read.band(e)
-		if band == null or band.go_off == null:
-			continue
-		if band.go_off is DiscGoOff:
-			_fire_vertex_disc(h, node, e, band.go_off as DiscGoOff, generation, spends, next)
-			continue
-		if band.go_off is EdgeGoOff:
-			_fire_vertex_arc(h, node, e, band.go_off as EdgeGoOff, generation, spends, next, muted)
-			continue
-		var result := band.go_off.fire_in(_world, node, read)
-		if result == null:
-			continue
-		var spent := result.spend_at_read() - result.nodeless_cost  # a copy pays no floor
-		if spent > 0 and h.source.spend.is_valid():
-			h.source.spend.call(e, spent)
-		var seen: Dictionary = {}
-		for reach in result.reached:
-			if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
-				continue
-			seen[reach.node] = true
-			_add(spends, reach.node, e, int(result.effect.get(reach.node, 0)))
-		_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
-				h.source.spend)
-
-
-## [param h]'s cast shape element to read at [param node], or null: once, at
-## its head's own node (the seed), then spent ([member _Hit.shape_points]
-## stays for the read). A shape whose element has no
-## shape-taking go-off ([method _shape_band]) is none here (Ice's is #1813's).
-func _shape_at(h: _Hit, node: SkillNode) -> Element:
-	if h.shape == null or node != h.head.target:
+## [param h]'s incoming party to fire with at [param node], or null: once, at
+## its head's own node, then spent.
+func _source_at(h: _Hit, node: SkillNode) -> GoOffSource:
+	if h.source == null or node != h.head.target:
 		return null
-	var e := h.shape
-	h.shape = null
-	return e if _shape_band(e) != null else null
+	var out := h.source
+	h.source = null
+	return out
+
+
+## The one go-off path (ADR 0098): [param node]'s [param e] go-off with its two
+## parties — the node's [param read] (null when muted) where it sits in a band
+## of [param e] that goes off, and [param source] where it contributes in
+## [param e] ([method _band_of]) — fired once
+## ([method GoOff.fire_with]), the node's band's [GoOff] if primed, else the
+## party's. The node's cost comes off its store and the incoming party's
+## [member GoOffResult.incoming_cost] off its payer (deeper nodes' at
+## [method _release]); the effect lands on the reached nodes. A centre copy
+## only when the node is primed. Copy alone, copy + node, shape alone and
+## shape + node are this one call.
+func _go_off(h: _Hit, node: SkillNode, e: Element, read: TerrainRead, source: GoOffSource,
+		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
+	var own: ElementBand = read.band(e) if read != null else null
+	if own != null and own.go_off == null:
+		own = null
+	var theirs: ElementBand = _band_of(source, e)
+	if theirs != null and theirs.go_off == null:
+		theirs = null
+	if own == null and theirs == null:
+		return
+	var band: ElementBand = own if own != null else theirs
+	var result := band.go_off.fire_with(_world, node, read if own != null else null,
+			source if theirs != null else null)
+	if result == null:
+		return
+	_spend(spends, node, e, result)
+	var incoming := result.incoming_at_read()
+	if incoming > 0 and source.pays():
+		source.spend.call(e, incoming)
+	_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
+			source.spend if theirs != null else Callable(), own != null)
 
 
 ## The band of [param e] whose [GoOff] takes a cast's shape: its first holding
@@ -858,136 +820,14 @@ static func _shape_band(e: Element) -> ElementBand:
 	return null
 
 
-## A cast shape of [param e] × [param points] as an extra input to
-## [param go_off] (a primed band of [param e]): `(node, read) -> GoOffResult`, the one combined
-## go-off at the node's solo cost (ADR 0084 §3, §4) — the disc at
-## [method DiscGoOff.fire_shaped_in] of points × the element's per-point power,
-## the arc at [method EdgeGoOff.fire_level_in] of
-## [method EdgeGoOff.level_for_points]. Invalid for any other go-off.
-func _shaped_in(e: Element, points: int, go_off: GoOff) -> Variant:
-	if go_off is DiscGoOff:
-		var power := e.shape_power(points)
-		return func(node: SkillNode, read: TerrainRead) -> GoOffResult:
-			return (go_off as DiscGoOff).fire_shaped_in(_world, node, read, power)
-	if go_off is EdgeGoOff:
-		var level := EdgeGoOff.level_for_points(points)
-		return func(node: SkillNode, read: TerrainRead) -> GoOffResult:
-			return (go_off as EdgeGoOff).fire_level_in(_world, node, read, level)
-	return null
-
-
-## A cast's [param e] shape running alone at its seed [param node] (ADR 0086
-## §4): the element's shape-taking [GoOff] answered with no read (level N at
-## M = 0; the disc of the shape alone), appended as a list with no band behind
-## it — no spend, no own damage, no centre copy, so no channel. Its mark names
-## that band's identity (tentative: Fire → Burning, Lightning → Shocked).
-## Reaching no one is nothing.
-func _fire_shape_alone(h: _Hit, node: SkillNode, e: Element, generation: int,
-		next: Array[Arrival]) -> void:
-	var band := _shape_band(e)
-	var shaped: Callable = _shaped_in(e, h.shape_points, band.go_off)
-	var result: GoOffResult = shaped.call(node, null)
-	if result == null or result.reached.is_empty():
-		return
-	_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
-			Callable(), false)
-
-
-## The disc [param h]'s go-off source sets off in [param e] at its own head's
-## [param node], or null: a vertex copy primed in a [DiscGoOff] band (Fire's
-## Burning) is a shape on the node it touches, never a disc of its own.
-func _vertex_disc(h: _Hit, node: SkillNode, e: Element) -> DiscGoOff:
-	if h.source == null or h.source.read == null or node != h.head.target:
+## The band of [param e] [param source] contributes in, or null: a copy's
+## primed band, a shape's shape-taking band ([method _shape_band]).
+static func _band_of(source: GoOffSource, e: Element) -> ElementBand:
+	if source == null:
 		return null
-	var band := h.source.read.band(e)
-	return band.go_off as DiscGoOff if band != null else null
-
-
-## A primed vertex copy's disc as a shape of power copy − T on the contact
-## [param node], sized by the node: on a node whose own [param e] band goes
-## off by a [DiscGoOff] (Burning) the two add up as ONE channel
-## ([method DiscGoOff.fire_shaped_in]): one mark, the centre copy, the node's
-## solo spend off its store; on any other node (Frozen included) the shape runs
-## alone: a mark, no centre copy, no node spend. Either way the copy pays 1 per
-## node the disc reaches, through the source's spend, and no floor; reaching no
-## one is no go-off for the copy, while a Burning node still voids its floor.
-## The node's own plain go-off is skipped in the go-off loop on the same
-## predicate ([method _vertex_disc]).
-func _fire_vertex_disc(h: _Hit, node: SkillNode, e: Element, copy_disc: DiscGoOff,
-		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]) -> void:
-	var read := TerrainRead.of(_slice(node), node)
-	var own := read.band(e)
-	var burning := own != null and own.go_off is DiscGoOff
-	var disc: DiscGoOff = own.go_off as DiscGoOff if burning else copy_disc
-	var shape := float(disc.power_at(null, h.source.read))
-	var result := disc.fire_shaped_in(_world, node, read, shape)
-	if result == null:
-		return
-	if result.reached.is_empty():
-		if burning:
-			_spend(spends, node, e, result)  # the contact node still voids its floor
-		return
-	if h.source.spend.is_valid():
-		h.source.spend.call(e, result.reached.size())
-	if burning:
-		_spend(spends, node, e, result)
-	var band: ElementBand = own if burning else h.source.read.band(e)
-	_append_reach(h, node, result, disc, generation + 1, next, e, _named(e, band),
-			Callable(), burning)
-
-
-## The arc [param h]'s go-off source sets off in [param e] at its own head's
-## [param node], or null: a vertex copy primed in an [EdgeGoOff] band
-## (Lightning's Shocked) is a shape on the node it touches, never a second arc.
-func _vertex_arc(h: _Hit, node: SkillNode, e: Element) -> EdgeGoOff:
-	if h.source == null or h.source.read == null or node != h.head.target:
-		return null
-	var band := h.source.read.band(e)
-	return band.go_off as EdgeGoOff if band != null else null
-
-
-## A primed vertex copy's arc from the contact [param node], at the copy's
-## level ([method EdgeGoOff.level_of] its read). On a node whose own [param e]
-## band arcs (Shocked) the two are ONE Lightning channel: one arc at the node's
-## level plus the copy's ([method EdgeGoOff.fire_level_in]), one mark, the
-## centre copy, the node paying its solo cost and transfer off its store. On
-## any other node the copy's arc runs alone: a mark, no centre copy, no node
-## spend, its transfer onto each node reached; a [param muted] node (Frozen
-## holding, [method _read_node]) is any other node: its own arc stays trapped.
-## Either way the copy pays 1 per node reached, through the source's spend: depth 1 at this read, deeper ones
-## as [method _release] lets them on. Reaching no one is no go-off. The node's
-## own plain arc is skipped in the go-off loop on [method _vertex_arc].
-func _fire_vertex_arc(h: _Hit, node: SkillNode, e: Element, copy_edge: EdgeGoOff,
-		generation: int, spends: TerrainSettle.Batch, next: Array[Arrival], muted := false) -> void:
-	var read := TerrainRead.of(_slice(node), node)
-	var own := read.band(e)
-	var shocked := not muted and own != null and own.go_off is EdgeGoOff
-	var result: GoOffResult = null
-	if shocked:
-		var edge := own.go_off as EdgeGoOff
-		result = edge.fire_level_in(_world, node, read, edge.level_of(h.source.read))
-	else:
-		result = copy_edge.fire_level_in(_world, node, h.source.read, 0)
-	if result == null or result.reached.is_empty():
-		return
-	var near := 0
-	var seen: Dictionary = {}
-	for reach in result.reached:
-		if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
-			continue
-		seen[reach.node] = true
-		near += 1
-		if not shocked:
-			_add(spends, reach.node, e, int(result.effect.get(reach.node, 0)))
-	if near > 0 and h.source.spend.is_valid():
-		h.source.spend.call(e, near)
-	if shocked:
-		_spend(spends, node, e, result)
-		_append_reach(h, node, result, own.go_off, generation + 1, next, e, _named(e, own),
-				Callable(), true, h.source.spend)
-	else:
-		_append_reach(h, node, result, copy_edge, generation + 1, next, e,
-				_named(e, h.source.read.band(e)), h.source.spend, false)
+	if source.read != null:
+		return source.read.band(e)
+	return _shape_band(e) if source.is_shape() and e == source.element else null
 
 
 ## The spend [param result] returns at its own read, on [param node]'s store

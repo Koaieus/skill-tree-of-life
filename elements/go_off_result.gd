@@ -1,9 +1,12 @@
 class_name GoOffResult
 extends RefCounted
 
-## What a [GoOff] answers ([method GoOff.fire]): the nodes it reached, the
-## spend, where spent stacks go, the share and its own damage. [HitGather]
-## commits the spend as returned and never recounts it from the reach.
+## What a [GoOff] answers ([method GoOff.fire_with]): the nodes it reached, two
+## separate quantities (ADR 0098) — each primed party's **cost** (the node's
+## [member cost] + [member nodeless_cost]; the incoming party's
+## [member incoming_cost]) and the one **effect** on the reached nodes — the
+## share and its own damage. The cost never funds the effect. [HitGather]
+## commits both as returned and never recounts them from the reach.
 
 
 ## One node a go-off reached: its hop depth (1 unless the go-off names more)
@@ -32,12 +35,19 @@ var cost: Dictionary = {}
 ## ([member GoOff.void_floor]).
 var nodeless_cost: int = 0
 ## `SkillNode -> int`: the element's terrain each reached node takes (Fire's
-## Heat, Lightning's Charge), on the element's "Reached node" default. Lands
-## whether or not the payer could cover its cost; never capped by the
-## once-per-node set.
+## Heat, Lightning's Charge): +1 on every reached node, combined reach
+## included, whenever a party is primed and the element's knob is "Reached
+## node". Lands whether or not any payer could cover its cost; never capped by
+## the once-per-node set.
 var effect: Dictionary = {}
-## The spend the go-off charges its own payer on the incoming side; nothing sets it yet.
+## The incoming party's solo bill ([GoOffSource]): [member GoOff.void_floor]
+## plus 1 per node inside its own reach, measured from the hit node; 0 for a
+## party with no payer (a shape) or not primed in this element. Kept apart
+## from [method spend], which is the node's.
 var incoming_cost: int = 0
+## `SkillNode -> int`: the per-reached part of [member incoming_cost], so a
+## deeper node's commits at its release (spend follows landings, ADR 0093 §5).
+var incoming_at: Dictionary = {}
 var share: float = 1.0
 var own_damage: float = 0.0
 ## What the go-off's [BlastMark] draws: its reach in px and its power, filled
@@ -64,4 +74,14 @@ func spend_at_read() -> int:
 	for r in reached:
 		if r != null and r.depth <= 1:
 			total += int(cost.get(r.node, 0))
+	return total
+
+
+## The incoming bill that commits at the go-off's own read: its floor and
+## each depth-1 node's part; a deeper node's waits for its release.
+func incoming_at_read() -> int:
+	var total := incoming_cost
+	for r in reached:
+		if r != null and r.depth > 1:
+			total -= int(incoming_at.get(r.node, 0))
 	return total

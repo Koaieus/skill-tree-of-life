@@ -10,15 +10,19 @@ extends Resource
 ## commits the spend it returns as returned, and makes entries (each reached
 ## node, plus the centre copy) only when the reach holds a node.
 ##
-## The pay rule (ADR 0097 §2-§5): a primed node that goes off voids
-## [member void_floor] ([member GoOffResult.nodeless_cost]) and pays 1 more per
-## other node it reaches ([member GoOffResult.cost]), the centre copy
-## uncounted; a spend may dig under T and stops at 0. Reaching nobody makes no
-## entry yet still voids the floor while [member floor_when_unreached] holds.
-## Where a per-reached stack goes is the element's (the base voids it; Fire's
-## disc and Lightning's arc land +1 on each reached node by default). Every
-## reach at depth 1, at [member share], own damage 0. A subclass overrides
-## [method _reach] for its shape, or [method fire] for another law.
+## Cost and effect (ADR 0098): every primed party — the node, and an incoming
+## [GoOffSource] copy — voids [member void_floor] and pays 1 more per node
+## inside its own reach, measured from the hit node (the node's
+## [member GoOffResult.cost] + [member GoOffResult.nodeless_cost], the copy's
+## [member GoOffResult.incoming_cost]); a spend may dig under T and stops at 0.
+## Reaching nobody makes no entry yet still voids the floor while
+## [member floor_when_unreached] holds. The effect is separate and never
+## funded by the cost: the element's (the base has none; Fire's disc and
+## Lightning's arc land +1 on every node the go-off reaches by default). The
+## gather calls [method fire_with]; every reach at depth 1, at
+## [member share], own damage 0. A subclass overrides [method _reach] for its
+## shape, [method fire] for another law, or [method fire_with] to size the
+## reach by both parties.
 
 ## The share of this go-off's copies, its centre copy included: damage × s,
 ## riders ceil(r × s). Tentative knob (#1798); 1 = the whole hit (ADR 0086 §1).
@@ -59,6 +63,28 @@ func floor_for(reached_any: bool) -> int:
 ## overrides this and has [method fire] read the live world.
 func fire_in(_world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffResult:
 	return fire(node, read)
+
+
+## The one go-off at [param node] with its two parties (ADR 0098): the node's
+## [param read] (null when the node is not primed in this element, or muted)
+## and the incoming [param source] (null when none contributes). Base: the
+## reach by shape alone, off the node's read or else the source's; the node
+## pays only when primed, a source with a payer pays its own floor plus 1 per
+## node reached; no effect. [method fire_in] when there is no source.
+func fire_with(world: CombatWorld, node: SkillNode, read: TerrainRead, source: GoOffSource) -> GoOffResult:
+	if source == null:
+		return fire_in(world, node, read)
+	var out := fire_in(world, node, read if read != null else source.read)
+	if out == null:
+		return out
+	if source.pays() and source.read != null:
+		for r in out.reached:
+			out.incoming_at[r.node] = 1
+		out.incoming_cost = floor_for(not out.reached.is_empty()) + out.incoming_at.size()
+	if read == null:
+		out.cost.clear()
+		out.nodeless_cost = 0
+	return out
 
 
 ## The shape: the other nodes this go-off reaches from [param node], by shape

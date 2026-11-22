@@ -76,6 +76,12 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffRes
 	return out
 
 
+func fire_with(world: CombatWorld, node: SkillNode, read: TerrainRead, source: GoOffSource) -> GoOffResult:
+	if source == null:
+		return fire_in(world, node, read)
+	return fire_shaped_in(world, node, read, source)
+
+
 ## [param n]'s per-reached part on [param out]: 1 stack, and its +1 Heat on
 ## the [member spent_heat_goes_to] default.
 func _pay_for(out: GoOffResult, n: SkillNode) -> void:
@@ -84,40 +90,64 @@ func _pay_for(out: GoOffResult, n: SkillNode) -> void:
 		out.effect[n] = 1
 
 
-## Fire's add-up (ADR 0084 §3, §4): a shape of [param shape_power] (the
-## caller's: a blade vertex's excess at fill, a cast's points × its per-point
-## power) and this disc at [param node] go off as ONE disc of
-## [method shape_disc_radius]. A Burning node ([method power_at] > 0) pays its
-## solo cost: [member GoOff.void_floor] nodeless plus 1 per reached node inside
-## its own [method radius_at] disc, each of those its +1 Heat on the default;
-## its own damage reads its excess only. A node that is not Burning runs the
-## shape alone: no spend, no power, no own damage. No shape and no excess is no
-## go-off. Whether a centre copy lands is the caller's. [method fire_in] is the
-## unshaped disc.
-func fire_shaped_in(world: CombatWorld, node: SkillNode, read: TerrainRead, shape_power: float) -> GoOffResult:
+## The incoming party's power: a copy's excess over its threshold
+## ([method power_at] its read), a shape's points × its element's per-point
+## power ([method Element.shape_power]); 0 for none.
+func power_from(source: GoOffSource) -> float:
+	if source == null:
+		return 0.0
+	if source.read != null:
+		return float(power_at(null, source.read))
+	return source.element.shape_power(source.points) if source.is_shape() else 0.0
+
+
+## Fire's add-up (ADR 0084 §3, §4; ADR 0098): the node's disc and the incoming
+## [param source] (a blade copy's excess, a cast's shape: [method power_from])
+## go off as ONE disc of [method shape_disc_radius] over both powers. Each
+## primed party pays its solo cost: [member GoOff.void_floor] plus 1 per
+## reached node inside its own [method radius_at] disc around [param node]
+## (the node's [member GoOffResult.cost] + nodeless; a copy with a payer its
+## [member GoOffResult.incoming_cost]); a shape pays nothing. While a party is
+## primed every node the combined disc reaches takes +1 Heat on the default.
+## Own damage reads the node's excess only. [param read] null is an unprimed
+## node; nothing on either side is no go-off. Whether a centre copy lands is
+## the caller's. [method fire_in] is the unshaped disc.
+func fire_shaped_in(world: CombatWorld, node: SkillNode, read: TerrainRead, source: GoOffSource) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
 	if node == null:
 		return out
 	var excess := power_at(node, read, world)
-	if excess <= 0:
-		if shape_power <= 0.0:
-			return out
-		out.reach = shape_disc_radius(shape_power, 0.0, node.radius)
-		for n in _within(node, out.reach):
-			out.reached.append(GoOffResult.Reach.new(n))
+	var incoming := power_from(source)
+	if excess <= 0 and incoming <= 0.0:
 		return out
-	out.power = excess
-	out.reach = shape_disc_radius(shape_power, excess, node.radius)
-	out.own_damage = damage_per_power * excess
-	var solo := {}
-	for n in _within(node, radius_at(node, excess)):
-		solo[n] = true
+	var copy_primed := incoming > 0.0 and source.read != null
+	var copy_pays := copy_primed and source.pays()
+	var lands := (excess > 0 or copy_primed) and spent_heat_goes_to == SpentHeatGoesTo.REACHED_NODE
+	out.power = maxi(excess, 0)
+	out.reach = shape_disc_radius(incoming, excess, node.radius)
+	out.own_damage = damage_per_power * maxi(excess, 0)
+	var own := _set_of(_within(node, radius_at(node, excess))) if excess > 0 else {}
+	var theirs := _set_of(_within(node, radius_at(node, int(incoming)))) if copy_pays else {}
 	for n in _within(node, out.reach):
 		out.reached.append(GoOffResult.Reach.new(n))
-		if solo.has(n):
-			_pay_for(out, n)
-	out.nodeless_cost = floor_for(not out.reached.is_empty())
+		if own.has(n):
+			out.cost[n] = 1
+		if theirs.has(n):
+			out.incoming_at[n] = 1
+		if lands:
+			out.effect[n] = 1
+	if excess > 0:
+		out.nodeless_cost = floor_for(not out.reached.is_empty())
+	if copy_pays:
+		out.incoming_cost = floor_for(not out.reached.is_empty()) + out.incoming_at.size()
+	return out
+
+
+static func _set_of(nodes: Array[SkillNode]) -> Dictionary:
+	var out := {}
+	for n in nodes:
+		out[n] = true
 	return out
 
 

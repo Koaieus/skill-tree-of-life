@@ -56,26 +56,49 @@ func _power(base: int) -> int:
 
 
 func fire(node: SkillNode, read: TerrainRead) -> GoOffResult:
-	return fire_level_in(null, node, read, 0)
+	return fire_level_in(null, node, read, null)
 
 
-## The arc at the read's own level M plus [param added] (ADR 0084 §3, §4): one
-## go-off reaching every node within M + added hops of [param node] (never
-## [code]read.node[/code]: a blade source's read names none), paying the
-## node's solo cost: [member GoOff.void_floor] nodeless plus 1 per node within
-## M hops, each its transfer on the default. M = 0 with an added level is a
-## shape alone: it reaches, pays nothing. The reach is the global mirror's one BFS ([method GraphMirror.nodes_within]).
-## [member GoOffResult.power] names M + added, the hops its [BlastMark] draws.
-func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, added: int) -> GoOffResult:
+func fire_with(world: CombatWorld, node: SkillNode, read: TerrainRead, source: GoOffSource) -> GoOffResult:
+	return fire_level_in(world, node, read, source)
+
+
+## The incoming party's level: a copy's [method level_of] its read, a shape's
+## [method level_for_points] its points; 0 for none.
+func level_from(source: GoOffSource) -> int:
+	if source == null:
+		return 0
+	if source.read != null:
+		return level_of(source.read)
+	return level_for_points(source.points) if source.is_shape() else 0
+
+
+## The arc at the read's own level M plus the incoming party's N
+## ([method level_from], ADR 0084 §3, §4; ADR 0098): one go-off reaching every
+## node within M + N hops of [param node] (never [code]read.node[/code]: a
+## blade copy's read names none). Each primed party pays its solo cost: the
+## node [member GoOff.void_floor] nodeless plus 1 per node within M hops; a
+## copy with a payer its floor plus 1 per node within N hops
+## ([member GoOffResult.incoming_cost]); a shape pays nothing. While a party is
+## primed every reached node takes +1 Charge on the default, combined reach
+## included; a shape on an unprimed node only reaches. [param read] null is
+## an unprimed node. The reach is the global mirror's one BFS
+## ([method GraphMirror.nodes_within]). [member GoOffResult.power] names
+## M + N, the hops its [BlastMark] draws.
+func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, source: GoOffSource) -> GoOffResult:
 	var out := GoOffResult.new()
 	out.share = share
 	var own := level_of(read)
-	var level := own + maxi(added, 0)
+	var incoming := level_from(source)
+	var level := own + incoming
 	if node == null or level <= 0:
 		return out
 	var graph := node.get_graph()
 	if graph == null or graph.navigator == null:
 		return out
+	var copy_primed := incoming > 0 and source.read != null
+	var copy_pays := copy_primed and source.pays()
+	var lands := (own > 0 or copy_primed) and spent_charge_goes_to == SpentChargeGoesTo.REACHED_NODE
 	out.power = level
 	var mirror: GraphMirror = graph.navigator
 	var depth := mirror.nodes_within(node, level)
@@ -97,8 +120,12 @@ func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, adde
 		out.reached.append(reach)
 		if d <= own:
 			out.cost[n] = 1
-			if spent_charge_goes_to == SpentChargeGoesTo.REACHED_NODE:
-				out.effect[n] = 1
+		if copy_pays and d <= incoming:
+			out.incoming_at[n] = 1
+		if lands:
+			out.effect[n] = 1
 	if own > 0:
 		out.nodeless_cost = floor_for(not out.reached.is_empty())
+	if copy_pays:
+		out.incoming_cost = floor_for(not out.reached.is_empty()) + out.incoming_at.size()
 	return out
