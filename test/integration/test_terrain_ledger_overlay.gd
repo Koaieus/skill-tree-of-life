@@ -10,12 +10,16 @@ extends GutTest
 ## `sample_closed` emitted the way the real ledger closes a world turn.
 ##
 ## For the ledger unit's non-empty-after-attack assert: read `%TerrainLedger`
-## BEFORE the `CountingLedger` swap; keep `node_count_override` at 200 or more
-## (40 cannot seat the sandbox's 7 participants); any NodePath authored on
+## BEFORE the `CountingLedger` swap; keep the pinned roster, seed and node
+## count of [method _launch] (the sandbox's own 7 do not always seat); any NodePath authored on
 ## `Systems/TerrainLedger` needs its own `_EXPORT_DEPS` line in
 ## `test_game_root_wiring.gd`.
 
 const _SANDBOX := preload("res://scenes/first_level_sandbox.tscn")
+const _CAMP_1 := preload("res://entity/factions/camp_1.tres")
+const _CAMP_2 := preload("res://entity/factions/camp_2.tres")
+## Pinned so the map, and so whether the roster seats, never varies by run.
+const _SEED := 1845
 
 
 ## Counts every read the overlay makes of the ledger.
@@ -50,10 +54,30 @@ func after_each() -> void:
 	GameSession.local_peer_id = 0
 
 
+func _participant(id: int, kind: Participant.Kind, camp: Faction, peer_id: int = 0) -> Participant:
+	var p := Participant.new()
+	p.id = id
+	p.kind = kind
+	p.camp = camp
+	p.peer_id = peer_id
+	return p
+
+
+## A fixed two-camp roster and seed on a 300-node map, the shape
+## `test_level_consumes_session_roster.gd` shows seats: the sandbox's own
+## bootstrap roster (7 participants) does not always fit a small map.
 func _launch() -> GameRoot:
+	var roster := ParticipantRoster.new()
+	roster.add(_participant(1, Participant.Kind.HUMAN, _CAMP_1, 5))
+	roster.add(_participant(2, Participant.Kind.AI, _CAMP_2))
+	var config := RunConfig.new()
+	config.seed = _SEED
+	GameSession.start(config)
+	GameSession.roster = roster
+	GameSession.local_peer_id = 5
 	var root: GameRoot = _SANDBOX.instantiate()
 	root.get_node("%TurnManager").opens_first_turn = false
-	root.node_count_override = 200
+	root.node_count_override = 300
 	root.enemy_territory_size = 1
 	add_child(root)
 	_root = root
