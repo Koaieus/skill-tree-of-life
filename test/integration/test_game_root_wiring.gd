@@ -78,6 +78,7 @@ const _EXPORT_DEPS: Array = [
 	["Systems/CameraDirector", "graph"],
 	["Systems/CameraDirector", "armed_stack"],
 	["Graph/FogOverlay", "vision_system"],
+	["UI/HudRoot/TerrainLedgerOverlay", "ledger"],
 	["Graph/AuraOverlay", "graph"],
 	["Graph/AuraOverlay", "allocation_system"],
 	["Graph/FloaterDirector", "vision_system"],
