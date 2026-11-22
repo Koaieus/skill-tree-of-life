@@ -41,8 +41,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	_unpin_pay_rule(_pay_pin)
 	_light.bands = _was_bands
+	_unpin_pay_rule(_pay_pin)
 	HitGather.tunables = _was_tunables
 	CombatWorld.reset_live()
 
