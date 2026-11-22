@@ -428,7 +428,7 @@ func _note_played_turn_end() -> void:
 	if _world_turn_progress < world_turn_period(_living_carriers().size(), world_clock):
 		return
 	_world_turn_progress = 0
-	_end_world_turn()
+	run_world_turn()
 
 
 ## The world's turn end (ADR 0055). A world turn only ends: no start, no
@@ -438,8 +438,11 @@ func _note_played_turn_end() -> void:
 ## its holders ([method CombatWorld.burn_terrain], on the pre-diffusion t),
 ## then the terrain pass ([method CombatWorld.flow_temperature]: diffusion,
 ## then decay), then one flush. Runs
-## inside [method end_turn], so [EndTurnCommand] reproduces it on every peer.
-func _end_world_turn() -> void:
+## Public so a caller can run exactly one world turn outside the played-turn
+## cadence; legal whenever the live [CombatWorld] exists and no attack is
+## mid-resolution. The cadence path runs inside [method end_turn], so
+## [EndTurnCommand] reproduces it on every peer; a direct call is local only.
+func run_world_turn() -> void:
 	for e in _turnless_entities():
 		# An earlier host's tick or spread can kill a later one.
 		if is_instance_valid(e) and not e.is_dead:

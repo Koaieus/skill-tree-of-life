@@ -816,7 +816,7 @@ func exert_core_move() -> void:
 ## this entity's NEXT [method begin_turn]. A tick may kill this entity; the
 ## nulled cursor makes the death path's `abandon_turn` a no-op. A turnless host
 ## (no initiative pool — a blocker, a dormant core) has no turn: it runs this
-## on the world turn instead ([method TurnManager._end_world_turn], ADR 0055),
+## on the world turn instead ([method TurnManager.run_world_turn], ADR 0055),
 ## which also ticks the unowned LINGER rows — never this method.
 func resolve_turn_end() -> void:
 	_combat.tick_statuses()

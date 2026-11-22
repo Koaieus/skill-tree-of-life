@@ -278,7 +278,7 @@ func terrain_nodes() -> Array[NodeCombat]:
 
 # ── World-turn terrain pass (#1795) ──────────────────────────────────────────
 #
-# [method TurnManager._end_world_turn] runs [method flow_temperature] after the
+# [method TurnManager.run_world_turn] runs [method flow_temperature] after the
 # lingering ticks and before the flush: Heat/Cold diffusion steps on the signed
 # t, then one decay sweep of t and Charge. Both gather from the terrain index
 # above onto packed arrays (never a walk of the graph) and write only through
@@ -461,7 +461,7 @@ func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: Stat
 ## [member ElementBand.burn_per_excess] takes that × its excess (Heat − T, the
 ## overflow included) as TRUE damage through [method DotTick.mint] — a world
 ## effect with no record, side-blind, and nothing on an unallocated node. Run by
-## [method TurnManager._end_world_turn] before [method flow_temperature], so it
+## [method TurnManager.run_world_turn] before [method flow_temperature], so it
 ## reads the pre-diffusion t; never inside [TerrainSettle]. Amounts are read
 ## from one snapshot, then minted in [member SkillNode.stable_id] order (a burn
 ## that kills a holder can unhold a later node, so the index's insertion order
@@ -493,7 +493,7 @@ func burn_terrain() -> void:
 
 ## One world-turn tick of every node row whose def sets
 ## [member StatusDef.decay_per_world_turn] — run by
-## [method TurnManager._end_world_turn] after [method tick_lingering] and
+## [method TurnManager.run_world_turn] after [method tick_lingering] and
 ## [method burn_terrain].
 ## Snapshot iteration; a node slice whose host is gone is dropped.
 func tick_world_turn_decay() -> void:
@@ -508,7 +508,7 @@ func tick_world_turn_decay() -> void:
 
 
 ## One tick of every unowned lingering host — run once per WORLD turn end by
-## [method TurnManager._end_world_turn] (ADR 0055), after the turnless hosts'
+## [method TurnManager.run_world_turn] (ADR 0055), after the turnless hosts'
 ## ticks and before its flush. Iterates a snapshot: a tick can release a host or add another. A
 ## host whose node is gone is dropped.
 func tick_lingering() -> void:

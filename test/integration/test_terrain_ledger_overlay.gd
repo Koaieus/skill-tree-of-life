@@ -158,7 +158,7 @@ func test_f4_shows_the_overlay_and_hidden_stops_its_draw() -> void:
 	# with the attack's terrain in it.
 	var ledger: TerrainLedger = root.get_node("%TerrainLedger")
 	assert_true(_attack_once(root), "fixture: a primed hostile node to hit")
-	root.get_node("%TurnManager")._end_world_turn()
+	root.get_node("%TurnManager").run_world_turn()
 	assert_false(ledger.samples().is_empty(), "a world turn closes a sample")
 	if not ledger.samples().is_empty():
 		assert_true(_moved(ledger.samples().back()), "the latest sample is non-empty")
