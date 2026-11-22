@@ -215,7 +215,7 @@ Rows are what rests on the node, columns what arrives; a blank cell means
 |---|---|---|---|
 | **inert** (count ≤ T) | lands; a blade feels `t` (Cold drags, Heat speeds) | nets | sheds Cold first: the toll (#1444) |
 | **Burning** | explodes ([go-offs.md](go-offs.md) § The trigger and what a go-off pays) | nets before the read: a Cold rider cools it for its own hit (terrain riders first), a flow for the next landing | |
-| **Shocked** | arcs to every neighbour; a spell walk conducts | | |
+| **Shocked** | arcs to every neighbour | | |
 | **Frozen** | a direct hit lands; a copy under the break threshold (with no holder, any copy that does not crit) is absorbed (its terrain riders still land) and the path ends, only if the node is still Frozen after them (owner, 2026-11-11); a breaking hit or copy lands, takes two more payloads (the break counts as 2 channels) and walks on; a blade vertex's contact lands as a normal hit and the vertex snaps (unless its own riders thaw the node first), and one at least as heavy as the node also breaks it | nets before the read: a Heat rider thaws it for its own hit (terrain riders first), an absorbed copy's included, a flow for the next landing | cold passage: no shed (#1444) |
 
 **Frozen mutes the node's own go-offs; the break releases what it trapped**

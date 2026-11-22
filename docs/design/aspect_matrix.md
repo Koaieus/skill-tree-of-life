@@ -38,7 +38,7 @@ and correct a loose one when you see it (the owner asked to be corrected too).
 | **Rider** | Plants a status, any status (a goo arrow plants Catalyst) | a reach |
 | **Use** | What an intake row's load buys: an open set (ride, a bespoke shape, cleanse …) | a slot |
 | **Member** | A status of an element, whatever its role (Heat of Fire, Frostbite of Ice); Catalyst is nobody's member | a facet or a role |
-| **Volatile** | A state that goes off and travels when hit: Burning (spreads) and Shocked (conducts) (owner, 2026-11-09). A word, not a field | a status tag; Frozen, whose verb ends |
+| **Volatile** | A state that goes off and travels when hit: Burning (spreads) and Shocked (arcs) (owner, 2026-11-09). A word, not a field | a status tag; Frozen, whose verb ends |
 | **Primed** | A node whose terrain stack is past T (count > T, T = 2 × degree): a hit on it sets it off | a status with stacks of its own |
 | **Excess** | count − T on a primed node: Burning's power, what a shatter spends | the overflow |
 | **Overflow** | Stacks past the cap k × T: decay fast; deep freeze spends them | wasted |

@@ -15,7 +15,7 @@ no rule of its own:
 | State | A hit on it | Also |
 |---|---|---|
 | **Burning** | explodes: a disc, power = the excess, a little damage ∝ power, the triggering hit's payload copied over the disc | burns its holder each world turn ∝ the excess, side-blind (owner pick, 2026-11-08) |
-| **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | conducts a spell walk (§ Derived states) |
+| **Shocked** | arcs to **every** neighbour (owner: *"it will arc to *all its neighbors* each time it is hit"*) | its arc is Lightning's line-maker: a line of Shocked nodes is a wire (§ Derived states) |
 | **Frozen** | denies: a copy under the break threshold (on a node with no holder, any copy that does not crit) is absorbed (no damage, no aspect riders; its terrain riders still land), a path ends (0D) — only if the node is still Frozen after those riders (owner, 2026-11-11); a direct hit lands (owner, 2026-11-09, picked *absorbed* over *lands, then stops*); a hit that breaks it lands and walks on | a blade snaps on it if it is still Frozen after the touch's riders (below) |
 
 **What a go-off pays (owner, 2026-11-08): 1 per node it reaches.** One law
@@ -196,24 +196,14 @@ native reach made terrain, and its state is that reach's verb on travel:
 | State | Dimension | Travel verb | Spends |
 |---|---|---|---|
 | **Frozen** | 0D, a point | a path **ends**: hops, chains and arcs stop here, unless an arrival of its generation breaks the ice ([frozen.md](frozen.md) § What breaks the ice; a Frostbite pack, #1444, is the one other exception: cold passage) | nothing |
-| **Shocked** | 1D, a line | a path **conducts**: a spell walk entering a Shocked node leaves it without spending a hop — a line of Shocked nodes is a wire for anyone's magic | one Charge per pass-through |
+| **Shocked** | 1D, a line | a path **conducts**: its arc carries a hit's payload on to every neighbour, and a Shocked neighbour arcs in turn — a line of Shocked nodes is a wire for anyone's magic; a spell walk spends a hop there as anywhere else | what its arc pays (§ The trigger and what a go-off pays) |
 | **Burning** | 2D, a disc | a disc **spreads**: a blast's copy landing on a Burning node sets it off in turn (the trigger) | what a go-off pays (§ The trigger and what a go-off pays) |
 
 A leaf (T 2) primes cheaply and a degree-5 hub (T 10) rarely does, so
-corridors conduct and chain and hubs do not. Both verbs are side-less: your
-own cast conducts through the enemy's wire, your own blast sets off your own
+corridors arc and chain and hubs do not. Both verbs are side-less: the
+enemy's wire arcs your own cast along it, your own blast sets off your own
 Burning node. Rejected for v1 (offered as picture B): Burning denying
 allocation while it burns, Shocked self-discharging on the tick.
-
-**Conduction at 0 hops stays on** (owner, 2026-11-10: *"i forgot i designed
-that as a feature. it's rather powerful, not spending a hop. but might be just
-what it needs"*, then on keeping the 0-hops case: *"i agree with that lean."*):
-a walk that arrives on a Shocked node with no hops left still leaves it. The
-conduct cost (1 Charge per pass-through) is the knob that tunes it, and the one
-to turn if generator keystones make a wire permanent. Pass pick, tentative: the
-pass-through's Charge is spent at the head of the gather of the arriving wave.
-Rejected: conduction only while hops remain, which makes a wire a cheaper hop
-and not a wire.
 
 **Burning is a light source** (owner, 2026-11-06: *"burning being a light
 source does sound clever, could be one of the cells filled by burning"*): a
@@ -249,7 +239,7 @@ charged-up bonus would be a count, not a state.
 
 - **Past the cap.** A build must give the overflow band the primed band's go-off
   and travel verb (the lead call above, tentative): a band list that leaves
-  them off makes a node past k × T neither arc nor conduct, for Burning as for
+  them off makes a node past k × T neither go off nor travel, for Burning as for
   Shocked.
 - **A row with `plants` unset** defaults to Fire's terrain (Heat). That is
   undefined once Frostbite lands (#1444), which needs a row that names its own
@@ -280,7 +270,7 @@ board, where any mode's hit sets it off (Fire, Lightning) or is stopped by it
 |---|---|---|---|---|
 | Melee | STR | **disc** — a blade sweeps a hurtbox | Fire | Burning copies it over a disc |
 | Ranged | DEX | **point** — a target is 0-dimensional | Ice | Frozen denies its reach and ends its path; a blade vertex on it snaps unless its own riders thaw it ([frozen.md](frozen.md) § A blade on Frozen), so melee meets Ice in the counters; on a cast, concentrate ([casting.md](casting.md) § Ice on a cast) |
-| Magic | INT | **path** — projectiles are graph automata over edges | Lightning | Shocked copies it to every neighbour and conducts a spell walk |
+| Magic | INT | **path** — projectiles are graph automata over edges | Lightning | Shocked copies it to every neighbour, and a wire of Shocked nodes arcs it down a line |
 
 Ice reads as ranged's nature turned into terrain: the kiter's gift is
 denial, freezing the chokepoint so the sweeper and the hop-caster cannot
@@ -302,5 +292,5 @@ feature on it's own"*.
 Looks the doc does not specify, each riding its mechanic: the blast rendered
 from the record's blast table; a stagger so a cascade reads as a chain; a
 damage number per copy; the disc's effect sized by √power; the burn tick; the
-arc's flash per hop; a wire's conduction and the Charge it spends per
-pass-through.
+arc's flash per hop; a wire's arc cascade and the Charge it spends per
+node.

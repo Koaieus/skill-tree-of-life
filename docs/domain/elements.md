@@ -58,7 +58,6 @@ stores a band here: #1794's band function reads `bands` against
 | `go_off` | a `GoOff` (`elements/go_off.gd`, the abstract base); Fire's Burning and overflow bands hold a `DiscGoOff` (#1800, #1803), Lightning's Shocked and overflow bands one shared `EdgeGoOff` (#1806), every other band null. #1798 owns the contract, #1799 / #1800 / #1806 the subclasses |
 | `admits` | an `Admits` (`elements/admits.gd`, empty abstract base); set on both Ice bands (one `FrozenAdmits`, § Ice on the node: Frozen), null elsewhere |
 | `travel` | `Travel { NONE, ENDS, CONDUCTS, SPREADS }` |
-| `conduct_cost` | stacks a spell walk spends passing through a node in a CONDUCTS band; Lightning's Shocked and overflow bands 1 (tentative knob), else 0 |
 | `decay_per_world_turn` | the band's own decay rate (a knob) |
 | `light` | the band is a light source: every viewer sees a disc of `DiscGoOff.disc_radius(excess, R)` (§ Burning burns and lights) |
 | `burn_per_excess` | world-turn TRUE damage per stack of excess on an allocated node (default 0, so only Fire's bands burn) |
@@ -336,7 +335,7 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
 - Guards: `test/unit/attack/melee/test_burning_vertex.gd`,
   `test/unit/attack/melee/test_heat_addon.gd`.
 
-## Lightning: Shocked arcs and conducts (#1806)
+## Lightning: Shocked arcs (#1806)
 
 - **The arc** (`elements/edge_go_off.gd`, `EdgeGoOff`). Lightning's Shocked and
   overflow bands hold the same instance (`lightning.tres`; the overflow band
@@ -364,12 +363,6 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   paying M's solo cost. `added` = 0 is the plain `fire`. M = 0 with an added
   level is a shape alone: it reaches but pays nothing. `max_level` caps only
   M; `added` goes on top uncapped, so a combined arc can exceed it.
-- **Conduction.** Shocked and overflow are `travel` CONDUCTS with
-  `conduct_cost` 1. `HitGather._conduct` runs in the go-off loop at the node's
-  read, for the head's own node only, and only if the head `walk_spreads`. It
-  spends the cost into the read's spend batch, so a conduct and an arc on one
-  arrival settle as one summed spend, and it marks the head `conducted`. The
-  walk side is in [spell-propagation.md](spell-propagation.md) § `max_hops`.
 - **The Shocked vertex.** A vertex whose Charge copy sits in an `EdgeGoOff`
   band is a Lightning shape on the node it touches. It arcs at the copy's level
   (`level_of` on the copy's read). `HitGather._fire_source` hands it to
@@ -393,9 +386,9 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   addon, rider only: one `ApplyStatusEffect` of `charge` at `power = 1`
   (tentative knob), costing 1 `lightning_element`.
 - **Tentative knobs**: `ladder_exponent` 2, `max_level` 3,
-  `spent_charge_goes_to` Reached node, and `conduct_cost` 1.
+  and `spent_charge_goes_to` Reached node.
 - **Guards**: `test/unit/elements/test_shocked_go_off.gd`,
-  `test/unit/spell/test_shocked_conduction.gd`,
+  `test/unit/spell/test_shocked_walk_spends_hops.gd`,
   `test/unit/attack/melee/test_shocked_vertex.gd`,
   `test/unit/attack/melee/test_charge_addon.gd`.
 
@@ -532,10 +525,6 @@ as built. One branch of code, the rest pins on what Fire, Lightning and Ice buil
 - A Shocked blade vertex's arc on a muted node runs alone (`_fire_vertex_arc`
   with `muted`): the node's own arc stays trapped, the vertex arcs with no
   centre copy and no node spend. Unpinned (no blade fixture here).
-- Open, as built: a spell walk's conduct is not a go-off and is not muted, so a
-  walk conducting onto a Frozen + Shocked node that holds still pays
-  `conduct_cost` out of the trapped store while its head is marked `path_ends`.
-  The pair table is silent on it.
 - **Landing counts** (b = `FrozenAdmits.break_channels`, 2): a Frozen + Shocked
   node hit under the threshold takes 1; broken, 1 + b + 1 (the released arc's
   centre) plus the burst, each neighbour 1; two breakers in one beat: one

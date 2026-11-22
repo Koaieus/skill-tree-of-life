@@ -480,18 +480,6 @@ future propagation tuning has to be **per-spread-strategy, not a board stat**.
 Bounce count is superlinear in effect, unlike reach. Keep this in view when
 adding any reach stat: it feeds `HopRangeFinder` only.
 
-**Conduction is not a hop modifier; it is the board's.** A walk passing through
-a node whose element band conducts (Lightning's Shocked and overflow bands,
-`ElementBand.travel` CONDUCTS) leaves it without spending a hop, on 0 hops
-left too, and the node pays the band's `conduct_cost` (1, tentative knob) off
-its Charge at its read. Only a walk that can leave conducts
-(`HitInstance.walk_spreads`, set from `config.spread != null`); a spread-less
-spell spends nothing there. The cost is paid on arrival, so a walk whose spread
-then picks nothing has still paid. `PropagationConfig.mint(..., conducts)`
-keeps `hops_remaining`; a `pick.terminal` child still mints at 0 hops and
-conducts on again from a Shocked node. A ring of Shocked nodes stops on
-`max_visits_per_node`, never on hops. `max_hops` itself stays raw.
-
 ### Damage: one coefficient × one board stat (D-32, #274)
 
 The scalar damage knobs above are gone. There is exactly one absolute number
@@ -577,9 +565,7 @@ while wave not empty:
             eff.apply(lctx)
         ctx.global_visit_count[state.current_node] += 1
 
-    # 3a. one head per landing carries walk_spreads = (config.spread != null),
-    #     so a merged landing pays a conduct cost once; on wave 0 the same head
-    #     carries the cast's shape (cast_shape, cast_shape_points: the
+    # 3a. on wave 0 one head per landing carries the cast's shape (cast_shape, cast_shape_points: the
     #     infusion's shape_of(spell) element and its forged shape_points), so
     #     every seed of a multi-seed cast is shaped at its own head and no
     #     later wave carries one
@@ -603,10 +589,7 @@ while wave not empty:
         # the walk also ends where the landing's node said "paths end" at
         # its second Admits read, in the generation its head arrived in
         paths_end = any(hit.is_head and hit.path_ends for hit in event_of[state].hits)
-        # the walk conducted through a Shocked node: the gather paid the
-        # band's conduct_cost at the node's read (below), so no hop is spent
-        conducted = any(hit.is_head and hit.conducted for hit in event_of[state].hits)
-        if (state.hops_remaining <= 0 and not conducted) or config.spread == null or paths_end:
+        if state.hops_remaining <= 0 or config.spread == null or paths_end:
             mark_terminal(state); continue
         reachable = config.reach.candidates(lctx) if config.reach \
                     else graph.get_neighbours(state.current_node)
@@ -614,7 +597,7 @@ while wave not empty:
                       if ctx.visit_count(nb) < config.max_visits_per_node]
         candidates = config.filter.narrow(candidates, lctx)
         for pick in config.spread.select(candidates, lctx):
-            next_wave.append(config.mint(state, pick, lctx, conducted))
+            next_wave.append(config.mint(state, pick, lctx))
     wave = next_wave
 ```
 
@@ -661,9 +644,7 @@ the one before left. At each node of a generation:
    (TRUE, through `DotTick.mint` in stage two), and its extra landings, and
    every path through the node walks on. Otherwise an answer may end the paths
    there, and that verdict rides each head arriving there as `path_ends`, which
-   step 4 reads. In the same loop, a head with `walk_spreads` on its own node in a
-   CONDUCTS band (Shocked) spends the band's `conduct_cost` into the
-   generation's batch and is marked `conducted`, which step 4 also reads. Then, once per node per hit, each band the node sits in fires
+   step 4 reads. Then, once per node per hit, each band the node sits in fires
    its `GoOff` with the post-rider read (a go-off takes no load). The
    generation's spends and transfers (the breaks' included) commit together
    before the next generation's admit.

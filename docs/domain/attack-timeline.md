@@ -372,16 +372,9 @@ N's kills have happened. Four things move together:
    `path_ends`, and step 4 mints no next wave from that landing. A breaker
    shatters the node and its paths walk on. The same answer mutes the node's
    own go-offs while it holds and releases them for the breaking hits only
-   ([elements.md](elements.md) § Pair rules); a walk's conduct (step 4) is not
-   a go-off and is not muted (open: see that section). With a null `Admits` every path walks on, as
+   ([elements.md](elements.md) § Pair rules). With a null `Admits` every path walks on, as
    before ([spell-propagation.md](spell-propagation.md) §
    "Resolver flow").
-4. **A node can carry the walk on.** A head whose walk can leave its landing
-   (`walk_spreads`: the config has a spread) reaching a node whose band
-   conducts (Lightning's Shocked, `travel` CONDUCTS) pays the band's
-   `conduct_cost` off that node at its read, with the read's other spends, and
-   carries `conducted`; step 4 then mints the next wave without spending a hop,
-   on 0 hops left too.
 
 Magic's crit is decided at each landing's head as the wave's landings are
 placed, before the wave's drain, against the world the earlier waves left.
