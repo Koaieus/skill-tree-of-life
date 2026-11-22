@@ -8,7 +8,8 @@ extends StatusDef
 ## over the landing elements ([method converted]); a node crossing T into
 ## Burning, Frozen or Shocked takes the whole store left into that element,
 ## read at settle ([TerrainSettle.PrimeConversion]). Flow at or below T never
-## converts. The row caps at its node's k × T ([member cap_k_times_t]).
+## converts. The row's gains cap at its node's k × T ([member cap_k_times_t]);
+## a cap that drops takes nothing away.
 ##
 ## [method converted] is the pure split, in Catalyst stacks. [method convert] is
 ## the one door that takes a node's row: it splits, trades each part at
@@ -128,28 +129,9 @@ func convert(host, landing: Dictionary, take := Callable()) -> Dictionary:
 
 
 ## The row's cap on [param host]: its k × T while [member cap_k_times_t] and the
-## host is a node that has one; 0 (none of its own) otherwise.
+## host is a node that has one; 0 (none) otherwise. A gain only: a cap that
+## drops under a standing row takes nothing from it ([method StatusDef.cap_on]).
 func cap_on(host) -> int:
 	if not cap_k_times_t or host == null or not host.has_method(&"terrain_cap"):
 		return 0
 	return int(host.terrain_cap())
-
-
-## A restore (a snapshot, a save) is the authority's settled row: never
-## trimmed, though a gate flip or a stake extract may have dropped the cap
-## under it since it landed. [method StatusHost.restore_row] calls this in
-## place of [method _on_applied].
-func _on_restored(_host, _power: float) -> void:
-	pass
-
-
-## Trims the raw row back to [method cap_on] when a landing or a move took it
-## past. The status host clamps at [member StatusDef.power_max] only; a per-host
-## cap there would replace this hook. Re-enters once: the trim lands at the cap.
-func _on_applied(host, _power: float) -> void:
-	var cap := cap_on(host)
-	if cap <= 0:
-		return
-	var raw := int(host.get_status_power(id))
-	if raw > cap:
-		host.adjust_status_power(self, float(cap - raw))

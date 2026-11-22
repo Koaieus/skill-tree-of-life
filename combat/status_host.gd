@@ -96,10 +96,10 @@ func apply_status(def: StatusDef, power: float, camp_id: StringName = &"", appli
 ## applier fields and ramp position ([member NodeStatus.decay_step]) — the
 ## snapshot restore's writer. Never recomputes the key
 ## through the def (a decoded row keeps the key it was saved under); keeps
-## [method apply_status]'s `CLEAR` gate and [method _settle]'s clamp. A restore
-## never re-derives: it hands the row to [method StatusDef._on_restored]
-## (default: [method StatusDef._on_applied]), so a hook that trims to a live cap
-## (Catalyst's k × T) leaves the authority's settled row as it was sent.
+## [method apply_status]'s `CLEAR` gate and [method _settle]'s
+## [member StatusDef.power_max] clamp, but never the def's per-host gain cap
+## ([method StatusDef.cap_on]): the authority's settled row is written as sent,
+## though a cap may have dropped under it since it landed (ADR 0096).
 func restore_row(def: StatusDef, power: float, key: Variant, camp_id: StringName = &"",
 		applier_id: int = 0, decay_step: int = 0) -> void:
 	if def == null or power <= 0.0 or key == null or not _may_host(def):
@@ -127,14 +127,17 @@ func adjust_power(def: StatusDef, delta: float, key: Variant = true) -> void:
 
 
 ## The shared tail: set [param def]'s row to [param target], clamped to
-## [member StatusDef.power_max] (`<= 0` uncapped, #962). `<= 0` goes through
+## [member StatusDef.power_max] (`<= 0` uncapped, #962). A write that RAISES
+## the row is also bounded by the def's per-host cap ([method StatusDef.cap_on],
+## `<= 0` none): it gains at most up to the cap, and a row already over it
+## gains nothing and loses nothing — the cap limits gains only (ADR 0096); a
+## reduction is never touched, so nothing trims a standing row. `<= 0` goes through
 ## [method remove_status]; otherwise the row is created if absent (the FIRST
 ## row is the owner's [code]_on_first_status[/code] cue, #879), set, and
 ## handed to [method StatusDef._on_applied] at its resisted count (ADR 0031).
 ## [param notify] off lets a batch caller refresh once at its end (#880).
 ## [param applier] `[camp_id, applier_id]`, when given, is recorded on the row.
-## [param restoring] (only [method restore_row]) hands the row to
-## [method StatusDef._on_restored] instead of [method StatusDef._on_applied].
+## [param restoring] (only [method restore_row]) skips the per-host gain cap.
 ## [method tick_statuses] is NOT a caller: tick keeps its own tail, because
 ## its survivor path is [method StatusDef._on_tick]'s, not `_on_applied`'s.
 func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = true,
@@ -146,6 +149,10 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 	var whole := roundf(target)
 	var next := whole if def.power_max <= 0.0 else minf(whole, floorf(def.power_max))
 	var before := get_status_power(def.id, key)
+	if not restoring and next > before:
+		var cap := def.cap_on(owner)
+		if cap > 0:
+			next = minf(next, maxf(before, float(cap)))
 	if next <= 0.0:
 		remove_row(def.id, key)
 		return
@@ -158,10 +165,7 @@ func _settle(def: StatusDef, target: float, key: Variant = true, notify: bool = 
 	if applier.size() == 2:
 		row.camp_id = applier[0]
 		row.applier_id = applier[1]
-	if restoring:
-		def._on_restored(owner, effective_power(def, row.power))
-	else:
-		def._on_applied(owner, effective_power(def, row.power))
+	def._on_applied(owner, effective_power(def, row.power))
 	if not had_status:
 		owner._on_first_status()
 	if next > before and def.spread != null and def.spread.settles():

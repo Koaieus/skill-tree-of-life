@@ -60,33 +60,12 @@ class StubOwner:
 		pass
 
 
-## Journals `_on_applied` only: a restore falls back to it.
+## Journals `_on_applied`: a restore hands the row to it like any write.
 class AppliedSpy:
 	extends StatusDef
 	var applied: int = 0
 	func _on_applied(_host, _power: float) -> void:
 		applied += 1
-
-
-## Overrides `_on_restored`: a restore calls it INSTEAD of `_on_applied`.
-class RestoredSpy:
-	extends AppliedSpy
-	var restored: int = 0
-	func _on_restored(_host, _power: float) -> void:
-		restored += 1
-
-
-func test_on_restored_is_a_base_virtual() -> void:
-	assert_true(StatusDef.new().has_method(&"_on_restored"), "StatusDef declares _on_restored")
-
-
-func test_restore_calls_an_overriding_defs_on_restored_instead_of_on_applied() -> void:
-	var o := StubOwner.new()
-	var d := RestoredSpy.new()
-	d.id = &"spy_restored"
-	StatusHost.new(o).restore_row(d, 1.0, true)
-	assert_eq(d.restored, 1, "_on_restored ran once")
-	assert_eq(d.applied, 0, "_on_applied did not run")
 
 
 func test_restore_hands_a_plain_def_to_on_applied() -> void:
@@ -95,9 +74,3 @@ func test_restore_hands_a_plain_def_to_on_applied() -> void:
 	d.id = &"spy_applied"
 	StatusHost.new(o).restore_row(d, 1.0, true)
 	assert_eq(d.applied, 1, "_on_applied ran once")
-
-
-func test_base_on_restored_reaches_on_applied() -> void:
-	var d := AppliedSpy.new()
-	d._on_restored(null, 1.0)
-	assert_eq(d.applied, 1, "the default _on_restored is _on_applied")

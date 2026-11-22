@@ -24,9 +24,13 @@ the goo arrow, the barrel and Firecracker; it carries no `GoOff`.
 - **Planting.** A row naming Catalyst takes the default `PlantUse`
   (`AspectIntake.default_use()`), so a landing plants Catalyst at its load. It
   lands only on allocated nodes, and `on_dealloc` clears it.
-- **Cap.** The row caps at its node's k × T (`NodeCombat.terrain_cap`, #1794)
-  while `cap_k_times_t` is on: `_on_applied` trims a landing or a move that took
-  it past. `power_max` stays 0.
+- **Cap.** The row's gains cap at its node's k × T (`NodeCombat.terrain_cap`,
+  #1794) while `cap_k_times_t` is on, and the cap limits gains only (ADR 0096):
+  `CatalystStatus.cap_on` overrides the `StatusDef.cap_on` virtual, and
+  `StatusHost._settle` bounds a write that raises the row to
+  `min(target, max(before, cap))`. A cap that drops (an edge removal, a stake
+  extract) takes nothing away; a landing on an over-cap row adds and removes
+  nothing; a reduction and a restore are written as sent. `power_max` stays 0.
 - **Decay.** `FlatDecay`, `per_tick` 1.0 (the default), once per **world
   turn**, never at its holder's turn end: the def sets
   `StatusDef.decay_per_world_turn`, so `StatusHost` skips the row in
@@ -168,7 +172,7 @@ All tentative, easy to change.
 | knob | default | owner | what |
 |---|---|---|---|
 | `ratio_in` / `ratio_out` | 1 / 1 | `CatalystStatus` (`effects/status/catalyst.tres`) | the trade rate, Catalyst : landing element; editor feedback in the status sandbox tab |
-| `cap_k_times_t` | true | `CatalystStatus` | cap the row at its node's k × T; off leaves `power_max` alone |
+| `cap_k_times_t` | true | `CatalystStatus` | cap the row's gains at its node's k × T (a dropped cap never trims); off leaves `power_max` alone |
 | `per_tick` | 1.0 | the def's `FlatDecay` | Catalyst lost per world turn |
 | `triggers` | death | `CatalystSpread` | which removal causes burn the row |
 | `crystal_size`, `crystal_cap`, `conversion_pulse_seconds` | 5.0, 6, 0.5 | `StatusOverlay` | the look |

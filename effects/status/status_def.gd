@@ -386,13 +386,12 @@ func _on_applied(_host, _power: float) -> void:
 	pass
 
 
-## A snapshot restore ([method StatusHost.restore_row]) put the authority's
-## settled row back on [param host] at [param power] (resisted, as
-## [method _on_applied] sees it). Defaults to [method _on_applied]; override
-## when a restore must NOT re-derive (Catalyst skips its live-cap trim) — an
-## override runs INSTEAD of [method _on_applied], never beside it.
-func _on_restored(host, power: float) -> void:
-	_on_applied(host, power)
+## The row's per-host gain cap on [param host], in raw stacks; `<= 0` is none.
+## [StatusHost] bounds a write that raises the row to it and never trims a row
+## standing over it (ADR 0096); a restore is never bounded. Read fresh at each
+## gain, so a cap that moves (Catalyst's k × T) needs no hook of its own.
+func cap_on(_host) -> int:
+	return 0
 
 
 ## One turn tick on [param host], BEFORE decay lands: [param before] is the
