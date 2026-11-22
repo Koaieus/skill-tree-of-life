@@ -34,6 +34,8 @@ const _OPPOSITE := {&"heat": &"cold", &"cold": &"heat"}
 @export var voided_color: Color = Color(0.62, 0.62, 0.66)
 ## Line colour of the `decayed` series (tentative).
 @export var decayed_color: Color = Color(0.38, 0.38, 0.46)
+## How far the `effect` series is lightened from the element tint (tentative).
+@export_range(0.0, 1.0, 0.05) var effect_lighten: float = 0.45
 
 @onready var _refresh: Timer = %Refresh
 @onready var _plots: Dictionary = {
@@ -146,7 +148,7 @@ func _color_of(element: StringName, field: StringName) -> Color:
 		&"produced":
 			return _tint_of(element)
 		&"effect":
-			return _tint_of(element).lightened(0.45)
+			return _tint_of(element).lightened(effect_lighten)
 		&"voided":
 			return voided_color
 		&"decayed":

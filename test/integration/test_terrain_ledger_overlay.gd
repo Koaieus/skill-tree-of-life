@@ -8,6 +8,12 @@ extends GutTest
 ## overlay is fed through the ledger's public API only — a counting test
 ## subclass swapped in through the overlay's public `ledger` export, and
 ## `sample_closed` emitted the way the real ledger closes a world turn.
+##
+## For the ledger unit's non-empty-after-attack assert: read `%TerrainLedger`
+## BEFORE the `CountingLedger` swap; keep `node_count_override` at 200 or more
+## (40 cannot seat the sandbox's 7 participants); any NodePath authored on
+## `Systems/TerrainLedger` needs its own `_EXPORT_DEPS` line in
+## `test_game_root_wiring.gd`.
 
 const _SANDBOX := preload("res://scenes/first_level_sandbox.tscn")
 
@@ -54,10 +60,22 @@ func _launch() -> GameRoot:
 	# `_setup_level` is asynchronous; freeing the level mid-await crashes the
 	# engine, so wait for the spawn to land.
 	for _f in 900:
-		if root.graph.entities_container.get_child_count() > 0:
+		if not _spawned_entities(root).is_empty():
 			break
 		await wait_physics_frames(1)
+	assert_false(_spawned_entities(root).is_empty(),
+			"level setup never completed — nothing spawned")
 	return root
+
+
+## The roster's entities only — `entities_container` also holds blockers.
+func _spawned_entities(root: GameRoot) -> Array[Entity]:
+	var out: Array[Entity] = []
+	for c in root.graph.entities_container.get_children():
+		if c is Entity and (c as Entity).faction != null \
+				and (c as Entity).faction.id != &"blocker":
+			out.append(c)
+	return out
 
 
 func _press_toggle(overlay: TerrainLedgerOverlay) -> void:
