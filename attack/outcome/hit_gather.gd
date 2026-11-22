@@ -783,7 +783,9 @@ func _source_at(h: _Hit, node: SkillNode) -> GoOffSource:
 ## ([method GoOff.fire_with]), the node's band's [GoOff] if primed, else the
 ## party's. The node's cost comes off its store and the incoming party's
 ## [member GoOffResult.incoming_cost] off its payer (deeper nodes' at
-## [method _release]); the effect lands on the reached nodes. A centre copy
+## [method _release]); the effect lands on the reached nodes, except the node
+## a contributing copy was copied from ([member HitInstance.read_node]): a
+## swing never writes to its source, cost or effect. A centre copy
 ## only when the node is primed. Copy alone, copy + node, shape alone and
 ## shape + node are this one call.
 func _go_off(h: _Hit, node: SkillNode, e: Element, read: TerrainRead, source: GoOffSource,
@@ -801,6 +803,8 @@ func _go_off(h: _Hit, node: SkillNode, e: Element, read: TerrainRead, source: Go
 			source if theirs != null else null)
 	if result == null:
 		return
+	if theirs != null and source.read != null and h.head.read_node != null:
+		result.effect.erase(h.head.read_node)
 	_spend(spends, node, e, result)
 	var incoming := result.incoming_at_read()
 	if incoming > 0 and source.pays():

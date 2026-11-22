@@ -785,7 +785,7 @@ func _spawn_visuals() -> void:
 
 ## Is vertex [param i] Burning? True iff its copied terrain sits in a band
 ## whose go-off is a [DiscGoOff] (Fire's Burning): the vertex that booms the
-## node it touches ([method HitGather._fire_vertex_disc]). Read at build; a
+## node it touches ([method HitGather._go_off]). Read at build; a
 ## copy spent under T mid-swing keeps the look until the next build.
 static func is_burning_vertex(blade_state: BladeState, i: int) -> bool:
 	if blade_state == null or i < 0 or i >= blade_state.vertex_t.size():

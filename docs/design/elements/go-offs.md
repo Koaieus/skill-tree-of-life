@@ -38,7 +38,8 @@ node** (ADR 0098): the copy and the hit node are two parties of ONE go-off
 whose reach sums their sizes, every primed party pays its own solo bill (the
 floor plus 1 per node inside its own reach, measured from the hit node; the
 copy pays through its own store, never the source node's), and every node
-the combined reach touches takes +1 once. A cast's shape enters the same slot
+the combined reach touches takes +1 once, except the node the copy was
+copied from: a swing never writes to its source, cost or effect. A cast's shape enters the same slot
 but pays nothing, and alone (on an unprimed node) it only reaches: the effect
 needs a primed party. Void and move are per-element balance knobs (ADR 0097 §3), as is
 the floor. A Burning node whose disc reaches no *other* node makes no entry

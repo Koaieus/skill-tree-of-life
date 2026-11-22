@@ -340,7 +340,8 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
     spend, no own damage; the mark's `power` is 0. The copy pays its solo
     cost and every reached node takes +1 Heat.
   - The copy pays through its payer (`BladeState.spend_copy`, clamped at 0);
-    the source node is never touched. A later contact goes off only while
+    the source node is never touched: a swing never writes to its source,
+    so it takes no cost and no +1 Heat even when the disc reaches it. A later contact goes off only while
     the copy stays > T, at its current power. A Burning copy on a Shocked
     node is two go-offs, each its own cost and effect.
 - Guards: `test/unit/attack/melee/test_burning_vertex.gd`,
@@ -386,7 +387,9 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   - **Contact node not Shocked** (or muted by Frozen): the copy's arc alone,
     no centre copy, no node spend; the copy pays its floor and its ring.
   - The copy's level is re-read from its current count on each contact, so it
-    drains across a swing and stops once ≤ T. No per-swing cap, no backlash.
+    drains across a swing and stops once ≤ T. No per-swing cap, no backlash:
+    the source node takes neither cost nor +1 Charge, even when the arc
+    reaches it (ADR 0098).
 - **The Charge addon** (`skill_node/addons/defs/charge_addon.tscn`, look
   `skill_node/addons/visuals/charge_visual.gd`). This is Lightning's element
   addon, rider only: one `ApplyStatusEffect` of `charge` at `power = 1`

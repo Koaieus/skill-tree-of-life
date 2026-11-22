@@ -649,17 +649,17 @@ the one before left. At each node of a generation:
    generation's spends and transfers (the breaks' included) commit together
    before the next generation's admit.
 4. **Shape.** A head carrying a cast's Fire or Lightning shape reads it once,
-   at its own node, in the same loop and after the riders (`_shape_at`; any
-   other element is no shape here). Where the node's band of the shape's
-   element goes off (Burning for Fire, Shocked for Lightning) the shape is an
-   extra input to that band's own call (`_shaped_in`):
+   at its own node, in the same loop and after the riders, as the head's
+   incoming party (`GoOffSource.shape`, read at `_source_at`; any other
+   element is no shape here). Shape and node are one `_go_off` call:
    `DiscGoOff.fire_shaped_in` at `Element.shape_power(points)`, or
-   `EdgeGoOff.fire_level_in` at `EdgeGoOff.level_for_points(points)`. That
-   answers one go-off at the combined reach and the node's solo spend, so it
-   is the band's one channel and one centre copy. Otherwise (unprimed, primed
-   only in another element, or muted by Frozen) the shape runs alone
-   (`_fire_shape_alone`): the same call with no read, appended as a list with
-   no spend, no own damage and no centre copy. It is no channel, so the seed
+   `EdgeGoOff.fire_level_in` at `EdgeGoOff.level_for_points(points)`. Where
+   the node's band of the shape's element goes off (Burning for Fire, Shocked
+   for Lightning) that answers one go-off at the combined reach and the
+   node's solo spend, so it is the band's one channel and one centre copy.
+   Otherwise (unprimed, primed only in another element, or muted by Frozen)
+   the same call runs with no read: no spend, no effect, no own damage and
+   no centre copy. It is no channel, so the seed
    takes no extra landing for it. Its mark names the shape band's identity
    (Burning, Shocked), so the disc and arc looks play at the shaped size.
 
