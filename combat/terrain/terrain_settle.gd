@@ -165,7 +165,8 @@ static func commit_threshold_drops(pre_thresholds: Dictionary, take := Callable(
 		return [] as Array[NodeCombat]
 	var readers := seat(take)
 	for r in readers:
-		(r as PrimeConversion).pre_thresholds = drops
+		if r is PrimeConversion:
+			(r as PrimeConversion).pre_thresholds = drops
 	return commit_with(batch, readers)
 
 

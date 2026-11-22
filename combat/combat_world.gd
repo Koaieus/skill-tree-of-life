@@ -407,7 +407,9 @@ func prime_threshold_drops(pre_thresholds: Dictionary) -> Array[NodeCombat]:
 ## The world turn's Catalyst take ([member TerrainSettle.PrimeConversion.take]):
 ## [param spent] off [param slice]'s row of [param def], then the conversion
 ## cue ([method SkillNode.announce_catalyst_converted]) with the stacks it made. No record:
-## [EndTurnCommand] reproduces the pass on every peer, each announcing its own.
+## [EndTurnCommand] reproduces the pass on every peer, each announcing its own;
+## a gate flip's prime read ([method prime_threshold_drops]) likewise rides its
+## command or replayed record.
 func _world_take(spent: int, converted: Dictionary, slice: NodeCombat, def: StatusDef) -> void:
 	if slice == null:
 		return

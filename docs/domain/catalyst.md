@@ -115,8 +115,11 @@ endpoint's T before `Graph.flip_gates`, then hands them to
 `_world_take` (the conversion cue), one terrain commit. Peers reproduce it as
 they reproduce the flip: `ToggleGatesCommand` or a replayed `GateFlipInstance`.
 An added edge raises T and converts nothing (it may un-prime); an already
-primed node converts nothing new; a bare `Graph.remove_edge` (a snapshot
-apply, a node removal) is not a route; a shadow world reads nothing.
+primed node converts nothing new; a shadow world reads nothing (a
+`GateFlipInstance` flips only on the live replay). Only the gate flip is
+hooked: a snapshot apply's `Graph.remove_edge` must convert nothing (it is the
+authority's settled world), and `Graph.remove_skill_node`'s edge removals are
+not covered yet.
 Multiple counts over the new T split the store by excess past it, as above.
 Pinned by `test/unit/effects/test_catalyst_prime_by_degree.gd`.
 
