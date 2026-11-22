@@ -366,12 +366,12 @@ func test_land_a_copys_heat_rider_converts_the_reached_nodes_catalyst() -> void:
 	var mc := CombatWorld.live().combat_for(m)
 	var disc := _fire.bands[0].go_off as DiscGoOff
 	var rider := ceili(2.0 * disc.share)
-	assert_gte(mc.terrain_threshold(), rider + 3, "fixture: M stays inert after the copy")
+	assert_gte(mc.terrain_threshold(), rider + 3 + 1, "fixture: M stays inert after the copy and the disc's +1")
 	nc.add_terrain(_fire, nc.terrain_threshold() - 1)
 	mc.apply_status(_def, 3.0)
 	var hits := _land(_hit_on(n, {_fire: 2}))
 	assert_gt(_on(hits, m).size(), 0, "fixture: N's disc reached M")
-	assert_eq(mc.terrain_t(), rider + 3, "the copy's Heat rider plus M's 3 Catalyst converted")
+	assert_eq(mc.terrain_t(), rider + 3 + 1, "the copy's Heat rider, M's 3 Catalyst converted, and the disc's +1")
 	assert_eq(int(mc.get_status_power(_def.id)), 0, "copies are hits: M's row is taken")
 
 

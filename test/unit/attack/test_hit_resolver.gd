@@ -362,7 +362,8 @@ func test_stage_one_gathers_every_reached_node_before_any_payload_lands() -> voi
 # 2 ─────────────────────────────────────────────────────────────────────────────
 func test_the_base_go_off_spends_one_per_other_node_reached() -> void:
 	var read := TerrainRead.of(_c(_h), _h)
-	assert_eq(GoOff.new().fire(_h, read).spend(), 0, "the bare base reaches nothing, spends nothing")
+	var bare := GoOff.new()
+	assert_eq(bare.fire(_h, read).spend(), bare.void_floor, "the bare base reaches nothing, voids only its floor")
 	var shape := _ShapeOnly.new()
 	var three: Array[SkillNode] = [_n1, _n2, _n3]
 	shape.nodes = three

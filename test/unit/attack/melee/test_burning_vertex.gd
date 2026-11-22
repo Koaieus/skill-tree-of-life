@@ -229,7 +229,7 @@ func test_a_burning_contact_adds_up_as_one_fire_channel() -> void:
 	assert_eq(e, 1.0, "fixture: the contact node's excess")
 	var want := _disc().fire_shaped_in(null, _f.target, _read(_f.target), shape)
 	var solo := want.spend_at_read()
-	assert_gte(solo, _disc().solo_cost_floor, "fixture: the solo spend, floored")
+	assert_gte(solo, _disc().void_floor, "fixture: the solo spend, its floor included")
 	var target_t := _heat(_f.target)
 	var copy_t := s.vertex_t[1]
 	assert_gt(copy_t, want.reached.size(), "fixture: the copy affords the combined reach")

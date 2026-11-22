@@ -167,5 +167,5 @@ func test_a_shocked_contact_is_one_lightning_channel_with_the_copy() -> void:
 	assert_eq(_marks(copies, _f.target).size(), 1, "one arc at the contact node, never two")
 	assert_eq(_on(copies, _f.target).size(), 1, "one centre landing: the contact node takes 2")
 	assert_eq(_on(copies, far).size(), 1, "the summed level reaches two hops")
-	assert_eq(_charge(_f.target), target - solo, "the node pays its solo cost")
+	assert_eq(_charge(_f.target), target - solo - _edge().void_floor, "the node pays its solo cost and its floor")
 	assert_eq(s.vertex_charge[1], copy - want.reached.size(), "the copy pays 1 per node reached")
