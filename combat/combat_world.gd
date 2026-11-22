@@ -393,6 +393,17 @@ func decay_terrain() -> Array[NodeCombat]:
 	return TerrainSettle.commit(batch, _world_take)
 
 
+## A degree drop's prime read ([method TerrainSettle.commit_threshold_drops]):
+## [param pre_thresholds] is NodeCombat -> its T before the edges went, read by
+## the caller before the topology changed. Its Catalyst takes go through
+## [method _world_take], so each peer reproducing the flip announces its own.
+## A shadow world reads nothing (an attack's flip lands on the live replay).
+func prime_threshold_drops(pre_thresholds: Dictionary) -> Array[NodeCombat]:
+	if _shadow:
+		return [] as Array[NodeCombat]
+	return TerrainSettle.commit_threshold_drops(pre_thresholds, _world_take)
+
+
 ## The world turn's Catalyst take ([member TerrainSettle.PrimeConversion.take]):
 ## [param spent] off [param slice]'s row of [param def], then the conversion
 ## cue ([method SkillNode.announce_catalyst_converted]) with the stacks it made. No record:

@@ -102,6 +102,24 @@ before the land step, so a head's own riders count as the crossing even when
 the split converts nothing: Heat T with 1 Catalyst, hit by 1 Heat + 1 Charge,
 ends with the row at 0.
 
+**At a threshold drop.** T is `t_per_degree × graph degree`, so a removed
+incident edge lowers it by `t_per_degree` per edge, and a count that sat
+at or below the old T can now be over the new one: that primes the node as
+surely as a rising count, and the row converts. The crossing reads both
+thresholds: `pre count ≤ pre T and post count > post T`; a settle commit has
+one T on both sides, a drop has one count on both sides. The production door
+is the gate flip: `AllocationSystem.apply_gate_flip(_recorded)` reads each
+endpoint's T before `Graph.flip_gates`, then hands them to
+`CombatWorld.prime_threshold_drops`, which runs
+`TerrainSettle.commit_threshold_drops` — the same seat, the same
+`_world_take` (the conversion cue), one terrain commit. Peers reproduce it as
+they reproduce the flip: `ToggleGatesCommand` or a replayed `GateFlipInstance`.
+An added edge raises T and converts nothing (it may un-prime); an already
+primed node converts nothing new; a bare `Graph.remove_edge` (a snapshot
+apply, a node removal) is not a route; a shadow world reads nothing.
+Multiple counts over the new T split the store by excess past it, as above.
+Pinned by `test/unit/effects/test_catalyst_prime_by_degree.gd`.
+
 ## The goo arrow
 
 `attack/ammo/types/catalyst.tres` ("Catalyst Arrow", `order` 2) is a plain

@@ -471,8 +471,10 @@ func apply_gate_flip(gates: Array[Gate], entity: Entity) -> Array[SkillNode]:
 	var g := _graph_of(gates)
 	if g == null:
 		return stranded
+	var pre_t := _gate_thresholds(gates)
 	g.flip_gates(gates)
 	_note_gate_piles(gates)
+	CombatWorld.live().prime_threshold_drops(pre_t)
 	if entity != null and entity.navigator != null and entity.core_location != null:
 		# An empty removal set already means "owned nodes the core cannot reach".
 		stranded = entity.navigator.nodes_islanded_by_removing_set([], entity.core_location)
@@ -487,9 +489,27 @@ func apply_gate_flip_recorded(gates: Array[Gate], entity: Entity,
 	var g := _graph_of(gates)
 	if g == null:
 		return
+	var pre_t := _gate_thresholds(gates)
 	g.flip_gates(gates)
 	_note_gate_piles(gates)
+	CombatWorld.live().prime_threshold_drops(pre_t)
 	_cascade_stranded(stranded, entity)
+
+
+## Each gate endpoint's T before the flip (NodeCombat -> T): a removed edge
+## drops it, and a count now over the lower T primes the node
+## ([method CombatWorld.prime_threshold_drops]).
+func _gate_thresholds(gates: Array[Gate]) -> Dictionary:
+	var out := {}
+	for gate in gates:
+		if gate == null:
+			continue
+		for end: SkillNode in [gate.from, gate.to]:
+			if end != null:
+				var c := end.get_combat()
+				if c != null and not out.has(c):
+					out[c] = c.terrain_threshold()
+	return out
 
 
 ## A flip changes both endpoints' degree: a pile on either may now sit at its

@@ -70,14 +70,17 @@ class SettleReader:
 		pass
 
 
-## #1801's prime conversion: when a commit takes a node's Heat, Cold or Charge
-## from inert (count <= T) to primed (> T), the node's whole Catalyst row left
+## #1801's prime conversion: when a node's Heat, Cold or Charge goes from inert
+## (count <= T before) to primed (count > T after), the node's whole Catalyst row left
 ## converts into that element through [method CatalystStatus.convert] and joins
 ## the same write, folded into [param sums]. Two counts crossing in one commit
-## split the store weighted by each one's excess past T (tentative, not the
-## owner's). Flow at or below T never converts, and a node already primed does
-## not convert again on more of the same. It reads the ints it is handed, so a
-## crossing in a land batch, a spend batch or a world-turn step reads alike.
+## split the store weighted by each one's excess past the post T (tentative,
+## not the owner's). Flow at or below T never converts, and a node already
+## primed does not convert again on more of the same. It reads the ints it is
+## handed, so a crossing in a land batch, a spend batch or a world-turn step
+## reads alike. The T before is the node's live T unless [member pre_thresholds]
+## names one: a threshold that dropped under unchanged counts primes the node
+## too ([method commit_threshold_drops]).
 ## It takes the Catalyst off the row, or hands the take to [member take] when
 ## the commit was given one, and writes no terrain int itself.
 class PrimeConversion:
@@ -86,6 +89,9 @@ class PrimeConversion:
 	## `take.call(spent, converted, node, def)` commits the take instead of the row write
 	## ([method CatalystStatus.convert]'s take): #1798's gather records it.
 	var take: Callable
+	## NodeCombat -> its T before a degree drop; a node absent reads its live
+	## T on both sides of the commit.
+	var pre_thresholds: Dictionary = {}
 
 	func _init(catalyst: CatalystStatus, row_take := Callable()) -> void:
 		def = catalyst
@@ -96,11 +102,12 @@ class PrimeConversion:
 		if def == null or node == null or node.get_status_power(def.id) <= 0.0:
 			return
 		var t := node.terrain_threshold()
+		var t0 := int(pre_thresholds.get(node, t))
 		var crossed := {}
 		var axes := {}
-		_cross(crossed, axes, Terrain.Axis.HEAT, maxi(pre_t, 0), maxi(post_t, 0), t)
-		_cross(crossed, axes, Terrain.Axis.COLD, maxi(-pre_t, 0), maxi(-post_t, 0), t)
-		_cross(crossed, axes, Terrain.Axis.CHARGE, pre_charge, post_charge, t)
+		_cross(crossed, axes, Terrain.Axis.HEAT, maxi(pre_t, 0), maxi(post_t, 0), t0, t)
+		_cross(crossed, axes, Terrain.Axis.COLD, maxi(-pre_t, 0), maxi(-post_t, 0), t0, t)
+		_cross(crossed, axes, Terrain.Axis.CHARGE, pre_charge, post_charge, t0, t)
 		if crossed.is_empty():
 			return
 		var out := def.convert(node, crossed, take.bind(node, def) if take.is_valid() else Callable())
@@ -115,15 +122,16 @@ class PrimeConversion:
 					sums.charge += n
 
 	## Records [param axis]'s element in [param crossed] (weight: its excess
-	## past [param t]) iff its count went from <= T to > T.
+	## past [param post_t]) iff its count went from <= [param pre_t] to >
+	## [param post_t].
 	static func _cross(crossed: Dictionary, axes: Dictionary, axis: Terrain.Axis,
-			pre: int, post: int, t: int) -> void:
-		if pre > t or post <= t:
+			pre: int, post: int, pre_t: int, post_t: int) -> void:
+		if pre > pre_t or post <= post_t:
 			return
 		var e := TerrainSettle.element_on(axis)
 		if e == null:
 			return
-		crossed[e.id()] = Terrain.excess(post, t)
+		crossed[e.id()] = Terrain.excess(post, post_t)
 		axes[e.id()] = axis
 
 
@@ -139,6 +147,26 @@ static func seat(take := Callable()) -> Array[SettleReader]:
 		if def is CatalystStatus:
 			out.append(PrimeConversion.new(def, take))
 	return out
+
+
+## A threshold drop's prime read: [param pre_thresholds] maps each node whose
+## T dropped (a removed incident edge) to its T before; with its counts
+## unchanged, a count now over T that was not before primes the node and its
+## Catalyst converts through the seat, landing in one commit like any other.
+## A node whose T did not drop reads nothing. Returns the nodes whose ints moved.
+static func commit_threshold_drops(pre_thresholds: Dictionary, take := Callable()) -> Array[NodeCombat]:
+	var batch := Batch.new()
+	var drops := {}
+	for node: Variant in pre_thresholds:
+		if node is NodeCombat and int(pre_thresholds[node]) > (node as NodeCombat).terrain_threshold():
+			drops[node] = int(pre_thresholds[node])
+			batch.sums(node)
+	if drops.is_empty():
+		return [] as Array[NodeCombat]
+	var readers := seat(take)
+	for r in readers:
+		(r as PrimeConversion).pre_thresholds = drops
+	return commit_with(batch, readers)
 
 
 ## Commit [param batch] with the seat's readers. Returns the nodes whose ints

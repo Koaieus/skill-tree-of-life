@@ -77,7 +77,9 @@ func test_a_gate_removing_an_edge_primes_heat_and_converts() -> void:
 	_node.apply_status(_CATALYST, 3.0)
 	var store := _store()
 	assert_gt(store, 0, "fixture: B holds Catalyst")
+	watch_signals(_b)
 	_flip()
+	assert_signal_emitted(_b, "catalyst_converted", "the live world announces the conversion")
 	assert_lt(_t(), t0, "the flip lowered T")
 	assert_gt(_node.terrain_t(), _t(), "B is Burning at the new T")
 	assert_eq(_store(), 0, "the whole row converted")
@@ -148,3 +150,21 @@ func test_a_snapshot_style_edge_removal_converts_nothing() -> void:
 	_w.graph.remove_edge(_w.graph.edge_between(_gate.from, _gate.to))
 	assert_eq(_store(), store, "a bare edge removal (snapshot apply) is not a priming route")
 	assert_eq(_node.terrain_t(), heat, "Heat untouched")
+
+
+func test_a_shadow_world_stays_silent() -> void:
+	var t0 := _t()
+	var heat := _t_after_drop() + 1
+	_node.add_terrain(_fire, heat)
+	_node.apply_status(_CATALYST, 3.0)
+	var store := _store()
+	var shadow := CombatWorld.shadow()
+	var slice := shadow.combat_for(_b)
+	_w.graph.remove_edge(_w.graph.edge_between(_gate.from, _gate.to))
+	watch_signals(_b)
+	var changed := shadow.prime_threshold_drops({slice: t0, _node: t0})
+	shadow.free_shadow()
+	assert_eq(changed.size(), 0, "the shadow reads nothing")
+	assert_eq(_store(), store, "the live row is untouched")
+	assert_eq(_node.terrain_t(), heat, "live Heat untouched")
+	assert_signal_not_emitted(_b, "catalyst_converted", "no cue on the live world")
