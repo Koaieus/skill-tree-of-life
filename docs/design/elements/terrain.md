@@ -231,9 +231,8 @@ Lightning's edge go-off, transfer by default. It is Lightning's exception to
 the one spend law (ADR 0081 §1, whose rejected "radiating transfer" was
 weighed for Burning's disc, where it mirrors diffusion; ADR 0084 §7 records
 the reversal for arcs). Consequence to tune against: an interior node
-of a wire gets back what it gives, so decay and the conduct cost are what end
-a wire. Pass readings, tentative: the conduct cost of a pass-through is still
-voided; a transferred stack is treated exactly like the Charge rider an arc
+of a wire gets back what it gives, so decay is what ends a wire. Pass
+readings, tentative: a transferred stack is treated exactly like the Charge rider an arc
 copy lands (same commit, same primed-ness read); Burning and Frozen keep the
 void.
 **The arc pays for what it reaches** (owner, 2026-11-11, picked *spend
