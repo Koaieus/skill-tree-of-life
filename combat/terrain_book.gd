@@ -1,3 +1,6 @@
+class_name TerrainBook
+extends TerrainSettle.SettleReader
+
 ## One terrain commit's (or one gather beat's) applied amounts, per element
 ## (Heat, Cold, Charge) × [enum Field], flat in [member sums]: the
 ## telemetry [TerrainLedger] counts (`docs/domain/terrain-ledger.md`). As a
@@ -11,8 +14,6 @@
 ## [member add_field]; whatever the earlier readers added (a Catalyst
 ## conversion) is [code]PRODUCED[/code]. A diffusion book books only the Heat
 ## its flow cancelled onto Cold. Reads, never writes.
-class_name TerrainBook
-extends TerrainSettle.SettleReader
 
 enum Field { PRODUCED, EFFECT, VOIDED, VOIDED_INCOMING, DECAYED, ONTO_OPPOSITE }
 const HEAT := 0
