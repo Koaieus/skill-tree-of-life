@@ -445,7 +445,7 @@ func test_a_new_disc_spends_one_heat_per_node_reached_and_the_floor_nodeless() -
 	assert_eq(result.cost.get(a, 0), 1, "1 per node reached")
 	assert_eq(result.nodeless_cost, fresh.void_floor, "the floor is nodeless")
 	assert_eq(result.spend(), 1 + fresh.void_floor, "spend = the floor plus nodes reached")
-	assert_eq(result.transfer.get(a, 0), 1, "A takes +1 Heat")
+	assert_eq(result.effect.get(a, 0), 1, "A takes +1 Heat")
 
 
 func test_a_new_disc_reaching_no_other_node_spends_its_floor() -> void:

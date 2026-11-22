@@ -7,7 +7,7 @@ extends GoOff
 ## not (ADR 0084 §7), L read off the node's post-land Charge on the ladder
 ## `count > L^exp × T` ([method level_of]). The node voids
 ## [member GoOff.void_floor] and pays 1 per reached node within its own level;
-## on the default each of those takes +1 Charge ([member GoOffResult.transfer]);
+## on the default each of those takes +1 Charge ([member GoOffResult.effect]);
 ## a node at hop depth d ≥ 2 names the depth − 1 nodes it hangs behind
 ## ([member GoOffResult.Reach.ring]). No own damage. The gather owns the rest
 ## (chains, the once-per-node set, the generations, the centre landing).
@@ -98,7 +98,7 @@ func fire_level_in(_world: CombatWorld, node: SkillNode, read: TerrainRead, adde
 		if d <= own:
 			out.cost[n] = 1
 			if spent_charge_goes_to == SpentChargeGoesTo.REACHED_NODE:
-				out.transfer[n] = 1
+				out.effect[n] = 1
 	if own > 0:
 		out.nodeless_cost = floor_for(not out.reached.is_empty())
 	return out

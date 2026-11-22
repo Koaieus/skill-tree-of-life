@@ -35,7 +35,9 @@ var nodeless_cost: int = 0
 ## Heat, Lightning's Charge), on the element's "Reached node" default. Lands
 ## whether or not the payer could cover its cost; never capped by the
 ## once-per-node set.
-var transfer: Dictionary = {}
+var effect: Dictionary = {}
+## The spend the go-off charges its own payer on the incoming side; nothing sets it yet.
+var incoming_cost: int = 0
 var share: float = 1.0
 var own_damage: float = 0.0
 ## What the go-off's [BlastMark] draws: its reach in px and its power, filled

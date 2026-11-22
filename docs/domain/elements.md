@@ -254,7 +254,7 @@ has one power source and one radius law; `fire.tres` sets only `damage_per_power
   (1) voided as `nodeless_cost`, plus 1 Heat per other node reached
   (`GoOffResult.cost`), through the gather's `TerrainSettle` batch. On
   `spent_heat_goes_to` = Reached node (default) each reached node takes +1
-  Heat (`GoOffResult.transfer`); on Void none does. The bill stops at 0 and
+  Heat (`GoOffResult.effect`); on Void none does. The bill stops at 0 and
   the +1s land regardless (cost and effect are separate). A disc that reaches
   no other node makes no entry, no centre copy and no mark, yet still voids
   its floor while `GoOff.floor_when_unreached` holds (default on).
@@ -361,7 +361,7 @@ same `DiscGoOff` as Burning's disc (`elements/disc_go_off.gd`):
   M > 0 voids `GoOff.void_floor` (1) as `nodeless_cost`, and each node
   reached within M hops costs 1 more, itemised in `GoOffResult.cost`. On the
   default `spent_charge_goes_to` (Reached node), that node also takes +1
-  Charge as `transfer`; on Void, it takes nothing. A degree-D node at N
+  Charge as `effect`; on Void, it takes nothing. A degree-D node at N
   arcing its neighbours ends at N − D − 1 (ADR 0097). A node reached only through an added
   level (beyond M) costs nothing and takes nothing.
 - **`fire_level_in(world, node, read, added)`** is the entry point for an extra

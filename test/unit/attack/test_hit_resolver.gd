@@ -45,7 +45,7 @@ class _TestGoOff extends GoOff:
 			r.nodeless_cost = int(nodeless_of[node])
 		if transfer_of.has(node):
 			for reach in r.reached:
-				r.transfer[reach.node] = int(transfer_of[node])
+				r.effect[reach.node] = int(transfer_of[node])
 		r.own_damage = own_damage
 		return r
 

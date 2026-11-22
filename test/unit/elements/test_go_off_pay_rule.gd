@@ -219,8 +219,8 @@ func test_a_shaped_burning_node_pays_the_floor_plus_its_solo_reach() -> void:
 	assert_eq(result.cost.size(), 2, "fixture: the solo disc holds S1 and S2")
 	assert_eq(result.spend(), disc.void_floor + 2, "the floor plus 1 per solo node")
 	assert_eq(result.nodeless_cost, disc.void_floor, "the floor is nodeless")
-	assert_eq(result.transfer.get(s1, 0), 1, "S1 takes +1 Heat")
-	assert_eq(result.transfer.get(s2, 0), 1, "S2 takes +1 Heat")
+	assert_eq(result.effect.get(s1, 0), 1, "S1 takes +1 Heat")
+	assert_eq(result.effect.get(s2, 0), 1, "S2 takes +1 Heat")
 
 
 # --- 4: an empty reach ---------------------------------------------------------------
@@ -292,7 +292,7 @@ func test_a_lightning_shape_on_a_node_not_shocked_spends_nothing() -> void:
 	var result := edge.fire_level_in(null, g[0], TerrainRead.of(_combat(g[0]), g[0]), 1)
 	assert_eq(result.reached.size(), 3, "fixture: the shape reaches the leaves")
 	assert_eq(result.spend(), 0, "no spend, no floor")
-	assert_true(result.transfer.is_empty(), "no transfer")
+	assert_true(result.effect.is_empty(), "no transfer")
 
 
 func test_a_fire_shape_on_a_node_not_burning_spends_nothing() -> void:
@@ -303,7 +303,7 @@ func test_a_fire_shape_on_a_node_not_burning_spends_nothing() -> void:
 	var result := disc.fire_shaped_in(null, c, TerrainRead.of(_combat(c), c), 4.0)
 	assert_false(result.reached.is_empty(), "fixture: the shape reaches someone")
 	assert_eq(result.spend(), 0, "no spend, no floor")
-	assert_true(result.transfer.is_empty(), "no transfer")
+	assert_true(result.effect.is_empty(), "no transfer")
 
 
 # --- 8: the wire of four -------------------------------------------------------------

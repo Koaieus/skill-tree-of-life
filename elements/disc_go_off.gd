@@ -81,7 +81,7 @@ func fire_in(world: CombatWorld, node: SkillNode, read: TerrainRead) -> GoOffRes
 func _pay_for(out: GoOffResult, n: SkillNode) -> void:
 	out.cost[n] = 1
 	if spent_heat_goes_to == SpentHeatGoesTo.REACHED_NODE:
-		out.transfer[n] = 1
+		out.effect[n] = 1
 
 
 ## Fire's add-up (ADR 0084 §3, §4): a shape of [param shape_power] (the

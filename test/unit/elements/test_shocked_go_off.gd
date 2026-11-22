@@ -232,12 +232,12 @@ func test_the_arc_answers_cost_transfer_depth_ring_share_and_no_damage() -> void
 	assert_true(got[g[1]].ring.is_empty(), "a depth-1 node hangs behind nothing")
 	for n in [g[1], g[2], g[3]]:
 		assert_eq(int(result.cost.get(n, 0)), 1, "1 Charge per node reached")
-		assert_eq(int(result.transfer.get(n, 0)), 1, "1 stack lands on each node reached")
+		assert_eq(int(result.effect.get(n, 0)), 1, "1 stack lands on each node reached")
 	assert_eq(result.spend(), 3 + arc.void_floor, "spend = the floor plus the number reached")
 	assert_eq(result.share, arc.share, "share is the instance's")
 	assert_eq(result.own_damage, 0.0, "no own damage")
 	arc.spent_charge_goes_to = EdgeGoOff.SpentChargeGoesTo.VOID
-	assert_true(arc.fire(x, _read(lv2, t)).transfer.is_empty(), "Void names no transfer")
+	assert_true(arc.fire(x, _read(lv2, t)).effect.is_empty(), "Void names no transfer")
 
 
 # --- 2: the ladder, 2a: the level entry ------------------------------------------

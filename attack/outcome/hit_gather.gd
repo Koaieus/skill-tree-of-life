@@ -602,7 +602,7 @@ func _release(generation: int, spends: TerrainSettle.Batch, next: Array[Arrival]
 				_spend_stacks(spends, fired.node, fired.element, cost)
 			if fired.copy_spend.is_valid():
 				fired.copy_spend.call(fired.element, 1)
-			_add(spends, reach.node, fired.element, int(fired.result.transfer.get(reach.node, 0)))
+			_add(spends, reach.node, fired.element, int(fired.result.effect.get(reach.node, 0)))
 		_join(next, _arrive(fired, reach.node, generation + 1))
 
 
@@ -830,7 +830,7 @@ func _fire_source(h: _Hit, node: SkillNode, generation: int, spends: TerrainSett
 			if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
 				continue
 			seen[reach.node] = true
-			_add(spends, reach.node, e, int(result.transfer.get(reach.node, 0)))
+			_add(spends, reach.node, e, int(result.effect.get(reach.node, 0)))
 		_append_reach(h, node, result, band.go_off, generation + 1, next, e, _named(e, band),
 				h.source.spend)
 
@@ -978,7 +978,7 @@ func _fire_vertex_arc(h: _Hit, node: SkillNode, e: Element, copy_edge: EdgeGoOff
 		seen[reach.node] = true
 		near += 1
 		if not shocked:
-			_add(spends, reach.node, e, int(result.transfer.get(reach.node, 0)))
+			_add(spends, reach.node, e, int(result.effect.get(reach.node, 0)))
 	if near > 0 and h.source.spend.is_valid():
 		h.source.spend.call(e, near)
 	if shocked:
@@ -1000,7 +1000,7 @@ func _spend(batch: TerrainSettle.Batch, node: SkillNode, e: Element, result: GoO
 		if reach == null or reach.node == null or reach.depth > 1 or seen.has(reach.node):
 			continue
 		seen[reach.node] = true
-		_add(batch, reach.node, e, int(result.transfer.get(reach.node, 0)))
+		_add(batch, reach.node, e, int(result.effect.get(reach.node, 0)))
 
 
 ## The gather's one seat for a status-row change: [param delta] on the row of
